@@ -87,7 +87,7 @@ base_snapshot_exists \
 
 create_staged_fs
 sysrc -f $STAGE_MNT/etc/rc.conf hostname=mysql
-start_staged_jail $SAFE_NAME $STAGE_MNT
+start_staged_jail
 install_mysql
 create_data_fs
 start_mysql

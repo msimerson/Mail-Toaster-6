@@ -114,10 +114,18 @@ create_staged_fs()
 
 start_staged_jail()
 {
+	if [$# -eq 2]; then
+		local _name=$1
+		local _path=$2
+	else
+		local _name="$SAFE_NAME"
+		local _path="$STAGE_MNT"
+	fi
+
 	jail -c \
-		name=$1 \
-		host.hostname=$1 \
-		path=$2 \
+		name=$_name \
+		host.hostname=$_name \
+		path=$_path \
 		interface=$JAIL_NET_INTERFACE \
 		ip4.addr=$STAGE_IP \
 		exec.start="/bin/sh /etc/rc" \

@@ -98,7 +98,7 @@ base_snapshot_exists \
 
 create_staged_fs
 sysrc -f $STAGE_MNT/etc/rc.conf hostname=dns
-start_staged_jail $SAFE_NAME $STAGE_MNT
+start_staged_jail
 install_unbound
 configure_unbound
 start_unbound
