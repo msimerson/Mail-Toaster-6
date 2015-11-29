@@ -59,6 +59,14 @@ EO_MAKE_CONF
 		sendmail_enable=NONE \
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
+
+	echo "Generating self-signed SSL certificates"
+	echo "\thint: use the FQDN of this server for the common name"
+	echo
+	openssl req -x509 -nodes -days 2190 \
+	    -newkey rsa:2048 \
+	    -keyout $BASE_MNT/etc/ssl/private/server.key \
+	    -out $BASE_MNT/etc/ssl/certs/server.crt
 }
 
 install_bash()

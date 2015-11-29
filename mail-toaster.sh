@@ -135,10 +135,10 @@ start_staged_jail()
 
 rename_fs_staged_to_ready()
 {
-	local _new_vol="$ZFS_JAIL_VOL/${1}.new"
+	local _new_vol="$ZFS_JAIL_VOL/${1}.ready"
 
 	# clean up stages that failed promotion
-	if [ -d "$ZFS_JAIL_MNT/${1}.new" ]; then
+	if [ -d "$ZFS_JAIL_MNT/${1}.ready" ]; then
 		echo "zfs destroy $_new_vol (failed promotion)"
 		zfs destroy $_new_vol || exit
 	else
@@ -159,12 +159,12 @@ rename_fs_active_to_last()
 	local LAST="$ZFS_JAIL_VOL/$1.last"
 	local ACTIVE="$ZFS_JAIL_VOL/$1"
 
-	if [ -d "$LAST" ]; then
+	if [ -d "$ZFS_JAIL_MNT/$1.last" ]; then
 		echo "zfs destroy $LAST"
 		zfs destroy $LAST || exit
 	fi
 
-	if [ -d "$ACTIVE" ]; then
+	if [ -d "$ZFS_JAIL_MNT/$1" ]; then
 		echo "zfs rename $ACTIVE $LAST"
 		zfs rename $ACTIVE $LAST || exit
 	fi
@@ -172,8 +172,8 @@ rename_fs_active_to_last()
 
 rename_fs_ready_to_active()
 {
-	echo "zfs rename $$ZFS_JAIL_VOL/${1}.new $ZFS_JAIL_VOL/$1"
-	zfs rename $ZFS_JAIL_VOL/${1}.new $ZFS_JAIL_VOL/$1 || exit
+	echo "zfs rename $$ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1"
+	zfs rename $ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1 || exit
 }
 
 proclaim_success()
@@ -195,4 +195,14 @@ promote_staged_jail()
 	echo "start jail $1"
 	service jail start $1 || exit
 	proclaim_success $1
+}
+
+stage_pkg_install()
+{
+	jexec $SAFE_NAME pkg install -y $@
+}
+
+stage_rc_conf()
+{
+	sysrc -f $STAGE_MNT/etc/rc.conf $@
 }
