@@ -1,10 +1,6 @@
 #!/bin/sh
 
-. mail-toaster.sh
-
-# Modify to suit
-#export BASE_JAIL_NET="lo0|127.0.0.2"
-export BASE_JAIL_NET="lo0|127.0.0.7"
+. mail-toaster.sh || exit
 
 export SAFE_NAME=`safe_jailname $BASE_NAME`
 
@@ -12,7 +8,7 @@ create_zfs_jail_root()
 {
 	if [ ! -d "$ZFS_JAIL_MNT" ];
 	then
-		echo "creating $ZFS_JAIL_MNT"
+		echo "creating $ZFS_JAIL_MNT fs"
 		zfs create -o mountpoint=$ZFS_JAIL_MNT $ZFS_JAIL_VOL || exit
 	fi
 }
@@ -32,7 +28,7 @@ install_freebsd()
 {
 	if [ ! -f "base.txz" ];
 	then
-		fetch $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz || exit
+		fetch -m $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz || exit
 	fi
 
 	tar -C $BASE_MNT -xvpJf base.txz || exit
@@ -47,7 +43,7 @@ update_freebsd()
 configure_base()
 {
 	mkdir $BASE_MNT/usr/ports || exit
-	mkdir $BASE_MNT/etc/ssl/certs $BASE_MNT/etc/ssl/private
+	mkdir $BASE_ETC/ssl/certs $BASE_ETC/ssl/private
 	chmod o-r $BASE_MNT/etc/ssl/private
 
 	cp /etc/resolv.conf $BASE_ETC || exit
@@ -59,16 +55,24 @@ WRKDIRPREFIX?=/tmp/portbuild
 EO_MAKE_CONF
 
 	sysrc -f $BASE_ETC/rc.conf \
+		hostname=base \
 		sendmail_enable=NONE \
-		cron_flags='\\$cron_flags -J 15' \
+		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 }
 
 install_bash()
 {
-	pkg -j $SAFE_NAME install -y bash
+	pkg -j $SAFE_NAME install -y bash || exit
 	jexec $SAFE_NAME chpass -s /usr/local/bin/bash
-	tee -a $BASE_MNT/root/.bash_profile <<EO_BASH_PROFILE
+
+	local _profile=$BASE_MNT/root/.bash_profile
+	if [ -f "$_profile" ]; then
+		return
+	fi
+
+	tee -a $_profile <<EO_BASH_PROFILE
+
 export HISTCONTROL=erasedups
 export HISTIGNORE="&:[bf]g:exit"
 shopt -s cdspell
@@ -79,8 +83,30 @@ alias ll="ls -alFG"
 EO_BASH_PROFILE
 }
 
-base_snapshot_exists \
-	&& (echo "$BASE_SNAP snapshot already exists" && exit 0)
+use_bourne_shell()
+{
+	local _profile=$BASE_MNT/root/.profile
+
+	grep -q PS1 $_profile || tee -a $_profile <<EO_BOURNE
+
+alias ls='ls -FG'
+alias ll="ls -alFG"
+PS1="\`whoami\`@`hostname -s`:\\w # "
+EO_BOURNE
+
+	grep -q PS1 /root/.profile || tee -a /root/.profile <<EO_BOURNE2
+
+alias ls='ls -FG'
+alias ll="ls -alFG"
+PS1="\`whoami\`@`hostname -s`:\\w # "
+EO_BOURNE2
+
+	if [ $BOURNE_SHELL = "bash" ]; then
+		install_bash
+	fi
+}
+
+base_snapshot_exists && exit 0
 create_zfs_jail_root
 create_base_filesystem
 install_freebsd
@@ -88,11 +114,13 @@ update_freebsd
 configure_base
 
 # service jail start $SAFE_NAME || exit
-start_staged_jail $SAFE_NAME
+start_staged_jail $SAFE_NAME $BASE_MNT
 pkg -j $SAFE_NAME install -y pkg vim-lite sudo ca_root_nss
 
-# comment out this line if you hate bash
-install_bash
+use_bourne_shell
 
 service jail stop $SAFE_NAME
+echo "zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}"
 zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}
+
+proclaim_success base

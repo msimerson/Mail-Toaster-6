@@ -1,15 +1,6 @@
 #!/bin/sh
 
-. mail-toaster.sh
-
-export SAFE_NAME=`safe_jailname $STAGE_NAME`
-
-if [ -z "$SAFE_NAME" ]; then
-    echo "unset SAFE_NAME"
-    exit
-fi
-
-echo "SAFE_NAME: $SAFE_NAME"
+. mail-toaster.sh || exit
 
 install_unbound()
 {
@@ -20,13 +11,20 @@ install_unbound()
 configure_unbound()
 {
     local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
+    local UNB_LOCAL=""
     cp $UNB_DIR/unbound.conf.sample $UNB_DIR/unbound.conf || exit
+    if [ -f "unbound.conf.local" ]; then
+      cp unbound.conf.local $UNB_DIR
+      UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
+    fi
 
     # for the munin status plugin
     sed -i .bak -e 's/# control-enable: no/control-enable: yes/' $UNB_DIR/unbound.conf
     sed -i .bak -e 's/# control-interface: 127./control-interface: 127./' $UNB_DIR/unbound.conf
 
     tee -a $UNB_DIR/toaster.conf <<EO_UNBOUND
+       $UNB_LOCAL
+
        access-control: 0.0.0.0/0 refuse
        access-control: 127.0.0.0/8 allow
 
@@ -71,37 +69,66 @@ start_unbound()
 
 test_unbound()
 {
+    # use staging IP for DNS resolution
     echo "nameserver $STAGE_IP" | tee $STAGE_MNT/etc/resolv.conf
+
+    # test if we get an answer
     jexec $SAFE_NAME host dns || exit
+
+    # set it back to production value
+    echo "nameserver ${JAIL_NET_PREFIX}.3" | tee $STAGE_MNT/etc/resolv.conf
+}
+
+rename_old_fs()
+{
+    if [ -d "$ZFS_JAIL_MNT/$1.last" ]; then
+      echo "zfs destroy $ZFS_JAIL_VOL/$1.last"
+      zfs destroy $ZFS_JAIL_VOL/$1.last || exit
+    fi
+
+    if [ -d "$ZFS_JAIL_MNT/$1" ]; then
+      echo "zfs rename $ZFS_JAIL_VOL/$1 $ZFS_JAIL_VOL/$1.last"
+      zfs rename $ZFS_JAIL_VOL/$1 $ZFS_JAIL_VOL/${1}.last || exit
+    fi
 }
 
 promote_staged_jail()
 {
-    echo "shutdown staged jail"
-    jexec -r $SAFE_NAME || exit
+    echo "shutdown staged jail $SAFE_NAME"
+    jail -r $SAFE_NAME || exit
 
-    echo "shutdown production jail"
-    service jail stop dns || exit
+    local _staged_ready_name="$ZFS_JAIL_VOL/${1}.new"
 
-    echo "zfs rename dns dns.last"
-    zfs rename dns dns.last || exit
+    # get the wait over with before shutting down production jail
+    echo "zfs rename $STAGE_VOL $_staged_ready_name"
+    zfs rename $STAGE_VOL $_staged_ready_name || ( \
+        echo "waiting 60 seconds for ZFS filesystem to settle" \
+        && sleep 60 \
+        && zfs rename $STAGE_VOL $_staged_ready_name \
+      ) || exit
 
-    echo "zfs rename $STAGE_VOL dns"
-    zfs rename $STAGE_VOL dns || exit
+    echo "shutdown jail $1"
+    service jail stop $1 || exit
 
-    echo "start jail dns"
-    service jail start dns || exit
+    rename_old_fs $1
+
+    echo "zfs rename $_staged_ready_name $ZFS_JAIL_VOL/$1"
+    zfs rename $_staged_ready_name $ZFS_JAIL_VOL/$1 || exit
+
+    echo "start jail $1"
+    service jail start $1 || exit
 }
 
 base_snapshot_exists \
     || (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
     && exit)
 
-delete_staged_fs
 create_staged_fs
-start_staged_jail $SAFE_NAME
+sysrc -f $STAGE_MNT/etc/rc.conf hostname=dns
+start_staged_jail $SAFE_NAME $STAGE_MNT
 install_unbound
 configure_unbound
 start_unbound
 test_unbound
-#promote_staged_jail
+promote_staged_jail dns
+proclaim_success dns
