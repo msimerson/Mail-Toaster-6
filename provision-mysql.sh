@@ -54,49 +54,6 @@ test_mysql()
 	    | grep -q spamassassin || exit
 }
 
-rename_active_fs()
-{
-	local LAST="$ZFS_JAIL_VOL/$1.last"
-	local ACTIVE="$ZFS_JAIL_VOL/$1"
-
-	if [ -d "$LAST" ]; then
-		echo "zfs destroy $LAST"
-		zfs destroy $LAST || exit
-	fi
-
-	if [ -d "$ACTIVE" ]; then
-		echo "zfs rename $ACTIVE $LAST"
-		zfs rename $ACTIVE $LAST || exit
-	fi
-}
-
-renamed_staged_fs()
-{
-	local _new_vol="$ZFS_JAIL_VOL/${1}.new"
-
-	 # clean up stages that failed promotion
-    if [ -d "$ZFS_JAIL_MNT/${1}.new" ]; then
-        echo "zfs destroy $_new_vol (failed promotion)"
-        zfs destroy $_new_vol || exit
-    else
-        echo "$_new_vol does not exist"
-    fi
-
-	# get the wait over with before shutting down production jail
-	echo "zfs rename $STAGE_VOL $_new_vol"
-	zfs rename $STAGE_VOL $_new_vol || ( \
-			echo "waiting 60 seconds for ZFS filesystem to settle" \
-			&& sleep 60 \
-			&& zfs rename $STAGE_VOL $_new_vol \
-		) || exit
-}
-
-stop_production_jail()
-{
-	echo "shutdown jail $1"
-	service jail stop $1 || exit
-}
-
 unmount_data_directory()
 {
 	if mount | grep ^${ZFS_VOL}/mysql-data; then
@@ -113,18 +70,11 @@ promote_staged_jail()
 {
 	stop_staged_jail
 
-	local _staged_ready_name="$ZFS_JAIL_VOL/${1}.new"
-
-	renamed_staged_fs "$1"
-
-	stop_production_jail
+	rename_fs_staged_to_ready mysql
+	stop_active_jail mysql
 	unmount_data_directory
-
-	rename_active_fs mysql
-
-	echo "zfs rename $_staged_ready_name $ZFS_JAIL_VOL/$1"
-	zfs rename $_staged_ready_name $ZFS_JAIL_VOL/$1 || exit
-
+	rename_fs_active_to_last mysql
+	rename_fs_ready_to_active mysql
 	mount_data_directory
 
 	echo "start jail $1"
