@@ -100,7 +100,7 @@ delete_staged_fs()
 		echo "zfs destroy $STAGE_VOL"
 		zfs destroy $STAGE_VOL || exit
 	else
-		echo "$STAGE_MNT does not exist"
+		#echo "$STAGE_MNT does not exist"
 	fi
 }
 
@@ -142,7 +142,7 @@ rename_fs_staged_to_ready()
 		echo "zfs destroy $_new_vol (failed promotion)"
 		zfs destroy $_new_vol || exit
 	else
-		echo "$_new_vol does not exist"
+		#echo "$_new_vol does not exist"
 	fi
 
 	# get the wait over with before shutting down production jail
@@ -181,4 +181,18 @@ proclaim_success()
 	echo
 	echo "Success! A new '$1' jail is provisioned"
 	echo
+}
+
+promote_staged_jail()
+{
+	stop_staged_jail
+
+	rename_fs_staged_to_ready $1
+	stop_active_jail $1
+	rename_fs_active_to_last $1
+	rename_fs_ready_to_active $1
+
+	echo "start jail $1"
+	service jail start $1 || exit
+	proclaim_success $1
 }

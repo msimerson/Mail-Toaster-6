@@ -7,6 +7,37 @@ install_clamav()
 	pkg -j $SAFE_NAME install -y clamav || exit
 }
 
+install_clamav_unofficial()
+{
+	CLAMAV_UV=4.8
+	pkg install -y gnupg1 rsync bind-tools
+	fetch https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz
+	tar -xzf $CLAMAV_UV.tar.gz
+
+	cd clamav-unofficial-sigs-$CLAMAV_UV
+	sed -i .bak -e 's/\/var\/lib/\/var\/db/' clamav-unofficial-sigs.conf
+	sed -i .bak -e 's/^clam_user="clam"/clam_user="clamav"/' clamav-unofficial-sigs.conf
+	sed -i .bak -e 's/^clam_group="clam"/clam_group="clamav"/' clamav-unofficial-sigs.conf
+	sed -i .bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' clamav-unofficial-sigs.sh
+
+	chmod 755 clamav-unofficial-sigs.sh
+	cp clamav-unofficial-sigs.sh  /usr/local/bin
+	cp clamav-unofficial-sigs.conf /usr/local/etc/
+	cp clamav-unofficial-sigs.8 /usr/local/man/man8
+	mkdir -p /var/log/clamav-unofficial-sigs
+	mkdir -p /usr/local/etc/periodic/daily
+
+	tee <<EOSIG > /usr/local/etc/periodic/daily/clamav-unofficial-sigs
+#!/bin/sh
+/usr/local/bin/clamav-unofficial-sigs.sh -c /usr/local/etc/clamav-unofficial-sigs.conf
+EOSIG
+	chmod 755 /usr/local/etc/periodic/daily/clamav-unofficial-sigs
+	mkdir -p /usr/local/etc/newsyslog.conf.d
+	echo '/var/log/clamav-unofficial-sigs.log root:wheel 640  3 1000 * J' \
+		> /usr/local/etc/newsyslog.conf.d/clamav-unofficial-sigs
+	/usr/local/etc/periodic/daily/clamav-unofficial-sigs
+}
+
 configure_clamav()
 {
 	local _clamconf="$STAGE_MNT/usr/local/etc/clamd.conf"
@@ -23,6 +54,8 @@ configure_clamav()
 	sed -i .bak -e 's/#StructuredDataDetection/StructuredDataDetection/' $_clamconf
 	sed -i .bak -e 's/#ArchiveBlockEncrypted no/ArchiveBlockEncrypted yes/' $_clamconf
 
+	echo "installing ClamAV unofficial...TODO"
+	# install_clamav_unofficial
 }
 
 start_clamav()
@@ -36,21 +69,7 @@ start_clamav()
 
 test_clamav()
 {
-	echo "testing ClamAV"
-}
-
-promote_staged_jail()
-{
-	stop_staged_jail
-
-	rename_fs_staged_to_ready $1
-	stop_active_jail $1
-	rename_fs_active_to_last $1
-	rename_fs_ready_to_active $1
-
-	echo "start jail $1"
-	service jail start $1 || exit
-	proclaim_success $1
+	echo "testing ClamAV... TODO"
 }
 
 base_snapshot_exists \

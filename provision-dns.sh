@@ -79,19 +79,6 @@ test_unbound()
 	echo "nameserver ${JAIL_NET_PREFIX}.3" | tee $STAGE_MNT/etc/resolv.conf
 }
 
-promote_staged_jail()
-{
-	stop_staged_jail
-
-	rename_fs_staged_to_ready dns
-	stop_active_jail dns
-	rename_fs_active_to_last dns
-	rename_fs_ready_to_active dns
-
-	echo "start jail $1"
-	service jail start $1 || exit
-}
-
 base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
@@ -104,4 +91,3 @@ configure_unbound
 start_unbound
 test_unbound
 promote_staged_jail dns
-proclaim_success dns
