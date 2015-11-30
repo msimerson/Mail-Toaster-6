@@ -218,7 +218,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-sysrc -f $STAGE_MNT/etc/rc.conf hostname=webmail
+stage_rc_conf hostname=webmail
 start_staged_jail
 install_webmail
 configure_webmail

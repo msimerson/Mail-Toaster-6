@@ -199,10 +199,27 @@ promote_staged_jail()
 
 stage_pkg_install()
 {
-	jexec $SAFE_NAME pkg install -y $@
+	pkg -j $SAFE_NAME install -y $@
 }
 
 stage_rc_conf()
 {
 	sysrc -f $STAGE_MNT/etc/rc.conf $@
+}
+
+stage_exec()
+{
+	jexec $SAFE_NAME $@
+}
+
+install_redis()
+{
+	stage_pkg_install redis || exit
+	stage_rc_conf redis_enable=YES
+	stage_exec service redis start
+
+	stage_exec mkdir -p /usr/local/etc/newsyslog.conf.d
+	tee -a $STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis <<EO_REDIS
+/var/log/redis/redis.log           644  3     100  *     JC
+EO_REDIS
 }

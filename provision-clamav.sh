@@ -60,8 +60,8 @@ configure_clamav()
 
 start_clamav()
 {
-	sysrc -f $STAGE_MNT/etc/rc.conf clamav_freshclam_enable=YES
-	sysrc -f $STAGE_MNT/etc/rc.conf clamav_clamd_enable=YES
+	stage_rc_conf clamav_freshclam_enable=YES
+	stage_rc_conf clamav_clamd_enable=YES
 	jexec $SAFE_NAME freshclam
 	jexec $SAFE_NAME service clamav-clamd start
 	jexec $SAFE_NAME service clamav-freshclam start
@@ -77,7 +77,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-sysrc -f $STAGE_MNT/etc/rc.conf hostname=clamav
+stage_rc_conf hostname=clamav
 start_staged_jail
 install_clamav
 configure_clamav

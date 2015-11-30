@@ -39,7 +39,7 @@ EO_HEREDOC
 
 start_mysql()
 {
-	sysrc -f $STAGE_MNT/etc/rc.conf mysql_enable=YES
+	stage_rc_conf mysql_enable=YES
 	jexec $SAFE_NAME service mysql-server start || exit
 	sleep 1
 }
@@ -82,7 +82,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-sysrc -f $STAGE_MNT/etc/rc.conf hostname=mysql
+stage_rc_conf hostname=mysql
 start_staged_jail
 install_mysql
 create_data_fs

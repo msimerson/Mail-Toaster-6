@@ -69,7 +69,7 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 
 start_unbound()
 {
-	sysrc -f $STAGE_MNT/etc/rc.conf unbound_enable=YES
+	stage_rc_conf unbound_enable=YES
 	jexec $SAFE_NAME service unbound start || exit
 }
 
@@ -90,7 +90,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-sysrc -f $STAGE_MNT/etc/rc.conf hostname=dns
+stage_rc_conf hostname=dns
 start_staged_jail
 install_unbound
 configure_unbound

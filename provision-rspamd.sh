@@ -18,7 +18,7 @@ configure_rspamd()
 
 start_rspamd()
 {
-	sysrc -f $STAGE_MNT/etc/rc.conf rspamd_enable=YES
+	stage_rc_conf rspamd_enable=YES
 	jexec $SAFE_NAME service rspamd start
 }
 
@@ -33,7 +33,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-sysrc -f $STAGE_MNT/etc/rc.conf hostname=rspamd
+stage_rc_conf hostname=rspamd
 start_staged_jail
 install_rspamd
 configure_rspamd

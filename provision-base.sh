@@ -32,6 +32,9 @@ install_freebsd()
 	fi
 
 	tar -C $BASE_MNT -xvpJf base.txz || exit
+
+	# export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
+	# bsdinstall jail $BASE_MNT
 }
 
 update_freebsd()
@@ -54,11 +57,16 @@ WITH_PKGNG=yes
 WRKDIRPREFIX?=/tmp/portbuild
 EO_MAKE_CONF
 
-	sysrc -f $BASE_ETC/rc.conf \
+	stage_rc_conf hostname=base
+	stage_rc_conf \
 		hostname=base \
 		sendmail_enable=NONE \
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
+
+	tee -a $BASE_MNT/boot/loader.conf 'zfs_enable="YES"'
+	stage_exec newaliases
+	stage_exec pkg update
 
 	echo "Generating self-signed SSL certificates"
 	echo "\thint: use the FQDN of this server for the common name"

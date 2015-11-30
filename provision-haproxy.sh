@@ -14,15 +14,16 @@ configure_haproxy()
 	local _jail_ssl="$STAGE_MNT/etc/ssl"
 	if [ -f "$_jail_ssl/private/server.key"]; then
 		cat $_jail_ssl/private/server.key $_jail_ssl/certs/server.crt > $_jail_ssl/private/server.pem
-	else
-		local _base_ssl="$BASE_MNT/etc/ssl"
-		cat $_base_ssl/private/server.key $_base_ssl/certs/server.crt > $_jail_ssl/private/server.pem
+		return
 	fi
+
+	local _base_ssl="$BASE_MNT/etc/ssl"
+	cat $_base_ssl/private/server.key $_base_ssl/certs/server.crt > $_jail_ssl/private/server.pem || exit
 }
 
 start_haproxy()
 {
-	sysrc -f $STAGE_MNT/etc/rc.conf haproxy_enable=YES
+	stage_rc_conf haproxy_enable=YES
 	jexec $SAFE_NAME service haproxy start
 }
 
@@ -37,7 +38,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-sysrc -f $STAGE_MNT/etc/rc.conf hostname=haproxy
+stage_rc_conf hostname=haproxy
 start_staged_jail
 install_haproxy
 configure_haproxy
