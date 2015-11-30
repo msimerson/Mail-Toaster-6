@@ -13,19 +13,131 @@ install_php()
 	jexec $SAFE_NAME service php-fpm start
 }
 
+mysql_db_exists()
+{
+	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1'"
+	result=$(jexec mysql mysql -s -N -e $_query);
+	if [ -z "$result" ]; then
+		echo "$1 db does not exist"
+		return 1  # db does not exist
+	else
+		echo "$1 db exists"
+		return 0  # db exists
+	fi
+}
+
+install_roundcube_mysql()
+{
+	local _init_db=1
+	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
+
+	local _rcpass=`openssl rand -hex 18`
+	local _active_cfg="$ZFS_JAIL_MNT/webmail/usr/local/www/roundcube/config/config.inc.php"
+	if [ -f "$_active_cfg" ]; then
+		_rcpass=`grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@`
+	fi
+
+	local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
+	local _webmail_host="${JAIL_NET_PREFIX}.10"
+	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_rcpass}';"
+
+	if mysql_db_exists roundcubemail; then
+		_init_db=0
+	else
+		_mysql_cmd="create database roundcubemail; $_mysql_cmd"
+	fi
+
+	echo $_mysql_cmd | jexec mysql /usr/local/bin/mysql || exit
+	sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
+
+	if [ "$_init_db" = "1" ]; then
+		jexec mysql /usr/local/bin/mysql -e \
+			"$_grant 'roundcube'@'${STAGE_IP}' IDENTIFIED BY '${_rcpass}';" || exit
+	    pkg install -y curl || exit
+		curl -i -F initdb='Initialize database' -XPOST http://staged/roundcube/installer/index.php?_step=3
+	fi
+}
+
 install_roundcube()
 {
-	stage_pkg_install roundcube perl5
+	stage_pkg_install roundcube
 
 	# for sqlite storage
 	mkdir -p $STAGE_MNT/var/db/roundcube
 	chown 80:80 $STAGE_MNT/var/db/roundcube
 
-	_rc_config=$STAGE_MNT/usr/local/www/roundcube/config/config.inc.php
-	cp ${_rc_config}.sample $_rc_config
+	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
+	cp $_rcc_dir/config.inc.php.sample $_rcc_dir/config.inc.php || exit
 
-	fetch -o - http://mail-toaster.com/install/mt6-roundcube-cfg.diff \
-		| patch -d $STAGE_MNT/usr/local/www/roundcube/config/
+	echo "patching roundcube config"
+	fetch -o - http://mail-toaster.com/install/mt6-roundcube-cfg.diff | patch -d $_rcc_dir || exit
+
+	install_roundcube_mysql
+
+	sed -i -e "s/enable_installer'] = true;/enable_installer'] = false;/" $_rcc_dir/config.inc.php
+}
+
+install_squirrelmail()
+{
+	stage_pkg_install squirrelmail squirrelmail-sasql-plugin squirrelmail-quota_usage-plugin || exit
+
+	local _sqpass=`openssl rand -hex 18`
+	local _sq_dir="$STAGE_MNT/usr/local/www/squirrelmail/config"
+
+	local _active_cfg="$_sq_dir/config.inc.php"
+	if [ -f "$_active_cfg" ]; then
+		_sqpass=`grep '//squirrelmail:' $_active_cfg | cut -f3 -d: | cut -f1 -d@`
+	fi
+
+	cp $_sq_dir/config_local.php.sample $_sq_dir/config_local.php
+	cp $_sq_dir/config_default.php $_sq_dir/config.php
+	cp $_sq_dir/../plugins/sasql/sasql_conf.php.dist \
+	   $_sq_dir/../plugins/sasql/sasql_conf.php
+	cp $_sq_dir/../plugins/quota_usage/config.php.sample \
+	   $_sq_dir/../plugins/quota_usage/config.php
+
+	tee -a $_sq_dir/config_local.php <<EO_SQUIRREL
+\$domain = 'CHANGE.THIS';
+\$smtpServerAddress = '127.0.0.9';
+\$smtpPort = 465;
+\$smtp_auth_mech = 'login';
+\$imapServerAddress = '127.0.0.8';
+\$imap_server_type = 'dovecot';
+\$use_smtp_tls = true;
+\$data_dir = '/var/db/squirrelmail/data';
+\$attachment_dir = '/var/db/squirrelmail/attach';
+// \$check_referrer = '###DOMAIN###';
+\$check_mail_mechanism = 'advanced';
+\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@127.0.0.4/squirrelmail';
+\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@127.0.0.4/squirrelmail';
+EO_SQUIRREL
+
+	# TODO: provide a webmail-data file system that preserves these directories
+	# across webmail jail builds. /var/db/squirrelmail/[data|attach] && roundcube
+	mkdir -p $STAGE_MNT/var/db/squirrelmail/attach $STAGE_MNT/var/db/squirrelmail/data
+	cp $_sq_dir/../data/default_pref $STAGE_MNT/var/db/squirrelmail/data/
+	chown -R www:www $STAGE_MNT/var/db/squirrelmail
+	chmod 733 $STAGE_MNT/var/db/squirrelmail/attach
+
+	local _webmail_host="${JAIL_NET_PREFIX}.10"
+
+	local _init_db=1
+	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
+	local _webmail_host="${JAIL_NET_PREFIX}.10"
+	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_sqpass}';"
+
+	if mysql_db_exists squirrelmail; then
+		_init_db=0
+	else
+		_mysql_cmd="create database squirrelmail; $_mysql_cmd"
+	fi
+
+	jexec mysql /usr/local/bin/mysql -e "$_mysql_cmd" || exit
+
+	# if [ "$_init_db" = "1" ]; then
+	# 	jexec mysql /usr/local/bin/mysql \
+	# 		"$_grant 'squirrelmail'@'${STAGE_IP}' IDENTIFIED BY '${_sqpass}';" || exit
+	# fi
 }
 
 install_nginx()
@@ -51,11 +163,31 @@ EONGINX
 	jexec $SAFE_NAME service nginx restart
 }
 
+install_lighttpd()
+{
+	stage_pkg_install lighttpd
+	mkdir -p $STAGE_MNT/var/spool/lighttpd/sockets
+	chown -R www $STAGE_MNT/var/spool/lighttpd/sockets
+
+	local _lighttpd_dir=$STAGE_MNT/usr/local/etc/lighttpd
+	local _lighttpd_conf=$_lighttpd_dir/lighttpd.conf
+
+	sed -i .bak -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' $_lighttpd_conf
+	sed -i .bak -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' $_lighttpd_conf
+
+	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' $_lighttpd_conf
+	fetch -o $_lighttpd_dir/vhosts.d/mail-toaster.conf http://mail-toaster.org/etc/mt6-lighttpd.txt
+	stage_rc_conf lighttpd_enable=YES
+	jexec $SAFE_NAME service lighttpd start
+}
+
 install_webmail()
 {
-	install_php
-	install_roundcube
-	install_nginx
+	install_php || exit
+	install_roundcube || exit
+	install_squirrelmail || exit
+	install_nginx || exit
+	# install_lighttpd || exit
 }
 
 configure_webmail()

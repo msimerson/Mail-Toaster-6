@@ -29,10 +29,6 @@ create database dspam;
 $GRANT dspam.* to 'dspam'@'$JAIL_NET_PREFIX.7' IDENTIFIED BY '`$RANDPASS`';
 create database spamassassin;
 $GRANT spamassassin.* to 'spamassassin'@'$JAIL_NET_PREFIX.6' IDENTIFIED BY '`$RANDPASS`';
-create database roundcubemail;
-$GRANT roundcubemail.* to 'roundcube'@'$JAIL_NET_PREFIX.10' IDENTIFIED BY '`$RANDPASS`';
-create database squirrelmail;
-$GRANT squirrelmail.* to 'squirrelmail'@'$JAIL_NET_PREFIX.10' IDENTIFIED BY '`$RANDPASS`';
 create database vpopmail;
 $GRANT vpopmail.* to 'vpopmail'@'$JAIL_NET_PREFIX.8' IDENTIFIED BY '`$RANDPASS`';
 EO_HEREDOC

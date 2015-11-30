@@ -130,7 +130,7 @@ start_staged_jail()
 		ip4.addr=$STAGE_IP \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		persist || exit
+		|| exit
 }
 
 rename_fs_staged_to_ready()

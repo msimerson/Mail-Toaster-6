@@ -12,7 +12,12 @@ configure_haproxy()
 	fetch -o $STAGE_MNT/usr/local/etc/haproxy.conf http://mail-toaster.org/install/mt6-haproxy.txt
 
 	local _jail_ssl="$STAGE_MNT/etc/ssl"
-	cat $_jail_ssl/private/server.key $_jail_ssl/certs/server.crt > $_jail_ssl/private/server.pem
+	if [ -f "$_jail_ssl/private/server.key"]; then
+		cat $_jail_ssl/private/server.key $_jail_ssl/certs/server.crt > $_jail_ssl/private/server.pem
+	else
+		local _base_ssl="$BASE_MNT/etc/ssl"
+		cat $_base_ssl/private/server.key $_base_ssl/certs/server.crt > $_jail_ssl/private/server.pem
+	fi
 }
 
 start_haproxy()
