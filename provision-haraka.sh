@@ -23,6 +23,15 @@ install_geoip_dbs()
 
 install_p0f()
 {
+	grep -q devfsrules_jail_bpf /etc/devfs.rules || tee -a /etc/devfs.rules <<EO_DEVFS
+[devfsrules_jail_bpf=7]
+add include \$devfsrules_hide_all
+add include \$devfsrules_unhide_basic
+add include \$devfsrules_unhide_login
+add path zfs unhide
+add path 'bpf*' unhide
+EO_DEVFS
+
 	stage_pkg_install p0f
 
 	local _netif=`netstat -i | awk 'NR==2{print $1;exit}'`

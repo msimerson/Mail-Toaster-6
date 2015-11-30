@@ -15,8 +15,8 @@ install_php()
 
 mysql_db_exists()
 {
-	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1'"
-	result=$(jexec mysql mysql -s -N -e $_query);
+	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
+	result=`echo $_query | jexec mysql mysql -s -N`
 	if [ -z "$result" ]; then
 		echo "$1 db does not exist"
 		return 1  # db does not exist

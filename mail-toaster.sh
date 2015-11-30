@@ -114,7 +114,7 @@ create_staged_fs()
 
 start_staged_jail()
 {
-	if [$# -eq 2]; then
+	if [ "$#" -eq 2 ]; then
 		local _name=$1
 		local _path=$2
 	else
@@ -138,20 +138,17 @@ rename_fs_staged_to_ready()
 	local _new_vol="$ZFS_JAIL_VOL/${1}.ready"
 
 	# clean up stages that failed promotion
-	if [ -d "$ZFS_JAIL_MNT/${1}.ready" ]; then
+	if zfs_filesystem_exists "$_new_vol"; then
 		echo "zfs destroy $_new_vol (failed promotion)"
 		zfs destroy $_new_vol || exit
-	else
-		#echo "$_new_vol does not exist"
 	fi
 
 	# get the wait over with before shutting down production jail
 	echo "zfs rename $STAGE_VOL $_new_vol"
-	zfs rename $STAGE_VOL $_new_vol || ( \
-			echo "waiting 60 seconds for ZFS filesystem to settle" \
-			&& sleep 60 \
-			&& zfs rename $STAGE_VOL $_new_vol \
-		) || exit
+	until zfs rename $STAGE_VOL $_new_vol; do
+		echo "waiting for ZFS filesystem to settle"
+		sleep 3
+	done
 }
 
 rename_fs_active_to_last()
@@ -159,12 +156,12 @@ rename_fs_active_to_last()
 	local LAST="$ZFS_JAIL_VOL/$1.last"
 	local ACTIVE="$ZFS_JAIL_VOL/$1"
 
-	if [ -d "$ZFS_JAIL_MNT/$1.last" ]; then
+	if zfs_filesystem_exists "$LAST"; then
 		echo "zfs destroy $LAST"
 		zfs destroy $LAST || exit
 	fi
 
-	if [ -d "$ZFS_JAIL_MNT/$1" ]; then
+	if zfs_filesystem_exists "$ACTIVE"; then
 		echo "zfs rename $ACTIVE $LAST"
 		zfs rename $ACTIVE $LAST || exit
 	fi

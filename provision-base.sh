@@ -57,19 +57,19 @@ WITH_PKGNG=yes
 WRKDIRPREFIX?=/tmp/portbuild
 EO_MAKE_CONF
 
-	stage_rc_conf hostname=base
-	stage_rc_conf \
+	sysrc -f $BASE_MNT/etc/rc.conf \
 		hostname=base \
 		sendmail_enable=NONE \
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
-	tee -a $BASE_MNT/boot/loader.conf 'zfs_enable="YES"'
-	stage_exec newaliases
-	stage_exec pkg update
+	echo 'zfs_enable="YES"' | tee -a $BASE_MNT/boot/loader.conf
 
+	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
+	echo "	saves having to do it in each subsequent one."
+	echo
 	echo "Generating self-signed SSL certificates"
-	echo "\thint: use the FQDN of this server for the common name"
+	echo "	hint: use the FQDN of this server for the common name"
 	echo
 	openssl req -x509 -nodes -days 2190 \
 	    -newkey rsa:2048 \
@@ -130,13 +130,15 @@ update_freebsd
 configure_base
 
 # service jail start $SAFE_NAME || exit
-start_staged_jail $SAFE_NAME $BASE_MNT
-pkg -j $SAFE_NAME install -y pkg vim-lite sudo ca_root_nss
+start_staged_jail $SAFE_NAME $BASE_MNT || exit
+pkg -j $SAFE_NAME install -y pkg vim-lite sudo ca_root_nss || exit
+jexec $SAFE_NAME newaliases || exit
+jexec $SAFE_NAME pkg update || exit
 
 use_bourne_shell
 
 service jail stop $SAFE_NAME
 echo "zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}"
-zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}
+zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER} || exit
 
 proclaim_success base
