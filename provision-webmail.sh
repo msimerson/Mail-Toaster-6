@@ -9,8 +9,8 @@ install_php()
 	cp $STAGE_MNT/usr/local/etc/php.ini-production $STAGE_MNT/usr/local/etc/php.ini
 	sed -i .bak -e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' $STAGE_MNT/usr/local/etc/php.ini
 
-	stage_rc_conf php_fpm_enable=YES
-	jexec $SAFE_NAME service php-fpm start
+	stage_sysrc php_fpm_enable=YES
+	stage_exec service php-fpm start
 }
 
 mysql_db_exists()
@@ -156,11 +156,11 @@ www_nginx_SET=HTTP_REALIP
 EONGINX
 
 	mount_nullfs /usr/ports $STAGE_MNT/usr/ports
-	jexec $SAFE_NAME make -C /usr/ports/www/nginx build deinstall install clean
+	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
 	umount $STAGE_MNT/usr/ports
 
-	stage_rc_conf nginx_enable=YES
-	jexec $SAFE_NAME service nginx restart
+	stage_sysrc nginx_enable=YES
+	stage_exec service nginx restart
 }
 
 install_lighttpd()
@@ -177,8 +177,8 @@ install_lighttpd()
 
 	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' $_lighttpd_conf
 	fetch -o $_lighttpd_dir/vhosts.d/mail-toaster.conf http://mail-toaster.org/etc/mt6-lighttpd.txt
-	stage_rc_conf lighttpd_enable=YES
-	jexec $SAFE_NAME service lighttpd start
+	stage_sysrc lighttpd_enable=YES
+	stage_exec service lighttpd start
 }
 
 install_webmail()
@@ -203,14 +203,14 @@ configure_webmail()
 
 start_webmail()
 {
-	# stage_rc_conf webmail_enable=YES
-	# jexec $SAFE_NAME service webmail start
+	# stage_sysrc webmail_enable=YES
+	# stage_exec service webmail start
 }
 
 test_webmail()
 {
 	echo "testing webmail..."
-	jexec $SAFE_NAME sockstat -l -4 | grep 80 || exit
+	stage_exec sockstat -l -4 | grep 80 || exit
 }
 
 base_snapshot_exists \
@@ -218,7 +218,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=webmail
+stage_sysrc hostname=webmail
 start_staged_jail
 install_webmail
 configure_webmail

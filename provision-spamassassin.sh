@@ -47,25 +47,29 @@ EO_SAUPD
 
 install_sought_rules() {
 	echo "installing sought rules"
-	fetch -o - http://yerp.org/rules/GPG.KEY | stage_exec sa-update --import -
+	fetch -o - http://yerp.org/rules/GPG.KEY | jexec $SAFE_NAME sa-update --import -
 	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
 }
 
 install_spamassassin()
 {
-	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww
-	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents
+	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww || exit
+	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents || exit
 	stage_pkg_install mysql56-client p5-DBI
 
 	install_geoip
 
 	stage_pkg_install spamassassin dialog4ports || exit
 
-	grep spamassassin /etc/make.conf || cat <<EO_SPAMA >> $STAGE_MNT/etc/make.conf
+	grep -qs spamassassin $STAGE_MNT/etc/make.conf || cat <<EO_SPAMA >> $STAGE_MNT/etc/make.conf
 mail_spamassassin_SET=MYSQL DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE
 mail_spamassassin_UNSET=SSL PGSQL
 EO_SPAMA
-	make -C /usr/ports/mail/spamassassin deinstall install clean
+	if [ ! "-d $STAGE_MNT/usr/ports/mail/spamassassin" ]; then
+		echo "ports aren't mounted!"
+		exit
+	fi
+	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean
 }
 
 configure_spamassassin()
@@ -83,15 +87,17 @@ configure_spamassassin()
 
 start_spamassassin()
 {
-	stage_rc_conf spamd_enable=YES
-	stage_rc_conf spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A 127.0.0.0/24"
+	stage_sysrc spamd_enable=YES
+	sysrc -j $SAFE_NAME spamd_flags='-v -q -x -u spamd -H /var/spool/spamd -A 127.0.0.0/24'
 	stage_exec service sa-spamd start
 }
 
 test_spamassassin()
 {
 	echo "testing spamassassin..."
-	jexec $SAFE_NAME sockstat -l -4 | grep 789 || exit
+	sleep 1
+	stage_exec sockstat -l -4 | grep 783 || exit
+	echo "it worked"
 }
 
 base_snapshot_exists \
@@ -99,10 +105,12 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=spamassassin
+stage_sysrc hostname=spamassassin
+stage_mount_ports
 start_staged_jail
 install_spamassassin
 configure_spamassassin
 start_spamassassin
 test_spamassassin
+stage_unmount_ports
 promote_staged_jail spamassassin

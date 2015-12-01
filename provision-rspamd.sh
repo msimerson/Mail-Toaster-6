@@ -18,14 +18,14 @@ configure_rspamd()
 
 start_rspamd()
 {
-	stage_rc_conf rspamd_enable=YES
-	jexec $SAFE_NAME service rspamd start
+	stage_sysrc rspamd_enable=YES
+	stage_exec service rspamd start
 }
 
 test_rspamd()
 {
 	echo "testing rspamd..."
-	jexec $SAFE_NAME sockstat -l -4 | grep 11334 || exit
+	stage_exec sockstat -l -4 | grep 11334 || exit
 }
 
 base_snapshot_exists \
@@ -33,7 +33,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=rspamd
+stage_sysrc hostname=rspamd
 start_staged_jail
 install_rspamd
 configure_rspamd

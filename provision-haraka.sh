@@ -40,7 +40,7 @@ EO_DEVFS
 		> $STAGE_MNT/usr/local/etc/rc.d/p0f
 	chmod 555 $STAGE_MNT/usr/local/etc/rc.d/p0f
 
-	stage_rc_conf p0f_enable=YES
+	stage_sysrc p0f_enable=YES
 	stage_exec service p0f start
 }
 
@@ -82,8 +82,8 @@ start_haraka()
 {
 	fetch -o $STAGE_MNT/usr/local/etc/rc.d/haraka http://mail-toaster.org/install/mt6-rcd.txt
 	chmod 555 $STAGE_MNT/usr/local/etc/rc.d/haraka
-	stage_rc_conf haraka_enable=YES
-	stage_rc_conf haraka_flags="-c /usr/local/haraka"
+	stage_sysrc haraka_enable=YES
+	stage_sysrc haraka_flags="-c /usr/local/haraka"
 	mkdir -p $STAGE_MNT/usr/local/haraka/queue
 	stage_exec service haraka start
 }
@@ -98,7 +98,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=haraka
+stage_sysrc hostname=haraka
 start_staged_jail
 install_haraka
 configure_haraka

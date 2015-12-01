@@ -4,13 +4,13 @@
 
 install_clamav()
 {
-	pkg -j $SAFE_NAME install -y clamav || exit
+	stage_pkg_install clamav || exit
 }
 
 install_clamav_unofficial()
 {
 	CLAMAV_UV=4.8
-	pkg install -y gnupg1 rsync bind-tools
+	stage_pkg_install gnupg1 rsync bind-tools
 	fetch https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz
 	tar -xzf $CLAMAV_UV.tar.gz
 
@@ -24,8 +24,8 @@ install_clamav_unofficial()
 	cp clamav-unofficial-sigs.sh  /usr/local/bin
 	cp clamav-unofficial-sigs.conf /usr/local/etc/
 	cp clamav-unofficial-sigs.8 /usr/local/man/man8
-	mkdir -p /var/log/clamav-unofficial-sigs
-	mkdir -p /usr/local/etc/periodic/daily
+	mkdir -p $STAGE_MNT/var/log/clamav-unofficial-sigs
+	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
 
 	tee <<EOSIG > /usr/local/etc/periodic/daily/clamav-unofficial-sigs
 #!/bin/sh
@@ -60,11 +60,11 @@ configure_clamav()
 
 start_clamav()
 {
-	stage_rc_conf clamav_freshclam_enable=YES
-	stage_rc_conf clamav_clamd_enable=YES
-	jexec $SAFE_NAME freshclam
-	jexec $SAFE_NAME service clamav-clamd start
-	jexec $SAFE_NAME service clamav-freshclam start
+	stage_sysrc clamav_freshclam_enable=YES
+	stage_sysrc clamav_clamd_enable=YES
+	stage_exec freshclam
+	stage_exec service clamav-clamd start
+	stage_exec service clamav-freshclam start
 }
 
 test_clamav()
@@ -77,7 +77,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=clamav
+stage_sysrc hostname=clamav
 start_staged_jail
 install_clamav
 configure_clamav

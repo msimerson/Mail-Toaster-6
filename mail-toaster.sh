@@ -89,7 +89,10 @@ stop_staged_jail()
 	fi
 
 	echo "stopping staged jail $1"
-	stop_jail $TO_STOP
+	stop_jail $TO_STOP || exit
+
+	echo "clearing pkg cache"
+	rm -rf $STAGE_MNT/var/cache/pkg/*
 }
 
 delete_staged_fs()
@@ -106,6 +109,7 @@ delete_staged_fs()
 
 create_staged_fs()
 {
+	stage_unmount_ports
 	delete_staged_fs
 
 	echo "zfs clone $BASE_SNAP $STAGE_VOL"
@@ -131,6 +135,8 @@ start_staged_jail()
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		|| exit
+
+	pkg -j $SAFE_NAME update
 }
 
 rename_fs_staged_to_ready()
@@ -146,7 +152,7 @@ rename_fs_staged_to_ready()
 	# get the wait over with before shutting down production jail
 	echo "zfs rename $STAGE_VOL $_new_vol"
 	until zfs rename $STAGE_VOL $_new_vol; do
-		echo "waiting for ZFS filesystem to settle"
+		echo "waiting for ZFS filesystem to quiet"
 		sleep 3
 	done
 }
@@ -199,9 +205,10 @@ stage_pkg_install()
 	pkg -j $SAFE_NAME install -y $@
 }
 
-stage_rc_conf()
+stage_sysrc()
 {
-	sysrc -f $STAGE_MNT/etc/rc.conf $@
+	# don't use -j as this is oft called when jail is not running
+	sysrc -R $STAGE_MNT $@
 }
 
 stage_exec()
@@ -209,10 +216,22 @@ stage_exec()
 	jexec $SAFE_NAME $@
 }
 
+stage_mount_ports()
+{
+	mount_nullfs /usr/ports $STAGE_MNT/usr/ports
+}
+
+stage_unmount_ports()
+{
+	if [ -d "$STAGE_MNT/usr/ports/mail" ]; then
+		umount $STAGE_MNT/usr/ports
+	fi
+}
+
 install_redis()
 {
 	stage_pkg_install redis || exit
-	stage_rc_conf redis_enable=YES
+	stage_sysrc redis_enable=YES
 	stage_exec service redis start
 
 	stage_exec mkdir -p /usr/local/etc/newsyslog.conf.d

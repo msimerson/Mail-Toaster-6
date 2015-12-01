@@ -4,7 +4,7 @@
 
 install_haproxy()
 {
-	pkg -j $SAFE_NAME install -y haproxy || exit
+	stage_pkg_install haproxy || exit
 }
 
 configure_haproxy()
@@ -23,14 +23,14 @@ configure_haproxy()
 
 start_haproxy()
 {
-	stage_rc_conf haproxy_enable=YES
-	jexec $SAFE_NAME service haproxy start
+	stage_sysrc haproxy_enable=YES
+	stage_exec service haproxy start
 }
 
 test_haproxy()
 {
 	echo "testing haproxy..."
-	jexec $SAFE_NAME sockstat -l -4 | grep 443 || exit
+	stage_exec sockstat -l -4 | grep 443 || exit
 }
 
 base_snapshot_exists \
@@ -38,7 +38,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=haproxy
+stage_sysrc hostname=haproxy
 start_staged_jail
 install_haproxy
 configure_haproxy

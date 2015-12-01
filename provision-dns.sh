@@ -4,8 +4,8 @@
 
 install_unbound()
 {
-	pkg -j $SAFE_NAME install -y unbound || exit
-	jexec $SAFE_NAME /usr/local/sbin/unbound-control-setup
+	stage_pkg_install unbound || exit
+	stage_exec /usr/local/sbin/unbound-control-setup
 }
 
 configure_unbound()
@@ -69,8 +69,8 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 
 start_unbound()
 {
-	stage_rc_conf unbound_enable=YES
-	jexec $SAFE_NAME service unbound start || exit
+	stage_sysrc unbound_enable=YES
+	stage_exec service unbound start || exit
 }
 
 test_unbound()
@@ -79,7 +79,7 @@ test_unbound()
 	echo "nameserver $STAGE_IP" | tee $STAGE_MNT/etc/resolv.conf
 
 	# test if we get an answer
-	jexec $SAFE_NAME host dns || exit
+	stage_exec host dns || exit
 
 	# set it back to production value
 	echo "nameserver ${JAIL_NET_PREFIX}.3" | tee $STAGE_MNT/etc/resolv.conf
@@ -90,7 +90,7 @@ base_snapshot_exists \
 	&& exit)
 
 create_staged_fs
-stage_rc_conf hostname=dns
+stage_sysrc hostname=dns
 start_staged_jail
 install_unbound
 configure_unbound

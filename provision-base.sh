@@ -138,6 +138,8 @@ jexec $SAFE_NAME pkg update || exit
 use_bourne_shell
 
 service jail stop $SAFE_NAME
+rm -rf $BASE_MNT/var/cache/pkg/*
+
 echo "zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}"
 zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER} || exit
 
