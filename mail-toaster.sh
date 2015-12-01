@@ -89,7 +89,7 @@ stop_staged_jail()
 	fi
 
 	echo "stopping staged jail $1"
-	stop_jail $TO_STOP || exit
+	stop_jail $TO_STOP
 
 	echo "clearing pkg cache"
 	rm -rf $STAGE_MNT/var/cache/pkg/*
@@ -102,8 +102,6 @@ delete_staged_fs()
 	if [ -d "$STAGE_MNT" ]; then
 		echo "zfs destroy $STAGE_VOL"
 		zfs destroy $STAGE_VOL || exit
-	else
-		#echo "$STAGE_MNT does not exist"
 	fi
 }
 
@@ -134,6 +132,7 @@ start_staged_jail()
 		ip4.addr=$STAGE_IP \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
+		allow.sysvipc=1 \
 		|| exit
 
 	pkg -j $SAFE_NAME update
@@ -218,14 +217,23 @@ stage_exec()
 
 stage_mount_ports()
 {
-	mount_nullfs /usr/ports $STAGE_MNT/usr/ports
+	echo "mounting /usr/ports"
+	mount_nullfs /usr/ports $STAGE_MNT/usr/ports || exit
 }
 
 stage_unmount_ports()
 {
 	if [ -d "$STAGE_MNT/usr/ports/mail" ]; then
-		umount $STAGE_MNT/usr/ports
+		echo "unmounting $STAGE_MNT/usr/ports"
+		umount $STAGE_MNT/usr/ports || exit
 	fi
+}
+
+stage_fbsd_package()
+{
+	echo "installing FreeBSD package $1"
+	fetch -m $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/$1.txz || exit
+	tar -C $STAGE_MNT -xvpJf $1.txz || exit
 }
 
 install_redis()

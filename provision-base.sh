@@ -26,11 +26,7 @@ create_base_filesystem()
 
 install_freebsd()
 {
-	if [ ! -f "base.txz" ];
-	then
-		fetch -m $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz || exit
-	fi
-
+	fetch -m $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz || exit
 	tar -C $BASE_MNT -xvpJf base.txz || exit
 
 	# export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
