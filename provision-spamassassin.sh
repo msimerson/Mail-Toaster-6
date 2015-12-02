@@ -104,7 +104,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
-create_staged_fs
+create_staged_fs spamassassin
 stage_sysrc hostname=spamassassin
 stage_mount_ports
 start_staged_jail
@@ -112,5 +112,4 @@ install_spamassassin
 configure_spamassassin
 start_spamassassin
 test_spamassassin
-stage_unmount_ports
 promote_staged_jail spamassassin

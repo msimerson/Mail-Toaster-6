@@ -217,7 +217,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
-create_staged_fs
+create_staged_fs webmail
 stage_sysrc hostname=webmail
 start_staged_jail
 install_webmail

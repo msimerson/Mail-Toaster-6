@@ -4,7 +4,7 @@
 
 install_rspamd()
 {
-	pkg -j $SAFE_NAME install -y rspamd || exit
+	stage_pkg_install rspamd || exit
 }
 
 configure_rspamd()
@@ -32,7 +32,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
-create_staged_fs
+create_staged_fs rspamd
 stage_sysrc hostname=rspamd
 start_staged_jail
 install_rspamd

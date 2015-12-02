@@ -4,16 +4,7 @@
 
 install_mysql()
 {
-	pkg -j $SAFE_NAME install -y mysql56-server || exit
-}
-
-create_data_fs()
-{
-	MY_DATA="${ZFS_VOL}/mysql-data"
-	zfs_filesystem_exists $MY_DATA && return
-
-	echo "zfs create -o mountpoint=$ZFS_JAIL_MNT/mysql/var/db/mysql $MY_DATA"
-	zfs create -o mountpoint=$ZFS_JAIL_MNT/mysql/var/db/mysql $MY_DATA
+	stage_pkg_install mysql56-server || exit
 }
 
 configure_mysql()
@@ -34,7 +25,7 @@ $GRANT vpopmail.* to 'vpopmail'@'$JAIL_NET_PREFIX.8' IDENTIFIED BY '`$RANDPASS`'
 EO_HEREDOC
 
 	echo "jexec $SAFE_NAME /usr/local/bin/mysql < $TMP_FILE"
-	jexec $SAFE_NAME /usr/local/bin/mysql < $TMP_FILE || exit
+	stage_exec /usr/local/bin/mysql < $TMP_FILE || exit
 }
 
 start_mysql()
@@ -81,11 +72,11 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
-create_staged_fs
+create_staged_fs mysql
 stage_sysrc hostname=mysql
 start_staged_jail
 install_mysql
-create_data_fs
+create_data_fs mysql
 start_mysql
 configure_mysql
 test_mysql

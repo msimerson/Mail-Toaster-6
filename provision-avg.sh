@@ -45,7 +45,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
-create_staged_fs
+create_staged_fs avg
 stage_sysrc hostname=avg
 start_staged_jail
 stage_mount_ports
@@ -53,5 +53,4 @@ install_avg
 configure_avg
 start_avg
 test_avg
-stage_unmount_ports
 promote_staged_jail avg
