@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="toaster.example.com"}
+
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:=bash}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="127.0.0"}
@@ -110,7 +112,7 @@ delete_staged_fs()
 stage_unmount()
 {
 	unmount_ports $STAGE_MNT
-	stage_unmount_data $1
+	unmount_data $1 $STAGE_MNT
 	stage_unmount_dev
 }
 
@@ -126,7 +128,7 @@ create_staged_fs()
 	zfs clone $BASE_SNAP $STAGE_VOL || exit
 
 	stage_mount_ports
-	stage_mount_data $1
+	mount_data $1 $STAGE_MNT
 	echo
 }
 
@@ -220,12 +222,12 @@ promote_staged_jail()
 	rename_fs_staged_to_ready $1
 
 	stop_active_jail $1
-	active_unmount_data $1
+	unmount_data $1 $ZFS_JAIL_MNT/$1
 	unmount_ports $ZFS_JAIL_MNT/$1
 
 	rename_fs_active_to_last $1
 	rename_fs_ready_to_active $1
-	active_mount_data $1
+	mount_data $1 $ZFS_JAIL_MNT/$1
 
 	echo "start jail $1"
 	service jail start $1 || exit
@@ -316,93 +318,55 @@ create_data_fs()
 	zfs create -o mountpoint=${ZFS_DATA_MNT}/${1} $_data
 }
 
-zfs_data_fs()
+mount_data()
 {
-	echo "$ZFS_DATA_VOL/$1"
+	local _data_vol="$ZFS_DATA_VOL/$1"
+
+	if ! zfs_filesystem_exists "$_data_vol"; then
+		echo "no $_data_vol to mount"
+		return
+	fi
+
+	local _data_mnt="$ZFS_DATA_MNT/$1"
+	local _data_mp=`data_mountpoint $1 $2`
+
+	if [ ! -d "$_data_mp" ]; then
+		mkdir -p $_data_mp
+	fi
+
+	echo "nullfs mount $_data_mnt $_data_mp"
+	mount_nullfs $_data_mnt $_data_mp || exit
 }
 
-active_mount_data()
+unmount_data()
 {
-	local _zdata=`zfs_data_fs $1`
+	local _data_vol="$ZFS_DATA_VOL/$1"
 
-	if ! zfs_filesystem_exists "$_zdata"; then
-		echo "no $_zdata to mount"
+	if ! zfs_filesystem_exists "$_data_vol"; then
+		echo "no $_data_vol fs to unmount"
 		return
 	fi
 
-	echo "zfs mount $_zdata"
-	zfs mount $_zdata || exit
+	local _data_mp=`data_mountpoint $1 $2`
+
+	if [ ! -d "$_data_mp" ]; then
+		return
+	fi
+
+	echo "umount data fs $_data_mp"
+	umount $_data_mp
 }
 
-active_unmount_data()
+data_mountpoint()
 {
-	local _zdata=`zfs_data_fs $1`
+	case $1 in
+		mysql )
+			echo "$2/var/db/mysql"; return ;;
+		vpopmail )
+			echo "$2/usr/local/vpopmail"; return ;;
+	esac
 
-	if ! zfs_filesystem_exists "$_zdata"; then
-		echo "no $_zdata fs to unmount"
-		return
-	fi
-
-	if [ `zfs get -p -H -o value mounted $_zdata` = "no" ]; then
-		echo "$_zdata not mounted"
-		return
-	fi
-
-	echo "zfs unmount $_zdata"
-	zfs unmount $_zdata || exit
-}
-
-stage_data_mountdir() {
-	# ex. /usr/local/vpopmail
-	local _lmp=`echo $1 $ZFS_JAIL_MNT/$2 | awk '{ o=substr($1, length($2)+1); print o }'`
-	echo ${STAGE_MNT}$_lmp
-}
-
-stage_mount_data()
-{
-	local _zdata=`zfs_data_fs $1`
-
-	if ! zfs_filesystem_exists "$_zdata"; then
-		echo "no $_zdata fs to mount"
-		return
-	fi
-
-	# ex. /jails/vpopmail/usr/local/vpopmail
-	local _mp=`zfs get -H mountpoint $_zdata | awk '{ print $3 }'`
-
-	local _stage_mnt=`stage_data_mountdir $_mp $1`
-
-	if [ ! -d "$_stage_mnt" ]; then
-		echo "creating $_stage_mnt"
-		mkdir -p "$_stage_mnt"
-	fi
-
-	echo "nullfs mount $_mp $_stage_mnt"
-	mount_nullfs $_mp $_stage_mnt || exit
-}
-
-stage_unmount_data()
-{
-	local _zdata=`zfs_data_fs $1`
-
-	if ! zfs_filesystem_exists "$_zdata"; then
-		echo "no $_zdata fs to unmount"
-		return
-	fi
-
-	local _mp=`zfs get -H mountpoint $_zdata | awk '{ print $3 }'`
-	local _stage_mnt=`stage_data_mountdir $_mp $1`
-
-	if [ ! -d "$_stage_mnt" ]; then
-		return
-	fi
-
-	if ! mount -t nullfs | grep -q $_stage_mnt; then
-		return
-	fi
-
-	echo "umount $_stage_mnt"
-	umount $_stage_mnt || exit
+	echo $2/data
 }
 
 stage_unmount_dev()

@@ -12,8 +12,7 @@ install_qmail()
 		mail_qmail_SET='BIG_CONCURRENCY_PATCH DNS_CNAME DOCS MAILDIRQUOTA_PATCH' \
 		mail_qmail_UNSET=RCDLINK
 
-	# TODO
-	#stage_exec make -C /usr/ports/mail/qmail deinstall install clean
+	stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
 
 install_maildrop()
@@ -36,8 +35,7 @@ install_vpopmail()
 	sysrc -f $STAGE_MNT/etc/make.conf mail_vpopmail_SET=CLEAR_PASSWD
 	sysrc -f $STAGE_MNT/etc/make.conf mail_vpopmail_UNSET=ROAMING
 
-	# TODO
-	# stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 
 configure_vpopmail()
@@ -51,8 +49,8 @@ configure_vpopmail()
 	# sed -i .bak -e 's/root/vpopmail/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
 	# sed -i .bak -e 's/secret/pass.From.Mysql.Setup/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
 
-	echo; echo "Enter the 'main' domain of this server"; echo
-	stage_exec /usr/local/vpopmail/bin/vadddomain
+	echo; echo "ATTN: Your postmaster password is..."; echo
+	stage_exec /usr/local/vpopmail/bin/vadddomain -r14 $TOASTER_HOSTNAME
 }
 
 start_vpopmail()
