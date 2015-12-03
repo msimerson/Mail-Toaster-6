@@ -8,7 +8,7 @@ create_zfs_jail_root()
 {
 	if [ ! -d "$ZFS_JAIL_MNT" ];
 	then
-		echo "creating $ZFS_JAIL_MNT fs"
+		echo "creating fs $ZFS_JAIL_MNT"
 		zfs create -o mountpoint=$ZFS_JAIL_MNT $ZFS_JAIL_VOL || exit
 	fi
 }
@@ -60,7 +60,7 @@ EO_MAKE_CONF
 		syslogd_flags=-ss
 
 	echo 'zfs_enable="YES"' | tee -a $BASE_MNT/boot/loader.conf
-
+    echo
 	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
 	echo "	saves having to do it in each subsequent one."
 	echo

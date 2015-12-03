@@ -50,7 +50,7 @@ configure_haraka()
 
 	local _hconf="$STAGE_MNT/usr/local/haraka/config"
 
-	sed -i .bak -e 's/^listen=\[.*$/listen=127.0.0.9:25,127.0.0.9:465,127.0.0.9:587/' $_hconf/smtp.ini
+	sed -i .bak -e 's/^listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' $_hconf/smtp.ini
 	sed -i .bak -e 's/^daemon_log_file=.*/daemon_log_file=\/dev\/null/' $_hconf/smtp.ini
 	sed -i .bak -e 's/^host=localhost/host=127.0.0.8/' $_hconf/smtp_forward.ini
 	sed -i .bak -e 's/^port=2555/port=25/' $_hconf/smtp_forward.ini
@@ -58,7 +58,7 @@ configure_haraka()
 	echo 'periodic_checks=30' >> $_hconf/dnsbl.ini
 	sed -i .bak -e 's/always_ok=false/always_ok=true/' $_hconf/log.syslog.ini
 
-	sed -i .bak -e 's/; listen=\[::\]:80/listen=127.0.0.9:80/' $_hconf/http.ini
+	sed -i .bak -e 's/; listen=\[::\]:80/listen=0.0.0.0:80/' $_hconf/http.ini
 
 	ln /etc/ssl/certs/server.crt $_hconf/tls_cert.pem
 	ln /etc/ssl/private/server.key $_hconf/tls_key.pem

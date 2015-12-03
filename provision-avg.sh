@@ -23,7 +23,7 @@ install_avg()
 configure_avg()
 {
 	stage_exec avgcfgctl -w Default.aspam.spamassassin.enabled="false"
-	stage_exec avgcfgctl -w Default.tcpd.avg.address="127.0.0.14"
+	stage_exec avgcfgctl -w Default.tcpd.avg.address="0.0.0.0"
 	stage_exec avgcfgctl -w Default.tcpd.smtp.enabled="false"
 	stage_exec avgcfgctl -w Default.tcpd.spam.enabled="false"
 	stage_exec avgcfgctl -w Default.setup.features.oad="false"
@@ -31,14 +31,18 @@ configure_avg()
 
 start_avg()
 {
-	stage_exec service avgd.sh restart || \
-		stop_staged_jail && start_staged_jail
+	stage_exec service avgd.sh restart
+	sleep 1
 }
 
 test_avg()
 {
-	echo "testing AVG..."
+	echo "testing AVG process is running"
 	ps ax -J $SAFE_NAME | grep avg || exit
+
+	echo "checking avgtcpd is listening"
+	sleep 1
+	sockstat -l | grep 54322 || exit
 }
 
 base_snapshot_exists \
@@ -48,7 +52,6 @@ base_snapshot_exists \
 create_staged_fs avg
 stage_sysrc hostname=avg
 start_staged_jail
-stage_mount_ports
 install_avg
 configure_avg
 start_avg

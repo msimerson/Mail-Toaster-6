@@ -61,7 +61,7 @@ install_spamassassin()
 
 	stage_pkg_install spamassassin dialog4ports || exit
 
-	grep -qs spamassassin $STAGE_MNT/etc/make.conf || cat <<EO_SPAMA >> $STAGE_MNT/etc/make.conf
+	stage_make_conf spamassassin_SET <<EO_SPAMA
 mail_spamassassin_SET=MYSQL DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE
 mail_spamassassin_UNSET=SSL PGSQL
 EO_SPAMA
@@ -83,6 +83,10 @@ configure_spamassassin()
 	install_sought_rules
 	install_sa_update
 	install_dcc_cleanup
+
+	# SASQL ?
+	# create database spamassassin;
+	# $GRANT spamassassin.* to 'spamassassin'@'$JAIL_NET_PREFIX.6' IDENTIFIED BY '`$RANDPASS`';
 }
 
 start_spamassassin()
@@ -106,7 +110,6 @@ base_snapshot_exists \
 
 create_staged_fs spamassassin
 stage_sysrc hostname=spamassassin
-stage_mount_ports
 start_staged_jail
 install_spamassassin
 configure_spamassassin

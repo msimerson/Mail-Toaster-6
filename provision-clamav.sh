@@ -42,7 +42,7 @@ configure_clamav()
 {
 	local _clamconf="$STAGE_MNT/usr/local/etc/clamd.conf"
 
-	sed -i .bak -e 's/#TCPAddr 127.0.0.1/TCPAddr 127.0.0.5/' $_clamconf
+	sed -i .bak -e 's/#TCPAddr 127.0.0.1/TCPAddr 0.0.0.0/' $_clamconf
 	sed -i .bak -e 's/#TCPSocket 3310/TCPSocket 3310/' $_clamconf
 	sed -i .bak -e 's/#LogFacility LOG_MAIL/LogFacility LOG_MAIL/' $_clamconf
 	sed -i .bak -e 's/#LogSyslog yes/LogSyslog yes/' $_clamconf
@@ -69,7 +69,8 @@ start_clamav()
 
 test_clamav()
 {
-	echo "testing ClamAV... TODO"
+	echo "testing ClamAV..."
+	stage_exec sockstat -l -4 | grep 3310 || exit
 }
 
 base_snapshot_exists \

@@ -98,18 +98,18 @@ install_squirrelmail()
 
 	tee -a $_sq_dir/config_local.php <<EO_SQUIRREL
 \$domain = 'CHANGE.THIS';
-\$smtpServerAddress = '127.0.0.9';
+\$smtpServerAddress = '${JAIL_NET_PREFIX}.9';
 \$smtpPort = 465;
 \$smtp_auth_mech = 'login';
-\$imapServerAddress = '127.0.0.8';
+\$imapServerAddress = '${JAIL_NET_PREFIX}.15';
 \$imap_server_type = 'dovecot';
 \$use_smtp_tls = true;
 \$data_dir = '/var/db/squirrelmail/data';
 \$attachment_dir = '/var/db/squirrelmail/attach';
 // \$check_referrer = '###DOMAIN###';
 \$check_mail_mechanism = 'advanced';
-\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@127.0.0.4/squirrelmail';
-\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@127.0.0.4/squirrelmail';
+\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
+\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
 EO_SQUIRREL
 
 	# TODO: provide a webmail-data file system that preserves these directories

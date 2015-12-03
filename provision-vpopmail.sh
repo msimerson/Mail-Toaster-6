@@ -11,13 +11,23 @@ install_qmail()
 	sysrc -f $STAGE_MNT/etc/make.conf \
 		mail_qmail_SET='BIG_CONCURRENCY_PATCH DNS_CNAME DOCS MAILDIRQUOTA_PATCH' \
 		mail_qmail_UNSET=RCDLINK
-	return  # TODO
-	stage_exec make -C /usr/ports/mail/qmail deinstall install clean
+
+	# TODO
+	#stage_exec make -C /usr/ports/mail/qmail deinstall install clean
+}
+
+install_maildrop()
+{
+	stage_pkg_install maildrop
+	fetch -o $STAGE_MNT/etc/mailfilter http://mail-toaster.com/install/mt6-mailfilter.txt
+	chown 89:89 $STAGE_MNT/etc/mailfilter
+	chmod 600 $STAGE_MNT/etc/mailfilter
 }
 
 install_vpopmail()
 {
 	install_qmail
+	install_maildrop
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /data -u 89 -g 89 -m -h-
@@ -26,8 +36,8 @@ install_vpopmail()
 	sysrc -f $STAGE_MNT/etc/make.conf mail_vpopmail_SET=CLEAR_PASSWD
 	sysrc -f $STAGE_MNT/etc/make.conf mail_vpopmail_UNSET=ROAMING
 
-	return
-	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+	# TODO
+	# stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 
 configure_vpopmail()
@@ -41,8 +51,8 @@ configure_vpopmail()
 	# sed -i .bak -e 's/root/vpopmail/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
 	# sed -i .bak -e 's/secret/pass.From.Mysql.Setup/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
 
-	# ~vpopmail/bin/vadddomain MY.DOMAIN  CHANGE.THIS.PASSWORD
-
+	echo; echo "Enter the 'main' domain of this server"; echo
+	stage_exec /usr/local/vpopmail/bin/vadddomain
 }
 
 start_vpopmail()
@@ -62,7 +72,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
-create_data_fs vpopmail /usr/local/vpopmail
+create_data_fs vpopmail
 create_staged_fs vpopmail
 stage_sysrc hostname=vpopmail
 start_staged_jail

@@ -6,11 +6,13 @@ export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="127.0.0"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:=lo0}
 export ZFS_VOL=${ZFS_VOL:=zroot}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
+export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # very little below here should need customizing. If so, consider opening
 # an Issue or PR at https://github.com/msimerson/Mail-Toaster-6
-export ZFS_JAIL_VOL="$ZFS_VOL/jails"
+export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
+export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
 export FBSD_ARCH=`uname -m`
 export FBSD_REL_VER=`/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-'`
@@ -210,6 +212,7 @@ stage_clear_caches()
 
 promote_staged_jail()
 {
+	echo; echo "   ****  promoting $1 jail ****"; echo
 	stop_staged_jail
 	stage_unmount $1
 	stage_clear_caches
@@ -240,6 +243,15 @@ stage_sysrc()
 	# don't use -j as this is oft called when jail is not running
 	echo "sysrc -R $STAGE_MNT $@"
 	sysrc -R $STAGE_MNT $@
+}
+
+stage_make_conf()
+{
+	if grep -qs $1 $STAGE_MNT/etc/make.conf; then
+		return
+	fi
+
+	echo $2 | tee -a $STAGE_MNT/etc/make.conf || exit
 }
 
 stage_exec()
@@ -289,25 +301,24 @@ EO_REDIS
 
 create_data_fs()
 {
-	MY_DATA="${ZFS_VOL}/$1-data"
-	if zfs_filesystem_exists $MY_DATA; then
-		echo "$MY_DATA already exists"
+	if ! zfs_filesystem_exists $ZFS_DATA_VOL; then
+		echo "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
+		zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL
+	fi
+
+	local _data="${ZFS_DATA_VOL}/$1"
+	if zfs_filesystem_exists $_data; then
+		echo "$_data already exists"
 		return
 	fi
 
-	if [ "$2" = "" ]; then
-		local _mp="$ZFS_JAIL_MNT/$1/data"
-	else
-		local _mp="${ZFS_JAIL_MNT}$2"
-	fi
-
-	echo "zfs create -o mountpoint=$_mp $MY_DATA"
-	zfs create -o mountpoint=$_mp $MY_DATA
+	echo "zfs create -o mountpoint=${ZFS_DATA_MNT}/${1} $_data"
+	zfs create -o mountpoint=${ZFS_DATA_MNT}/${1} $_data
 }
 
 zfs_data_fs()
 {
-	echo "$ZFS_VOL/$1-data"
+	echo "$ZFS_DATA_VOL/$1"
 }
 
 active_mount_data()
@@ -353,6 +364,7 @@ stage_mount_data()
 
 	if ! zfs_filesystem_exists "$_zdata"; then
 		echo "no $_zdata fs to mount"
+		return
 	fi
 
 	# ex. /jails/vpopmail/usr/local/vpopmail
