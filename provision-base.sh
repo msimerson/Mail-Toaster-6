@@ -39,11 +39,27 @@ update_freebsd()
 	freebsd-update -b $BASE_MNT -f $BASE_MNT/etc/freebsd-update.conf fetch install
 }
 
+configure_base_tls_certs()
+{
+	mkdir $BASE_ETC/ssl/certs $BASE_ETC/ssl/private
+	chmod o-r $BASE_MNT/etc/ssl/private
+
+    echo
+	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
+	echo "	saves having to do it in each subsequent one."
+	echo
+	echo "Generating self-signed SSL certificates"
+	echo "	hint: use the FQDN of this server for the common name"
+	echo
+	openssl req -x509 -nodes -days 2190 \
+	    -newkey rsa:2048 \
+	    -keyout $BASE_MNT/etc/ssl/private/server.key \
+	    -out $BASE_MNT/etc/ssl/certs/server.crt
+}
+
 configure_base()
 {
 	mkdir $BASE_MNT/usr/ports || exit
-	mkdir $BASE_ETC/ssl/certs $BASE_ETC/ssl/private
-	chmod o-r $BASE_MNT/etc/ssl/private
 
 	cp /etc/resolv.conf $BASE_ETC || exit
 	cp /etc/localtime $BASE_ETC || exit
@@ -60,17 +76,8 @@ EO_MAKE_CONF
 		syslogd_flags=-ss
 
 	echo 'zfs_enable="YES"' | tee -a $BASE_MNT/boot/loader.conf
-    echo
-	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
-	echo "	saves having to do it in each subsequent one."
-	echo
-	echo "Generating self-signed SSL certificates"
-	echo "	hint: use the FQDN of this server for the common name"
-	echo
-	openssl req -x509 -nodes -days 2190 \
-	    -newkey rsa:2048 \
-	    -keyout $BASE_MNT/etc/ssl/private/server.key \
-	    -out $BASE_MNT/etc/ssl/certs/server.crt
+
+	configure_base_tls_certs
 }
 
 install_bash()
@@ -125,7 +132,6 @@ install_freebsd
 update_freebsd
 configure_base
 
-# service jail start $SAFE_NAME || exit
 start_staged_jail $SAFE_NAME $BASE_MNT || exit
 pkg -j $SAFE_NAME install -y pkg vim-lite sudo ca_root_nss || exit
 jexec $SAFE_NAME newaliases || exit

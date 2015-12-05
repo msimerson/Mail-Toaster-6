@@ -51,6 +51,24 @@ install_sought_rules() {
 	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
 }
 
+install_spamassassin_port()
+{
+	stage_pkg_install dialog4ports || exit
+
+	grep -qs spamassassin_SET $STAGE_MNT/etc/make.conf || \
+		tee -a $STAGE_MNT/etc/make.conf <<EO_SPAMA
+mail_spamassassin_SET=MYSQL DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE
+mail_spamassassin_UNSET=SSL PGSQL
+EO_SPAMA
+
+	if [ ! "-d $STAGE_MNT/usr/ports/mail/spamassassin" ]; then
+		echo "ports aren't mounted!"
+		exit
+	fi
+
+	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean
+}
+
 install_spamassassin()
 {
 	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww || exit
@@ -58,18 +76,7 @@ install_spamassassin()
 	stage_pkg_install mysql56-client p5-DBI
 
 	install_geoip
-
-	stage_pkg_install spamassassin dialog4ports || exit
-
-	stage_make_conf spamassassin_SET <<EO_SPAMA
-mail_spamassassin_SET=MYSQL DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE
-mail_spamassassin_UNSET=SSL PGSQL
-EO_SPAMA
-	if [ ! "-d $STAGE_MNT/usr/ports/mail/spamassassin" ]; then
-		echo "ports aren't mounted!"
-		exit
-	fi
-	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean
+	install_spamassassin_port
 }
 
 configure_spamassassin()

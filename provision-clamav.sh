@@ -9,21 +9,25 @@ install_clamav()
 
 install_clamav_unofficial()
 {
-	CLAMAV_UV=4.8
+	local CLAMAV_UV=4.8
 	stage_pkg_install gnupg1 rsync bind-tools
-	fetch https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz
-	tar -xzf $CLAMAV_UV.tar.gz
+	fetch -o $STAGE_MNT/tmp/ \
+	  https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz
+	tar -xz -C $STAGE_MNT -f $STAGE_MNT/$CLAMAV_UV.tar.gz
 
-	cd clamav-unofficial-sigs-$CLAMAV_UV
-	sed -i .bak -e 's/\/var\/lib/\/var\/db/' clamav-unofficial-sigs.conf
-	sed -i .bak -e 's/^clam_user="clam"/clam_user="clamav"/' clamav-unofficial-sigs.conf
-	sed -i .bak -e 's/^clam_group="clam"/clam_group="clamav"/' clamav-unofficial-sigs.conf
-	sed -i .bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' clamav-unofficial-sigs.sh
+	local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-4.8"
+	local _sigs_conf="$_dist/clamav-unofficial-sigs.conf"
+	sed -i .bak -e 's/\/var\/lib/\/var\/db/' $_sigs_conf
+	sed -i .bak -e 's/^clam_user="clam"/clam_user="clamav"/' $_sigs_conf
+	sed -i .bak -e 's/^clam_group="clam"/clam_group="clamav"/' $_sigs_conf
 
-	chmod 755 clamav-unofficial-sigs.sh
-	cp clamav-unofficial-sigs.sh  /usr/local/bin
-	cp clamav-unofficial-sigs.conf /usr/local/etc/
-	cp clamav-unofficial-sigs.8 /usr/local/man/man8
+	local _sigs_sh="$_dist/clamav-unofficial-sigs.sh"
+	sed -i .bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' $_sigs_sh
+	chmod 755 $_sigs_sh
+
+	cp $_sigs_sh /usr/local/bin
+	cp $_sigs_conf /usr/local/etc/
+	cp $_dist/clamav-unofficial-sigs.8 /usr/local/man/man8
 	mkdir -p $STAGE_MNT/var/log/clamav-unofficial-sigs
 	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
 
