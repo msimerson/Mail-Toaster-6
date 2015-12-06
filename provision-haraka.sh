@@ -7,7 +7,7 @@ install_haraka()
 	install_redis || exit
 
 	echo "installing node & npm"
-	stage_pkg_install node npm || exit
+	stage_pkg_install node npm gmake || exit
 
 	echo "installing Haraka"
 	stage_exec npm install -g Haraka ws express || exit
@@ -52,7 +52,7 @@ configure_haraka()
 
 	sed -i .bak -e 's/^listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' $_hconf/smtp.ini
 	sed -i .bak -e 's/^daemon_log_file=.*/daemon_log_file=\/dev\/null/' $_hconf/smtp.ini
-	sed -i .bak -e 's/^host=localhost/host=127.0.0.8/' $_hconf/smtp_forward.ini
+	sed -i .bak -e "s/^host=localhost/host=$JAIL_NET_PREFIX.8/" $_hconf/smtp_forward.ini
 	sed -i .bak -e 's/^port=2555/port=25/' $_hconf/smtp_forward.ini
 	echo 'reject=0' > $_hconf/dnsbl.ini
 	echo 'periodic_checks=30' >> $_hconf/dnsbl.ini
@@ -66,14 +66,14 @@ configure_haraka()
 	install_p0f
 	perl -pi -e 's/^dnsbl$/dnsbl\nconnect.p0f/' $_hconf/plugins
 
-	sed -i .bak -e 's/^host=127.0.0.1/host=127.0.0.8/' $_hconf/rcpt_to.qmail_deliverable.ini
-	echo 'host=127.0.0.8' > $_hconf/auth_vpopmaild.ini
-	sed -i .bak -e 's/^spamd_socket=127.0.0.1:783/spamd_socket=127.0.0.6:783/' $_hconf/spamassassin.ini
+	sed -i .bak -e "s/^host=127.0.0.1/host=$JAIL_NET_PREFIX.8/" $_hconf/rcpt_to.qmail_deliverable.ini
+	echo "host=$JAIL_NET_PREFIX.8" > $_hconf/auth_vpopmaild.ini
+	sed -i .bak -e "s/^spamd_socket=127.0.0.1:783/spamd_socket=$JAIL_NET_PREFIX.6:783/" $_hconf/spamassassin.ini
 	sed -i .bak -e 's/^;spamd_user=$/spamd_user=first-recipient/' $_hconf/spamassassin.ini
-	echo 'clamd_socket=127.0.0.5:3310' >> $_hconf/clamd.ini
-	sed -i .bak -e 's/;host.*/host = 127.0.0.14/' $_hconf/avg.ini
+	echo "clamd_socket=$JAIL_NET_PREFIX.5:3310" >> $_hconf/clamd.ini
+	sed -i .bak -e "s/;host.*/host = $JAIL_NET_PREFIX.14/" $_hconf/avg.ini
 	sed -i .bak -e 's/;tmpdir.*/tmpdir=\/var\/tmp\/avg/' $_hconf/avg.ini
-	sed -i .bak -e 's/;host.*/host = 127.0.0.13/' $_hconf/rspamd.ini
+	sed -i .bak -e "s/;host.*/host = $JAIL_NET_PREFIX.13/" $_hconf/rspamd.ini
 
 	install_geoip_dbs
 }
@@ -83,9 +83,9 @@ start_haraka()
 	fetch -o $STAGE_MNT/usr/local/etc/rc.d/haraka http://mail-toaster.org/install/mt6-rcd.txt
 	chmod 555 $STAGE_MNT/usr/local/etc/rc.d/haraka
 	stage_sysrc haraka_enable=YES
-	stage_sysrc haraka_flags="-c /usr/local/haraka"
-	mkdir -p $STAGE_MNT/usr/local/haraka/queue
-	stage_exec service haraka start
+	stage_sysrc "haraka_flags=-c /usr/local/haraka"
+	mkdir -p $STAGE_MNT/usr/local/haraka/queue || exit
+	stage_exec service haraka start || exit
 }
 
 test_haraka()

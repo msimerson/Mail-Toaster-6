@@ -1,6 +1,8 @@
 #!/bin/sh
 
-export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="toaster.example.com"}
+# Required settings
+export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"}
+export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:=bash}
@@ -11,6 +13,34 @@ export ZFS_VOL=${ZFS_VOL:=zroot}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
+
+# See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
+export TOASTER_MYSQL=${TOASTER_MYSQL:=1}
+if [ "$TOASTER_MYSQL" = "1" ]; then
+	echo "mysql enabled"
+fi
+
+
+if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
+	echo; echo "Oops,  you aren't following instructions!"; echo
+	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
+	exit
+fi
+echo "toaster host: $TOASTER_HOSTNAME"
+
+if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
+	echo; echo "Oops, you didn't follow the instructions!"; echo
+	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
+	exit
+fi
+echo "toaster domain: $TOASTER_MAIL_DOMAIN"
+
+if [ "$SHELL" != "/bin/sh" ] && [ "$SHELL" != "/usr/local/bin/bash" ]; then
+	echo; echo "Oops, you didn't follow the instructions!"; echo
+	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
+	exit
+fi
+echo "shell: $SHELL"
 
 # very little below here should need customizing. If so, consider opening
 # an Issue or PR at https://github.com/msimerson/Mail-Toaster-6
@@ -90,6 +120,18 @@ host.hostname = \$name;
 EO_JAIL_CONF_HEAD
 }
 
+get_jail_nic()
+{
+	case "$1" in
+		haraka)
+			echo "em0"; return ;;
+		stage)
+			echo "em0"; return ;;
+	esac
+
+	echo "$JAIL_NET_INTERFACE"
+}
+
 get_jail_ip()
 {
 	case "$1" in
@@ -155,10 +197,17 @@ add_jail_conf()
 		path = $ZFS_JAIL_MNT/${1};"
 	fi
 
+	local _nic=`get_jail_nic $1`
+	local _nic_str=""
+	if [ $_nic != "$JAIL_NET_INTERFACE" ]; then
+		_nic_str="
+		interface = $_nic;"
+	fi
+
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = ${_jail_ip};${_path}
+		ip4.addr = ${_jail_ip};${_path}${_nic_str}
 	}
 EO_JAIL_CONF
 }
