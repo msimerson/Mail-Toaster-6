@@ -99,7 +99,7 @@ configure_spamassassin()
 start_spamassassin()
 {
 	stage_sysrc spamd_enable=YES
-	sysrc -j $SAFE_NAME spamd_flags='-v -q -x -u spamd -H /var/spool/spamd -A 127.0.0.0/24'
+	sysrc -j $SAFE_NAME spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
 	stage_exec service sa-spamd start
 }
 

@@ -63,8 +63,8 @@ install_roundcube()
 	stage_pkg_install roundcube
 
 	# for sqlite storage
-	mkdir -p $STAGE_MNT/var/db/roundcube
-	chown 80:80 $STAGE_MNT/var/db/roundcube
+	mkdir -p $STAGE_MNT/data/roundcube
+	chown 80:80 $STAGE_MNT/data/roundcube
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
 	cp $_rcc_dir/config.inc.php.sample $_rcc_dir/config.inc.php || exit
@@ -104,20 +104,18 @@ install_squirrelmail()
 \$imapServerAddress = '${JAIL_NET_PREFIX}.15';
 \$imap_server_type = 'dovecot';
 \$use_smtp_tls = true;
-\$data_dir = '/var/db/squirrelmail/data';
-\$attachment_dir = '/var/db/squirrelmail/attach';
+\$data_dir = '/data/squirrelmail/data';
+\$attachment_dir = '/data/squirrelmail/attach';
 // \$check_referrer = '###DOMAIN###';
 \$check_mail_mechanism = 'advanced';
 \$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
 \$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
 EO_SQUIRREL
 
-	# TODO: provide a webmail-data file system that preserves these directories
-	# across webmail jail builds. /var/db/squirrelmail/[data|attach] && roundcube
-	mkdir -p $STAGE_MNT/var/db/squirrelmail/attach $STAGE_MNT/var/db/squirrelmail/data
-	cp $_sq_dir/../data/default_pref $STAGE_MNT/var/db/squirrelmail/data/
-	chown -R www:www $STAGE_MNT/var/db/squirrelmail
-	chmod 733 $STAGE_MNT/var/db/squirrelmail/attach
+	mkdir -p $STAGE_MNT/data/squirrelmail/attach $STAGE_MNT/data/squirrelmail/data
+	cp $_sq_dir/../data/default_pref $STAGE_MNT/data/squirrelmail/data/
+	chown -R www:www $STAGE_MNT/data/squirrelmail
+	chmod 733 $STAGE_MNT/data/squirrelmail/attach
 
 	local _webmail_host="${JAIL_NET_PREFIX}.10"
 
@@ -217,6 +215,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
+create_data_fs webmail
 create_staged_fs webmail
 stage_sysrc hostname=webmail
 start_staged_jail

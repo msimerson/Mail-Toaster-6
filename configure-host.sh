@@ -7,22 +7,22 @@ export SAFE_NAME=`safe_jailname $BASE_NAME`
 update_host_ntpd()
 {
     tell_status "enabling NTPd"
-    sysrc -f /etc/rc.conf ntpd_enable=YES || exit
-    sysrc -f /etc/rc.conf ntpd_sync_on_start=YES
+    sysrc ntpd_enable=YES || exit
+    sysrc ntpd_sync_on_start=YES
     /etc/rc.d/ntpd restart
 }
 
 update_syslogd()
 {
     tell_status "turn off syslog network listener"
-    sysrc -f /etc/rc.conf syslogd_flags=-ss
+    sysrc syslogd_flags=-ss
     service syslogd restart
 }
 
 update_sendmail()
 {
     tell_status "turn off sendmail network listening"
-    sysrc -f /etc/rc.conf sendmail_enable=NO
+    sysrc sendmail_enable=NO
     service sendmail onestop
 }
 
@@ -67,6 +67,8 @@ constrain_sshd_to_host()
     "
     dialog --yesno "$_confirm_msg" 13 70 || exit
 
+    tell_status "Limiting SSHd IP address listerns"
+
     sed -i -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
     if [ -n "$PUBLIC_IP6" ]; then
         sed -i -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
@@ -78,6 +80,8 @@ constrain_sshd_to_host()
 
 check_global_listeners()
 {
+    tell_status "checking for host listeners on all IPs"
+
     if sockstat -L | egrep '\*:[0-9]' | grep -v 123; then
         echo "oops!, you should not having anything listening
         on all your IP addresses!"
@@ -87,7 +91,7 @@ check_global_listeners()
 
 add_jail_nat()
 {
-    sysrc -f /etc/rc.conf pf_enable=YES
+    tell_status "enabling NAT for jails"
 
     grep -qs bruteforce /etc/pf.conf || tee -a /etc/pf.conf <<EO_PF_RULES
 ext_if="$PUBLIC_NIC"
@@ -109,12 +113,15 @@ rdr proto tcp from any to <ext_ips> port { 80 443 } -> $JAIL_NET_PREFIX.12
 block in quick from <bruteforce>
 EO_PF_RULES
 
-    if ! (kldstat -m pf | grep pf); then
+    _pf_loaded=`kldstat -m pf | grep pf`
+    if [ -n "$_loaded" ]; then
+        pfctl -f /etc/pf.conf
+    else
         kldload pf
     fi
 
+    sysrc pf_enable=YES
     /etc/rc.d/pf restart
-    pfctl -f /etc/pf.conf
 }
 
 install_jailmanage()
@@ -127,14 +134,14 @@ install_jailmanage()
 set_jail_startup_order()
 {
     fetch -o - http://mail-toaster.com/install/mt6-jail-rcd.txt | patch -d /
-    #sysrc -f /etc/rc.conf jail_list="dns mysql vpopmail webmail haproxy clamav avg rspamd spamassassin haraka dspam monitor"
+    #sysrc jail_list="dns mysql vpopmail webmail haproxy clamav avg rspamd spamassassin haraka dspam monitor"
 }
 
 enable_jails()
 {
     #set_jail_startup_order
 
-    sysrc -f /etc/rc.conf jail_enable=YES
+    sysrc jail_enable=YES
 
     if grep -sq 'exec' /etc/jail.conf; then
         return
