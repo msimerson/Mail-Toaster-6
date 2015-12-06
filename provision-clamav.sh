@@ -11,9 +11,9 @@ install_clamav_unofficial()
 {
 	local CLAMAV_UV=4.8
 	stage_pkg_install gnupg1 rsync bind-tools
-	fetch -o $STAGE_MNT/tmp/ \
+	fetch -m -o $STAGE_MNT/tmp/ \
 	  https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz
-	tar -xz -C $STAGE_MNT -f $STAGE_MNT/$CLAMAV_UV.tar.gz
+	tar -xz -C $STAGE_MNT/tmp/ -f $STAGE_MNT/tmp/$CLAMAV_UV.tar.gz || exit
 
 	local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-4.8"
 	local _sigs_conf="$_dist/clamav-unofficial-sigs.conf"
@@ -23,23 +23,23 @@ install_clamav_unofficial()
 
 	local _sigs_sh="$_dist/clamav-unofficial-sigs.sh"
 	sed -i .bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' $_sigs_sh
-	chmod 755 $_sigs_sh
+	chmod 755 $_sigs_sh || exit
 
-	cp $_sigs_sh /usr/local/bin
-	cp $_sigs_conf /usr/local/etc/
-	cp $_dist/clamav-unofficial-sigs.8 /usr/local/man/man8
-	mkdir -p $STAGE_MNT/var/log/clamav-unofficial-sigs
-	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
+	cp $_sigs_sh $STAGE_MNT/usr/local/bin || exit
+	cp $_sigs_conf $STAGE_MNT/usr/local/etc/ || exit
+	cp $_dist/clamav-unofficial-sigs.8 $STAGE_MNT/usr/local/man/man8 || exit
+	mkdir -p $STAGE_MNT/var/log/clamav-unofficial-sigs || exit
+	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily || exit
 
-	tee <<EOSIG > /usr/local/etc/periodic/daily/clamav-unofficial-sigs
+	tee $STAGE_MNT/usr/local/etc/periodic/daily/clamav-unofficial-sigs <<EOSIG
 #!/bin/sh
 /usr/local/bin/clamav-unofficial-sigs.sh -c /usr/local/etc/clamav-unofficial-sigs.conf
 EOSIG
-	chmod 755 /usr/local/etc/periodic/daily/clamav-unofficial-sigs
-	mkdir -p /usr/local/etc/newsyslog.conf.d
+	chmod 755 $STAGE_MNT/usr/local/etc/periodic/daily/clamav-unofficial-sigs || exit
+	mkdir -p $STAGE_MNT/usr/local/etc/newsyslog.conf.d || exit
 	echo '/var/log/clamav-unofficial-sigs.log root:wheel 640  3 1000 * J' \
-		> /usr/local/etc/newsyslog.conf.d/clamav-unofficial-sigs
-	/usr/local/etc/periodic/daily/clamav-unofficial-sigs
+		> $STAGE_MNT/usr/local/etc/newsyslog.conf.d/clamav-unofficial-sigs
+	jexec $SAFE_NAME /usr/local/etc/periodic/daily/clamav-unofficial-sigs
 }
 
 configure_clamav()
@@ -58,15 +58,18 @@ configure_clamav()
 	sed -i .bak -e 's/#StructuredDataDetection/StructuredDataDetection/' $_clamconf
 	sed -i .bak -e 's/#ArchiveBlockEncrypted no/ArchiveBlockEncrypted yes/' $_clamconf
 
-	echo "installing ClamAV unofficial...TODO"
-	# install_clamav_unofficial
+	#tell_status "installing ClamAV unofficial"
+	#install_clamav_unofficial
 }
 
 start_clamav()
 {
 	stage_sysrc clamav_freshclam_enable=YES
 	stage_sysrc clamav_clamd_enable=YES
+
+	tell_status "downloading virus definition databases"
 	stage_exec freshclam
+
 	stage_exec service clamav-clamd start
 	stage_exec service clamav-freshclam start
 }

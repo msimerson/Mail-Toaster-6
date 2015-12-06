@@ -14,7 +14,7 @@ mail_qmail_SET=BIG_CONCURRENCY_PATCH DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 EO_QMAIL_SET
 
-	stage_exec make -C /usr/ports/mail/qmail deinstall install clean
+	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
 
 install_maildrop()
@@ -27,13 +27,13 @@ install_maildrop()
 
 install_vpopmail_port()
 {
-	grep vpopmail_SET $STAGE_MNT/etc/make.conf || \
+	grep -qs vpopmail_SET $STAGE_MNT/etc/make.conf || \
 		tee -a $STAGE_MNT/etc/make.conf <<EO_VPOP_SET
 mail_vpopmail_SET=CLEAR_PASSWD
 mail_vpopmail_UNSET=ROAMING
 EO_VPOP_SET
 
-	pkg install -y gmake gettext
+	stage_pkg_install gmake gettext
 	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 

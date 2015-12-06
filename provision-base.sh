@@ -8,7 +8,8 @@ create_zfs_jail_root()
 {
 	if [ ! -d "$ZFS_JAIL_MNT" ];
 	then
-		echo "creating fs $ZFS_JAIL_MNT"
+		tell_status "creating fs $ZFS_JAIL_MNT"
+		echo "zfs create $ZFS_JAIL_MNT"
 		zfs create -o mountpoint=$ZFS_JAIL_MNT $ZFS_JAIL_VOL || exit
 	fi
 }
@@ -26,7 +27,10 @@ create_base_filesystem()
 
 install_freebsd()
 {
+	echo "getting base.tgz"
 	fetch -m $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz || exit
+
+	echo "extracting base.tgz"
 	tar -C $BASE_MNT -xvpJf base.txz || exit
 
 	# export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
@@ -41,7 +45,7 @@ update_freebsd()
 
 configure_base_tls_certs()
 {
-	mkdir $BASE_ETC/ssl/certs $BASE_ETC/ssl/private
+	mkdir $BASE_MNT/etc/ssl/certs $BASE_MNT/etc/ssl/private
 	chmod o-r $BASE_MNT/etc/ssl/private
 
     echo
@@ -61,10 +65,10 @@ configure_base()
 {
 	mkdir $BASE_MNT/usr/ports || exit
 
-	cp /etc/resolv.conf $BASE_ETC || exit
-	cp /etc/localtime $BASE_ETC || exit
+	cp /etc/resolv.conf $BASE_MNT/etc || exit
+	cp /etc/localtime $BASE_MNT/etc || exit
 
-	tee -a $BASE_ETC/make.conf <<EO_MAKE_CONF
+	tee -a $BASE_MNT/etc/make.conf <<EO_MAKE_CONF
 WITH_PKGNG=yes
 WRKDIRPREFIX?=/tmp/portbuild
 EO_MAKE_CONF
@@ -105,20 +109,13 @@ EO_BASH_PROFILE
 use_bourne_shell()
 {
 	local _profile=$BASE_MNT/root/.profile
-
-	grep -q PS1 $_profile || tee -a $_profile <<EO_BOURNE
-
-alias ls='ls -FG'
+	local _bconf='
+alias ls="ls -FG"
 alias ll="ls -alFG"
-PS1="\`whoami\`@`hostname -s`:\\w # "
-EO_BOURNE
-
-	grep -q PS1 /root/.profile || tee -a /root/.profile <<EO_BOURNE2
-
-alias ls='ls -FG'
-alias ll="ls -alFG"
-PS1="\`whoami\`@`hostname -s`:\\w # "
-EO_BOURNE2
+PS1="`whoami`@`hostname -s`:\\w # "
+'
+	grep -q PS1 $_profile || echo "$_bconf" | tee -a $_profile
+	grep -q PS1 /root/.profile || echo "$_bconf" | tee -a /root/.profile
 
 	if [ $BOURNE_SHELL = "bash" ]; then
 		install_bash
@@ -135,11 +132,11 @@ configure_base
 start_staged_jail $SAFE_NAME $BASE_MNT || exit
 pkg -j $SAFE_NAME install -y pkg vim-lite sudo ca_root_nss || exit
 jexec $SAFE_NAME newaliases || exit
-jexec $SAFE_NAME pkg update || exit
 
 use_bourne_shell
 
-service jail stop $SAFE_NAME
+jail -r $SAFE_NAME
+umount $BASE_MNT/dev
 rm -rf $BASE_MNT/var/cache/pkg/*
 
 echo "zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}"
