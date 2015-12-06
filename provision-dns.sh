@@ -43,6 +43,7 @@ configure_unbound()
 	   local-data:  "12.${_rev_net}.in-addr.arpa PTR haproxy"
 	   local-data:  "13.${_rev_net}.in-addr.arpa PTR rspamd"
 	   local-data:  "14.${_rev_net}.in-addr.arpa PTR avg"
+	   local-data:  "15.${_rev_net}.in-addr.arpa PTR dovecot"
 	   local-data: "254.${_rev_net}.in-addr.arpa PTR staged"
 
 	   local-data: "base     A ${JAIL_NET_PREFIX}.2"
@@ -58,6 +59,7 @@ configure_unbound()
 	   local-data: "haproxy  A ${JAIL_NET_PREFIX}.12"
 	   local-data: "rspamd   A ${JAIL_NET_PREFIX}.13"
 	   local-data: "avg      A ${JAIL_NET_PREFIX}.14"
+	   local-data: "dovecot  A ${JAIL_NET_PREFIX}.15"
 	   local-data: "staged   A ${JAIL_NET_PREFIX}.254"
 
 EO_UNBOUND

@@ -5,6 +5,7 @@ export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="toaster.example.com"}
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:=bash}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="127.0.0"}
+export JAIL_NET_MASK=${JAIL_NET_MASK:="/8"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:=lo0}
 export ZFS_VOL=${ZFS_VOL:=zroot}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -28,11 +29,9 @@ export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
 export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
-export BASE_ETC="$BASE_MNT/etc"
-export BASE_IP="${JAIL_NET_PREFIX}.2"
 
 export STAGE_IP="${JAIL_NET_PREFIX}.254"
-export STAGE_NAME="stage-$FBSD_REL_VER"
+export STAGE_NAME="stage"
 export STAGE_VOL="$ZFS_JAIL_VOL/$STAGE_NAME"
 export STAGE_MNT="$ZFS_JAIL_MNT/$STAGE_NAME"
 
@@ -76,27 +75,100 @@ base_snapshot_exists()
 	zfs_snapshot_exists $BASE_SNAP
 }
 
-stop_jail()
+jail_conf_header()
 {
-	service jail stop $1
-	jail -r $1 2>/dev/null
+    tee -a /etc/jail.conf <<EO_JAIL_CONF_HEAD
+
+exec.start = "/bin/sh /etc/rc";
+exec.stop = "/bin/sh /etc/rc.shutdown";
+exec.clean;
+mount.devfs;
+path = "$ZFS_JAIL_MNT/\$name";
+interface = $JAIL_NET_INTERFACE;
+host.hostname = \$name;
+
+EO_JAIL_CONF_HEAD
 }
 
-stop_active_jail()
+get_jail_ip()
 {
-	echo "stopping jail $1"
-	stop_jail $1
-}
+	case "$1" in
+		base)
+			echo $JAIL_NET_PREFIX.2; return ;;
+		dns)
+			echo $JAIL_NET_PREFIX.3; return;;
+		mysql)
+			echo $JAIL_NET_PREFIX.4; return;;
+		clamav)
+			echo $JAIL_NET_PREFIX.5; return;;
+		spamassassin)
+			echo $JAIL_NET_PREFIX.6; return;;
+		dspam)
+			echo $JAIL_NET_PREFIX.7; return;;
+		vpopmail)
+			echo $JAIL_NET_PREFIX.8; return;;
+		haraka)
+			echo $JAIL_NET_PREFIX.9; return;;
+		webmail)
+			echo $JAIL_NET_PREFIX.10; return;;
+		monitor)
+			echo $JAIL_NET_PREFIX.11; return;;
+		haproxy)
+			echo $JAIL_NET_PREFIX.12; return;;
+		rspamd)
+			echo $JAIL_NET_PREFIX.13; return;;
+		avg)
+			echo $JAIL_NET_PREFIX.14; return;;
+		dovecot)
+			echo $JAIL_NET_PREFIX.15; return;;
+		stage)
+			echo $JAIL_NET_PREFIX.254; return;;
+	esac
 
-stop_staged_jail()
-{
-	TO_STOP="$1"
-	if [ -z "$TO_STOP" ]; then
-		TO_STOP="$SAFE_NAME"
+	if echo $1 | grep -q ^base; then
+		echo $JAIL_NET_PREFIX.2; return
 	fi
 
-	echo "stopping staged jail $1"
-	stop_jail $TO_STOP
+	return 2
+}
+
+add_jail_conf()
+{
+	local _jail_ip=`get_jail_ip $1`;
+	if [ -z "$_jail_ip" ]; then
+		echo "can't determine IP for jail $1"
+		exit
+	fi
+
+	if [ ! -e /etc/jail.conf ]; then
+		jail_conf_header
+	fi
+
+	if grep -q $1 /etc/jail.conf; then
+		return
+	fi
+
+	local _path=""
+	local _safe=`safe_jailname $1`
+	if [ "$1" != "$_safe" ]; then
+		_path="
+		path = $ZFS_JAIL_MNT/${1};"
+	fi
+
+	tee -a /etc/jail.conf <<EO_JAIL_CONF
+
+$1	{
+		ip4.addr = ${_jail_ip};${_path}
+	}
+EO_JAIL_CONF
+}
+
+stop_jail()
+{
+	local _safe=`safe_jailname $1`
+	echo "stopping jail $1 ($_safe)"
+	service jail stop $_safe
+	jail -r $_safe 2>/dev/null
 }
 
 delete_staged_fs()
@@ -118,12 +190,12 @@ stage_unmount()
 
 create_staged_fs()
 {
-	echo; echo "     **** stage jail cleanup ****"; echo
-	stop_staged_jail $SAFE_NAME
+	tell_status "stage jail cleanup"
+	stop_jail $STAGE_NAME
 	stage_unmount $1
 	delete_staged_fs
 
-	echo; echo "     **** stage jail filesystem setup ****"; echo
+	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $STAGE_VOL"
 	zfs clone $BASE_SNAP $STAGE_VOL || exit
 
@@ -142,7 +214,7 @@ start_staged_jail()
 		local _path="$STAGE_MNT"
 	fi
 
-	echo; echo "     **** stage jail startup ****"; echo
+	tell_status "stage jail $_name startup"
 
 	jail -c \
 		name=$_name \
@@ -170,9 +242,16 @@ rename_fs_staged_to_ready()
 	fi
 
 	# get the wait over with before shutting down production jail
-	echo "zfs rename $STAGE_VOL $_new_vol"
-	until zfs rename $STAGE_VOL $_new_vol; do
+	local _tries=0
+	local _zfs_rename="zfs rename $STAGE_VOL $_new_vol"
+	echo "_zfs_rename"
+	until $_zfs_rename; do
+		if [ $_tries -gt 15 ]; then
+			echo "trying to force rename"
+			_zfs_rename="zfs rename -f $STAGE_VOL $_new_vol"
+		fi
 		echo "waiting for ZFS filesystem to quiet"
+		_tries=`expr $_tries + 1`
 		sleep 3
 	done
 }
@@ -199,6 +278,12 @@ rename_fs_ready_to_active()
 	zfs rename $ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1 || exit
 }
 
+tell_status()
+{
+	echo; echo "   ***   $1   ***"; echo
+	sleep 1
+}
+
 proclaim_success()
 {
 	echo
@@ -212,24 +297,32 @@ stage_clear_caches()
 	rm -rf $STAGE_MNT/var/cache/pkg/*
 }
 
+stage_resolv_conf()
+{
+	local _nsip=`get_jail_ip dns`
+	echo "nameserver $_nsip" | tee $STAGE_MNT/etc/resolv.conf
+}
+
 promote_staged_jail()
 {
-	echo; echo "   ****  promoting $1 jail ****"; echo
-	stop_staged_jail
+	tell_status "promoting jail $1"
+	stop_jail $STAGE_NAME
+	stage_resolv_conf
 	stage_unmount $1
 	stage_clear_caches
 
 	rename_fs_staged_to_ready $1
 
-	stop_active_jail $1
+	stop_jail $1
 	unmount_data $1 $ZFS_JAIL_MNT/$1
 	unmount_ports $ZFS_JAIL_MNT/$1
 
 	rename_fs_active_to_last $1
 	rename_fs_ready_to_active $1
 	mount_data $1 $ZFS_JAIL_MNT/$1
+	add_jail_conf $1
 
-	echo "start jail $1"
+	tell_status "start jail $1"
 	service jail start $1 || exit
 	proclaim_success $1
 }
@@ -343,7 +436,7 @@ unmount_data()
 	local _data_vol="$ZFS_DATA_VOL/$1"
 
 	if ! zfs_filesystem_exists "$_data_vol"; then
-		echo "no $_data_vol fs to unmount"
+		echo "no data fs to unmount"
 		return
 	fi
 
@@ -371,7 +464,7 @@ data_mountpoint()
 
 stage_unmount_dev()
 {
-	if ! mount -t devfs | grep -q stage-; then
+	if ! mount -t devfs | grep -q "$STAGE_MNT/dev"; then
 		return
 	fi
 	echo "unmounting $STAGE_MNT/dev"

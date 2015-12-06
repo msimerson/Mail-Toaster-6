@@ -8,11 +8,13 @@ install_qmail()
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 	stage_exec /var/qmail/scripts/enable-qmail
 
-	sysrc -f $STAGE_MNT/etc/make.conf \
-		mail_qmail_SET='BIG_CONCURRENCY_PATCH DNS_CNAME DOCS MAILDIRQUOTA_PATCH' \
-		mail_qmail_UNSET=RCDLINK
+	grep qmail_SET $STAGE_MNT/etc/make.conf || \
+		tee -a $STAGE_MNT/etc/make.conf <<EO_QMAIL_SET
+mail_qmail_SET=BIG_CONCURRENCY_PATCH DNS_CNAME DOCS MAILDIRQUOTA_PATCH
+mail_qmail_UNSET=RCDLINK
+EO_QMAIL_SET
 
-	stage_exec make -C /usr/ports/mail/qmail deinstall install clean
+	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
 
 install_maildrop()
@@ -23,6 +25,18 @@ install_maildrop()
 	chmod 600 $STAGE_MNT/etc/mailfilter
 }
 
+install_vpopmail_port()
+{
+	grep -qs vpopmail_SET $STAGE_MNT/etc/make.conf || \
+		tee -a $STAGE_MNT/etc/make.conf <<EO_VPOP_SET
+mail_vpopmail_SET=CLEAR_PASSWD
+mail_vpopmail_UNSET=ROAMING
+EO_VPOP_SET
+
+	stage_pkg_install gmake gettext
+	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+}
+
 install_vpopmail()
 {
 	install_qmail
@@ -31,11 +45,7 @@ install_vpopmail()
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /data -u 89 -g 89 -m -h-
 	stage_pkg_install vpopmail || exit
-
-	sysrc -f $STAGE_MNT/etc/make.conf mail_vpopmail_SET=CLEAR_PASSWD
-	sysrc -f $STAGE_MNT/etc/make.conf mail_vpopmail_UNSET=ROAMING
-
-	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+	install_vpopmail_port
 }
 
 configure_vpopmail()
@@ -43,7 +53,7 @@ configure_vpopmail()
 	local _local_etc="$STAGE_MNT/usr/local/etc"
 
 	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | jexec $SAFE_NAME sh
-	echo 'mail.example.com' > $STAGE_MNT/var/qmail/control/me
+	echo $TOASTER_HOSTNAME > $STAGE_MNT/var/qmail/control/me
 
 	# sed -i .bak -e 's/localhost/127.0.0.4/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
 	# sed -i .bak -e 's/root/vpopmail/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
@@ -55,8 +65,6 @@ configure_vpopmail()
 
 start_vpopmail()
 {
-	# stage_sysrc vpopmail_enable=YES
-	# stage_exec service vpopmail start
 }
 
 test_vpopmail()
