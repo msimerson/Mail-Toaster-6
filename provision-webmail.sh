@@ -9,6 +9,7 @@ export JAIL_CONF_EXTRA='
 
 install_php()
 {
+	tell_status "installing PHP deps"
 	stage_pkg_install php56 php56-fileinfo php56-mcrypt php56-exif php56-openssl
 
 	cp $STAGE_MNT/usr/local/etc/php.ini-production $STAGE_MNT/usr/local/etc/php.ini
@@ -16,19 +17,6 @@ install_php()
 
 	stage_sysrc php_fpm_enable=YES
 	stage_exec service php-fpm start
-}
-
-mysql_db_exists()
-{
-	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
-	result=`echo $_query | jexec mysql mysql -s -N`
-	if [ -z "$result" ]; then
-		echo "$1 db does not exist"
-		return 1  # db does not exist
-	else
-		echo "$1 db exists"
-		return 0  # db exists
-	fi
 }
 
 install_roundcube_mysql()

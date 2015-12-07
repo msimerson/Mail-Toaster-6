@@ -368,7 +368,6 @@ promote_staged_jail()
 
 	rename_fs_active_to_last $1
 	rename_fs_ready_to_active $1
-	mount_data $1 $ZFS_JAIL_MNT/$1
 	add_jail_conf $1
 
 	tell_status "start jail $1"
@@ -538,4 +537,17 @@ get_public_ip()
     else
         PUBLIC_IP4=`ifconfig $PUBLIC_NIC | grep 'inet ' | awk '{print $2}'`
     fi
+}
+
+mysql_db_exists()
+{
+	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
+	result=`echo $_query | jexec mysql mysql -s -N`
+	if [ -z "$result" ]; then
+		echo "$1 db does not exist"
+		return 1  # db does not exist
+	else
+		echo "$1 db exists"
+		return 0  # db exists
+	fi
 }

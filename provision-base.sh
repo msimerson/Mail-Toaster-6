@@ -56,6 +56,11 @@ configure_base_tls_certs()
 commonName_default = $TOASTER_HOSTNAME \
 " $_ssl_cnf
 
+	grep -q commonName_default /etc/ssl/openssl.cnf || \
+		sed -i.bak -e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME \
+" /etc/ssl/openssl.cnf
+
     echo
 	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
 	echo "	saves having to do it in each subsequent one."

@@ -2,6 +2,7 @@
 
 . mail-toaster.sh || exit
 
+export VPOPMAIL_OPTIONS="CLEAR_PASSWD"
 #export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";
@@ -15,7 +16,7 @@ install_qmail()
 
 	grep qmail_SET $STAGE_MNT/etc/make.conf || \
 		tee -a $STAGE_MNT/etc/make.conf <<EO_QMAIL_SET
-mail_qmail_SET=BIG_CONCURRENCY_PATCH DNS_CNAME DOCS MAILDIRQUOTA_PATCH
+mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 EO_QMAIL_SET
 
@@ -32,9 +33,14 @@ install_maildrop()
 
 install_vpopmail_port()
 {
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		stage_pkg_install mysql56-client
+		VPOPMAIL_OPTIONS="$VPOPMAIL_OPTIONS MYSQL VALIAS"
+	fi
+
 	grep -qs vpopmail_SET $STAGE_MNT/etc/make.conf || \
 		tee -a $STAGE_MNT/etc/make.conf <<EO_VPOP_SET
-mail_vpopmail_SET=CLEAR_PASSWD
+mail_vpopmail_SET=$VPOPMAIL_OPTIONS
 mail_vpopmail_UNSET=ROAMING
 EO_VPOP_SET
 
@@ -48,9 +54,33 @@ install_vpopmail()
 	install_maildrop
 
 	# stage_exec pw groupadd -n vpopmail -g 89
-	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /data -u 89 -g 89 -m -h-
+	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
+
 	stage_pkg_install vpopmail || exit
 	install_vpopmail_port
+}
+
+install_vpopmail_mysql()
+{
+	local _init_db=1
+	local _vpass=`openssl rand -hex 18`
+
+	local _vpe="$STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql"
+	sed -i -e "s/localhost/$TOASTER_NET_PREFIX.4/" $_vpe
+	sed -i -e 's/root/vpopmail/' $_vpe
+	sed -i -e "s/secret/$_vpass/" $_vpe
+
+	local _grant='GRANT ALL PRIVILEGES ON vpopmail.* to'
+	local _vpopmail_host=`get_jail_ip vpopmail`
+	local _mysql_cmd="$_grant 'vpopmail'@'${_vpopmail_host}' IDENTIFIED BY '${_vpass}';"
+
+	if mysql_db_exists vpopmail; then
+		_init_db=0
+	else
+		_mysql_cmd="create database vpopmail; $_mysql_cmd"
+	fi
+
+	echo $_mysql_cmd | jexec mysql /usr/local/bin/mysql || exit
 }
 
 configure_vpopmail()
@@ -60,9 +90,9 @@ configure_vpopmail()
 	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | jexec $SAFE_NAME sh
 	echo $TOASTER_HOSTNAME > $STAGE_MNT/var/qmail/control/me
 
-	# sed -i .bak -e 's/localhost/127.0.0.4/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
-	# sed -i .bak -e 's/root/vpopmail/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
-	# sed -i .bak -e 's/secret/pass.From.Mysql.Setup/' $STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		install_vpopmail_mysql
+	fi
 
 	echo; echo "ATTN: Your postmaster password is..."; echo
 	stage_exec /usr/local/vpopmail/bin/vadddomain -r14 $TOASTER_HOSTNAME

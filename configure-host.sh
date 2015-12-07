@@ -148,8 +148,9 @@ plumb_jail_nic()
 {
     if [ "$JAIL_NET_INTERFACE" = "lo1" ]; then
         sysrc cloned_interfaces=lo1
-        local _missing=`ifconfig lo2 | grep 'does not exist'`
+        local _missing=`ifconfig lo1 2>&1 | grep 'does not exist'`
         if [ -n "$_missing" ]; then
+            echo "creating interface lo1"
             ifconfig lo1 create || exit
         fi
     fi

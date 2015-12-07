@@ -23,12 +23,15 @@ configure_unbound()
 	sed -i .bak -e 's/# control-interface: 127./control-interface: 127./' $UNB_DIR/unbound.conf
 
 	local _rev_net=`echo $JAIL_NET_PREFIX | awk '{split($1,a,".");printf("%s.%s.%s",a[3],a[2],a[1])}'`
+	get_public_ip
 
 	tee -a $UNB_DIR/toaster.conf <<EO_UNBOUND
 	   $UNB_LOCAL
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
+	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
+	   access-control: $PUBLIC_IP4 allow
 
 	   local-data:   "2.${_rev_net}.in-addr.arpa PTR base"
 	   local-data:   "3.${_rev_net}.in-addr.arpa PTR dns"
