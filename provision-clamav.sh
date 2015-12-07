@@ -64,13 +64,14 @@ configure_clamav()
 
 start_clamav()
 {
-	stage_sysrc clamav_freshclam_enable=YES
-	stage_sysrc clamav_clamd_enable=YES
-
 	tell_status "downloading virus definition databases"
 	stage_exec freshclam
 
+	tell_status "starting ClamAV daemons"
+	stage_sysrc clamav_clamd_enable=YES
 	stage_exec service clamav-clamd start
+
+	stage_sysrc clamav_freshclam_enable=YES
 	stage_exec service clamav-freshclam start
 }
 

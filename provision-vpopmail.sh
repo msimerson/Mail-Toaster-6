@@ -2,6 +2,11 @@
 
 . mail-toaster.sh || exit
 
+#export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";
+"
+
 install_qmail()
 {
 	mkdir -p $STAGE_MNT/usr/local/etc/rc.d

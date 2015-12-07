@@ -2,11 +2,18 @@
 
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA="allow.sysvipc=1"
+export JAIL_CONF_EXTRA="
+		allow.sysvipc = 1;
+		mount += \"$ZFS_DATA_MNT/avg \$path/data nullfs rw 0 0\";
+"
+
 install_avg()
 {
 	# TODO
 #	mkdir /tmp/avg $JAILS_MNT/avg/var/tmp/avg $JAILS_MNT/haraka/var/tmp/avg || exit
 #	sed -i.bak -e 's/#mount +=  "\/tmp\/avg/mount +=  "\/tmp\/avg/' /etc/jail.conf
+	fetch -m http://download.avgfree.com/filedir/inst/avg2013ffb-r3115-a6155.i386.tar.gz || exit
 
 	stage_exec make -C /usr/ports/misc/compat7x install distclean
 	stage_fbsd_package lib32
@@ -15,8 +22,8 @@ install_avg()
 	sysrc -R $STAGE_MNT ldconfig32_paths="\$ldconfig32_paths /opt/avg/av/lib"
 	mkdir -p $STAGE_MNT/usr/local/etc/rc.d || exit
 
-	fetch -m http://download.avgfree.com/filedir/inst/avg2013ffb-r3115-a6155.i386.tar.gz || exit
 	tar -C $STAGE_MNT/tmp -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
+	mkdir -p $STAGE_MNT/opt/avg
 	jexec $SAFE_NAME /tmp/avg2013ffb-r3115-a6155.i386/install.sh
 }
 
@@ -49,6 +56,7 @@ base_snapshot_exists \
 	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
 	&& exit)
 
+create_data_fs avg
 create_staged_fs avg
 stage_sysrc hostname=avg
 start_staged_jail

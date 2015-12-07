@@ -22,15 +22,16 @@ create_base_filesystem()
 		zfs destroy $BASE_VOL || exit
 	fi
 
+	tell_status "creating base fs $BASE_VOL"
 	zfs create $BASE_VOL || exit
 }
 
 install_freebsd()
 {
-	echo "getting base.tgz"
+	tell_status "getting base.tgz"
 	fetch -m $FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz || exit
 
-	echo "extracting base.tgz"
+	tell_status "extracting base.tgz"
 	tar -C $BASE_MNT -xvpJf base.txz || exit
 
 	# export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
@@ -39,6 +40,7 @@ install_freebsd()
 
 update_freebsd()
 {
+	tell_status "apply FreeBSD patches to base jail"
 	sed -i .bak -e 's/^Components.*/Components world kernel/' $BASE_MNT/etc/freebsd-update.conf
 	freebsd-update -b $BASE_MNT -f $BASE_MNT/etc/freebsd-update.conf fetch install
 }
@@ -47,6 +49,12 @@ configure_base_tls_certs()
 {
 	mkdir $BASE_MNT/etc/ssl/certs $BASE_MNT/etc/ssl/private
 	chmod o-r $BASE_MNT/etc/ssl/private
+
+	local _ssl_cnf="$BASE_MNT/etc/ssl/openssl.cnf"
+	grep -q commonName_default $_ssl_cnf || \
+		sed -i.bak -e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME \
+" $_ssl_cnf
 
     echo
 	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
@@ -65,9 +73,13 @@ configure_base()
 {
 	mkdir $BASE_MNT/usr/ports || exit
 
+	tell_status "adding base jail resolv.conf"
 	cp /etc/resolv.conf $BASE_MNT/etc || exit
+
+	tell_status "setting base jail's timezone (to hosts)"
 	cp /etc/localtime $BASE_MNT/etc || exit
 
+	tell_status "setting base jail make.conf variables"
 	tee -a $BASE_MNT/etc/make.conf <<EO_MAKE_CONF
 WITH_PKGNG=yes
 WRKDIRPREFIX?=/tmp/portbuild

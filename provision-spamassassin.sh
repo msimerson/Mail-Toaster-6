@@ -4,8 +4,8 @@
 
 install_geoip()
 {
+	tell_status "install GeoIP & dbs"
 	stage_pkg_install p5-Geo-IP
-	echo "install GeoIP data"
 	local _geodb="http://geolite.maxmind.com/download/geoip/database"
 	local _lgeo="$STAGE_MNT/usr/local/share/GeoIP"
 	fetch -o $_lgeo $_geodb/GeoLiteCountry/GeoIP.dat.gz
@@ -53,17 +53,22 @@ install_sought_rules() {
 
 install_spamassassin_port()
 {
+	tell_status "install SpamAssassin from ports (w/opts)"
 	stage_pkg_install dialog4ports || exit
+
+	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE"
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		_SA_OPTS="MYSQL $_SA_OPTS"
+	fi
 
 	grep -qs spamassassin_SET $STAGE_MNT/etc/make.conf || \
 		tee -a $STAGE_MNT/etc/make.conf <<EO_SPAMA
-mail_spamassassin_SET=MYSQL DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE
+mail_spamassassin_SET=$_SA_OPTS
 mail_spamassassin_UNSET=SSL PGSQL
 EO_SPAMA
 
 	if [ ! "-d $STAGE_MNT/usr/ports/mail/spamassassin" ]; then
-		echo "ports aren't mounted!"
-		exit
+		echo "ports aren't mounted!" && exit
 	fi
 
 	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean
@@ -71,9 +76,13 @@ EO_SPAMA
 
 install_spamassassin()
 {
+	tell_status "install SpamAssassin optional dependencies"
 	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww || exit
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents || exit
-	stage_pkg_install mysql56-client p5-DBI
+
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		stage_pkg_install mysql56-client p5-DBI
+	fi
 
 	install_geoip
 	install_spamassassin_port
@@ -98,6 +107,7 @@ configure_spamassassin()
 
 start_spamassassin()
 {
+	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
 	sysrc -j $SAFE_NAME spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
 	stage_exec service sa-spamd start
@@ -105,8 +115,7 @@ start_spamassassin()
 
 test_spamassassin()
 {
-	echo "testing spamassassin..."
-	sleep 1
+	tell_status "testing spamassassin"
 	stage_exec sockstat -l -4 | grep 783 || exit
 	echo "it worked"
 }

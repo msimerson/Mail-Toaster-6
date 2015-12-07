@@ -1,25 +1,24 @@
 #!/bin/sh
 
 # Required settings
-export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"}
-export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
+export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
+export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"} || exit
 
 # export these in your environment to customize
-export BOURNE_SHELL=${BOURNE_SHELL:=bash}
-export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="127.0.0"}
-export JAIL_NET_MASK=${JAIL_NET_MASK:="/8"}
-export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:=lo0}
-export ZFS_VOL=${ZFS_VOL:=zroot}
+export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
+export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
+export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
+export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
+export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
-export TOASTER_MYSQL=${TOASTER_MYSQL:=1}
+export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
-
 
 if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
 	echo; echo "Oops,  you aren't following instructions!"; echo
@@ -35,8 +34,9 @@ if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
 fi
 echo "toaster domain: $TOASTER_MAIL_DOMAIN"
 
-if [ "$SHELL" != "/bin/sh" ] && [ "$SHELL" != "/usr/local/bin/bash" ]; then
-	echo; echo "Oops, you didn't follow the instructions!"; echo
+_this_shell=`ps -o args= -p "$$" | grep csh`
+if [ -n "$_this_shell" ]; then
+    echo; echo "Oops, you didn't follow the instructions! ($_this_shell)"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 	exit
 fi
@@ -50,7 +50,7 @@ export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 export FBSD_ARCH=`uname -m`
 export FBSD_REL_VER=`/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-'`
 export FBSD_PATCH_VER=`/bin/freebsd-version | /usr/bin/cut -f3 -d'-'`
-export FBSD_PATCH_VER=${FBSD_PATCH_VER:=p0}
+export FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 
 # the 'base' jail that other jails are cloned from. This will be named as the
 # host OS version, ex: base-10.2-RELEASE and the snapshot name will be the OS
@@ -120,18 +120,6 @@ host.hostname = \$name;
 EO_JAIL_CONF_HEAD
 }
 
-get_jail_nic()
-{
-	case "$1" in
-		haraka)
-			echo "em0"; return ;;
-		stage)
-			echo "em0"; return ;;
-	esac
-
-	echo "$JAIL_NET_INTERFACE"
-}
-
 get_jail_ip()
 {
 	case "$1" in
@@ -197,17 +185,16 @@ add_jail_conf()
 		path = $ZFS_JAIL_MNT/${1};"
 	fi
 
-	local _nic=`get_jail_nic $1`
-	local _nic_str=""
-	if [ $_nic != "$JAIL_NET_INTERFACE" ]; then
-		_nic_str="
-		interface = $_nic;"
+	local _jail_extra=""
+	if [ -n "$JAIL_CONF_EXTRA" ]; then
+		_jail_extra="
+		${JAIL_CONF_EXTRA};"
 	fi
 
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = ${_jail_ip};${_path}${_nic_str}
+		ip4.addr = ${_jail_ip};${_path}${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
 }
@@ -263,7 +250,7 @@ start_staged_jail()
 		local _path="$STAGE_MNT"
 	fi
 
-	tell_status "stage jail $_name startup"
+	tell_status "stage jail startup"
 
 	jail -c \
 		name=$_name \
@@ -275,6 +262,7 @@ start_staged_jail()
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		allow.sysvipc=1 \
 		mount.devfs \
+		$JAIL_START_EXTRA \
 		|| exit
 
 	pkg -j $SAFE_NAME update
@@ -293,7 +281,7 @@ rename_fs_staged_to_ready()
 	# get the wait over with before shutting down production jail
 	local _tries=0
 	local _zfs_rename="zfs rename $STAGE_VOL $_new_vol"
-	echo "_zfs_rename"
+	echo "$_zfs_rename"
 	until $_zfs_rename; do
 		if [ $_tries -gt 15 ]; then
 			echo "trying to force rename"
@@ -301,7 +289,7 @@ rename_fs_staged_to_ready()
 		fi
 		echo "waiting for ZFS filesystem to quiet"
 		_tries=`expr $_tries + 1`
-		sleep 3
+		sleep 5
 	done
 }
 
@@ -315,15 +303,27 @@ rename_fs_active_to_last()
 		zfs destroy $LAST || exit
 	fi
 
-	if zfs_filesystem_exists "$ACTIVE"; then
-		echo "zfs rename $ACTIVE $LAST"
-		zfs rename $ACTIVE $LAST || exit
+	if ! zfs_filesystem_exists "$ACTIVE"; then
+		return
 	fi
+
+	local _tries=0
+	local _zfs_rename="zfs rename $ACTIVE $LAST"
+	echo "$_zfs_rename"
+	until $_zfs_rename; do
+		if [ $_tries -gt 5 ]; then
+			echo "trying to force rename"
+			_zfs_rename="zfs rename -f $ACTIVE $LAST"
+		fi
+		echo "waiting for ZFS filesystem to quiet"
+		_tries=`expr $_tries + 1`
+		sleep 5
+	done
 }
 
 rename_fs_ready_to_active()
 {
-	echo "zfs rename $$ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1"
+	echo "zfs rename $ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1"
 	zfs rename $ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1 || exit
 }
 
@@ -438,7 +438,7 @@ install_redis()
 	stage_exec service redis start
 
 	stage_exec mkdir -p /usr/local/etc/newsyslog.conf.d
-	tee -a $STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis <<EO_REDIS
+	tee $STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis <<EO_REDIS
 /var/log/redis/redis.log           644  3     100  *     JC
 EO_REDIS
 }
@@ -518,4 +518,24 @@ stage_unmount_dev()
 	fi
 	echo "unmounting $STAGE_MNT/dev"
 	umount $STAGE_MNT/dev || exit
+}
+
+get_public_facing_nic()
+{
+    if [ "$1" = 'ipv6' ]; then
+        export PUBLIC_NIC=`netstat -rn | grep default | awk '{ print $4 }' | tail -n1`
+    else
+        export PUBLIC_NIC=`netstat -rn | grep default | awk '{ print $4 }' | head -n1`
+    fi
+}
+
+get_public_ip()
+{
+    get_public_facing_nic $1
+
+    if [ "$1" = 'ipv6' ]; then
+        PUBLIC_IP6=`ifconfig $PUBLIC_NIC | grep 'inet6' | grep -v fe80 | awk '{print $2}'`
+    else
+        PUBLIC_IP4=`ifconfig $PUBLIC_NIC | grep 'inet ' | awk '{print $2}'`
+    fi
 }

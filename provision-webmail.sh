@@ -2,6 +2,11 @@
 
 . mail-toaster.sh || exit
 
+#export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA='
+		mount += "/data/webmail $path/data nullfs rw 0 0";
+'
+
 install_php()
 {
 	stage_pkg_install php56 php56-fileinfo php56-mcrypt php56-exif php56-openssl

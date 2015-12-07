@@ -26,26 +26,6 @@ update_sendmail()
     service sendmail onestop
 }
 
-get_public_facing_nic()
-{
-    if [ "$1" = 'ipv6' ]; then
-        PUBLIC_NIC=`netstat -rn | grep default | awk '{ print $4 }' | tail -n1`
-    else
-        PUBLIC_NIC=`netstat -rn | grep default | awk '{ print $4 }' | head -n1`
-    fi
-}
-
-get_public_ip()
-{
-    get_public_facing_nic $1
-
-    if [ "$1" = 'ipv6' ]; then
-        PUBLIC_IP6=`ifconfig $PUBLIC_NIC | grep 'inet6' | grep -v fe80 | awk '{print $2}'`
-    else
-        PUBLIC_IP4=`ifconfig $PUBLIC_NIC | grep 'inet ' | awk '{print $2}'`
-    fi
-}
-
 constrain_sshd_to_host()
 {
     if ! sockstat -L | egrep '\*:22 '; then
@@ -67,7 +47,7 @@ constrain_sshd_to_host()
     "
     dialog --yesno "$_confirm_msg" 13 70 || exit
 
-    tell_status "Limiting SSHd IP address listerns"
+    tell_status "Limiting SSHd to host IP address"
 
     sed -i -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
     if [ -n "$PUBLIC_IP6" ]; then
@@ -114,27 +94,27 @@ block in quick from <bruteforce>
 EO_PF_RULES
 
     _pf_loaded=`kldstat -m pf | grep pf`
-    if [ -n "$_loaded" ]; then
-        pfctl -f /etc/pf.conf
+    if [ -n "$_pf_loaded" ]; then
+        pfctl -f /etc/pf.conf 2>/dev/null || exit
     else
         kldload pf
     fi
 
     sysrc pf_enable=YES
-    /etc/rc.d/pf restart
+    /etc/rc.d/pf restart 2>/dev/null || exit
 }
 
 install_jailmanage()
 {
-    pkg install -y ca_root_nss
+    pkg install -y ca_root_nss || exit
     fetch -o /usr/local/sbin/jailmanage https://www.tnpi.net/computing/freebsd/jail_manage.txt
-    chmod 755 /usr/local/sbin/jailmanage
+    chmod 755 /usr/local/sbin/jailmanage || exit
 }
 
 set_jail_startup_order()
 {
     fetch -o - http://mail-toaster.com/install/mt6-jail-rcd.txt | patch -d /
-    #sysrc jail_list="dns mysql vpopmail webmail haproxy clamav avg rspamd spamassassin haraka dspam monitor"
+    # sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg rspamd spamassassin haraka dspam monitor"
 }
 
 enable_jails()
@@ -164,6 +144,17 @@ update_freebsd() {
     portsnap fetch update || portsnap fetch extract
 }
 
+plumb_jail_nic()
+{
+    if [ "$JAIL_NET_INTERFACE" = "lo1" ]; then
+        sysrc cloned_interfaces=lo1
+        local _missing=`ifconfig lo2 | grep 'does not exist'`
+        if [ -n "$_missing" ]; then
+            ifconfig lo1 create || exit
+        fi
+    fi
+}
+
 update_host() {
     update_freebsd
     update_host_ntpd
@@ -174,6 +165,7 @@ update_host() {
     add_jail_nat
     enable_jails
     install_jailmanage
+    plumb_jail_nic
 }
 
 update_host
