@@ -5,8 +5,7 @@
 export VPOPMAIL_OPTIONS="CLEAR_PASSWD"
 #export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";
-"
+		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 install_qmail()
 {
@@ -44,7 +43,7 @@ mail_vpopmail_SET=$VPOPMAIL_OPTIONS
 mail_vpopmail_UNSET=ROAMING
 EO_VPOP_SET
 
-	stage_pkg_install gmake gettext
+	stage_pkg_install gmake gettext dialog4ports
 	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 
@@ -66,7 +65,7 @@ install_vpopmail_mysql()
 	local _vpass=`openssl rand -hex 18`
 
 	local _vpe="$STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql"
-	sed -i -e "s/localhost/$TOASTER_NET_PREFIX.4/" $_vpe
+	sed -i -e "s/localhost/$JAIL_NET_PREFIX.4/" $_vpe
 	sed -i -e 's/root/vpopmail/' $_vpe
 	sed -i -e "s/secret/$_vpass/" $_vpe
 

@@ -4,8 +4,7 @@
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA='
-		devfs_ruleset = 7;
-'
+		devfs_ruleset = 7;'
 
 HARAKA_CONF="$STAGE_MNT/usr/local/haraka/config"
 

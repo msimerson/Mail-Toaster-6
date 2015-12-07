@@ -88,6 +88,19 @@ install_spamassassin()
 	install_spamassassin_port
 }
 
+configure_spamassassin_bayes()
+{
+	# TODO: enable in local.cf
+
+	echo "
+bayes_store_module  Mail::SpamAssassin::BayesStore::Redis
+bayes_sql_dsn       server=$JAIL_NET_PREFIX.15:6379;database=2
+bayes_token_ttl 21d
+bayes_seen_ttl   8d
+bayes_auto_expire 1
+    " | tee $STAGE_MNT/usr/local/etc/mail/spamassassin/redis.cf
+}
+
 configure_spamassassin()
 {
 	local _local_etc="$STAGE_MNT/usr/local/etc"

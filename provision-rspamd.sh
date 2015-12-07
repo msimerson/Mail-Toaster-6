@@ -14,6 +14,9 @@ configure_rspamd()
 	mkdir -p $local_etc/newsyslog.conf.d/
 	echo '/var/log/rspamd/rspamd.log   nobody:nobody     644   7    *     @T00     JC   /var/run/rspamd/rspamd.pid  30' \
   		> $local_etc/newsyslog.conf.d/rspamd
+
+  	# Maybe:
+  	# add Redis address, for DMARC stats
 }
 
 start_rspamd()
