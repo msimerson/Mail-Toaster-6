@@ -6,13 +6,19 @@
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
+
 install_dovecot()
 {
     stage_pkg_install dovecot2 || exit
 
+    tell_status "configure for vpopmail"
     stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
     stage_exec pw groupadd -n vpopmail -g 89
     stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
+
+    stage_exec mkdir -p /var/qmail
+    stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
+    stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 
     if [ "$TOASTER_MYSQL" = "1" ]; then
         stage_pkg_install mysql56-client

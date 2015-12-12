@@ -4,8 +4,7 @@
 
 #export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA='
-		mount += "/data/webmail $path/data nullfs rw 0 0";
-'
+		mount += "/data/webmail $path/data nullfs rw 0 0";'
 
 install_php()
 {
@@ -21,24 +20,39 @@ install_php()
 
 install_roundcube_mysql()
 {
-	local _init_db=1
-	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
+	if [ "$TOASTER_MYSQL" != "1" ]; then
+		return
+	fi
 
-	local _rcpass=`openssl rand -hex 18`
+	if ! mysql_db_exists roundcubemail; then
+		tell_status "creating roundcube mysql db"
+		echo "CREATE DATABASE roundcubemail;" | jexec mysql /usr/local/bin/mysql || exit
+	fi
+
 	local _active_cfg="$ZFS_JAIL_MNT/webmail/usr/local/www/roundcube/config/config.inc.php"
 	if [ -f "$_active_cfg" ]; then
-		_rcpass=`grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@`
+		local _rcpass=`grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@`
 	fi
 
+	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
+
+	if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
+		echo "preserving password $_rcpass"
+		sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
+		sed -i -e "s/@localhost\//@$JAIL_NET_PREFIX.4\//" $_rcc_dir/config.inc.php
+		return
+	fi
+
+	# local _mysql_ip=`get_jail_ip mysql`
+
+	tell_status "configuring mysql permissions"
+	_rcpass=`openssl rand -hex 18`
+	
 	local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
-	local _webmail_host="${JAIL_NET_PREFIX}.10"
-	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_rcpass}';"
+	local _webmail_host=`get_jail_ip webmail`
+	local _stage_ip=`get_jail_ip stage`
 
-	if mysql_db_exists roundcubemail; then
-		_init_db=0
-	else
-		_mysql_cmd="create database roundcubemail; $_mysql_cmd"
-	fi
+	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_rcpass}';"
 
 	echo $_mysql_cmd | jexec mysql /usr/local/bin/mysql || exit
 	sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
@@ -46,9 +60,14 @@ install_roundcube_mysql()
 	if [ "$_init_db" = "1" ]; then
 		jexec mysql /usr/local/bin/mysql -e \
 			"$_grant 'roundcube'@'${STAGE_IP}' IDENTIFIED BY '${_rcpass}';" || exit
-	    pkg install -y curl || exit
-		curl -i -F initdb='Initialize database' -XPOST http://staged/roundcube/installer/index.php?_step=3
+		roundcube_init_db
 	fi
+}
+
+roundcube_init_db()
+{
+    pkg install -y curl || exit
+	curl -i -F initdb='Initialize database' -XPOST http://staged/roundcube/installer/index.php?_step=3
 }
 
 install_roundcube()
@@ -59,15 +78,66 @@ install_roundcube()
 	mkdir -p $STAGE_MNT/data/roundcube
 	chown 80:80 $STAGE_MNT/data/roundcube
 
-	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
-	cp $_rcc_dir/config.inc.php.sample $_rcc_dir/config.inc.php || exit
+	local _rcc_conf="$STAGE_MNT/usr/local/www/roundcube/config/config.inc.php"
+	cp $_rcc_conf.sample $_rcc_conf || exit
 
-	echo "patching roundcube config"
-	fetch -o - http://mail-toaster.com/install/mt6-roundcube-cfg.diff | patch -d $_rcc_dir || exit
+	local _dovecot_ip=`get_jail_ip dovecot`
+	sed -i -e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" $_rcc_conf
 
-	install_roundcube_mysql
+	local _haraka_ip=`get_jail_ip haraka`
+	sed -i -e "/'smtp_server'/  s/'';/'$_haraka_ip';/" $_rcc_conf
+	sed -i -e "/'smtp_port'/    s/25;/587;/" $_rcc_conf
+	sed -i -e "/'smtp_user'/    s/'';/'%u';/" $_rcc_conf
+	sed -i -e "/'smtp_pass'/    s/'';/'%p';/" $_rcc_conf
 
-	sed -i -e "s/enable_installer'] = true;/enable_installer'] = false;/" $_rcc_dir/config.inc.php
+	tee -a $_rcc_conf <<'EO_RC_ADD'
+
+$config['log_driver'] = 'syslog';
+$config['session_lifetime'] = 30;
+$config['enable_installer'] = true;
+$config['mime_types'] = '/usr/local/etc/mime.types';
+$config['smtp_conn_options'] = array(
+ 'ssl'         => array(
+   'verify_peer'  => false,
+   'verify_peer_name' => false,
+ ),
+);
+EO_RC_ADD
+
+	
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		install_roundcube_mysql
+	else
+		sed -i -e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/roundcube\/sqlite.db?mode=0646'/" $_rcc_conf
+		if [ ! -f "/data/roundcube/sqlite.db" ]; then
+			roundcube_init_db
+		fi
+	fi
+
+	sed -i -e "s/enable_installer'] = true;/enable_installer'] = false;/" $_rcc_conf
+}
+
+install_squirrelmail_mysql()
+{
+	local _webmail_host="${JAIL_NET_PREFIX}.10"
+
+	local _init_db=1
+	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
+	local _webmail_host="${JAIL_NET_PREFIX}.10"
+	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_sqpass}';"
+
+	if mysql_db_exists squirrelmail; then
+		_init_db=0
+	else
+		_mysql_cmd="create database squirrelmail; $_mysql_cmd"
+	fi
+
+	jexec mysql /usr/local/bin/mysql -e "$_mysql_cmd" || exit
+
+	if [ "$_init_db" = "1" ]; then
+		jexec mysql /usr/local/bin/mysql \
+			"$_grant 'squirrelmail'@'${STAGE_IP}' IDENTIFIED BY '${_sqpass}';" || exit
+	fi
 }
 
 install_squirrelmail()
@@ -88,6 +158,7 @@ install_squirrelmail()
 	   $_sq_dir/../plugins/sasql/sasql_conf.php
 	cp $_sq_dir/../plugins/quota_usage/config.php.sample \
 	   $_sq_dir/../plugins/quota_usage/config.php
+
 
 	tee -a $_sq_dir/config_local.php <<EO_SQUIRREL
 \$domain = 'CHANGE.THIS';
@@ -110,25 +181,7 @@ EO_SQUIRREL
 	chown -R www:www $STAGE_MNT/data/squirrelmail
 	chmod 733 $STAGE_MNT/data/squirrelmail/attach
 
-	local _webmail_host="${JAIL_NET_PREFIX}.10"
-
-	local _init_db=1
-	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
-	local _webmail_host="${JAIL_NET_PREFIX}.10"
-	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_sqpass}';"
-
-	if mysql_db_exists squirrelmail; then
-		_init_db=0
-	else
-		_mysql_cmd="create database squirrelmail; $_mysql_cmd"
-	fi
-
-	jexec mysql /usr/local/bin/mysql -e "$_mysql_cmd" || exit
-
-	# if [ "$_init_db" = "1" ]; then
-	# 	jexec mysql /usr/local/bin/mysql \
-	# 		"$_grant 'squirrelmail'@'${STAGE_IP}' IDENTIFIED BY '${_sqpass}';" || exit
-	# fi
+	install_squirrelmail_mysql
 }
 
 install_nginx()
@@ -142,9 +195,7 @@ install_nginx()
 	fetch -o - http://mail-toaster.com/install/mt6-nginx.conf.diff \
 		| patch -d $STAGE_MNT/usr/local/etc/nginx
 
-	cat <<EONGINX >> $STAGE_MNT/etc/make.conf
-www_nginx_SET=HTTP_REALIP
-EONGINX
+	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
 
 	mount_nullfs /usr/ports $STAGE_MNT/usr/ports
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean

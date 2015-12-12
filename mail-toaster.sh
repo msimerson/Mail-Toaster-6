@@ -390,7 +390,8 @@ stage_sysrc()
 
 stage_make_conf()
 {
-	if grep -qs $1 $STAGE_MNT/etc/make.conf; then
+	if grep -s $1 $STAGE_MNT/etc/make.conf; then
+		echo "preserving make.conf settings"
 		return
 	fi
 

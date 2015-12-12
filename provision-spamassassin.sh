@@ -61,11 +61,8 @@ install_spamassassin_port()
 		_SA_OPTS="MYSQL $_SA_OPTS"
 	fi
 
-	grep -qs spamassassin_SET $STAGE_MNT/etc/make.conf || \
-		tee -a $STAGE_MNT/etc/make.conf <<EO_SPAMA
-mail_spamassassin_SET=$_SA_OPTS
-mail_spamassassin_UNSET=SSL PGSQL
-EO_SPAMA
+	stage_make_conf mail_spamassassin "mail_spamassassin_SET=$_SA_OPTS
+mail_spamassassin_UNSET=SSL PGSQL"
 
 	if [ ! "-d $STAGE_MNT/usr/ports/mail/spamassassin" ]; then
 		echo "ports aren't mounted!" && exit
