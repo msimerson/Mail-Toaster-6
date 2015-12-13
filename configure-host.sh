@@ -2,7 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export SAFE_NAME=`safe_jailname $BASE_NAME`
+export SAFE_NAME; SAFE_NAME=$(safe_jailname "$BASE_NAME") || exit
 
 update_host_ntpd()
 {
@@ -93,7 +93,7 @@ rdr proto tcp from any to <ext_ips> port { 80 443 } -> $JAIL_NET_PREFIX.12
 block in quick from <bruteforce>
 EO_PF_RULES
 
-    _pf_loaded=`kldstat -m pf | grep pf`
+    _pf_loaded=$(kldstat -m pf | grep pf)
     if [ -n "$_pf_loaded" ]; then
         pfctl -f /etc/pf.conf 2>/dev/null || exit
     else
@@ -176,7 +176,8 @@ plumb_jail_nic()
 {
     if [ "$JAIL_NET_INTERFACE" = "lo1" ]; then
         sysrc cloned_interfaces=lo1
-        local _missing=`ifconfig lo1 2>&1 | grep 'does not exist'`
+        local _missing;
+        _missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
         if [ -n "$_missing" ]; then
             echo "creating interface lo1"
             ifconfig lo1 create || exit

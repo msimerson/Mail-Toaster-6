@@ -13,14 +13,14 @@ configure_rspamd()
     tell_status "configuring rspamd"
 	local _local_etc="$STAGE_MNT/usr/local/etc"
 
-	mkdir -p $local_etc/newsyslog.conf.d/
-	echo '/var/log/rspamd/rspamd.log   nobody:nobody     644   7    *     @T00     JC   /var/run/rspamd/rspamd.pid  30' \
-  		> $local_etc/newsyslog.conf.d/rspamd
+	mkdir -p "$_local_etc/newsyslog.conf.d/"
+	echo '/var/log/rspamd/rspamd.log   nobody:nobody   644  7  *  @T00  JC  /var/run/rspamd/rspamd.pid  30' \
+  		> "$_local_etc/newsyslog.conf.d/rspamd"
 
     # add Redis address, for DMARC stats
     echo "dmarc {
-    servers = \"$TOASTER_NET_PREFIX.16:6379\";
-}"  >> $_local_etc/rspamd/rspamd.conf
+    servers = \"$JAIL_NET_PREFIX.16:6379\";
+}"  >> "$_local_etc/rspamd/rspamd.conf"
 
     # configure admin password?
 }

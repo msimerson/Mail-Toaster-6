@@ -1,0 +1,31 @@
+language: node_js
+node_js:
+    - "0.10"
+
+addons:
+  apt:
+    sources:
+    packages:
+      - shellcheck
+
+before_install:
+    - echo "deb http://archive.ubuntu.com/ubuntu/ wily universe" | sudo tee -a /etc/apt/sources.list
+    - sudo apt-get update -qq
+    - sudo apt-get install -y shellcheck
+
+install:
+    - test -f mail-toaster.sh
+
+before_script:
+
+script:
+   - sh -n *.sh
+   - shellcheck -e SC2009,SC2086,SC2153,SC2016,SC1004 *.sh
+
+# after_success:
+# after_failure:
+after_script:
+
+# required until the apt addon shellcheck is available
+sudo: required
+dist: trusty

@@ -9,21 +9,18 @@ export JAIL_CONF_EXTRA="
 
 install_avg()
 {
-	# TODO
-#	mkdir /tmp/avg $JAILS_MNT/avg/var/tmp/avg $JAILS_MNT/haraka/var/tmp/avg || exit
-#	sed -i.bak -e 's/#mount +=  "\/tmp\/avg/mount +=  "\/tmp\/avg/' /etc/jail.conf
 	fetch -m http://download.avgfree.com/filedir/inst/avg2013ffb-r3115-a6155.i386.tar.gz || exit
 
 	stage_exec make -C /usr/ports/misc/compat7x install distclean
 	stage_fbsd_package lib32
-	fetch -o $STAGE_MNT/usr/lib32/libiconv.so.3 http://mail-toaster.org/install/libiconv.so.3
+	fetch -o "$STAGE_MNT/usr/lib32/libiconv.so.3" http://mail-toaster.org/install/libiconv.so.3
 
-	sysrc -R $STAGE_MNT ldconfig32_paths="\$ldconfig32_paths /opt/avg/av/lib"
-	mkdir -p $STAGE_MNT/usr/local/etc/rc.d || exit
+	sysrc -R "$STAGE_MNT" ldconfig32_paths="\$ldconfig32_paths /opt/avg/av/lib"
+	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d" || exit
 
-	tar -C $STAGE_MNT/tmp -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
-	mkdir -p $STAGE_MNT/opt/avg
-	jexec $SAFE_NAME /tmp/avg2013ffb-r3115-a6155.i386/install.sh
+	tar -C "$STAGE_MNT/tmp" -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
+	mkdir -p "$STAGE_MNT/opt/avg"
+	jexec "$SAFE_NAME" /tmp/avg2013ffb-r3115-a6155.i386/install.sh
 }
 
 configure_avg()
@@ -44,7 +41,7 @@ start_avg()
 test_avg()
 {
 	echo "testing AVG process is running"
-	ps ax -J $SAFE_NAME | grep avg || exit
+	ps ax -J "$SAFE_NAME" | grep avg || exit
 
 	echo "checking avgtcpd is listening"
 	sleep 1

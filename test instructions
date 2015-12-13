@@ -1,8 +1,0 @@
-sudo sh
-export TOASTER_HOSTNAME=freebsd-10-2.vmware.imac27.simerson.net
-export TOASTER_MAIL_DOMAIN=imac27.simerson.net
-
-pkg install -y ca_root_nss \
-    && export TOASTER_SCRIPTS=https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master \
-    && fetch $TOASTER_SCRIPTS/mail-toaster.sh \
-    && fetch -o - $TOASTER_SCRIPTS/configure-host.sh | sh

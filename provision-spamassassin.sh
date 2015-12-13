@@ -8,18 +8,18 @@ export JAIL_CONF_EXTRA="
 install_dcc_cleanup()
 {
 	tell_status "adding DCC cleanup periodic task"
-	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
 	cat <<EO_DCC > $STAGE_MNT/usr/local/etc/periodic/daily/501.dccd
 #!/bin/sh
 /usr/local/dcc/libexec/cron-dccd
 EO_DCC
-	chmod 755 $STAGE_MNT/usr/local/etc/periodic/daily/501.dccd
+	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/501.dccd"
 }
 
 install_sa_update()
 {
 	tell_status "adding sa-update periodic task"
-	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
 	cat <<EO_SAUPD > $STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update
 #!/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
@@ -27,12 +27,12 @@ PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-compile
 /usr/local/etc/rc.d/sa-spamd reload
 EO_SAUPD
-	chmod 755 $STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update
+	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update"
 }
 
 install_sought_rules() {
 	tell_status "installing sought rules"
-	fetch -o - http://yerp.org/rules/GPG.KEY | jexec $SAFE_NAME sa-update --import -
+	fetch -o - http://yerp.org/rules/GPG.KEY | jexec "$SAFE_NAME" sa-update --import -
 	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
 }
 
@@ -59,7 +59,7 @@ mail_spamassassin_UNSET=SSL PGSQL"
 install_spamassassin()
 {
 	tell_status "install SpamAssassin optional dependencies"
-	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww || exit
+	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP || exit
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents || exit
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
@@ -86,7 +86,7 @@ bayes_sql_dsn       server=$JAIL_NET_PREFIX.16:6379;database=2
 bayes_token_ttl 21d
 bayes_seen_ttl   8d
 bayes_auto_expire 1
-    " | tee $_sa_etc/redis-bayes.cf
+    " | tee "$_sa_etc/redis-bayes.cf"
 }
 
 configure_spamassassin()
@@ -95,7 +95,7 @@ configure_spamassassin()
 
 	sed -i .bak -e \
 		's/#loadplugin Mail::SpamAssassin::Plugin::TextCat/loadplugin Mail::SpamAssassin::Plugin::TextCat/' \
-		$_sa_etc/v310.pre
+		"$_sa_etc/v310.pre"
 
 	echo "trusted_networks $JAIL_NET_PREFIX.
 use_razor2              1
@@ -108,7 +108,7 @@ add_header all Status _YESNO_, score=_SCORE_ required=_REQD_ autolearn=_AUTOLEAR
 add_header all DCC _DCCB_: _DCCR_
 add_header all Checker-Version SpamAssassin _VERSION_ (_SUBVERSION_) on _HOSTNAME_
 add_header all Tests _TESTS_
-" | tee -a $_sa_etc/local.cf
+" | tee -a "$_sa_etc/local.cf"
 
 	install_sought_rules
 	install_sa_update
@@ -124,7 +124,7 @@ start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j $SAFE_NAME spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
+	sysrc -j "$SAFE_NAME" spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
 	stage_exec service sa-spamd start
 }
 

@@ -12,20 +12,21 @@ configure_unbound()
 {
 	local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
 	local UNB_LOCAL=""
-	cp $UNB_DIR/unbound.conf.sample $UNB_DIR/unbound.conf || exit
+	cp "$UNB_DIR/unbound.conf.sample" "$UNB_DIR/unbound.conf" || exit
 	if [ -f "unbound.conf.local" ]; then
-	  cp unbound.conf.local $UNB_DIR
+	  cp unbound.conf.local "$UNB_DIR"
 	  UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
 	fi
 
 	# for the munin status plugin
-	sed -i .bak -e 's/# control-enable: no/control-enable: yes/' $UNB_DIR/unbound.conf
-	sed -i .bak -e 's/# control-interface: 127./control-interface: 127./' $UNB_DIR/unbound.conf
+	sed -i .bak -e 's/# control-enable: no/control-enable: yes/' "$UNB_DIR/unbound.conf"
+	sed -i .bak -e 's/# control-interface: 127./control-interface: 127./' "$UNB_DIR/unbound.conf"
 
-	local _rev_net=`echo $JAIL_NET_PREFIX | awk '{split($1,a,".");printf("%s.%s.%s",a[3],a[2],a[1])}'`
+	local _rev_net
+	_rev_net=$(echo "$JAIL_NET_PREFIX" | awk '{split($1,a,".");printf("%s.%s.%s",a[3],a[2],a[1])}')
 	get_public_ip
 
-	tee -a $UNB_DIR/toaster.conf <<EO_UNBOUND
+	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
 	   $UNB_LOCAL
 
 	   access-control: 0.0.0.0/0 refuse
@@ -69,7 +70,7 @@ EO_UNBOUND
 
 	sed -i.bak -e '/# local-data-ptr:.*/ a\ 
 include: "/usr/local/etc/unbound/toaster.conf" \
-' $UNB_DIR/unbound.conf
+' "$UNB_DIR/unbound.conf"
 }
 
 start_unbound()
@@ -81,13 +82,13 @@ start_unbound()
 test_unbound()
 {
 	# use staged IP for DNS resolution
-	echo "nameserver $STAGE_IP" | tee $STAGE_MNT/etc/resolv.conf
+	echo "nameserver $STAGE_IP" | tee "$STAGE_MNT/etc/resolv.conf"
 
 	# test if we get an answer
 	stage_exec host dns || exit
 
 	# set it back to production value
-	echo "nameserver ${JAIL_NET_PREFIX}.3" | tee $STAGE_MNT/etc/resolv.conf
+	echo "nameserver ${JAIL_NET_PREFIX}.3" | tee "$STAGE_MNT/etc/resolv.conf"
 }
 
 base_snapshot_exists \
