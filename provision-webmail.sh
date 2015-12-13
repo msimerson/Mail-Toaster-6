@@ -31,32 +31,27 @@ install_roundcube_mysql()
 	local _active_cfg="$ZFS_JAIL_MNT/webmail/usr/local/www/roundcube/config/config.inc.php"
 	if [ -f "$_active_cfg" ]; then
 		local _rcpass=`grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@`
+		if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
+			echo "preserving roundcube password $_rcpass"
+		fi
+	else
+		_rcpass=`openssl rand -hex 18`
 	fi
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
-
-	if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
-		echo "preserving roundcube password $_rcpass"
-		sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
-		sed -i -e "s/@localhost\//@$JAIL_NET_PREFIX.4\//" $_rcc_dir/config.inc.php
-		return
-	fi
-
-	tell_status "configuring roundcube mysql permissions"
-	_rcpass=`openssl rand -hex 18`
-
-	local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
-	local _webmail_host=`get_jail_ip webmail`
-	local _stage_ip=`get_jail_ip stage`
-
-	echo "$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_rcpass}';" \
-		| jexec mysql /usr/local/bin/mysql || exit
-
 	sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
+	sed -i -e "s/@localhost\//@${JAIL_NET_PREFIX}.4\//" $_rcc_dir/config.inc.php
 
 	if [ "$_init_db" = "1" ]; then
+		tell_status "configuring roundcube mysql permissions"
+		local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
+
+		echo "$_grant 'roundcube'@'${JAIL_NET_PREFIX}.10' IDENTIFIED BY '${_rcpass}';" \
+			| jexec mysql /usr/local/bin/mysql || exit
+
 		echo "$_grant 'roundcube'@'${STAGE_IP}' IDENTIFIED BY '${_rcpass}';" \
 		    | jexec mysql /usr/local/bin/mysql || exit
+
 		roundcube_init_db
 	fi
 }
@@ -65,7 +60,9 @@ roundcube_init_db()
 {
 	tell_status "initializating roundcube db"
     pkg install -y curl || exit
-	curl -i -F initdb='Initialize database' -XPOST http://${STAGE_IP}/roundcube/installer/index.php?_step=3
+    stage_exec service php-fpm restart
+	curl -i -F initdb='Initialize database' -XPOST \
+		http://${STAGE_IP}/roundcube/installer/index.php?_step=3 || die
 }
 
 install_roundcube()
@@ -121,7 +118,36 @@ install_squirrelmail_mysql()
 	if ! mysql_db_exists squirrelmail; then
 		tell_status "creating squirrelmail database"
 		echo "CREATE DATABASE squirrelmail;" | jexec mysql /usr/local/bin/mysql || exit
-		_init_db=1
+		echo "
+CREATE TABLE address (
+  owner varchar(128) DEFAULT '' NOT NULL,
+  nickname varchar(16) DEFAULT '' NOT NULL,
+  firstname varchar(128) DEFAULT '' NOT NULL,
+  lastname varchar(128) DEFAULT '' NOT NULL,
+  email varchar(128) DEFAULT '' NOT NULL,
+  label varchar(255),
+  PRIMARY KEY (owner,nickname),
+  KEY firstname (firstname,lastname)
+);
+
+CREATE TABLE global_abook (
+  owner varchar(128) DEFAULT '' NOT NULL,
+  nickname varchar(16) DEFAULT '' NOT NULL,
+  firstname varchar(128) DEFAULT '' NOT NULL,
+  lastname varchar(128) DEFAULT '' NOT NULL,
+  email varchar(128) DEFAULT '' NOT NULL,
+  label varchar(255),
+  PRIMARY KEY (owner,nickname),
+  KEY firstname (firstname,lastname)
+);
+
+CREATE TABLE userprefs (
+  user varchar(128) DEFAULT '' NOT NULL,
+  prefkey varchar(64) DEFAULT '' NOT NULL,
+  prefval BLOB NOT NULL,
+  PRIMARY KEY (user,prefkey)
+);" | jexec mysql /usr/local/bin/mysql squirrelmail || exit
+
 	fi
 
 	tee -a $_sq_dir/config_local.php <<EO_SQUIRREL_SQL
@@ -130,7 +156,6 @@ install_squirrelmail_mysql()
 EO_SQUIRREL_SQL
 
 	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
-	local _mysql_cmd=
 
 	echo "$_grant 'squirrelmail'@'${JAIL_NET_PREFIX}.10' IDENTIFIED BY '${_sqpass}';" \
 	    | jexec mysql /usr/local/bin/mysql || exit
@@ -171,7 +196,7 @@ install_squirrelmail()
 \$use_smtp_tls = true;
 \$data_dir = '/data/squirrelmail/data';
 \$attachment_dir = '/data/squirrelmail/attach';
-\$check_referrer = '$TOASTER_MAIL_DOMAIN';
+// \$check_referrer = '$TOASTER_MAIL_DOMAIN';
 \$check_mail_mechanism = 'advanced';
 EO_SQUIRREL
 
@@ -200,7 +225,7 @@ install_nginx()
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
 	umount $STAGE_MNT/usr/ports
 
-	tell_staus "starting nginx"
+	tell_status "starting nginx"
 	stage_sysrc nginx_enable=YES
 	stage_exec service nginx restart
 }
@@ -237,9 +262,9 @@ install_webmail()
 {
 	install_php || exit
 	install_php_mysql
+	install_nginx || exit
 	install_roundcube || exit
 	install_squirrelmail || exit
-	install_nginx || exit
 	# install_lighttpd || exit
 }
 
