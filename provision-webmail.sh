@@ -8,25 +8,24 @@ export JAIL_CONF_EXTRA='
 
 install_php()
 {
-	tell_status "installing PHP deps"
+	tell_status "installing PHP"
 	stage_pkg_install php56 php56-fileinfo php56-mcrypt php56-exif php56-openssl
 
 	cp $STAGE_MNT/usr/local/etc/php.ini-production $STAGE_MNT/usr/local/etc/php.ini
 	sed -i .bak -e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' $STAGE_MNT/usr/local/etc/php.ini
 
+	tell_status "starting PHP"
 	stage_sysrc php_fpm_enable=YES
 	stage_exec service php-fpm start
 }
 
 install_roundcube_mysql()
 {
-	if [ "$TOASTER_MYSQL" != "1" ]; then
-		return
-	fi
-
+	local _init_db=0
 	if ! mysql_db_exists roundcubemail; then
 		tell_status "creating roundcube mysql db"
 		echo "CREATE DATABASE roundcubemail;" | jexec mysql /usr/local/bin/mysql || exit
+		_init_db=1
 	fi
 
 	local _active_cfg="$ZFS_JAIL_MNT/webmail/usr/local/www/roundcube/config/config.inc.php"
@@ -37,41 +36,41 @@ install_roundcube_mysql()
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
 
 	if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
-		echo "preserving password $_rcpass"
+		echo "preserving roundcube password $_rcpass"
 		sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
 		sed -i -e "s/@localhost\//@$JAIL_NET_PREFIX.4\//" $_rcc_dir/config.inc.php
 		return
 	fi
 
-	# local _mysql_ip=`get_jail_ip mysql`
-
-	tell_status "configuring mysql permissions"
+	tell_status "configuring roundcube mysql permissions"
 	_rcpass=`openssl rand -hex 18`
-	
+
 	local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
 	local _webmail_host=`get_jail_ip webmail`
 	local _stage_ip=`get_jail_ip stage`
 
-	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_rcpass}';"
+	echo "$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_rcpass}';" \
+		| jexec mysql /usr/local/bin/mysql || exit
 
-	echo $_mysql_cmd | jexec mysql /usr/local/bin/mysql || exit
 	sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" $_rcc_dir/config.inc.php
 
 	if [ "$_init_db" = "1" ]; then
-		jexec mysql /usr/local/bin/mysql -e \
-			"$_grant 'roundcube'@'${STAGE_IP}' IDENTIFIED BY '${_rcpass}';" || exit
+		echo "$_grant 'roundcube'@'${STAGE_IP}' IDENTIFIED BY '${_rcpass}';" \
+		    | jexec mysql /usr/local/bin/mysql || exit
 		roundcube_init_db
 	fi
 }
 
 roundcube_init_db()
 {
+	tell_status "initializating roundcube db"
     pkg install -y curl || exit
-	curl -i -F initdb='Initialize database' -XPOST http://staged/roundcube/installer/index.php?_step=3
+	curl -i -F initdb='Initialize database' -XPOST http://${STAGE_IP}/roundcube/installer/index.php?_step=3
 }
 
 install_roundcube()
 {
+	tell_status "installing roundcube"
 	stage_pkg_install roundcube
 
 	# for sqlite storage
@@ -104,7 +103,6 @@ $config['smtp_conn_options'] = array(
 );
 EO_RC_ADD
 
-	
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_roundcube_mysql
 	else
@@ -119,37 +117,41 @@ EO_RC_ADD
 
 install_squirrelmail_mysql()
 {
-	local _webmail_host="${JAIL_NET_PREFIX}.10"
+	local _init_db=0
+	if ! mysql_db_exists squirrelmail; then
+		tell_status "creating squirrelmail database"
+		echo "CREATE DATABASE squirrelmail;" | jexec mysql /usr/local/bin/mysql || exit
+		_init_db=1
+	fi
 
-	local _init_db=1
+	tee -a $_sq_dir/config_local.php <<EO_SQUIRREL_SQL
+\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
+\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
+EO_SQUIRREL_SQL
+
 	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
-	local _webmail_host="${JAIL_NET_PREFIX}.10"
-	local _mysql_cmd="$_grant 'roundcube'@'${_webmail_host}' IDENTIFIED BY '${_sqpass}';"
+	local _mysql_cmd=
 
-	if mysql_db_exists squirrelmail; then
-		_init_db=0
-	else
-		_mysql_cmd="create database squirrelmail; $_mysql_cmd"
-	fi
+	echo "$_grant 'squirrelmail'@'${JAIL_NET_PREFIX}.10' IDENTIFIED BY '${_sqpass}';" \
+	    | jexec mysql /usr/local/bin/mysql || exit
 
-	jexec mysql /usr/local/bin/mysql -e "$_mysql_cmd" || exit
-
-	if [ "$_init_db" = "1" ]; then
-		jexec mysql /usr/local/bin/mysql \
-			"$_grant 'squirrelmail'@'${STAGE_IP}' IDENTIFIED BY '${_sqpass}';" || exit
-	fi
+	echo "$_grant 'squirrelmail'@'${STAGE_IP}' IDENTIFIED BY '${_sqpass}';" \
+		| jexec mysql /usr/local/bin/mysql || exit
 }
 
 install_squirrelmail()
 {
+	tell_status "installing squirrelmail"
 	stage_pkg_install squirrelmail squirrelmail-sasql-plugin squirrelmail-quota_usage-plugin || exit
 
-	local _sqpass=`openssl rand -hex 18`
-	local _sq_dir="$STAGE_MNT/usr/local/www/squirrelmail/config"
+	_sq_dir="$STAGE_MNT/usr/local/www/squirrelmail/config"
 
 	local _active_cfg="$_sq_dir/config.inc.php"
 	if [ -f "$_active_cfg" ]; then
 		_sqpass=`grep '//squirrelmail:' $_active_cfg | cut -f3 -d: | cut -f1 -d@`
+		echo "preserving existing squirrelmail mysql password: $_sqpass"
+	else
+		_sqpass=`openssl rand -hex 18`
 	fi
 
 	cp $_sq_dir/config_local.php.sample $_sq_dir/config_local.php
@@ -159,9 +161,8 @@ install_squirrelmail()
 	cp $_sq_dir/../plugins/quota_usage/config.php.sample \
 	   $_sq_dir/../plugins/quota_usage/config.php
 
-
 	tee -a $_sq_dir/config_local.php <<EO_SQUIRREL
-\$domain = 'CHANGE.THIS';
+\$domain = '$TOASTER_MAIL_DOMAIN';
 \$smtpServerAddress = '${JAIL_NET_PREFIX}.9';
 \$smtpPort = 465;
 \$smtp_auth_mech = 'login';
@@ -170,10 +171,8 @@ install_squirrelmail()
 \$use_smtp_tls = true;
 \$data_dir = '/data/squirrelmail/data';
 \$attachment_dir = '/data/squirrelmail/attach';
-// \$check_referrer = '###DOMAIN###';
+\$check_referrer = '$TOASTER_MAIL_DOMAIN';
 \$check_mail_mechanism = 'advanced';
-\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
-\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
 EO_SQUIRREL
 
 	mkdir -p $STAGE_MNT/data/squirrelmail/attach $STAGE_MNT/data/squirrelmail/data
@@ -201,6 +200,7 @@ install_nginx()
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
 	umount $STAGE_MNT/usr/ports
 
+	tell_staus "starting nginx"
 	stage_sysrc nginx_enable=YES
 	stage_exec service nginx restart
 }
@@ -223,9 +223,20 @@ install_lighttpd()
 	stage_exec service lighttpd start
 }
 
+install_php_mysql()
+{
+	if [ "$TOASTER_MYSQL" != "1" ]; then
+		return
+	fi
+
+	tell_status "install php mysql module"
+	stage_pkg_install php56-mysql
+}
+
 install_webmail()
 {
 	install_php || exit
+	install_php_mysql
 	install_roundcube || exit
 	install_squirrelmail || exit
 	install_nginx || exit

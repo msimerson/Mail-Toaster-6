@@ -167,6 +167,7 @@ update_host() {
     enable_jails
     install_jailmanage
     plumb_jail_nic
+    echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
 
 update_host

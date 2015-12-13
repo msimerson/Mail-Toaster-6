@@ -20,7 +20,10 @@ install_qmail()
 
 	tell_status "installing qmail"
 	mkdir -p $STAGE_MNT/usr/local/etc/rc.d
+	echo $TOASTER_HOSTNAME > $ZFS_DATA_MNT/vpopmail/qmail-control/me
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
+
+	tell_status "enabling qmail"
 	stage_exec /var/qmail/scripts/enable-qmail
 
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
@@ -33,6 +36,8 @@ install_maildrop()
 {
 	tell_status "installing maildrop"
 	stage_pkg_install maildrop
+
+	tell_status "installing maildrop filter file"
 	fetch -o $STAGE_MNT/etc/mailfilter http://mail-toaster.com/install/mt6-mailfilter.txt
 	chown 89:89 $STAGE_MNT/etc/mailfilter
 	chmod 600 $STAGE_MNT/etc/mailfilter
@@ -116,19 +121,19 @@ install_vpopmail_mysql_grants()
 
 install_vpopmail_port()
 {
-	tell_status "installing vpopmail with custom options"
-
 	if [ "$TOASTER_MYSQL" = "1" ]; then
+		tell_status "installing vpopmail mysql dependency"
 		stage_pkg_install mysql56-client
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
 		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
 	fi
 
+	tell_status "installing vpopmail port with custom options"
 	stage_make_conf mail_vpopmail_ "
 mail_vpopmail_SET=$VPOPMAIL_OPTIONS_SET
 mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 "
-	stage_pkg_install gmake gettext dialog4ports
+	stage_pkg_install gmake gettext dialog4ports fakeroot
 	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 	install_vpopmail_mysql_grants
 }
@@ -141,7 +146,9 @@ install_vpopmail()
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
 
+	tell_status "installing vpopmail package"
 	stage_pkg_install vpopmail || exit
+
 	install_vpopmail_port
 	install_qmailadmin
 }
@@ -150,12 +157,12 @@ configure_vpopmail()
 {
 	local _local_etc="$STAGE_MNT/usr/local/etc"
 
+	tell_status "setting up daemon supervision"
 	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | jexec $SAFE_NAME sh
-	echo $TOASTER_HOSTNAME > $STAGE_MNT/var/qmail/control/me
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_HOSTNAME" ]; then
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
-		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 $TOASTER_HOSTNAME
+		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 $TOASTER_MAIL_DOMAIN
 	fi
 }
 
@@ -167,7 +174,7 @@ test_vpopmail()
 {
 	echo "testing vpopmail..."
 	sleep 1   # give the daemons a second to start listening
-	stage_exec sockstat -l -4 | grep 89 || exit
+	stage_exec sockstat -l -4 | grep :89 || exit
 }
 
 base_snapshot_exists \

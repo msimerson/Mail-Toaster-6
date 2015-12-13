@@ -395,7 +395,7 @@ stage_make_conf()
 		return
 	fi
 
-	echo $2 | tee -a $STAGE_MNT/etc/make.conf || exit
+	echo "$2" | tee -a $STAGE_MNT/etc/make.conf || exit
 }
 
 stage_exec()

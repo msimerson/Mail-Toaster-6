@@ -24,6 +24,7 @@ install_dovecot()
         stage_pkg_install mysql56-client
     fi
 
+    stage_pkg_install dialog4ports
     stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
 }
 

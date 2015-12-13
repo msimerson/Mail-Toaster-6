@@ -12,7 +12,7 @@ install_geoip()
 	fetch -o $_lgeo $_geodb/GeoIPv6.dat.gz
 	gunzip $_lgeo/*.gz
 
-	echo "install GeoIP updater"
+	tell_status "install GeoIP updater"
 	mkdir -p $STAGE_MNT/usr/local/share/GeoIP/download
 	stage_pkg_install p5-PerlIO-gzip
 	fetch -o $STAGE_MNT/usr/local/etc/periodic/weekly/geolite-mirror-simple.pl \
@@ -22,7 +22,7 @@ install_geoip()
 
 install_dcc_cleanup()
 {
-	echo "adding DCC cleanup periodic task"
+	tell_status "adding DCC cleanup periodic task"
 	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
 	cat <<EO_DCC > $STAGE_MNT/usr/local/etc/periodic/daily/501.dccd
 #!/bin/sh
@@ -33,7 +33,7 @@ EO_DCC
 
 install_sa_update()
 {
-	echo "adding sa-update periodic task"
+	tell_status "adding sa-update periodic task"
 	mkdir -p $STAGE_MNT/usr/local/etc/periodic/daily
 	cat <<EO_SAUPD > $STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update
 #!/bin/sh
@@ -46,7 +46,7 @@ EO_SAUPD
 }
 
 install_sought_rules() {
-	echo "installing sought rules"
+	tell_status "installing sought rules"
 	fetch -o - http://yerp.org/rules/GPG.KEY | jexec $SAFE_NAME sa-update --import -
 	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
 }
@@ -54,7 +54,7 @@ install_sought_rules() {
 install_spamassassin_port()
 {
 	tell_status "install SpamAssassin from ports (w/opts)"
-	stage_pkg_install dialog4ports || exit
+	stage_pkg_install dialog4ports p5-Encode-Detect || exit
 
 	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE"
 	if [ "$TOASTER_MYSQL" = "1" ]; then
@@ -78,14 +78,14 @@ install_spamassassin()
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents || exit
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
-		stage_pkg_install mysql56-client p5-DBI
+		stage_pkg_install mysql56-client p5-DBI p5-DBD-mysql
 	fi
 
 	install_geoip
 	install_spamassassin_port
 }
 
-configure_spamassassin_bayes()
+configure_spamassassin_redis_bayes()
 {
 	# TODO: enable in local.cf
 
@@ -95,7 +95,7 @@ bayes_sql_dsn       server=$JAIL_NET_PREFIX.15:6379;database=2
 bayes_token_ttl 21d
 bayes_seen_ttl   8d
 bayes_auto_expire 1
-    " | tee $STAGE_MNT/usr/local/etc/mail/spamassassin/redis.cf
+    " | tee $STAGE_MNT/usr/local/etc/mail/spamassassin/redis-bayes.cf
 }
 
 configure_spamassassin()
@@ -109,6 +109,7 @@ configure_spamassassin()
 	install_sought_rules
 	install_sa_update
 	install_dcc_cleanup
+	#configure_spamassassin_redis_bayes
 
 	# SASQL ?
 	# create database spamassassin;
