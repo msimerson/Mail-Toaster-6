@@ -113,7 +113,35 @@ install_jailmanage()
 
 set_jail_startup_order()
 {
-    fetch -o - http://mail-toaster.com/install/mt6-jail-rcd.txt | patch -d /
+    patch -d / <<'EO_JAIL_RCD'
+Index: etc/rc.d/jail
+===================================================================
+--- etc/rc.d/jail
++++ etc/rc.d/jail
+@@ -516,7 +516,10 @@
+ 		command=$jail_program
+ 		rc_flags=$jail_flags
+ 		command_args="-f $jail_conf -r"
+-		$jail_jls name | while read _j; do
++		for _j in $($jail_jls name); do
++			_rev_jail_list="${_j} ${_rev_jail_list}"
++		done
++		for _j in ${_rev_jail_list}; do
+ 			echo -n " $_j"
+ 			_tmp=`mktemp -t jail` || exit 3
+ 			$command $rc_flags $command_args $_j >> $_tmp 2>&1
+@@ -532,6 +535,9 @@
+ 	;;
+ 	esac
+ 	for _j in $@; do
++		_rev_jail_list="${_j} ${_rev_jail_list}"
++	done
++	for _j in ${_rev_jail_list}; do
+ 		_j=$(echo $_j | tr /. _)
+ 		parse_options $_j || continue
+ 		if ! $jail_jls -j $_j > /dev/null 2>&1; then
+EO_JAIL_RCD
+
     # sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg rspamd spamassassin haraka dspam monitor"
 }
 

@@ -2,23 +2,8 @@
 
 . mail-toaster.sh || exit
 
-install_geoip()
-{
-	tell_status "install GeoIP & dbs"
-	stage_pkg_install p5-Geo-IP
-	local _geodb="http://geolite.maxmind.com/download/geoip/database"
-	local _lgeo="$STAGE_MNT/usr/local/share/GeoIP"
-	fetch -o $_lgeo $_geodb/GeoLiteCountry/GeoIP.dat.gz
-	fetch -o $_lgeo $_geodb/GeoIPv6.dat.gz
-	gunzip $_lgeo/*.gz
-
-	tell_status "install GeoIP updater"
-	mkdir -p $STAGE_MNT/usr/local/share/GeoIP/download
-	stage_pkg_install p5-PerlIO-gzip
-	fetch -o $STAGE_MNT/usr/local/etc/periodic/weekly/geolite-mirror-simple.pl \
-		https://raw.githubusercontent.com/maxmind/geoip-api-perl/master/example/geolite-mirror-simple.pl
-	chmod 755 $STAGE_MNT/usr/local/etc/periodic/weekly/geolite-mirror-simple.pl
-}
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 
 install_dcc_cleanup()
 {
@@ -81,35 +66,54 @@ install_spamassassin()
 		stage_pkg_install mysql56-client p5-DBI p5-DBD-mysql
 	fi
 
-	install_geoip
 	install_spamassassin_port
 }
 
 configure_spamassassin_redis_bayes()
 {
-	# TODO: enable in local.cf
-
 	echo "
+use_bayes               1
+use_bayes_rules         1
+allow_user_rules	1
+bayes_auto_learn        1
+bayes_auto_learn_threshold_spam 7.0
+bayes_auto_learn_threshold_nonspam -5.0
+bayes_journal_max_size  1024000
+bayes_expiry_max_db_size 1024000
+
 bayes_store_module  Mail::SpamAssassin::BayesStore::Redis
-bayes_sql_dsn       server=$JAIL_NET_PREFIX.15:6379;database=2
+bayes_sql_dsn       server=$JAIL_NET_PREFIX.16:6379;database=2
 bayes_token_ttl 21d
 bayes_seen_ttl   8d
 bayes_auto_expire 1
-    " | tee $STAGE_MNT/usr/local/etc/mail/spamassassin/redis-bayes.cf
+    " | tee $_sa_etc/redis-bayes.cf
 }
 
 configure_spamassassin()
 {
-	local _local_etc="$STAGE_MNT/usr/local/etc"
+	_sa_etc="$STAGE_MNT/usr/local/etc/mail/spamassassin"
 
 	sed -i .bak -e \
 		's/#loadplugin Mail::SpamAssassin::Plugin::TextCat/loadplugin Mail::SpamAssassin::Plugin::TextCat/' \
-		$STAGE_MNT/usr/local/etc/mail/spamassassin/v310.pre
+		$_sa_etc/v310.pre
+
+	echo "trusted_networks $JAIL_NET_PREFIX.
+use_razor2              1
+use_dcc                 1
+
+ok_languages            en
+ok_locales              en
+
+add_header all Status _YESNO_, score=_SCORE_ required=_REQD_ autolearn=_AUTOLEARN_
+add_header all DCC _DCCB_: _DCCR_
+add_header all Checker-Version SpamAssassin _VERSION_ (_SUBVERSION_) on _HOSTNAME_
+add_header all Tests _TESTS_
+" | tee -a $_sa_etc/local.cf
 
 	install_sought_rules
 	install_sa_update
 	install_dcc_cleanup
-	#configure_spamassassin_redis_bayes
+	configure_spamassassin_redis_bayes
 
 	# SASQL ?
 	# create database spamassassin;

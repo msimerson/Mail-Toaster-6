@@ -4,14 +4,13 @@
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA='
+		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";
 		devfs_ruleset = 7;'
 
 HARAKA_CONF="$STAGE_MNT/usr/local/haraka/config"
 
 install_haraka()
 {
-	install_redis || exit
-
 	tell_status "installing node & npm"
 	stage_pkg_install node npm gmake || exit
 
@@ -21,13 +20,8 @@ install_haraka()
 
 install_geoip_dbs()
 {
-	tell_status "install GeoIP databases & updater"
-	mkdir -p $STAGE_MNT/usr/local/share/GeoIP $STAGE_MNT/usr/local/etc/periodic/weekly
-	stage_exec npm install -g maxmind-geolite-mirror  || exit
-	ln -s /usr/local/bin/maxmind-geolite-mirror /usr/local/etc/periodic/weekly/999.maxmind-geolite-mirror
-	stage_exec /usr/local/bin/maxmind-geolite-mirror
-
 	tell_status "enabling Haraka geoip plugin"
+	mkdir -p $STAGE_MNT/usr/local/share/GeoIP
 	sed -i -e 's/^;calc_distance=false/calc_distance=true/' $HARAKA_CONF/connect.geoip.ini
 	sed -i -e 's/^# connect.geoip/connect.geoip/' $HARAKA_CONF/plugins
 }
@@ -188,21 +182,23 @@ rspamd
 	sed -i -e 's/;always_add_headers = false/always_add_headers = true/' $HARAKA_CONF/rspamd.ini
 }
 
-configure_haraka()
+config_haraka_watch()
 {
-	tell_status "installing Haraka, stage 2"
-	stage_exec haraka -i /usr/local/haraka || exit
+	echo 'watch' >> $HARAKA_CONF/plugins
+}
 
-	tell_status "configuring Haraka"
+config_haraka_smtp_ini()
+{
 	sed -i -e 's/^;listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' $HARAKA_CONF/smtp.ini
 	sed -i -e 's/^;nodes=cpus/nodes=2/' $HARAKA_CONF/smtp.ini
 	sed -i -e 's/^;daemonize=true/daemonize=true/' $HARAKA_CONF/smtp.ini
 	sed -i -e 's/^;daemon_pid_file/daemon_pid_file/' $HARAKA_CONF/smtp.ini
 	sed -i -e 's/^;daemon_log_file/daemon_log_file/' $HARAKA_CONF/smtp.ini
-	echo 'LOGINFO' > $HARAKA_CONF/loglevel
+}
 
-	echo '3' > $HARAKA_CONF/tarpit.timeout
-
+config_haraka_plugins()
+{
+	# enable a bunch of plugins
 	sed -i -e 's/^#process_title$/process_title/' $HARAKA_CONF/plugins
 	sed -i -e 's/^#spf$/spf/' $HARAKA_CONF/plugins
 	sed -i -e 's/^#bounce$/bounce/' $HARAKA_CONF/plugins
@@ -211,24 +207,63 @@ configure_haraka()
 	sed -i -e 's/^#dkim_sign$/dkim_sign/' $HARAKA_CONF/plugins
 	sed -i -e 's/^#karma$/karma/' $HARAKA_CONF/plugins
 	sed -i -e 's/^# connect.fcrdns/connect.fcrdns/' $HARAKA_CONF/plugins
+}
 
+config_haraka_dkim()
+{
+	sed -i -e 's/^disabled = true/disabled = false/' $HARAKA_CONF/dkim_sign.ini
+
+	_dkim_dir="$ZFS_JAIL_MNT/haraka/usr/local/haraka/config/dkim/$TOASTER_MAIL_DOMAIN"
+	if [ -d "$_dkim_dir" ]; then
+		tell_status "copying active DKIM keys"
+		cp -R $_dkim_dir/ $HARAKA_CONF/dkim/
+		return
+	else
+		tell_status "generating DKIM keys"
+		stage_exec cd $HARAKA_CONF/dkim && sh dkim_key_gen.sh $TOASTER_MAIL_DOMAIN
+		cat $HARAKA_CONF/dkim/$TOASTER_MAIL_DOMAIN/dns
+
+		tell_status "NOTICE: action required for DKIM validation. See message ^^^"
+		sleep 5
+	fi
+}
+
+config_haraka_karma()
+{
+	sed -i -e '/^dbid/ s/= 0/= 1/' $HARAKA_CONF/karma.ini
+	sed -i -e "/^server_ip/ s/127.0.0.1/$TOASTER_NET_PREFIX.16/" $HARAKA_CONF/karma.ini
+}
+
+configure_haraka()
+{
+	tell_status "installing Haraka, stage 2"
+	stage_exec haraka -i /usr/local/haraka || exit
+
+	tell_status "configuring Haraka"
+	echo 'LOGINFO' > $HARAKA_CONF/loglevel
+	echo '3' > $HARAKA_CONF/tarpit.timeout
+
+	config_haraka_smtp_ini
+	config_haraka_plugins
 	config_haraka_syslog
 	config_haraka_vpopmail
 	config_haraka_qmail_deliverable
 	config_haraka_dnsbl
 
 	sed -i -e 's/^; reject=.*/reject=no/' $HARAKA_CONF/data.headers.ini
-	sed -i -e 's/^disabled = true/disabled = false/' $HARAKA_CONF/dkim_sign.ini
 
 	tell_status "enable Haraka HTTP server"
 	sed -i -e 's/; listen=\[::\]:80/listen=0.0.0.0:80/' $HARAKA_CONF/http.ini
 
 	config_haraka_tls
+	config_haraka_dkim
 	config_haraka_p0f
 	config_haraka_spamassassin
-	config_haraka_avg
-	config_haraka_clamav
 	config_haraka_rspamd
+	config_haraka_clamav
+	config_haraka_avg
+	config_haraka_watch
+	config_haraka_karma
 
 	install_geoip_dbs
 	cleanup_deprecated_haraka

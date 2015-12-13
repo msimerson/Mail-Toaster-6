@@ -5,7 +5,7 @@
 export JAIL_START_EXTRA="allow.sysvipc=1"
 export JAIL_CONF_EXTRA="
 		allow.sysvipc = 1;
-		mount += \"$ZFS_DATA_MNT/avg \$path/data nullfs rw 0 0\";"
+		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
 
 install_avg()
 {

@@ -151,6 +151,10 @@ get_jail_ip()
 			echo $JAIL_NET_PREFIX.14; return;;
 		dovecot)
 			echo $JAIL_NET_PREFIX.15; return;;
+		redis)
+			echo $JAIL_NET_PREFIX.16; return;;
+		geoip)
+			echo $JAIL_NET_PREFIX.17; return;;
 		stage)
 			echo $JAIL_NET_PREFIX.254; return;;
 	esac
@@ -214,7 +218,7 @@ delete_staged_fs()
 	fi
 
 	echo "zfs destroy $STAGE_VOL"
-	zfs destroy $STAGE_VOL || exit
+	zfs destroy -f $STAGE_VOL || exit
 }
 
 stage_unmount()
@@ -431,18 +435,6 @@ stage_fbsd_package()
 	tar -C $STAGE_MNT -xvpJf $1.txz || exit
 }
 
-install_redis()
-{
-	stage_pkg_install redis || exit
-	stage_sysrc redis_enable=YES
-	stage_exec service redis start
-
-	stage_exec mkdir -p /usr/local/etc/newsyslog.conf.d
-	tee $STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis <<EO_REDIS
-/var/log/redis/redis.log           644  3     100  *     JC
-EO_REDIS
-}
-
 create_data_fs()
 {
 	if ! zfs_filesystem_exists $ZFS_DATA_VOL; then
@@ -506,6 +498,10 @@ data_mountpoint()
 			echo "$2/var/db/mysql"; return ;;
 		vpopmail )
 			echo "$2/usr/local/vpopmail"; return ;;
+		avg )
+			echo "$2/data/avg"; return ;;
+		geoip )
+			echo "$2/usr/local/share/GeoIP"; return ;;
 	esac
 
 	echo $2/data
