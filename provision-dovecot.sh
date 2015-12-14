@@ -25,6 +25,7 @@ install_dovecot()
     fi
 
     stage_pkg_install dialog4ports
+    export BATCH=${BATCH:="1"}
     stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
 }
 
