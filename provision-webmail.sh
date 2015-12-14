@@ -41,16 +41,16 @@ install_roundcube_mysql()
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
 	sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" "$_rcc_dir/config.inc.php"
-	sed -i -e "s/@localhost\//@${JAIL_NET_PREFIX}.4\//" "$_rcc_dir/config.inc.php"
+	sed -i -e "s/@localhost\//@$(get_jail_ip mysql)\//" "$_rcc_dir/config.inc.php"
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
 		local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
 
-		echo "$_grant 'roundcube'@'${JAIL_NET_PREFIX}.10' IDENTIFIED BY '${_rcpass}';" \
+		echo "$_grant 'roundcube'@'$(get_jail_ip webmail)' IDENTIFIED BY '${_rcpass}';" \
 			| jexec mysql /usr/local/bin/mysql || exit
 
-		echo "$_grant 'roundcube'@'${STAGE_IP}' IDENTIFIED BY '${_rcpass}';" \
+		echo "$_grant 'roundcube'@'$(get_jail_ip stage)' IDENTIFIED BY '${_rcpass}';" \
 		    | jexec mysql /usr/local/bin/mysql || exit
 
 		roundcube_init_db
@@ -63,7 +63,7 @@ roundcube_init_db()
     pkg install -y curl || exit
     stage_exec service php-fpm restart
 	curl -i -F initdb='Initialize database' -XPOST \
-		"http://${STAGE_IP}/roundcube/installer/index.php?_step=3" || die
+		"http://$(get_jail_ip stage)/roundcube/installer/index.php?_step=3" || die
 }
 
 install_roundcube()
@@ -161,7 +161,7 @@ EO_SQUIRREL_SQL
 	echo "$_grant 'squirrelmail'@'${JAIL_NET_PREFIX}.10' IDENTIFIED BY '${_sqpass}';" \
 	    | jexec mysql /usr/local/bin/mysql || exit
 
-	echo "$_grant 'squirrelmail'@'${STAGE_IP}' IDENTIFIED BY '${_sqpass}';" \
+	echo "$_grant 'squirrelmail'@'$(get_jail_ip stage)' IDENTIFIED BY '${_sqpass}';" \
 		| jexec mysql /usr/local/bin/mysql || exit
 }
 
@@ -435,10 +435,7 @@ test_webmail()
 	stage_exec sockstat -l -4 | grep 80 || exit
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_data_fs webmail
 create_staged_fs webmail
 stage_sysrc hostname=webmail

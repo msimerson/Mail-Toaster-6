@@ -107,9 +107,7 @@ test_dovecot()
     stage_exec sockstat -l -4 | grep 143 || exit
 }
 
-base_snapshot_exists \
-    || (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-    && exit)
+base_snapshot_exists || exit
 
 umount "$STAGE_MNT/usr/local/vpopmail"
 create_staged_fs dovecot

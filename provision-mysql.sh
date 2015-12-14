@@ -44,10 +44,7 @@ test_mysql()
     fi
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_data_fs mysql
 create_staged_fs mysql
 stage_sysrc hostname=mysql

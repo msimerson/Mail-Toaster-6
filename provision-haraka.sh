@@ -293,10 +293,7 @@ test_haraka()
 	echo "it worked"
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_staged_fs haraka
 stage_sysrc hostname=haraka
 add_devfs_rule

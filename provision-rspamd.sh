@@ -38,10 +38,7 @@ test_rspamd()
 	stage_exec sockstat -l -4 | grep 11334 || exit
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_staged_fs rspamd
 stage_sysrc hostname=rspamd
 start_staged_jail

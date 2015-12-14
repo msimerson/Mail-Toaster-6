@@ -58,12 +58,8 @@ export FBSD_PATCH_VER; FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 export BASE_NAME; BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL;  BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP; BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
-export BASE_MNT;  BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
-export STAGE_IP;   STAGE_IP="${JAIL_NET_PREFIX}.254"
-export STAGE_NAME; STAGE_NAME="stage"
-export STAGE_VOL;  STAGE_VOL="$ZFS_JAIL_VOL/$STAGE_NAME"
-export STAGE_MNT;  STAGE_MNT="$ZFS_JAIL_MNT/$STAGE_NAME"
+export STAGE_MNT;  STAGE_MNT="$ZFS_JAIL_MNT/stage"
 
 safe_jailname()
 {
@@ -71,7 +67,7 @@ safe_jailname()
 	echo "$1" | sed -e 's/[^a-zA-Z0-9]/_/g'
 }
 
-export SAFE_NAME; SAFE_NAME=$(safe_jailname $STAGE_NAME)
+export SAFE_NAME; SAFE_NAME=$(safe_jailname stage)
 
 if [ -z "$SAFE_NAME" ]; then
 	echo "unset SAFE_NAME"
@@ -102,7 +98,13 @@ zfs_snapshot_exists()
 
 base_snapshot_exists()
 {
-	zfs_snapshot_exists "$BASE_SNAP"
+	
+	if zfs_snapshot_exists "$BASE_SNAP"; then
+		return 1
+	fi
+
+	echo "$BASE_SNAP does not exist, use 'provision base' to create it"
+	return 0
 }
 
 jail_conf_header()
@@ -205,16 +207,6 @@ stop_jail()
 	jail -r "$_safe" 2>/dev/null
 }
 
-delete_staged_fs()
-{
-	if [ ! -d "$STAGE_MNT" ]; then
-		return
-	fi
-
-	echo "zfs destroy $STAGE_VOL"
-	zfs destroy -f "$STAGE_VOL" || exit
-}
-
 stage_unmount()
 {
 	unmount_ports "$STAGE_MNT"
@@ -225,13 +217,17 @@ stage_unmount()
 create_staged_fs()
 {
 	tell_status "stage jail cleanup"
-	stop_jail "$STAGE_NAME"
+	stop_jail stage
 	stage_unmount "$1"
-	delete_staged_fs
+
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/stage"; then
+		echo "zfs destroy $ZFS_JAIL_VOL/stage"
+		zfs destroy -f "$ZFS_JAIL_VOL/stage" || exit	
+	fi
 
 	tell_status "stage jail filesystem setup"
-	echo "zfs clone $BASE_SNAP $STAGE_VOL"
-	zfs clone "$BASE_SNAP" "$STAGE_VOL" || exit
+	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
+	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
 
 	stage_mount_ports
 	mount_data "$1" "$STAGE_MNT"
@@ -258,7 +254,7 @@ start_staged_jail()
 		host.hostname="$_name" \
 		path="$_path" \
 		interface="$JAIL_NET_INTERFACE" \
-		ip4.addr="$STAGE_IP" \
+		ip4.addr="$(get_jail_ip stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		allow.sysvipc=1 \
@@ -281,12 +277,12 @@ rename_fs_staged_to_ready()
 
 	# get the wait over with before shutting down production jail
 	local _tries=0
-	local _zfs_rename="zfs rename $STAGE_VOL $_new_vol"
+	local _zfs_rename="zfs rename $ZFS_JAIL_VOL/stage $_new_vol"
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
 		if [ "$_tries" -gt 20 ]; then
 			echo "trying to force rename"
-			_zfs_rename="zfs rename -f $STAGE_VOL $_new_vol"
+			_zfs_rename="zfs rename -f $ZFS_JAIL_VOL/stage $_new_vol"
 		fi
 		echo "waiting for ZFS filesystem to quiet ($_tries)"
 		_tries=$((_tries + 1))
@@ -356,7 +352,7 @@ stage_resolv_conf()
 promote_staged_jail()
 {
 	tell_status "promoting jail $1"
-	stop_jail "$STAGE_NAME"
+	stop_jail stage
 	stage_resolv_conf
 	stage_unmount "$1"
 	stage_clear_caches
@@ -557,57 +553,58 @@ provision()
 
 	case "$1" in
 		host)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		base)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch "$_toaster_sh/provision-$1.sh"
+			exec sh provision-base.sh
+			return;;
 		dns)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		mysql)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		clamav)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		spamassassin)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		dspam)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		vpopmail)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		haraka)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		webmail)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		monitor)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		haproxy)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		rspamd)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		avg)
-            fetch "$_toaster_sh/provision-$1.sh"
-            exec provision-avg.sh
-            return;;
+			fetch "$_toaster_sh/provision-$1.sh"
+			exec sh provision-avg.sh
+			return;;
 		dovecot)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		redis)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 		geoip)
-            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-            return;;
+			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+			return;;
 	esac
 
     echo "unknown action $1"

@@ -36,10 +36,7 @@ test_geoip()
     echo "it worked"
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_data_fs geoip
 create_staged_fs geoip
 stage_sysrc hostname=geoip

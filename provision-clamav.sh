@@ -83,10 +83,7 @@ test_clamav()
 	stage_exec sockstat -l -4 | grep 3310 || exit
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_staged_fs clamav
 stage_sysrc hostname=clamav
 start_staged_jail

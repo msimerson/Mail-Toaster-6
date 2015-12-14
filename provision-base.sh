@@ -3,6 +3,7 @@
 . mail-toaster.sh || exit
 
 export SAFE_NAME; SAFE_NAME=$(safe_jailname "$BASE_NAME")
+export BASE_MNT;  BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 create_zfs_jail_root()
 {
@@ -61,17 +62,21 @@ commonName_default = $TOASTER_HOSTNAME \
 commonName_default = $TOASTER_HOSTNAME \
 " /etc/ssl/openssl.cnf
 
-    echo
+	echo
 	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
-	echo "	saves having to do it in each subsequent one."
+	echo "	saves having to do it multiple times later."
 	echo
 	echo "Generating self-signed SSL certificates"
-	echo "	hint: use the FQDN of this server for the common name"
 	echo
 	openssl req -x509 -nodes -days 2190 \
 	    -newkey rsa:2048 \
 	    -keyout "$BASE_MNT/etc/ssl/private/server.key" \
 	    -out "$BASE_MNT/etc/ssl/certs/server.crt"
+
+	if [ ! -f "$BASE_MNT/etc/ssl/private/server.key" ]; then
+		"ERROR: no TLS key was generated!"
+		exit
+	fi
 }
 
 configure_base()
@@ -156,7 +161,7 @@ jail -r "$SAFE_NAME"
 umount "$BASE_MNT/dev"
 rm -rf "$BASE_MNT/var/cache/pkg/*"
 
-echo "zfs snapshot ${BASE_VOL}@${FBSD_PATCH_VER}"
-zfs snapshot "${BASE_VOL}@${FBSD_PATCH_VER}" || exit
+echo "zfs snapshot ${BASE_SNAP}"
+zfs snapshot "${BASE_SNAP}" || exit
 
 proclaim_success base
