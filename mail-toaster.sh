@@ -98,13 +98,12 @@ zfs_snapshot_exists()
 
 base_snapshot_exists()
 {
-	
 	if zfs_snapshot_exists "$BASE_SNAP"; then
-		return 1
+		return 0
 	fi
 
 	echo "$BASE_SNAP does not exist, use 'provision base' to create it"
-	return 0
+	return 1
 }
 
 jail_conf_header()
@@ -547,64 +546,34 @@ mysql_db_exists()
 	fi
 }
 
+fetch_and_exec()
+{
+	local _toaster_sh="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
+
+	fetch -m "$_toaster_sh/provision-$1.sh"
+	sh "provision-$1.sh"
+}
+
 provision()
 {
-    local _toaster_sh="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
-
 	case "$1" in
-		host)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		base)
-			fetch "$_toaster_sh/provision-$1.sh"
-			exec sh provision-base.sh
-			return;;
-		dns)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		mysql)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		clamav)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		spamassassin)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		dspam)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		vpopmail)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		haraka)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		webmail)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		monitor)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		haproxy)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		rspamd)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		avg)
-			fetch "$_toaster_sh/provision-$1.sh"
-			exec sh provision-avg.sh
-			return;;
-		dovecot)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		redis)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
-		geoip)
-			fetch -o - "$_toaster_sh/provision-$1.sh" | sh
-			return;;
+		host)		fetch_and_exec "$1"; return;;
+		base)		fetch_and_exec "$1"; return;;
+		dns)		fetch_and_exec "$1"; return;;
+		mysql)		fetch_and_exec "$1"; return;;
+		clamav)		fetch_and_exec "$1"; return;;
+		spamassassin) fetch_and_exec "$1"; return;;
+		dspam)		fetch_and_exec "$1"; return;;
+		vpopmail)	fetch_and_exec "$1"; return;;
+		haraka)		fetch_and_exec "$1"; return;;
+		webmail)	fetch_and_exec "$1"; return;;
+		monitor)	fetch_and_exec "$1"; return;;
+		haproxy)	fetch_and_exec "$1"; return;;
+		rspamd)		fetch_and_exec "$1"; return;;
+		avg)		fetch_and_exec "$1"; return;;
+		dovecot)	fetch_and_exec "$1"; return;;
+		redis)		fetch_and_exec "$1"; return;;
+		geoip)		fetch_and_exec "$1"; return;;
 	esac
 
     echo "unknown action $1"

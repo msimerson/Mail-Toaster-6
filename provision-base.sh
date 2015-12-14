@@ -144,7 +144,7 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 	fi
 }
 
-base_snapshot_exists && exit 0
+zfs_snapshot_exists "$BASE_SNAP" && exit 0
 create_zfs_jail_root
 create_base_filesystem
 install_freebsd
