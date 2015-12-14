@@ -135,7 +135,10 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 "
 	stage_pkg_install gmake gettext dialog4ports fakeroot
 	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
-	install_vpopmail_mysql_grants
+
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		install_vpopmail_mysql_grants
+	fi
 }
 
 install_vpopmail()

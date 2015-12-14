@@ -284,7 +284,7 @@ rename_fs_staged_to_ready()
 	local _zfs_rename="zfs rename $STAGE_VOL $_new_vol"
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ "$_tries" -gt 15 ]; then
+		if [ "$_tries" -gt 20 ]; then
 			echo "trying to force rename"
 			_zfs_rename="zfs rename -f $STAGE_VOL $_new_vol"
 		fi
@@ -549,4 +549,66 @@ mysql_db_exists()
 		echo "$1 db exists"
 		return 0  # db exists
 	fi
+}
+
+provision()
+{
+    local _toaster_sh="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
+
+	case "$1" in
+		host)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		base)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		dns)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		mysql)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		clamav)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		spamassassin)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		dspam)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		vpopmail)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		haraka)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		webmail)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		monitor)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		haproxy)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		rspamd)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		avg)
+            fetch "$_toaster_sh/provision-$1.sh"
+            exec provision-avg.sh
+            return;;
+		dovecot)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		redis)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+		geoip)
+            fetch -o - "$_toaster_sh/provision-$1.sh" | sh
+            return;;
+	esac
+
+    echo "unknown action $1"
 }

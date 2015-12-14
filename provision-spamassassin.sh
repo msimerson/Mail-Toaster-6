@@ -71,6 +71,7 @@ install_spamassassin()
 
 configure_spamassassin_redis_bayes()
 {
+    tell_status "configuring redis backed bayes"
 	echo "
 use_bayes               1
 use_bayes_rules         1
