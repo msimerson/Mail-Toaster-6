@@ -179,10 +179,7 @@ test_vpopmail()
 	stage_exec sockstat -l -4 | grep :89 || exit
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_data_fs vpopmail
 create_staged_fs vpopmail
 stage_sysrc hostname=vpopmail

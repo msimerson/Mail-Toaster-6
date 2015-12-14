@@ -99,14 +99,14 @@ backend www_rspamd
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
 EO_HAPROXY_CONF
 
-	local _jail_ssl; _jail_ssl="$STAGE_MNT/etc/ssl"
+	local _jail_ssl="$STAGE_MNT/etc/ssl"
 	if [ -f "$_jail_ssl/private/server.key" ]; then
 		cat "$_jail_ssl/private/server.key" "$_jail_ssl/certs/server.crt" \
             > "$_jail_ssl/private/server.pem" || exit
 		return
 	fi
 
-	local _base_ssl; _base_ssl="$BASE_MNT/etc/ssl"
+	local _base_ssl="$ZFS_JAIL_MNT/$BASE_NAME/etc/ssl"
 	cat "$_base_ssl/private/server.key" "$_base_ssl/certs/server.crt" \
         > "$_jail_ssl/private/server.pem" || exit
 }
@@ -125,10 +125,7 @@ test_haproxy()
 	echo "it worked"
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_staged_fs haproxy
 stage_sysrc hostname=haproxy
 start_staged_jail

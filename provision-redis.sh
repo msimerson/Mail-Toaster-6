@@ -42,10 +42,7 @@ test_redis()
 	stage_exec sockstat -l -4 | grep 6379 || exit
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_data_fs redis
 create_staged_fs redis
 stage_sysrc hostname=redis

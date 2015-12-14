@@ -48,9 +48,7 @@ test_avg()
 	sockstat -l | grep 54322 || exit
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
+base_snapshot_exists || exit
 
 create_data_fs avg
 create_staged_fs avg

@@ -82,19 +82,16 @@ start_unbound()
 test_unbound()
 {
 	# use staged IP for DNS resolution
-	echo "nameserver $STAGE_IP" | tee "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 
 	# test if we get an answer
 	stage_exec host dns || exit
 
 	# set it back to production value
-	echo "nameserver ${JAIL_NET_PREFIX}.3" | tee "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
 }
 
-base_snapshot_exists \
-	|| (echo "$BASE_SNAP must exist, use provision-base.sh to create it" \
-	&& exit)
-
+base_snapshot_exists || exit
 create_staged_fs dns
 stage_sysrc hostname=dns
 start_staged_jail
