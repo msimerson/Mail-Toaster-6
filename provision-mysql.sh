@@ -8,25 +8,40 @@ export JAIL_CONF_EXTRA="
 
 install_mysql()
 {
+    tell_status "installing mysql"
 	stage_pkg_install mysql56-server || exit
 }
 
 configure_mysql()
 {
+    true
 }
 
 start_mysql()
 {
-	stage_sysrc mysql_enable=YES
-#	stage_exec service mysql-server start || exit
-	sleep 1
+    tell_status "starting mysql"
+    stage_sysrc mysql_enable=YES
+
+    if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
+        # mysql jail already exists, unmount the data dir since two mysql's
+        # cannot access the data
+        unmount_data mysql
+    fi
+
+    stage_exec service mysql-server start || exit
 }
 
 test_mysql()
 {
-#	stage_exec sockstat -l -4 | grep 3306 || exit
-#	echo 'SHOW DATABASES' | jexec $SAFE_NAME /usr/local/bin/mysql \
-#	    | grep -q mysql || exit
+    tell_status "testing mysql"
+    if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
+        true
+    else
+        sleep 1
+        echo 'SHOW DATABASES' | stage_exec mysql || exit
+        stage_exec sockstat -l -4 | grep 3306 || exit
+        echo "it worked"
+    fi
 }
 
 base_snapshot_exists \

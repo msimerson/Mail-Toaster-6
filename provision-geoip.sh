@@ -16,7 +16,7 @@ configure_geoip()
 {
     stage_sysrc syslogd_enable=NO
     
-    mkdir -p $STAGE_MNT/usr/local/etc/periodic/weekly
+    mkdir -p "$STAGE_MNT/usr/local/etc/periodic/weekly"
     stage_exec ln -s /usr/local/bin/maxmind-geolite-mirror \
         /usr/local/etc/periodic/weekly/999.maxmind-geolite-mirror
 }
@@ -32,7 +32,7 @@ test_geoip()
 	echo "testing geoip..."
 	stage_exec ls /usr/local/share/GeoIP
 
-    test -f $STAGE_MNT/usr/local/share/GeoIP/GeoIP.dat || exit
+    test -f "$STAGE_MNT/usr/local/share/GeoIP/GeoIP.dat" || exit
     echo "it worked"
 }
 

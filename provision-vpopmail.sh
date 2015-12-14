@@ -11,16 +11,16 @@ export JAIL_CONF_EXTRA="
 install_qmail()
 {
 	tell_status "setting up data fs for qmail control files"
-	mkdir -p $STAGE_MNT/var/qmail \
-	         $ZFS_DATA_MNT/vpopmail/qmail-control \
-	         $ZFS_DATA_MNT/vpopmail/qmail-users
+	mkdir -p "$STAGE_MNT/var/qmail" \
+	         "$ZFS_DATA_MNT/vpopmail/qmail-control" \
+	         "$ZFS_DATA_MNT/vpopmail/qmail-users"
 
 	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
 
 	tell_status "installing qmail"
-	mkdir -p $STAGE_MNT/usr/local/etc/rc.d
-	echo $TOASTER_HOSTNAME > $ZFS_DATA_MNT/vpopmail/qmail-control/me
+	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
+	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
 	tell_status "enabling qmail"
@@ -38,9 +38,9 @@ install_maildrop()
 	stage_pkg_install maildrop
 
 	tell_status "installing maildrop filter file"
-	fetch -o $STAGE_MNT/etc/mailfilter http://mail-toaster.com/install/mt6-mailfilter.txt
-	chown 89:89 $STAGE_MNT/etc/mailfilter
-	chmod 600 $STAGE_MNT/etc/mailfilter
+	fetch -o "$STAGE_MNT/etc/mailfilter" http://mail-toaster.com/install/mt6-mailfilter.txt
+	chown 89:89 "$STAGE_MNT/etc/mailfilter"
+	chmod 600 "$STAGE_MNT/etc/mailfilter"
 }
 
 install_lighttpd()
@@ -48,10 +48,10 @@ install_lighttpd()
 	tell_status "installing lighttpd"
 	stage_pkg_install lighttpd
 
-	local _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	sed -i -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' $_conf
-	sed -i -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' $_conf
-	cat <<EO_LIGHTTPD >> $_conf
+	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+	sed -i -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_conf"
+	sed -i -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_conf"
+	cat <<EO_LIGHTTPD >> "$_conf"
 
 server.modules += ( "mod_alias" )
 
@@ -87,7 +87,7 @@ install_vpopmail_mysql_grants()
 {
 	tell_status "enabling vpopmail MySQL access"
 
-	local _vpe="$STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql"
+	local _vpe; _vpe="$STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql"
 	if [ ! -f "$_vpe" ]; then
 		echo "ERR: where is $_vpe?"
 		exit
@@ -98,23 +98,23 @@ install_vpopmail_mysql_grants()
 		echo "CREATE DATABASE vpopmail;" | jexec mysql /usr/local/bin/mysql || exit
 	fi
 
-	local _last=`grep -v ^# $_vpe | head -n1 | cut -f4 -d'|'`
+	local _last; _last=$(grep -v ^# "$_vpe" | head -n1 | cut -f4 -d'|')
 	if [ "$_last" != "secret" ]; then
 		echo "preserving password $_last"
 		return
 	fi
 
-	local _vpass=`openssl rand -hex 18`
+	local _vpass; _vpass=$(openssl rand -hex 18)
 
-	sed -i -e "s/localhost/$JAIL_NET_PREFIX.4/" $_vpe
-	sed -i -e 's/root/vpopmail/' $_vpe
-	sed -i -e "s/secret/$_vpass/" $_vpe
+	sed -i -e "s/localhost/$JAIL_NET_PREFIX.4/" "$_vpe"
+	sed -i -e 's/root/vpopmail/' "$_vpe"
+	sed -i -e "s/secret/$_vpass/" "$_vpe"
 
-	local _vpopmail_ip=`get_jail_ip vpopmail`
+	local _vpopmail_ip; _vpopmail_ip=$(get_jail_ip vpopmail)
 	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_vpopmail_ip}' IDENTIFIED BY '${_vpass}';" \
  		| jexec mysql /usr/local/bin/mysql || exit
 
-	local _stage_ip=`get_jail_ip`
+	local _stage_ip; _stage_ip=$(get_jail_ip)
 	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_stage_ip}' IDENTIFIED BY '${_vpass}';" \
  		| jexec mysql /usr/local/bin/mysql || exit
 }
@@ -155,24 +155,23 @@ install_vpopmail()
 
 configure_vpopmail()
 {
-	local _local_etc="$STAGE_MNT/usr/local/etc"
-
 	tell_status "setting up daemon supervision"
-	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | jexec $SAFE_NAME sh
+	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | jexec "$SAFE_NAME" sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
-		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 $TOASTER_MAIL_DOMAIN
+		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 "$TOASTER_MAIL_DOMAIN"
 	fi
 }
 
 start_vpopmail()
 {
+	true
 }
 
 test_vpopmail()
 {
-	echo "testing vpopmail..."
+	echo "testing vpopmail"
 	sleep 1   # give the daemons a second to start listening
 	stage_exec sockstat -l -4 | grep :89 || exit
 }

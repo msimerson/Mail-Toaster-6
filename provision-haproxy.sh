@@ -11,7 +11,7 @@ install_haproxy()
 configure_haproxy()
 {
 	tell_status "configuring haproxy"
-	tee $STAGE_MNT/usr/local/etc/haproxy.conf <<EO_HAPROXY_CONF
+	tee "$STAGE_MNT/usr/local/etc/haproxy.conf" <<EO_HAPROXY_CONF
 global
     daemon
     maxconn     256  # Total Max Connections. This is dependent on ulimit
@@ -99,14 +99,16 @@ backend www_rspamd
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
 EO_HAPROXY_CONF
 
-	local _jail_ssl="$STAGE_MNT/etc/ssl"
-	if [ -f "$_jail_ssl/private/server.key"]; then
-		cat $_jail_ssl/private/server.key $_jail_ssl/certs/server.crt > $_jail_ssl/private/server.pem
+	local _jail_ssl; _jail_ssl="$STAGE_MNT/etc/ssl"
+	if [ -f "$_jail_ssl/private/server.key" ]; then
+		cat "$_jail_ssl/private/server.key" "$_jail_ssl/certs/server.crt" \
+            > "$_jail_ssl/private/server.pem" || exit
 		return
 	fi
 
-	local _base_ssl="$BASE_MNT/etc/ssl"
-	cat $_base_ssl/private/server.key $_base_ssl/certs/server.crt > $_jail_ssl/private/server.pem || exit
+	local _base_ssl; _base_ssl="$BASE_MNT/etc/ssl"
+	cat "$_base_ssl/private/server.key" "$_base_ssl/certs/server.crt" \
+        > "$_jail_ssl/private/server.pem" || exit
 }
 
 start_haproxy()
