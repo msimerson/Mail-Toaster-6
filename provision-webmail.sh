@@ -13,10 +13,6 @@ install_php()
 	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$STAGE_MNT/usr/local/etc/php.ini"
 	sed -i .bak -e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
         "$STAGE_MNT/usr/local/etc/php.ini"
-
-	tell_status "starting PHP"
-	stage_sysrc php_fpm_enable=YES
-	stage_exec service php-fpm start
 }
 
 install_roundcube_mysql()
@@ -282,20 +278,17 @@ EO_NGINX_CONF
     export BATCH=${BATCH:="1"}
 	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
-
-	tell_status "starting nginx"
-	stage_sysrc nginx_enable=YES
-	stage_exec service nginx restart
 }
 
 install_lighttpd()
 {
+    tell_status "installing lighttpd"
 	stage_pkg_install lighttpd
 	mkdir -p "$STAGE_MNT/var/spool/lighttpd/sockets"
 	chown -R www "$STAGE_MNT/var/spool/lighttpd/sockets"
 
-	local _lighttpd_dir; _lighttpd_dir="$STAGE_MNT/usr/local/etc/lighttpd"
-	local _lighttpd_conf; _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
+	local _lighttpd_dir="$STAGE_MNT/usr/local/etc/lighttpd"
+	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
 	sed -i .bak -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_lighttpd_conf"
 	sed -i .bak -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_lighttpd_conf"
@@ -303,8 +296,6 @@ install_lighttpd()
 	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' "$_lighttpd_conf"
 	fetch -o "$_lighttpd_dir/vhosts.d/mail-toaster.conf" \
         http://mail-toaster.org/etc/mt6-lighttpd.txt
-	stage_sysrc lighttpd_enable=YES
-	stage_exec service lighttpd start
 }
 
 install_php_mysql()
@@ -321,10 +312,15 @@ install_webmail()
 {
 	install_php || exit
 	install_php_mysql
-	install_nginx || exit
+
+	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
+        install_lighttpd || exit
+    else
+        install_nginx || exit
+    fi
+
 	install_roundcube || exit
 	install_squirrelmail || exit
-	# install_lighttpd || exit
 }
 
 configure_webmail()
@@ -388,7 +384,7 @@ body {
            <select onChange="changeStats(this)">
                <option value=statistics>Statistics</option>
                <option value=munin>Munin</option>
-               <!--<option value=nagios>Nagios</option>-->
+               <option value=nagios>Nagios</option>
                <option value=watch>Haraka</option>
            </select>
        </a>
@@ -426,13 +422,27 @@ EO_INDEX
 
 start_webmail()
 {
-    true
+    tell_status "starting PHP"
+    stage_sysrc php_fpm_enable=YES
+    stage_exec service php-fpm start
+
+    if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
+        tell_status "starting lighttpd"
+        stage_sysrc lighttpd_enable=YES
+        stage_exec service lighttpd start
+    else
+        tell_status "starting nginx"
+        stage_sysrc nginx_enable=YES
+        stage_exec service nginx start
+    fi
 }
 
 test_webmail()
 {
-	echo "testing webmail..."
-	stage_exec sockstat -l -4 | grep 80 || exit
+	tell_status "testing webmail"
+	stage_exec sockstat -l -4 | grep :80 || exit
+    stage_exec sockstat -l -4 | grep :9000 || exit
+    echo "it worked"
 }
 
 base_snapshot_exists || exit

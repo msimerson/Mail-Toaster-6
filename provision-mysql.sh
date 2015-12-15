@@ -2,7 +2,6 @@
 
 . mail-toaster.sh || exit
 
-#export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/mysql \$path/var/db/mysql nullfs rw 0 0\";"
 

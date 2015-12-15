@@ -28,7 +28,7 @@ install_geoip_dbs()
 
 add_devfs_rule()
 {
-	if ! grep -q devfsrules_jail_bpf /etc/devfs.rules; then
+	if ! grep -qs devfsrules_jail_bpf /etc/devfs.rules; then
 		tell_status "installing devfs ruleset for p0f"
 		tee -a /etc/devfs.rules <<EO_DEVFS
 [devfsrules_jail_bpf=7]

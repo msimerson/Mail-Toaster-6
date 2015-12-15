@@ -34,8 +34,9 @@ start_rspamd()
 
 test_rspamd()
 {
-	echo "testing rspamd..."
+	tell_status "testing rspamd"
 	stage_exec sockstat -l -4 | grep 11334 || exit
+    echo "it worked"
 }
 
 base_snapshot_exists || exit
