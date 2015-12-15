@@ -204,7 +204,6 @@ stop_jail()
 	echo "stopping jail $1 ($_safe)"
 	service jail stop "$_safe"
 	jail -r "$_safe" 2>/dev/null
-	unmount_aux_data "$1"
 }
 
 stage_unmount()
@@ -212,6 +211,7 @@ stage_unmount()
 	unmount_ports "$STAGE_MNT"
 	unmount_data "$1"
 	stage_unmount_dev
+	unmount_aux_data "$1"
 }
 
 create_staged_fs()
@@ -253,21 +253,16 @@ mount_aux_data() {
 
 start_staged_jail()
 {
-	local _name
-	local _path
+	local _name="$1"
+	local _path="$2"
 
-	if [ "$#" -eq 2 ]; then
-		_name="$1"
-		_path="$2"
-	else
-		_name="$SAFE_NAME"
-		_path="$STAGE_MNT"
-	fi
+	if [ -z "$_name" ]; then _name="$SAFE_NAME"; fi
+	if [ -z "$_path" ]; then _path="$STAGE_MNT"; fi
 
 	tell_status "stage jail $_name startup"
 
 	jail -c \
-		name="$_name" \
+		name=stage \
 		host.hostname="$_name" \
 		path="$_path" \
 		interface="$JAIL_NET_INTERFACE" \
@@ -299,7 +294,7 @@ rename_fs_staged_to_ready()
 	local _zfs_rename="zfs rename $ZFS_JAIL_VOL/stage $_new_vol"
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ "$_tries" -gt 20 ]; then
+		if [ "$_tries" -gt 25 ]; then
 			echo "trying to force rename"
 			_zfs_rename="zfs rename -f $ZFS_JAIL_VOL/stage $_new_vol"
 		fi
@@ -555,9 +550,9 @@ get_public_ip()
     export PUBLIC_IP4
 
     if [ "$1" = 'ipv6' ]; then
-        PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" | grep 'inet6' | grep -v fe80 | awk '{print $2}')
+        PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" | grep 'inet6' | grep -v fe80 | awk '{print $2}' | head -n1)
     else
-        PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" | grep 'inet ' | awk '{print $2}')
+        PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" | grep 'inet ' | awk '{print $2}' | head -n1)
     fi
 }
 
