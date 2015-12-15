@@ -1,0 +1,265 @@
+SHELL="/bin/sh"
+import EXT
+import HOST
+VHOME=`pwd`
+TIMESTAMP=`date "+%b %d %H:%M:%S"`
+
+##
+#  title:  mailfilter-site
+#  author: Matt Simerson
+#  version 3.1
+#
+#  Usage: Install this file in /etc/mailfilter.
+#
+#  Create a .qmail file in each users Maildir as follows:
+#  echo "| /usr/local/bin/maildrop /etc/mailfilter" > ~vpopmail/domains/example.com/user/.qmail
+#
+#  Qmailadmin v1.0.26 or higher does that automatically with
+#  options --enable-modify-spam and --enable-spam-command.
+#
+# Environment Variables from qmail-local:
+#  SENDER    is  the envelope sender address
+#  NEWSENDER is the forwarding envelope sender address
+#  RECIPIENT is the envelope recipient address, local@domain
+#  USER  is user
+#  HOME  is your home directory
+#  HOST  is the domain part of the recipient address
+#  LOCAL is the local part
+#  EXT   is  the  address extension, ext.
+#  HOST2 is the portion of HOST preceding the last dot
+#  HOST3 is the portion of HOST preceding the second-to-last dot
+#  HOST4 is the portion of HOST preceding the third-to-last dot
+#  EXT2  is the portion of EXT following the first dash
+#  EXT3  is the portion following the second dash;
+#  EXT4  is the portion following the third dash.
+#  DEFAULT is  the  portion corresponding to the default part of the .qmail-... file name
+#  DEFAULT is not set if the file name does not end with default
+#  DTLINE  and  RPLINE are the usual Delivered-To and Return-Path lines, including newlines
+#
+# qmail-local will call maildrop. The exit codes that qmail-local understands are:
+#     0 - delivery is complete
+#   111 - temporary error
+#   xxx - unknown failure
+##
+#logfile "/var/log/mail/maildrop.log"
+log "$TIMESTAMP - BEGIN maildrop processing for $EXT@$HOST ==="
+
+# sysadmin blunders can cause EXT or HOST to be unset. 
+# test and make assure things are not too messed up.
+#
+# By exiting with error 111, the error will be logged, giving an admin
+# the chance to notice and fix the problem before the message bounces.
+
+if ( $EXT eq "" )
+{
+        log "  FAILURE: EXT is not a valid value"
+        log "=== END ===  $EXT@$HOST failure (EXT variable not imported)"
+        EXITCODE=111
+        exit
+}
+
+if ( $HOST eq "" )
+{
+        log "  FAILURE: HOST is not a valid value"
+        log "=== END ===  $EXT@$HOST failure (HOST variable not imported)"
+        EXITCODE=111
+        exit
+}
+
+##
+# Include user rules, for overrides of the the sitewide mailfilter
+#
+# this is also the "suggested" way to set individual values
+# for maildrop such as quota.
+##
+
+`test -r $VHOME/.mailfilter`
+if( $RETURNCODE == 0 )
+{
+        log "   including $VHOME/.mailfilter"
+        exception {
+                include $VHOME/.mailfilter
+        }
+}
+
+##
+# if it does not exist, create the maildirsize file 
+# (can also be done via "deliverquota user@dom.com 10MS,1000C)
+##
+
+`test -e $VHOME/Maildir/maildirsize`
+if( $RETURNCODE == 1)
+{
+        VUSERINFO="/usr/local/vpopmail/bin/vuserinfo"
+        `test -x $VUSERINFO`
+        if ( $RETURNCODE == 0)
+        {
+                log "   creating $VHOME/Maildir/maildirsize for quotas"
+                `$VUSERINFO -Q $EXT@$HOST`
+
+                `test -s "$VHOME/Maildir/maildirsize"`
+                if ( $RETURNCODE == 0 )
+                {
+                        `/usr/sbin/chown vpopmail:vchkpw $VHOME/Maildir/maildirsize`
+                                `/bin/chmod 640 $VHOME/Maildir/maildirsize`
+                }
+        }
+        else
+        {
+                log "   WARNING: cannot find vuserinfo! Please edit mailfilter"
+        }
+}
+
+##
+# Set MAILDIRQUOTA. If not set, maildrop and deliverquota
+# will not enforce quotas for message delivery.
+##
+
+`test -e $VHOME/Maildir/maildirsize`
+if( $RETURNCODE == 0)
+{
+        MAILDIRQUOTA=`/usr/bin/head -n1 $VHOME/Maildir/maildirsize`
+}
+
+# if the user does not have a Spam folder, create it.
+
+`test -d $VHOME/Maildir/.Spam`
+if( $RETURNCODE == 1 )
+{
+
+    MAILDIRMAKE="/usr/local/bin/maildirmake"
+    `test -x $MAILDIRMAKE`
+    if ( $RETURNCODE == 1 )
+    {
+        MAILDIRMAKE="/usr/local/bin/maildrop-maildirmake"
+        `test -x $MAILDIRMAKE`
+    }
+
+    if ( $RETURNCODE == 1 )
+    {
+        log "   WARNING: no maildirmake!"
+    }
+    else
+    {
+        log "   creating $VHOME/Maildir/.Spam "
+        `$MAILDIRMAKE -f Spam $VHOME/Maildir`
+    }
+}
+
+##
+# The message should be tagged, lets bag it.
+##
+# HAM:  X-Spam-Status: No, score=-2.6 required=5.0
+# SPAM: X-Spam-Status: Yes, score=8.9 required=5.0
+#
+# Note: SA < 3.0 uses "hits" instead of "score"
+#
+# if ( /^X-Spam-Status: *Yes/)  # test if spam status is yes
+# The following regexp matches any spam message and sets the
+# variable $MATCH2 to the spam score.
+
+if ( /X-Spam-Status: Yes/:h)
+{
+    if ( /X-Spam-Status: Yes, (hits|score)=([\d\.\-]+)\s/:h)
+    {
+        # if the message scored a 12 or higher, then there is no point in
+        # keeping it around. SpamAssassin already knows it as spam, and
+        # has already "autolearned" from it if you have that enabled. The
+        # end user likely does not want it. If you wanted to cc it, or
+        # deliver it elsewhere for inclusion in a spam corpus, you could
+        # easily do so with a cc or xfilter command
+
+        if ( $MATCH2 >= 12 )   # from Adam Senuik post to mail-toasters
+        {
+            log "   SPAM: score $MATCH2 exceeds 12: nuking message!"
+            log "=== END === $EXT@$HOST success (discarded)"
+            EXITCODE=0
+            exit
+        }
+        log "   SPAM: score $MATCH2: delivering to $VHOME/Maildir/.Spam"
+        log "=== END ===  $EXT@$HOST success"
+        exception {
+            to "$VHOME/Maildir/.Spam"
+        }
+    }
+    else
+    {
+        log "   SpamAssassin regexp match error!"
+    }
+}
+
+if ( /^X-Spam-Status: No, (score|hits)=([\d\.\-]+)\s/:h)
+{
+    log "   message is SA clean ($MATCH2)"
+}
+
+##
+# Include any other rules that the user might have from
+# sqwebmail or other compatible program
+##
+
+`test -r $VHOME/Maildir/.mailfilter`
+if( $RETURNCODE == 0 )
+{
+        log "   including $VHOME/Maildir/.mailfilter"
+        exception {
+                include $VHOME/Maildir/.mailfilter
+        }
+}
+
+`test -r $VHOME/Maildir/mailfilter`
+if( $RETURNCODE == 0 )
+{
+        log "   including $VHOME/Maildir/mailfilter"
+        exception {
+                include $VHOME/Maildir/mailfilter
+        }
+}
+
+log "   delivering to $VHOME/Maildir"
+
+# make sure the deliverquota binary exists and is executable
+# if not, then we cannot enforce quotas. If we do not check
+# and the binary is missing, maildrop silently discards mail.
+
+DELIVERQUOTA="/usr/local/bin/deliverquota"
+`test -x $DELIVERQUOTA`
+if ( $RETURNCODE == 1 )
+{
+    DELIVERQUOTA="/usr/local/bin/maildrop-deliverquota"
+    `test -x $DELIVERQUOTA`
+}
+
+if ( $RETURNCODE == 1 )
+{
+    log "   WARNING: no deliverquota!"
+    log "=== END ===  $EXT@$HOST success"
+    exception {
+        to "$VHOME/Maildir"
+    }
+}
+else
+{
+    exception {
+        xfilter "$DELIVERQUOTA -w 90 $VHOME/Maildir"
+    }
+
+    ##
+    # check to make sure the message was delivered
+    # returncode 77 means that out maildir was overquota - bounce mail
+    ##
+    if( $RETURNCODE == 77)
+    {
+        #log "   BOUNCED: bouncesaying '$EXT@$HOST is over quota'"
+        log "=== END ===  $EXT@$HOST  bounced"
+        to "|/var/qmail/bin/bouncesaying '$EXT@$HOST is over quota'"
+    }
+    else
+    {
+        log "=== END ===  $EXT@$HOST  success (quota)"
+        EXITCODE=0
+        exit
+    }
+}
+
+log "WARNING: This message should never be printed!"

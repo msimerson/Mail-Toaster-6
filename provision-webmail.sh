@@ -384,7 +384,7 @@ body {
            <select onChange="changeStats(this)">
                <option value=statistics>Statistics</option>
                <option value=munin>Munin</option>
-               <!--<option value=nagios>Nagios</option>-->
+               <option value=nagios>Nagios</option>
                <option value=watch>Haraka</option>
            </select>
        </a>
