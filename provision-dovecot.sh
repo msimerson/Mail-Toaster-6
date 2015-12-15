@@ -2,10 +2,8 @@
 
 . mail-toaster.sh || exit
 
-#export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
-
 
 install_dovecot()
 {
@@ -108,18 +106,11 @@ test_dovecot()
 }
 
 base_snapshot_exists || exit
-
-umount "$STAGE_MNT/usr/local/vpopmail"
 create_staged_fs dovecot
-
-mkdir -p "$STAGE_MNT/usr/local/vpopmail"
-mount_nullfs "$ZFS_DATA_MNT/vpopmail" "$STAGE_MNT/usr/local/vpopmail"
-
 stage_sysrc hostname=dovecot
 start_staged_jail
 install_dovecot
 configure_dovecot
 start_dovecot
 test_dovecot
-umount "$STAGE_MNT/usr/local/vpopmail"
 promote_staged_jail dovecot
