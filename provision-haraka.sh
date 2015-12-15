@@ -236,6 +236,18 @@ config_haraka_karma()
 	sed -i -e "/^server_ip/ s/127.0.0.1/$JAIL_NET_PREFIX.16/" "$HARAKA_CONF/karma.ini"
 }
 
+config_haraka_redis()
+{
+	tell_status "configuring redis plugin"
+	echo 'redis' | tee -a "$HARAKA_CONF/plugins"
+	tee "$HARAKA_CONF/redis.ini" <<EO_REDIS_CONF
+[server]
+host=$(get_jail_ip redis)
+; port=6379
+db=3
+EO_REDIS_CONF
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -266,6 +278,7 @@ configure_haraka()
 	config_haraka_avg
 	config_haraka_watch
 	config_haraka_karma
+	config_haraka_redis
 
 	install_geoip_dbs
 	cleanup_deprecated_haraka
@@ -297,7 +310,7 @@ base_snapshot_exists || exit
 create_staged_fs haraka
 stage_sysrc hostname=haraka
 add_devfs_rule
-start_staged_jail
+start_staged_jail haraka
 install_haraka
 configure_haraka
 start_haraka

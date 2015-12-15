@@ -9,6 +9,7 @@ export JAIL_CONF_EXTRA="
 
 install_avg()
 {
+	tell_status "making FreeBSD like 2008"
 	fetch -m http://download.avgfree.com/filedir/inst/avg2013ffb-r3115-a6155.i386.tar.gz || exit
 
 	stage_exec make -C /usr/ports/misc/compat7x install distclean
@@ -18,6 +19,7 @@ install_avg()
 	sysrc -R "$STAGE_MNT" ldconfig32_paths="\$ldconfig32_paths /opt/avg/av/lib"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d" || exit
 
+	tell_status "installing avgd"
 	tar -C "$STAGE_MNT/tmp" -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
 	mkdir -p "$STAGE_MNT/opt/avg"
 	jexec "$SAFE_NAME" /tmp/avg2013ffb-r3115-a6155.i386/install.sh
@@ -25,6 +27,7 @@ install_avg()
 
 configure_avg()
 {
+	tell_status "configuring avgd"
 	stage_exec avgcfgctl -w Default.aspam.spamassassin.enabled="false"
 	stage_exec avgcfgctl -w Default.tcpd.avg.address="0.0.0.0"
 	stage_exec avgcfgctl -w Default.tcpd.smtp.enabled="false"
@@ -34,18 +37,19 @@ configure_avg()
 
 start_avg()
 {
+	tell_status "starting avgd"
 	stage_exec service avgd.sh restart
-	sleep 1
 }
 
 test_avg()
 {
-	echo "testing AVG process is running"
+	tell_status "testing if AVG process is running"
+	sleep 2
 	ps ax -J "$SAFE_NAME" | grep avg || exit
 
-	echo "checking avgtcpd is listening"
-	sleep 1
+	tell_status "verifying avgtcpd is listening"
 	sockstat -l | grep 54322 || exit
+	echo "it works"
 }
 
 base_snapshot_exists || exit
