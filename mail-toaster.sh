@@ -251,9 +251,9 @@ unmount_aux_data()
 
 mount_aux_data() {
 	case $1 in
-		spamassassin)  mount_data geoip ;;
-		haraka)        mount_data geoip ;;
-		dovecot)       mount_data vpopmail ;;
+		spamassassin )  mount_data geoip ;;
+		haraka )        mount_data geoip ;;
+		dovecot )       mount_data vpopmail ;;
 	esac
 }
 
@@ -451,12 +451,12 @@ stage_fbsd_package()
 has_data_fs()
 {
 	case $1 in
-		avg )     return 0;;
-		geoip )   return 0;;
-		mysql )   return 0;;
-		redis )   return 0;;
-		vopmail ) return 0;;
-		webmail ) return 0;;
+		avg )      return 0;;
+		geoip )    return 0;;
+		mysql )    return 0;;
+		redis )    return 0;;
+		vpopmail ) return 0;;
+		webmail )  return 0;;
 	esac
 
 	return 1
@@ -475,7 +475,8 @@ mount_data()
 	local _data_mp;  _data_mp=$(data_mountpoint "$1" "$2")
 
 	if [ ! -d "$_data_mp" ]; then
-		mkdir -p "$_data_mp"
+		echo "mkdir -p $_data_mp"
+		mkdir -p "$_data_mp" || exit
 	fi
 
 	if mount -t nullfs | grep "$_data_mp"; then
@@ -509,14 +510,10 @@ data_mountpoint()
 	fi
 
 	case $1 in
-		mysql )
-			echo "$_base_dir/var/db/mysql"; return ;;
-		vpopmail )
-			echo "$_base_dir/usr/local/vpopmail"; return ;;
-		avg )
-			echo "$_base_dir/data/avg"; return ;;
-		geoip )
-			echo "$_base_dir/usr/local/share/GeoIP"; return ;;
+		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
+		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
+		avg )       echo "$_base_dir/data/avg"; return ;;
+		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
 	esac
 
 	echo "$_base_dir/data"
