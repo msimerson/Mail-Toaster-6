@@ -55,11 +55,11 @@ export FBSD_PATCH_VER; FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 # the 'base' jail that other jails are cloned from. This will be named as the
 # host OS version, ex: base-10.2-RELEASE and the snapshot name will be the OS
 # patch level, ex: base-10.2-RELEASE@p7
-export BASE_NAME; BASE_NAME="base-$FBSD_REL_VER"
-export BASE_VOL;  BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
-export BASE_SNAP; BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
+export BASE_NAME="base-$FBSD_REL_VER"
+export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
+export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
 
-export STAGE_MNT;  STAGE_MNT="$ZFS_JAIL_MNT/stage"
+export STAGE_MNT="$ZFS_JAIL_MNT/stage"
 
 safe_jailname()
 {
@@ -81,9 +81,9 @@ zfs_filesystem_exists()
 	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1"; then
 		echo "$1 filesystem exists"
 		return 0
-	else
-		return 1
 	fi
+
+	return 1
 }
 
 zfs_snapshot_exists()
@@ -94,6 +94,19 @@ zfs_snapshot_exists()
 	else
 		return 1
 	fi
+}
+
+zfs_create_fs() {
+	if zfs_filesystem_exists "$1"; then return; fi
+
+	if [ -z "$2" ]; then
+		tell_status "zfs create $1"
+		zfs create "$1" || exit
+		return
+	fi
+
+	tell_status "zfs create -o mountpoint=$2 $1"
+	zfs create -o mountpoint="$2" "$1"  || exit
 }
 
 base_snapshot_exists()
@@ -124,40 +137,23 @@ EO_JAIL_CONF_HEAD
 get_jail_ip()
 {
 	case "$1" in
-		base)
-			echo "$JAIL_NET_PREFIX.2"; return;;
-		dns)
-			echo "$JAIL_NET_PREFIX.3"; return;;
-		mysql)
-			echo "$JAIL_NET_PREFIX.4"; return;;
-		clamav)
-			echo "$JAIL_NET_PREFIX.5"; return;;
-		spamassassin)
-			echo "$JAIL_NET_PREFIX.6"; return;;
-		dspam)
-			echo "$JAIL_NET_PREFIX.7"; return;;
-		vpopmail)
-			echo "$JAIL_NET_PREFIX.8"; return;;
-		haraka)
-			echo "$JAIL_NET_PREFIX.9"; return;;
-		webmail)
-			echo "$JAIL_NET_PREFIX.10"; return;;
-		monitor)
-			echo "$JAIL_NET_PREFIX.11"; return;;
-		haproxy)
-			echo "$JAIL_NET_PREFIX.12"; return;;
-		rspamd)
-			echo "$JAIL_NET_PREFIX.13"; return;;
-		avg)
-			echo "$JAIL_NET_PREFIX.14"; return;;
-		dovecot)
-			echo "$JAIL_NET_PREFIX.15"; return;;
-		redis)
-			echo "$JAIL_NET_PREFIX.16"; return;;
-		geoip)
-			echo "$JAIL_NET_PREFIX.17"; return;;
-		stage)
-			echo "$JAIL_NET_PREFIX.254"; return;;
+		base)         echo "$JAIL_NET_PREFIX.2"; return;;
+		dns)          echo "$JAIL_NET_PREFIX.3"; return;;
+		mysql)        echo "$JAIL_NET_PREFIX.4"; return;;
+		clamav)       echo "$JAIL_NET_PREFIX.5"; return;;
+		spamassassin) echo "$JAIL_NET_PREFIX.6"; return;;
+		dspam)        echo "$JAIL_NET_PREFIX.7"; return;;
+		vpopmail)     echo "$JAIL_NET_PREFIX.8"; return;;
+		haraka)       echo "$JAIL_NET_PREFIX.9"; return;;
+		webmail)      echo "$JAIL_NET_PREFIX.10"; return;;
+		monitor)      echo "$JAIL_NET_PREFIX.11"; return;;
+		haproxy)      echo "$JAIL_NET_PREFIX.12"; return;;
+		rspamd)       echo "$JAIL_NET_PREFIX.13"; return;;
+		avg)          echo "$JAIL_NET_PREFIX.14"; return;;
+		dovecot)      echo "$JAIL_NET_PREFIX.15"; return;;
+		redis)        echo "$JAIL_NET_PREFIX.16"; return;;
+		geoip)        echo "$JAIL_NET_PREFIX.17"; return;;
+		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
@@ -209,12 +205,12 @@ stop_jail()
 stage_unmount()
 {
 	unmount_ports "$STAGE_MNT"
-	unmount_data "$1"
+	if has_data_fs "$1"; then unmount_data "$1"; fi
 	stage_unmount_dev
 	unmount_aux_data "$1"
 }
 
-create_staged_fs()
+cleanup_staged_fs()
 {
 	tell_status "stage jail cleanup"
 	stop_jail stage
@@ -224,13 +220,24 @@ create_staged_fs()
 		echo "zfs destroy $ZFS_JAIL_VOL/stage"
 		zfs destroy -f "$ZFS_JAIL_VOL/stage" || exit	
 	fi
+}
+
+create_staged_fs()
+{
+	cleanup_staged_fs "$1"
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
 
+	if has_data_fs "$1"; then
+		zfs_create_fs "$ZFS_DATA_VOL"    "$ZFS_DATA_MNT"
+		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+		mount_data "$1" "$STAGE_MNT"
+	fi
+
 	stage_mount_ports
-	mount_data "$1" "$STAGE_MNT"
+	stage_sysrc hostname="$1"
 	echo
 }
 
@@ -442,21 +449,18 @@ stage_fbsd_package()
 	tar -C "$STAGE_MNT" -xvpJf "$1.txz" || exit
 }
 
-create_data_fs()
+has_data_fs()
 {
-	if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
-		echo "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
-		zfs create -o "mountpoint=$ZFS_DATA_MNT" "$ZFS_DATA_VOL"
-	fi
+	case $1 in
+		avg )     return 0;;
+		geoip )   return 0;;
+		mysql )   return 0;;
+		redis )   return 0;;
+		vopmail ) return 0;;
+		webmail ) return 0;;
+	esac
 
-	local _data; _data="${ZFS_DATA_VOL}/$1"
-	if zfs_filesystem_exists "$_data"; then
-		echo "$_data already exists"
-		return
-	fi
-
-	echo "zfs create -o mountpoint=${ZFS_DATA_MNT}/${1} $_data"
-	zfs create -o "mountpoint=${ZFS_DATA_MNT}/${1}" "$_data"
+	return 1
 }
 
 mount_data()
@@ -505,7 +509,7 @@ data_mountpoint()
 {
 	local _base_dir="$2"
 	if [ -z "$_base_dir" ]; then
-		_base_dir="$STAGE_MNT"  # defaults to stage
+		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
 	case $1 in

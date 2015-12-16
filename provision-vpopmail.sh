@@ -179,9 +179,7 @@ test_vpopmail()
 }
 
 base_snapshot_exists || exit
-create_data_fs vpopmail
 create_staged_fs vpopmail
-stage_sysrc hostname=vpopmail
 start_staged_jail
 install_vpopmail
 configure_vpopmail

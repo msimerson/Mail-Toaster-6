@@ -127,7 +127,6 @@ test_haproxy()
 
 base_snapshot_exists || exit
 create_staged_fs haproxy
-stage_sysrc hostname=haproxy
 start_staged_jail
 install_haproxy
 configure_haproxy

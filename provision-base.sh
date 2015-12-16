@@ -2,16 +2,12 @@
 
 . mail-toaster.sh || exit
 
-export BASE_MNT; BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
+export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 create_zfs_jail_root()
 {
-	if [ ! -d "$ZFS_JAIL_MNT" ];
-	then
-		tell_status "creating fs $ZFS_JAIL_MNT"
-		echo "zfs create $ZFS_JAIL_MNT"
-		zfs create -o "mountpoint=$ZFS_JAIL_MNT" "$ZFS_JAIL_VOL" || exit
-	fi
+	if [ -d "$ZFS_JAIL_MNT" ]; then return; fi
+
 }
 
 create_base_filesystem()
@@ -28,8 +24,7 @@ create_base_filesystem()
 		zfs destroy "$BASE_VOL" || exit
 	fi
 
-	tell_status "creating base fs $BASE_VOL"
-	zfs create "$BASE_VOL" || exit
+	zfs_create_fs "$BASE_VOL"
 }
 
 install_freebsd()
@@ -37,21 +32,20 @@ install_freebsd()
 	tell_status "getting base.tgz"
 	fetch -m "$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz" || exit
 
-	tell_status "extracting base.tgz"
-	tar -C "$BASE_MNT" -xvpJf base.txz || exit
+	if [ -n "$USE_BSDINSTALL" ]; then
+		export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
+		bsdinstall jail "$BASE_MNT"
+	else
+		tell_status "extracting base.tgz"
+		tar -C "$BASE_MNT" -xvpJf base.txz || exit
+	fi
 
-	# export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
-	# bsdinstall jail $BASE_MNT
-}
-
-update_freebsd()
-{
 	tell_status "apply FreeBSD patches to base jail"
 	sed -i .bak -e 's/^Components.*/Components world kernel/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 }
 
-configure_base_tls_certs()
+configure_tls_certs()
 {
 	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
 	chmod o-r "$BASE_MNT/etc/ssl/private"
@@ -106,9 +100,7 @@ EO_MAKE_CONF
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
-	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
-
-	configure_base_tls_certs
+#	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
 }
 
 install_bash()
@@ -149,24 +141,25 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 	fi
 }
 
+install_base()
+{
+	pkg -j stage install -y pkg vim-lite sudo ca_root_nss || exit
+	jexec stage newaliases || exit
+}
+
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
 jail -r stage
-create_zfs_jail_root
+zfs_create_fs "$ZFS_JAIL_VOL" "$ZFS_JAIL_MNT"
 create_base_filesystem
 install_freebsd
-update_freebsd
 configure_base
-
-start_staged_jail base "$BASE_MNT" || exit
-pkg -j stage install -y pkg vim-lite sudo ca_root_nss || exit
-jexec stage newaliases || exit
-
+configure_tls_certs
 use_bourne_shell
-
+start_staged_jail base "$BASE_MNT" || exit
+install_base
 jail -r stage
 umount "$BASE_MNT/dev"
 rm -rf "$BASE_MNT/var/cache/pkg/*"
-
 echo "zfs snapshot ${BASE_SNAP}"
 zfs snapshot "${BASE_SNAP}" || exit
 

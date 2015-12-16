@@ -139,7 +139,6 @@ test_spamassassin()
 
 base_snapshot_exists || exit
 create_staged_fs spamassassin
-stage_sysrc hostname=spamassassin
 start_staged_jail spamassassin
 install_spamassassin
 configure_spamassassin

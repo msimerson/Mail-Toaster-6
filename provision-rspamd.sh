@@ -41,7 +41,6 @@ test_rspamd()
 
 base_snapshot_exists || exit
 create_staged_fs rspamd
-stage_sysrc hostname=rspamd
 start_staged_jail
 install_rspamd
 configure_rspamd

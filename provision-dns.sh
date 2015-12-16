@@ -93,7 +93,6 @@ test_unbound()
 
 base_snapshot_exists || exit
 create_staged_fs dns
-stage_sysrc hostname=dns
 start_staged_jail
 install_unbound
 configure_unbound

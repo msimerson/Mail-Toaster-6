@@ -308,7 +308,6 @@ test_haraka()
 
 base_snapshot_exists || exit
 create_staged_fs haraka
-stage_sysrc hostname=haraka
 add_devfs_rule
 start_staged_jail haraka
 install_haraka

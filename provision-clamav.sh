@@ -85,7 +85,6 @@ test_clamav()
 
 base_snapshot_exists || exit
 create_staged_fs clamav
-stage_sysrc hostname=clamav
 start_staged_jail
 install_clamav
 configure_clamav

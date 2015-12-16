@@ -31,7 +31,6 @@ test_monitor()
 
 base_snapshot_exists || exit
 create_staged_fs monitor
-stage_sysrc hostname=monitor
 start_staged_jail
 install_monitor
 configure_monitor

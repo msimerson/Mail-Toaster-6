@@ -43,9 +43,7 @@ test_redis()
 }
 
 base_snapshot_exists || exit
-create_data_fs redis
 create_staged_fs redis
-stage_sysrc hostname=redis
 start_staged_jail
 install_redis
 configure_redis

@@ -107,7 +107,6 @@ test_dovecot()
 
 base_snapshot_exists || exit
 create_staged_fs dovecot
-stage_sysrc hostname=dovecot
 start_staged_jail dovecot
 install_dovecot
 configure_dovecot

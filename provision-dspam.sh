@@ -80,7 +80,6 @@ test_dspam()
 
 base_snapshot_exists || exit
 create_staged_fs dspam
-stage_sysrc hostname=dspam
 start_staged_jail
 install_dspam
 configure_dspam
