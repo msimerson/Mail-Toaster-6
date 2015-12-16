@@ -22,7 +22,7 @@ install_avg()
 	tell_status "installing avgd"
 	tar -C "$STAGE_MNT/tmp" -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
 	mkdir -p "$STAGE_MNT/opt/avg"
-	jexec "$SAFE_NAME" /tmp/avg2013ffb-r3115-a6155.i386/install.sh
+	stage_exec /tmp/avg2013ffb-r3115-a6155.i386/install.sh
 }
 
 configure_avg()
@@ -45,7 +45,7 @@ test_avg()
 {
 	tell_status "testing if AVG process is running"
 	sleep 2
-	ps ax -J "$SAFE_NAME" | grep avg || exit
+	ps ax -J stage | grep avg || exit
 
 	tell_status "verifying avgtcpd is listening"
 	sockstat -l | grep 54322 || exit
@@ -53,7 +53,6 @@ test_avg()
 }
 
 base_snapshot_exists || exit
-create_data_fs avg
 create_staged_fs avg
 stage_sysrc hostname=avg
 start_staged_jail

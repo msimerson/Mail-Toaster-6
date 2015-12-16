@@ -14,8 +14,7 @@ configure_dspam_mysql()
 
     local _dconf="$STAGE_MNT/usr/local/etc/dspam.conf"
     if [ ! -f "$_dconf" ]; then
-        echo "ERR: where is $_dconf?"
-        exit
+        fatal_err "where is $_dconf?"
     fi
 
     local _last
@@ -80,7 +79,6 @@ test_dspam()
 
 base_snapshot_exists || exit
 create_staged_fs dspam
-stage_sysrc hostname=dspam
 start_staged_jail
 install_dspam
 configure_dspam

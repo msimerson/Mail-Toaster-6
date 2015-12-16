@@ -41,7 +41,7 @@ EOSIG
 	mkdir -p "$STAGE_ETC/newsyslog.conf.d" || exit
 	echo '/var/log/clamav-unofficial-sigs.log root:wheel 640  3 1000 * J' \
 		> "$STAGE_ETC/newsyslog.conf.d/clamav-unofficial-sigs"
-	jexec "$SAFE_NAME" /usr/local/etc/periodic/daily/clamav-unofficial-sigs
+	stage_exec /usr/local/etc/periodic/daily/clamav-unofficial-sigs
 }
 
 configure_clamav()
@@ -85,7 +85,6 @@ test_clamav()
 
 base_snapshot_exists || exit
 create_staged_fs clamav
-stage_sysrc hostname=clamav
 start_staged_jail
 install_clamav
 configure_clamav

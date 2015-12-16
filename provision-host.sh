@@ -2,8 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export SAFE_NAME; SAFE_NAME=$(safe_jailname "$BASE_NAME") || exit
-
 update_host_ntpd()
 {
     tell_status "enabling NTPd"
@@ -56,6 +54,36 @@ constrain_sshd_to_host()
 
     # grep ^Listen /etc/ssh/sshd_config
     service sshd restart
+}
+
+configure_tls_certs()
+{
+    mkdir "/etc/ssl/certs" "/etc/ssl/private"
+    chmod o-r "/etc/ssl/private"
+
+    grep -q commonName_default /etc/ssl/openssl.cnf || \
+        sed -i -e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME \
+" /etc/ssl/openssl.cnf
+
+    grep -q emailAddress_default /etc/ssl/openssl.cnf || \
+        sed -i -e "/^emailAddress_max.*/ a\ 
+emailAddress_default = postmaster@$TOASTER_HOSTNAME \
+" /etc/ssl/openssl.cnf
+
+    echo
+    echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
+    echo "  saves having to do it multiple times later."
+    tell_status "Generating self-signed SSL certificates"
+
+    openssl req -x509 -nodes -days 2190 \
+        -newkey rsa:2048 \
+        -keyout /etc/ssl/private/server.key \
+        -out /etc/ssl/certs/server.crt
+
+    if [ ! -f /etc/ssl/private/server.key ]; then
+        fatal_err "no TLS key was generated!"
+    fi
 }
 
 check_global_listeners()
@@ -111,8 +139,10 @@ install_jailmanage()
     chmod 755 /usr/local/sbin/jailmanage || exit
 }
 
-set_jail_startup_order()
+set_jail_start_order()
 {
+    tell_status "patching jail so shutdown reverses jail order"
+
     patch -d / <<'EO_JAIL_RCD'
 Index: etc/rc.d/jail
 ===================================================================
@@ -142,12 +172,12 @@ Index: etc/rc.d/jail
  		if ! $jail_jls -j $_j > /dev/null 2>&1; then
 EO_JAIL_RCD
 
-    # sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg rspamd spamassassin haraka dspam monitor"
+    sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
 }
 
 enable_jails()
 {
-    #set_jail_startup_order
+    set_jail_start_order
 
     sysrc jail_enable=YES
 
@@ -174,14 +204,15 @@ update_freebsd() {
 
 plumb_jail_nic()
 {
-    if [ "$JAIL_NET_INTERFACE" = "lo1" ]; then
-        sysrc cloned_interfaces=lo1
-        local _missing;
-        _missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
-        if [ -n "$_missing" ]; then
-            echo "creating interface lo1"
-            ifconfig lo1 create || exit
-        fi
+    if [ "$JAIL_NET_INTERFACE" != "lo1" ]; then return; fi
+
+    tell_status "plumb lo1 interface for jails"
+    sysrc cloned_interfaces=lo1
+    local _missing;
+    _missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
+    if [ -n "$_missing" ]; then
+        echo "creating interface lo1"
+        ifconfig lo1 create || exit
     fi
 }
 
@@ -193,6 +224,7 @@ update_host() {
     constrain_sshd_to_host
     check_global_listeners
     add_jail_nat
+    configure_tls_certs
     enable_jails
     install_jailmanage
     plumb_jail_nic

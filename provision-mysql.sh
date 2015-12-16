@@ -44,9 +44,7 @@ test_mysql()
 }
 
 base_snapshot_exists || exit
-create_data_fs mysql
 create_staged_fs mysql
-stage_sysrc hostname=mysql
 start_staged_jail
 install_mysql
 start_mysql

@@ -139,8 +139,8 @@ config_haraka_clamav()
 config_haraka_tls() {	
 	tell_status "enable TLS encryption"
 	sed -i -e 's/^# tls$/tls/' "$HARAKA_CONF/plugins"
-	ln "$STAGE_MNT/etc/ssl/certs/server.crt" "$HARAKA_CONF/tls_cert.pem"
-	ln "$STAGE_MNT/etc/ssl/private/server.key" "$HARAKA_CONF/tls_key.pem"
+	cp /etc/ssl/certs/server.crt "$HARAKA_CONF/tls_cert.pem"
+	cp /etc/ssl/private/server.key "$HARAKA_CONF/tls_key.pem"
 }
 
 config_haraka_dnsbl()
@@ -308,7 +308,6 @@ test_haraka()
 
 base_snapshot_exists || exit
 create_staged_fs haraka
-stage_sysrc hostname=haraka
 add_devfs_rule
 start_staged_jail haraka
 install_haraka

@@ -2,7 +2,7 @@
 
 # Required settings
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
-export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"} || exit
+export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
@@ -20,26 +20,18 @@ if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
 
-if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
-	echo; echo "Oops,  you aren't following instructions!"; echo
+usage() {
+	echo; echo "Oops, you aren't following instructions!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 	exit
-fi
+}
+if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage; fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
-if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
-	echo; echo "Oops, you didn't follow the instructions!"; echo
-	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
-	exit
-fi
-echo "toaster domain: $TOASTER_MAIL_DOMAIN"
+if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage; fi
+echo "email domain: $TOASTER_MAIL_DOMAIN"
 
-_this_shell=$(ps -o args= -p "$$" | grep csh)
-if [ -n "$_this_shell" ]; then
-    echo; echo "Oops, you didn't follow the instructions! ($_this_shell)"; echo
-	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
-	exit
-fi
+if ps -o args= -p "$$" | grep csh; then usage; fi
 echo "shell: $SHELL"
 
 # very little below here should need customizing. If so, consider opening
@@ -47,19 +39,23 @@ echo "shell: $SHELL"
 export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
-export FBSD_ARCH; FBSD_ARCH=$(uname -m)
-export FBSD_REL_VER; FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
-export FBSD_PATCH_VER; FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
-export FBSD_PATCH_VER; FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
+export FBSD_REL_VER FBSD_PATCH_VER
+FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
+FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
+FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 
 # the 'base' jail that other jails are cloned from. This will be named as the
 # host OS version, ex: base-10.2-RELEASE and the snapshot name will be the OS
 # patch level, ex: base-10.2-RELEASE@p7
-export BASE_NAME; BASE_NAME="base-$FBSD_REL_VER"
-export BASE_VOL;  BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
-export BASE_SNAP; BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
+export BASE_NAME="base-$FBSD_REL_VER"
+export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
+export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
 
-export STAGE_MNT;  STAGE_MNT="$ZFS_JAIL_MNT/stage"
+export STAGE_MNT="$ZFS_JAIL_MNT/stage"
+
+fatal_err() {
+	echo; echo "FATAL: $1"; echo; exit
+}
 
 safe_jailname()
 {
@@ -68,12 +64,7 @@ safe_jailname()
 }
 
 export SAFE_NAME; SAFE_NAME=$(safe_jailname stage)
-
-if [ -z "$SAFE_NAME" ]; then
-	echo "unset SAFE_NAME"
-	exit
-fi
-
+if [ -z "$SAFE_NAME" ]; then echo "unset SAFE_NAME"; exit; fi
 echo "safe name: $SAFE_NAME"
 
 zfs_filesystem_exists()
@@ -81,9 +72,9 @@ zfs_filesystem_exists()
 	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1"; then
 		echo "$1 filesystem exists"
 		return 0
-	else
-		return 1
 	fi
+
+	return 1
 }
 
 zfs_snapshot_exists()
@@ -93,6 +84,31 @@ zfs_snapshot_exists()
 		return 0
 	else
 		return 1
+	fi
+}
+
+zfs_create_fs() {
+	if zfs_filesystem_exists "$1"; then return; fi
+
+	if [ -z "$2" ]; then
+		tell_status "zfs create $1"
+		zfs create "$1" || exit
+		return
+	fi
+
+	tell_status "zfs create -o mountpoint=$2 $1"
+	zfs create -o mountpoint="$2" "$1"  || exit
+}
+
+zfs_destroy_fs()
+{
+	if ! zfs_filesystem_exists "$1"; then return; fi
+	if [ -n "$2" ]; then
+		echo "zfs destroy $2 $1"
+		zfs destroy "$2" "$1" || exit
+	else
+		echo "zfs destroy $1"
+		zfs destroy "$1" || exit
 	fi
 }
 
@@ -108,6 +124,8 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
+	if [ -e /etc/jail.conf ]; then return; fi
+
     tee -a /etc/jail.conf <<EO_JAIL_CONF_HEAD
 
 exec.start = "/bin/sh /etc/rc";
@@ -124,40 +142,23 @@ EO_JAIL_CONF_HEAD
 get_jail_ip()
 {
 	case "$1" in
-		base)
-			echo "$JAIL_NET_PREFIX.2"; return;;
-		dns)
-			echo "$JAIL_NET_PREFIX.3"; return;;
-		mysql)
-			echo "$JAIL_NET_PREFIX.4"; return;;
-		clamav)
-			echo "$JAIL_NET_PREFIX.5"; return;;
-		spamassassin)
-			echo "$JAIL_NET_PREFIX.6"; return;;
-		dspam)
-			echo "$JAIL_NET_PREFIX.7"; return;;
-		vpopmail)
-			echo "$JAIL_NET_PREFIX.8"; return;;
-		haraka)
-			echo "$JAIL_NET_PREFIX.9"; return;;
-		webmail)
-			echo "$JAIL_NET_PREFIX.10"; return;;
-		monitor)
-			echo "$JAIL_NET_PREFIX.11"; return;;
-		haproxy)
-			echo "$JAIL_NET_PREFIX.12"; return;;
-		rspamd)
-			echo "$JAIL_NET_PREFIX.13"; return;;
-		avg)
-			echo "$JAIL_NET_PREFIX.14"; return;;
-		dovecot)
-			echo "$JAIL_NET_PREFIX.15"; return;;
-		redis)
-			echo "$JAIL_NET_PREFIX.16"; return;;
-		geoip)
-			echo "$JAIL_NET_PREFIX.17"; return;;
-		stage)
-			echo "$JAIL_NET_PREFIX.254"; return;;
+		base)         echo "$JAIL_NET_PREFIX.2"; return;;
+		dns)          echo "$JAIL_NET_PREFIX.3"; return;;
+		mysql)        echo "$JAIL_NET_PREFIX.4"; return;;
+		clamav)       echo "$JAIL_NET_PREFIX.5"; return;;
+		spamassassin) echo "$JAIL_NET_PREFIX.6"; return;;
+		dspam)        echo "$JAIL_NET_PREFIX.7"; return;;
+		vpopmail)     echo "$JAIL_NET_PREFIX.8"; return;;
+		haraka)       echo "$JAIL_NET_PREFIX.9"; return;;
+		webmail)      echo "$JAIL_NET_PREFIX.10"; return;;
+		monitor)      echo "$JAIL_NET_PREFIX.11"; return;;
+		haproxy)      echo "$JAIL_NET_PREFIX.12"; return;;
+		rspamd)       echo "$JAIL_NET_PREFIX.13"; return;;
+		avg)          echo "$JAIL_NET_PREFIX.14"; return;;
+		dovecot)      echo "$JAIL_NET_PREFIX.15"; return;;
+		redis)        echo "$JAIL_NET_PREFIX.16"; return;;
+		geoip)        echo "$JAIL_NET_PREFIX.17"; return;;
+		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
@@ -171,17 +172,12 @@ add_jail_conf()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1");
 	if [ -z "$_jail_ip" ]; then
-		echo "can't determine IP for jail $1"
-		exit
+		fatal_err "can't determine IP for $1"
 	fi
+	
+	jail_conf_header
 
-	if [ ! -e /etc/jail.conf ]; then
-		jail_conf_header
-	fi
-
-	if grep -q "$1" /etc/jail.conf; then
-		return
-	fi
+	if grep -q "$1" /etc/jail.conf; then return; fi
 
 	local _path=""
 	local _safe; _safe=$(safe_jailname "$1")
@@ -201,36 +197,46 @@ EO_JAIL_CONF
 stop_jail()
 {
 	local _safe; _safe=$(safe_jailname "$1")
-	echo "stopping jail $1 ($_safe)"
+	echo "service jail stop $_safe"
 	service jail stop "$_safe"
+
+	echo "jail -r $_safe"
 	jail -r "$_safe" 2>/dev/null
 }
 
 stage_unmount()
 {
 	unmount_ports "$STAGE_MNT"
-	unmount_data "$1"
+	if has_data_fs "$1"; then unmount_data "$1"; fi
 	stage_unmount_dev
 	unmount_aux_data "$1"
 }
 
-create_staged_fs()
+cleanup_staged_fs()
 {
-	tell_status "stage jail cleanup"
+	tell_status "stage cleanup"
 	stop_jail stage
 	stage_unmount "$1"
+	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
+}
 
-	if zfs_filesystem_exists "$ZFS_JAIL_VOL/stage"; then
-		echo "zfs destroy $ZFS_JAIL_VOL/stage"
-		zfs destroy -f "$ZFS_JAIL_VOL/stage" || exit	
-	fi
+create_staged_fs()
+{
+	cleanup_staged_fs "$1"
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
 
+	stage_sysrc hostname="$1"
+
+	if has_data_fs "$1"; then
+		zfs_create_fs "$ZFS_DATA_VOL"    "$ZFS_DATA_MNT"
+		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+		mount_data "$1" "$STAGE_MNT"
+	fi
+
 	stage_mount_ports
-	mount_data "$1" "$STAGE_MNT"
 	echo
 }
 
@@ -276,18 +282,15 @@ start_staged_jail()
 
 	mount_aux_data "$_name"
 
-	pkg -j "$SAFE_NAME" update
+	pkg -j stage update
 }
 
-rename_fs_staged_to_ready()
+rename_staged_to_ready()
 {
 	local _new_vol="$ZFS_JAIL_VOL/${1}.ready"
 
-	# clean up stages that failed promotion
-	if zfs_filesystem_exists "$_new_vol"; then
-		echo "zfs destroy $_new_vol (failed promotion)"
-		zfs destroy "$_new_vol" || exit
-	fi
+	# remove stages that failed promotion
+	zfs_destroy_fs "$_new_vol"
 
 	# get the wait over with before shutting down production jail
 	local _tries=0
@@ -304,19 +307,14 @@ rename_fs_staged_to_ready()
 	done
 }
 
-rename_fs_active_to_last()
+rename_active_to_last()
 {
-	local LAST="$ZFS_JAIL_VOL/$1.last"
 	local ACTIVE="$ZFS_JAIL_VOL/$1"
+	local LAST="$ACTIVE.last"
 
-	if zfs_filesystem_exists "$LAST"; then
-		echo "zfs destroy $LAST"
-		zfs destroy "$LAST" || exit
-	fi
+	zfs_destroy_fs "$LAST"
 
-	if ! zfs_filesystem_exists "$ACTIVE"; then
-		return
-	fi
+	if ! zfs_filesystem_exists "$ACTIVE"; then return; fi
 
 	local _tries=0
 	local _zfs_rename="zfs rename $ACTIVE $LAST"
@@ -332,7 +330,7 @@ rename_fs_active_to_last()
 	done
 }
 
-rename_fs_ready_to_active()
+rename_ready_to_active()
 {
 	echo "zfs rename $ZFS_JAIL_VOL/${1}.ready $ZFS_JAIL_VOL/$1"
 	zfs rename "$ZFS_JAIL_VOL/${1}.ready" "$ZFS_JAIL_VOL/$1" || exit
@@ -346,9 +344,7 @@ tell_status()
 
 proclaim_success()
 {
-	echo
-	echo "Success! A new '$1' jail is provisioned"
-	echo
+	echo; echo "Success! A new '$1' jail is provisioned"; echo
 }
 
 stage_clear_caches()
@@ -371,17 +367,17 @@ promote_staged_jail()
 	stage_unmount "$1"
 	stage_clear_caches
 
-	rename_fs_staged_to_ready "$1"
+	rename_staged_to_ready "$1"
 
 	stop_jail "$1"
 	unmount_data "$1" "$ZFS_JAIL_MNT/$1"
 	unmount_ports "$ZFS_JAIL_MNT/$1"
 
-	rename_fs_active_to_last "$1"
-	rename_fs_ready_to_active "$1"
+	rename_active_to_last "$1"
+	rename_ready_to_active "$1"
 	add_jail_conf "$1"
 
-	tell_status "start jail $1"
+	tell_status "service jail start $1"
 	service jail start "$1" || exit
 	proclaim_success "$1"
 }
@@ -417,7 +413,7 @@ stage_exec()
 
 stage_mount_ports()
 {
-	echo "mounting /usr/ports"
+	echo "mount $STAGE_MNT/usr/ports"
 	mount_nullfs /usr/ports "$STAGE_MNT/usr/ports" || exit
 }
 
@@ -431,32 +427,39 @@ unmount_ports()
 		return
 	fi
 
-	echo "unmounting $1/usr/ports"
+	echo "unmount $1/usr/ports"
 	umount "$1/usr/ports" || exit
+}
+
+freebsd_release_url_base()
+{
+	echo "$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$FBSD_REL_VER"
 }
 
 stage_fbsd_package()
 {
-	echo "installing FreeBSD package $1"
-	fetch -m "$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/$1.txz" || exit
-	tar -C "$STAGE_MNT" -xvpJf "$1.txz" || exit
+	local _dest="$2"
+	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
+
+	tell_status "downloading FreeBSD package $1"
+	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
+
+	tell_status "extracting FreeBSD package $1.tgz"
+	tar -C "$_dest" -xvpJf "$1.txz" || exit
 }
 
-create_data_fs()
+has_data_fs()
 {
-	if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
-		echo "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
-		zfs create -o "mountpoint=$ZFS_DATA_MNT" "$ZFS_DATA_VOL"
-	fi
+	case $1 in
+		avg )     return 0;;
+		geoip )   return 0;;
+		mysql )   return 0;;
+		redis )   return 0;;
+		vopmail ) return 0;;
+		webmail ) return 0;;
+	esac
 
-	local _data; _data="${ZFS_DATA_VOL}/$1"
-	if zfs_filesystem_exists "$_data"; then
-		echo "$_data already exists"
-		return
-	fi
-
-	echo "zfs create -o mountpoint=${ZFS_DATA_MNT}/${1} $_data"
-	zfs create -o "mountpoint=${ZFS_DATA_MNT}/${1}" "$_data"
+	return 1
 }
 
 mount_data()
@@ -480,7 +483,7 @@ mount_data()
 		return
 	fi
 
-	echo "nullfs mount $_data_mnt $_data_mp"
+	echo "mount_nullfs $_data_mnt $_data_mp"
 	mount_nullfs "$_data_mnt" "$_data_mp" || exit
 }
 
@@ -488,10 +491,7 @@ unmount_data()
 {
 	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
 
-	if ! zfs_filesystem_exists "$_data_vol"; then
-		#echo "no data fs $_data_vol to unmount"
-		return
-	fi
+	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
 
 	local _data_mp=; _data_mp=$(data_mountpoint "$1" "$2")
 
@@ -505,7 +505,7 @@ data_mountpoint()
 {
 	local _base_dir="$2"
 	if [ -z "$_base_dir" ]; then
-		_base_dir="$STAGE_MNT"  # defaults to stage
+		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
 	case $1 in
@@ -527,7 +527,7 @@ stage_unmount_dev()
 	if ! mount -t devfs | grep -q "$STAGE_MNT/dev"; then
 		return
 	fi
-	echo "unmounting $STAGE_MNT/dev"
+	echo "umount $STAGE_MNT/dev"
 	umount "$STAGE_MNT/dev" || exit
 }
 
@@ -580,23 +580,23 @@ fetch_and_exec()
 provision()
 {
 	case "$1" in
-		host)		fetch_and_exec "$1"; return;;
-		base)		fetch_and_exec "$1"; return;;
-		dns)		fetch_and_exec "$1"; return;;
-		mysql)		fetch_and_exec "$1"; return;;
-		clamav)		fetch_and_exec "$1"; return;;
+		host)	      fetch_and_exec "$1"; return;;
+		base)	      fetch_and_exec "$1"; return;;
+		dns)	      fetch_and_exec "$1"; return;;
+		mysql)	      fetch_and_exec "$1"; return;;
+		clamav)	      fetch_and_exec "$1"; return;;
 		spamassassin) fetch_and_exec "$1"; return;;
-		dspam)		fetch_and_exec "$1"; return;;
-		vpopmail)	fetch_and_exec "$1"; return;;
-		haraka)		fetch_and_exec "$1"; return;;
-		webmail)	fetch_and_exec "$1"; return;;
-		monitor)	fetch_and_exec "$1"; return;;
-		haproxy)	fetch_and_exec "$1"; return;;
-		rspamd)		fetch_and_exec "$1"; return;;
-		avg)		fetch_and_exec "$1"; return;;
-		dovecot)	fetch_and_exec "$1"; return;;
-		redis)		fetch_and_exec "$1"; return;;
-		geoip)		fetch_and_exec "$1"; return;;
+		dspam)	      fetch_and_exec "$1"; return;;
+		vpopmail)     fetch_and_exec "$1"; return;;
+		haraka)	      fetch_and_exec "$1"; return;;
+		webmail)      fetch_and_exec "$1"; return;;
+		monitor)      fetch_and_exec "$1"; return;;
+		haproxy)      fetch_and_exec "$1"; return;;
+		rspamd)	      fetch_and_exec "$1"; return;;
+		avg)	      fetch_and_exec "$1"; return;;
+		dovecot)      fetch_and_exec "$1"; return;;
+		redis)	      fetch_and_exec "$1"; return;;
+		geoip)	      fetch_and_exec "$1"; return;;
 	esac
 
     echo "unknown action $1"

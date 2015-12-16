@@ -37,9 +37,7 @@ test_geoip()
 }
 
 base_snapshot_exists || exit
-create_data_fs geoip
 create_staged_fs geoip
-stage_sysrc hostname=geoip
 start_staged_jail
 install_geoip
 configure_geoip

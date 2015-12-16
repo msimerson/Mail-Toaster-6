@@ -2,81 +2,37 @@
 
 . mail-toaster.sh || exit
 
-export SAFE_NAME; SAFE_NAME=$(safe_jailname "$BASE_NAME")
-export BASE_MNT;  BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
-
-create_zfs_jail_root()
-{
-	if [ ! -d "$ZFS_JAIL_MNT" ];
-	then
-		tell_status "creating fs $ZFS_JAIL_MNT"
-		echo "zfs create $ZFS_JAIL_MNT"
-		zfs create -o "mountpoint=$ZFS_JAIL_MNT" "$ZFS_JAIL_VOL" || exit
-	fi
-}
+export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 create_base_filesystem()
 {
-	if [ -d "$BASE_MNT" ];
+	if [ -e "$BASE_MNT/dev/null" ];
 	then
-		echo "destroying $BASE_MNT"
-		zfs destroy "$BASE_VOL" || exit
+		echo "unmounting $BASE_MNT/dev"
+		umount "$BASE_MNT/dev" || exit
 	fi
 
-	tell_status "creating base fs $BASE_VOL"
-	zfs create "$BASE_VOL" || exit
+	if [ -d "$BASE_MNT" ];
+	then
+		zfs_destroy_fs "$BASE_VOL"
+	fi
+
+	zfs_create_fs "$BASE_VOL"
 }
 
 install_freebsd()
 {
-	tell_status "getting base.tgz"
-	fetch -m "$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz" || exit
+	if [ -n "$USE_BSDINSTALL" ]; then
+		export BSDINSTALL_DISTSITE;
+		BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
+		bsdinstall jail "$BASE_MNT"
+	else
+		stage_fbsd_package base "$BASE_MNT"
+	fi
 
-	tell_status "extracting base.tgz"
-	tar -C "$BASE_MNT" -xvpJf base.txz || exit
-
-	# export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
-	# bsdinstall jail $BASE_MNT
-}
-
-update_freebsd()
-{
 	tell_status "apply FreeBSD patches to base jail"
 	sed -i .bak -e 's/^Components.*/Components world kernel/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
-}
-
-configure_base_tls_certs()
-{
-	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
-	chmod o-r "$BASE_MNT/etc/ssl/private"
-
-	local _ssl_cnf; _ssl_cnf="$BASE_MNT/etc/ssl/openssl.cnf"
-	grep -q commonName_default "$_ssl_cnf" || \
-		sed -i.bak -e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME \
-" "$_ssl_cnf"
-
-	grep -q commonName_default /etc/ssl/openssl.cnf || \
-		sed -i.bak -e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME \
-" /etc/ssl/openssl.cnf
-
-	echo
-	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
-	echo "	saves having to do it multiple times later."
-	echo
-	echo "Generating self-signed SSL certificates"
-	echo
-	openssl req -x509 -nodes -days 2190 \
-	    -newkey rsa:2048 \
-	    -keyout "$BASE_MNT/etc/ssl/private/server.key" \
-	    -out "$BASE_MNT/etc/ssl/certs/server.crt"
-
-	if [ ! -f "$BASE_MNT/etc/ssl/private/server.key" ]; then
-		"ERROR: no TLS key was generated!"
-		exit
-	fi
 }
 
 configure_base()
@@ -101,15 +57,15 @@ EO_MAKE_CONF
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
-	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
-
-	configure_base_tls_certs
+    mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
+    chmod o-r "$BASE_MNT/etc/ssl/private"
+#	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
 }
 
 install_bash()
 {
-	pkg -j "$SAFE_NAME" install -y bash || exit
-	jexec "$SAFE_NAME" chpass -s /usr/local/bin/bash
+	stage_pkg_install bash || exit
+	stage_exec chpass -s /usr/local/bin/bash
 
 	local _profile="$BASE_MNT/root/.bash_profile"
 	if [ -f "$_profile" ]; then
@@ -128,7 +84,7 @@ alias ll="ls -alFG"
 EO_BASH_PROFILE
 }
 
-use_bourne_shell()
+config_bourne_shell()
 {
 	local _profile=$BASE_MNT/root/.profile
 	local _bconf='
@@ -138,6 +94,12 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 '
 	grep -q PS1 "$_profile" || echo "$_bconf" | tee -a "$_profile"
 	grep -q PS1 /root/.profile || echo "$_bconf" | tee -a /root/.profile
+}
+
+install_base()
+{
+	stage_pkg_install pkg vim-lite sudo ca_root_nss || exit
+	stage_exec newaliases || exit
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash
@@ -145,22 +107,17 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
-create_zfs_jail_root
+jail -r stage
+zfs_create_fs "$ZFS_JAIL_VOL" "$ZFS_JAIL_MNT"
 create_base_filesystem
 install_freebsd
-update_freebsd
 configure_base
-
-start_staged_jail "$SAFE_NAME" "$BASE_MNT" || exit
-pkg -j "$SAFE_NAME" install -y pkg vim-lite sudo ca_root_nss || exit
-jexec "$SAFE_NAME" newaliases || exit
-
-use_bourne_shell
-
-jail -r "$SAFE_NAME"
+config_bourne_shell
+start_staged_jail base "$BASE_MNT" || exit
+install_base
+jail -r stage
 umount "$BASE_MNT/dev"
 rm -rf "$BASE_MNT/var/cache/pkg/*"
-
 echo "zfs snapshot ${BASE_SNAP}"
 zfs snapshot "${BASE_SNAP}" || exit
 

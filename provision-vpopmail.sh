@@ -158,7 +158,7 @@ install_vpopmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | jexec "$SAFE_NAME" sh
+	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | stage_exec sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
@@ -179,9 +179,7 @@ test_vpopmail()
 }
 
 base_snapshot_exists || exit
-create_data_fs vpopmail
 create_staged_fs vpopmail
-stage_sysrc hostname=vpopmail
 start_staged_jail
 install_vpopmail
 configure_vpopmail

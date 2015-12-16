@@ -32,8 +32,8 @@ EO_SAUPD
 
 install_sought_rules() {
 	tell_status "installing sought rules"
-	fetch -o - http://yerp.org/rules/GPG.KEY | jexec "$SAFE_NAME" sa-update --import -
-	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
+	fetch -o - http://yerp.org/rules/GPG.KEY | stage_exec sa-update --import - || exit
+	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org || exit
 }
 
 install_spamassassin_port()
@@ -47,13 +47,14 @@ install_spamassassin_port()
 	fi
 
 	stage_make_conf mail_spamassassin "mail_spamassassin_SET=$_SA_OPTS
-mail_spamassassin_UNSET=SSL PGSQL"
+mail_spamassassin_UNSET=SSL PGSQL GNUPG GNUPG2"
 
-	if [ ! "-d $STAGE_MNT/usr/ports/mail/spamassassin" ]; then
+	if [ ! -d "$STAGE_MNT/usr/ports/mail/spamassassin" ]; then
 		echo "ports aren't mounted!" && exit
 	fi
 
-	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean
+	#export BATCH=1  # if set, GPG key importing will fail
+	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean || exit	
 }
 
 install_spamassassin()
@@ -125,7 +126,7 @@ start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j "$SAFE_NAME" spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
+	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
 	stage_exec service sa-spamd start
 }
 
@@ -138,7 +139,6 @@ test_spamassassin()
 
 base_snapshot_exists || exit
 create_staged_fs spamassassin
-stage_sysrc hostname=spamassassin
 start_staged_jail spamassassin
 install_spamassassin
 configure_spamassassin

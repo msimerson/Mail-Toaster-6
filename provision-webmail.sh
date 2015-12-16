@@ -446,9 +446,7 @@ test_webmail()
 }
 
 base_snapshot_exists || exit
-create_data_fs webmail
 create_staged_fs webmail
-stage_sysrc hostname=webmail
 start_staged_jail
 install_webmail
 configure_webmail
