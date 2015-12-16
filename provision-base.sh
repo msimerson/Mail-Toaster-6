@@ -4,24 +4,17 @@
 
 export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
-create_zfs_jail_root()
-{
-	if [ -d "$ZFS_JAIL_MNT" ]; then return; fi
-
-}
-
 create_base_filesystem()
 {
 	if [ -e "$BASE_MNT/dev/null" ];
 	then
 		echo "unmounting $BASE_MNT/dev"
-		umount "$BASE_MNT/dev"
+		umount "$BASE_MNT/dev" || exit
 	fi
 
 	if [ -d "$BASE_MNT" ];
 	then
-		echo "destroying $BASE_MNT"
-		zfs destroy "$BASE_VOL" || exit
+		zfs_destroy_fs "$BASE_VOL"
 	fi
 
 	zfs_create_fs "$BASE_VOL"
@@ -29,53 +22,16 @@ create_base_filesystem()
 
 install_freebsd()
 {
-	tell_status "getting base.tgz"
-	fetch -m "$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_REL_VER/base.txz" || exit
-
 	if [ -n "$USE_BSDINSTALL" ]; then
-		export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$FBSD_ARCH/$FBSD_ARCH/$FBSD_REL_VER"
+		export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
 		bsdinstall jail "$BASE_MNT"
 	else
-		tell_status "extracting base.tgz"
-		tar -C "$BASE_MNT" -xvpJf base.txz || exit
+		stage_fbsd_package base "$BASE_MNT"
 	fi
 
 	tell_status "apply FreeBSD patches to base jail"
 	sed -i .bak -e 's/^Components.*/Components world kernel/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
-}
-
-configure_tls_certs()
-{
-	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
-	chmod o-r "$BASE_MNT/etc/ssl/private"
-
-	local _ssl_cnf; _ssl_cnf="$BASE_MNT/etc/ssl/openssl.cnf"
-	grep -q commonName_default "$_ssl_cnf" || \
-		sed -i.bak -e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME \
-" "$_ssl_cnf"
-
-	grep -q commonName_default /etc/ssl/openssl.cnf || \
-		sed -i.bak -e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME \
-" /etc/ssl/openssl.cnf
-
-	echo
-	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
-	echo "	saves having to do it multiple times later."
-	echo
-	echo "Generating self-signed SSL certificates"
-	echo
-	openssl req -x509 -nodes -days 2190 \
-	    -newkey rsa:2048 \
-	    -keyout "$BASE_MNT/etc/ssl/private/server.key" \
-	    -out "$BASE_MNT/etc/ssl/certs/server.crt"
-
-	if [ ! -f "$BASE_MNT/etc/ssl/private/server.key" ]; then
-		"ERROR: no TLS key was generated!"
-		exit
-	fi
 }
 
 configure_base()
@@ -100,13 +56,15 @@ EO_MAKE_CONF
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
+    mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
+    chmod o-r "$BASE_MNT/etc/ssl/private"
 #	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
 }
 
 install_bash()
 {
-	pkg -j stage install -y bash || exit
-	jexec stage chpass -s /usr/local/bin/bash
+	stage_pkg_install bash || exit
+	stage_exec chpass -s /usr/local/bin/bash
 
 	local _profile="$BASE_MNT/root/.bash_profile"
 	if [ -f "$_profile" ]; then
@@ -125,7 +83,7 @@ alias ll="ls -alFG"
 EO_BASH_PROFILE
 }
 
-use_bourne_shell()
+config_bourne_shell()
 {
 	local _profile=$BASE_MNT/root/.profile
 	local _bconf='
@@ -135,16 +93,16 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 '
 	grep -q PS1 "$_profile" || echo "$_bconf" | tee -a "$_profile"
 	grep -q PS1 /root/.profile || echo "$_bconf" | tee -a /root/.profile
-
-	if [ "$BOURNE_SHELL" = "bash" ]; then
-		install_bash
-	fi
 }
 
 install_base()
 {
-	pkg -j stage install -y pkg vim-lite sudo ca_root_nss || exit
-	jexec stage newaliases || exit
+	stage_pkg_install pkg vim-lite sudo ca_root_nss || exit
+	stage_exec newaliases || exit
+
+	if [ "$BOURNE_SHELL" = "bash" ]; then
+		install_bash
+	fi
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
@@ -153,8 +111,7 @@ zfs_create_fs "$ZFS_JAIL_VOL" "$ZFS_JAIL_MNT"
 create_base_filesystem
 install_freebsd
 configure_base
-configure_tls_certs
-use_bourne_shell
+config_bourne_shell
 start_staged_jail base "$BASE_MNT" || exit
 install_base
 jail -r stage

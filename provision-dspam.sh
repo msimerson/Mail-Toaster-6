@@ -14,8 +14,7 @@ configure_dspam_mysql()
 
     local _dconf="$STAGE_MNT/usr/local/etc/dspam.conf"
     if [ ! -f "$_dconf" ]; then
-        echo "ERR: where is $_dconf?"
-        exit
+        fatal_err "where is $_dconf?"
     fi
 
     local _last

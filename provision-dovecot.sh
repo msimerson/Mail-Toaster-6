@@ -43,9 +43,6 @@ last_valid_uid = 89
 login_greeting = Mail Toaster (Dovecot) ready.
 mail_privileged_group = mail
 mail_plugins = $mail_plugins quota
-passdb {
-  driver = vpopmail
-}
 protocols = imap pop3
 service auth {
   unix_listener auth-client {
@@ -57,13 +54,6 @@ service auth {
 }
 
 shutdown_clients = no
-ssl_cert = </etc/ssl/certs/server.crt
-ssl_key = </etc/ssl/private/server.key
-userdb {
-  driver = vpopmail
-  # [quota_template=<template>] - %q expands to Maildir++ quota
-  args = quota_template=quota_rule=*:backend=%q
-}
 verbose_proctitle = yes
 protocol imap {
   imap_client_workarounds = delay-newmail  tb-extra-mailbox-sep
@@ -87,11 +77,12 @@ service tcpwrap {
 }
 EO_DOVECOT_LOCAL
 
-    cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
-    sed -i .bak -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf"
-    sed -i .bak -e 's/certs\/dovecot.pem/certs\/server.crt/' "$_dcdir/conf.d/10-ssl.conf"
-    sed -i .bak -e 's/private\/dovecot.pem/private\/server.key/' "$_dcdir/conf.d/10-ssl.conf"
-    sed -i .bak -e 's/^\!include auth-system/#\!include auth-system/' "$_dcdir/conf.d/10-auth.conf"
+	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
+	cp /etc/ssl/certs/server.crt "$STAGE_MNT/etc/ssl/certs/dovecot.pem"
+	cp /etc/ssl/private/server.key "$STAGE_MNT/etc/ssl/private/dovecot.pem"
+	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf"
+	sed -i -e 's/^\!include auth-system/#\!include auth-system/' "$_dcdir/conf.d/10-auth.conf"
+	sed -i -e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' "$_dcdir/conf.d/10-auth.conf"
 }
 
 start_dovecot()

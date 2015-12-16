@@ -99,16 +99,8 @@ backend www_rspamd
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
 EO_HAPROXY_CONF
 
-	local _jail_ssl="$STAGE_MNT/etc/ssl"
-	if [ -f "$_jail_ssl/private/server.key" ]; then
-		cat "$_jail_ssl/private/server.key" "$_jail_ssl/certs/server.crt" \
-            > "$_jail_ssl/private/server.pem" || exit
-		return
-	fi
-
-	local _base_ssl="$ZFS_JAIL_MNT/$BASE_NAME/etc/ssl"
-	cat "$_base_ssl/private/server.key" "$_base_ssl/certs/server.crt" \
-        > "$_jail_ssl/private/server.pem" || exit
+	cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
+        > "$STAGE_MNT/etc/private/server.pem" || exit
 }
 
 start_haproxy()

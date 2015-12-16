@@ -48,10 +48,12 @@ configure_unbound()
 	   local-data:  "13.${_rev_net}.in-addr.arpa PTR rspamd"
 	   local-data:  "14.${_rev_net}.in-addr.arpa PTR avg"
 	   local-data:  "15.${_rev_net}.in-addr.arpa PTR dovecot"
-	   local-data: "254.${_rev_net}.in-addr.arpa PTR staged"
+	   local-data:  "16.${_rev_net}.in-addr.arpa PTR redis"
+	   local-data:  "17.${_rev_net}.in-addr.arpa PTR geoip"
+	   local-data: "254.${_rev_net}.in-addr.arpa PTR stage"
 
 	   local-data: "base     A ${JAIL_NET_PREFIX}.2"
-	   local-data: "DNS      A ${JAIL_NET_PREFIX}.3"
+	   local-data: "dns      A ${JAIL_NET_PREFIX}.3"
 	   local-data: "mysql    A ${JAIL_NET_PREFIX}.4"
 	   local-data: "clamav   A ${JAIL_NET_PREFIX}.5"
 	   local-data: "spamassassin A ${JAIL_NET_PREFIX}.6"
@@ -64,7 +66,9 @@ configure_unbound()
 	   local-data: "rspamd   A ${JAIL_NET_PREFIX}.13"
 	   local-data: "avg      A ${JAIL_NET_PREFIX}.14"
 	   local-data: "dovecot  A ${JAIL_NET_PREFIX}.15"
-	   local-data: "staged   A ${JAIL_NET_PREFIX}.254"
+	   local-data: "redis    A ${JAIL_NET_PREFIX}.16"
+	   local-data: "geoip    A ${JAIL_NET_PREFIX}.17"
+	   local-data: "stage    A ${JAIL_NET_PREFIX}.254"
 
 EO_UNBOUND
 
@@ -81,7 +85,7 @@ start_unbound()
 
 test_unbound()
 {
-	# use staged IP for DNS resolution
+	# use stage IP for DNS resolution
 	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 
 	# test if we get an answer
