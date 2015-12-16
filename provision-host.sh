@@ -2,8 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export SAFE_NAME; SAFE_NAME=$(safe_jailname "$BASE_NAME") || exit
-
 update_host_ntpd()
 {
     tell_status "enabling NTPd"

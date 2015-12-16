@@ -2,8 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export SAFE_NAME; SAFE_NAME=$(safe_jailname "$BASE_NAME")
-export BASE_MNT;  BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
+export BASE_MNT; BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 create_zfs_jail_root()
 {
@@ -17,6 +16,12 @@ create_zfs_jail_root()
 
 create_base_filesystem()
 {
+	if [ -e "$BASE_MNT/dev/null" ];
+	then
+		echo "unmounting $BASE_MNT/dev"
+		umount "$BASE_MNT/dev"
+	fi
+
 	if [ -d "$BASE_MNT" ];
 	then
 		echo "destroying $BASE_MNT"
@@ -108,8 +113,8 @@ EO_MAKE_CONF
 
 install_bash()
 {
-	pkg -j "$SAFE_NAME" install -y bash || exit
-	jexec "$SAFE_NAME" chpass -s /usr/local/bin/bash
+	pkg -j stage install -y bash || exit
+	jexec stage chpass -s /usr/local/bin/bash
 
 	local _profile="$BASE_MNT/root/.bash_profile"
 	if [ -f "$_profile" ]; then
@@ -145,19 +150,20 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
+jail -r stage
 create_zfs_jail_root
 create_base_filesystem
 install_freebsd
 update_freebsd
 configure_base
 
-start_staged_jail "$SAFE_NAME" "$BASE_MNT" || exit
-pkg -j "$SAFE_NAME" install -y pkg vim-lite sudo ca_root_nss || exit
-jexec "$SAFE_NAME" newaliases || exit
+start_staged_jail base "$BASE_MNT" || exit
+pkg -j stage install -y pkg vim-lite sudo ca_root_nss || exit
+jexec stage newaliases || exit
 
 use_bourne_shell
 
-jail -r "$SAFE_NAME"
+jail -r stage
 umount "$BASE_MNT/dev"
 rm -rf "$BASE_MNT/var/cache/pkg/*"
 

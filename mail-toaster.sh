@@ -276,7 +276,7 @@ start_staged_jail()
 
 	mount_aux_data "$_name"
 
-	pkg -j "$SAFE_NAME" update
+	pkg -j stage update
 }
 
 rename_fs_staged_to_ready()
