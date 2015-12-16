@@ -23,7 +23,8 @@ create_base_filesystem()
 install_freebsd()
 {
 	if [ -n "$USE_BSDINSTALL" ]; then
-		export BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
+		export BSDINSTALL_DISTSITE;
+		BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
 		bsdinstall jail "$BASE_MNT"
 	else
 		stage_fbsd_package base "$BASE_MNT"
