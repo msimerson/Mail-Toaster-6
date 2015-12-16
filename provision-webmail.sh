@@ -313,10 +313,20 @@ install_webmail()
 	install_php || exit
 	install_php_mysql
 
+    tell_status "starting PHP"
+    stage_sysrc php_fpm_enable=YES
+    stage_exec service php-fpm start
+
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
         install_lighttpd || exit
+        tell_status "starting lighttpd"
+        stage_sysrc lighttpd_enable=YES
+        stage_exec service lighttpd start
     else
         install_nginx || exit
+        tell_status "starting nginx"
+        stage_sysrc nginx_enable=YES
+        stage_exec service nginx start
     fi
 
 	install_roundcube || exit
@@ -422,19 +432,7 @@ EO_INDEX
 
 start_webmail()
 {
-    tell_status "starting PHP"
-    stage_sysrc php_fpm_enable=YES
-    stage_exec service php-fpm start
-
-    if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-        tell_status "starting lighttpd"
-        stage_sysrc lighttpd_enable=YES
-        stage_exec service lighttpd start
-    else
-        tell_status "starting nginx"
-        stage_sysrc nginx_enable=YES
-        stage_exec service nginx start
-    fi
+	true
 }
 
 test_webmail()
