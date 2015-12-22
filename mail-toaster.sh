@@ -465,6 +465,7 @@ stage_fbsd_package()
 has_data_fs()
 {
 	case $1 in
+		clamav )   return 0;;
 		avg )      return 0;;
 		geoip )    return 0;;
 		mysql )    return 0;;
@@ -524,10 +525,11 @@ data_mountpoint()
 	fi
 
 	case $1 in
+		avg )       echo "$_base_dir/data/avg"; return ;;
+		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
+		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
 		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
 		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
-		avg )       echo "$_base_dir/data/avg"; return ;;
-		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
 	esac
 
 	echo "$_base_dir/data"

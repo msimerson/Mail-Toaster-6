@@ -2,6 +2,9 @@
 
 . mail-toaster.sh || exit
 
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/clamav \$path/var/db/clamav nullfs rw 0 0\";"
+
 install_clamav()
 {
 	stage_pkg_install clamav || exit
