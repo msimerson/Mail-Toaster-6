@@ -84,7 +84,7 @@ bayes_journal_max_size  1024000
 bayes_expiry_max_db_size 1024000
 
 bayes_store_module  Mail::SpamAssassin::BayesStore::Redis
-bayes_sql_dsn       server=$JAIL_NET_PREFIX.16:6379;database=2
+bayes_sql_dsn       server=$(get_jail_ip redis):6379;database=2
 bayes_token_ttl 21d
 bayes_seen_ttl   8d
 bayes_auto_expire 1
@@ -119,14 +119,14 @@ add_header all Tests _TESTS_
 
 	# SASQL ?
 	# create database spamassassin;
-	# $GRANT spamassassin.* to 'spamassassin'@'$JAIL_NET_PREFIX.6' IDENTIFIED BY '`$RANDPASS`';
+	# $GRANT spamassassin.* to 'spamassassin'@'$(get_jail_ip spamassassin)' IDENTIFIED BY '`$RANDPASS`';
 }
 
 start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0/24"
+	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK"
 	stage_exec service sa-spamd start
 }
 

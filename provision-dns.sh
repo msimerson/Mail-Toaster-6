@@ -22,8 +22,6 @@ configure_unbound()
 	sed -i .bak -e 's/# control-enable: no/control-enable: yes/' "$UNB_DIR/unbound.conf"
 	sed -i .bak -e 's/# control-interface: 127./control-interface: 127./' "$UNB_DIR/unbound.conf"
 
-	local _rev_net
-	_rev_net=$(echo "$JAIL_NET_PREFIX" | awk '{split($1,a,".");printf("%s.%s.%s",a[3],a[2],a[1])}')
 	get_public_ip
 
 	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
@@ -34,41 +32,41 @@ configure_unbound()
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
 
-	   local-data:   "2.${_rev_net}.in-addr.arpa PTR base"
-	   local-data:   "3.${_rev_net}.in-addr.arpa PTR dns"
-	   local-data:   "4.${_rev_net}.in-addr.arpa PTR mysql"
-	   local-data:   "5.${_rev_net}.in-addr.arpa PTR clamav"
-	   local-data:   "6.${_rev_net}.in-addr.arpa PTR spamassassin"
-	   local-data:   "7.${_rev_net}.in-addr.arpa PTR dspam"
-	   local-data:   "8.${_rev_net}.in-addr.arpa PTR vpopmail"
-	   local-data:   "9.${_rev_net}.in-addr.arpa PTR smtp"
-	   local-data:  "10.${_rev_net}.in-addr.arpa PTR webmail"
-	   local-data:  "11.${_rev_net}.in-addr.arpa PTR monitor"
-	   local-data:  "12.${_rev_net}.in-addr.arpa PTR haproxy"
-	   local-data:  "13.${_rev_net}.in-addr.arpa PTR rspamd"
-	   local-data:  "14.${_rev_net}.in-addr.arpa PTR avg"
-	   local-data:  "15.${_rev_net}.in-addr.arpa PTR dovecot"
-	   local-data:  "16.${_rev_net}.in-addr.arpa PTR redis"
-	   local-data:  "17.${_rev_net}.in-addr.arpa PTR geoip"
-	   local-data: "254.${_rev_net}.in-addr.arpa PTR stage"
+	   local-data: "$(get_reverse_ip base) PTR base"
+	   local-data: "$(get_reverse_ip dns) PTR dns"
+	   local-data: "$(get_reverse_ip mysql) PTR mysql"
+	   local-data: "$(get_reverse_ip clamav) PTR clamav"
+	   local-data: "$(get_reverse_ip spamassassin) PTR spamassassin"
+	   local-data: "$(get_reverse_ip dspam) PTR dspam"
+	   local-data: "$(get_reverse_ip vpopmail) PTR vpopmail"
+	   local-data: "$(get_reverse_ip smtp) PTR smtp"
+	   local-data: "$(get_reverse_ip webmail) PTR webmail"
+	   local-data: "$(get_reverse_ip monitor) PTR monitor"
+	   local-data: "$(get_reverse_ip haproxy) PTR haproxy"
+	   local-data: "$(get_reverse_ip rspamd) PTR rspamd"
+	   local-data: "$(get_reverse_ip avg) PTR avg"
+	   local-data: "$(get_reverse_ip dovecot) PTR dovecot"
+	   local-data: "$(get_reverse_ip redis) PTR redis"
+	   local-data: "$(get_reverse_ip geoip) PTR geoip"
+	   local-data: "$(get_reverse_ip stage) PTR stage"
 
-	   local-data: "base     A ${JAIL_NET_PREFIX}.2"
-	   local-data: "dns      A ${JAIL_NET_PREFIX}.3"
-	   local-data: "mysql    A ${JAIL_NET_PREFIX}.4"
-	   local-data: "clamav   A ${JAIL_NET_PREFIX}.5"
-	   local-data: "spamassassin A ${JAIL_NET_PREFIX}.6"
-	   local-data: "dspam    A ${JAIL_NET_PREFIX}.7"
-	   local-data: "vpopmail A ${JAIL_NET_PREFIX}.8"
-	   local-data: "smtp     A ${JAIL_NET_PREFIX}.9"
-	   local-data: "webmail  A ${JAIL_NET_PREFIX}.10"
-	   local-data: "monitor  A ${JAIL_NET_PREFIX}.11"
-	   local-data: "haproxy  A ${JAIL_NET_PREFIX}.12"
-	   local-data: "rspamd   A ${JAIL_NET_PREFIX}.13"
-	   local-data: "avg      A ${JAIL_NET_PREFIX}.14"
-	   local-data: "dovecot  A ${JAIL_NET_PREFIX}.15"
-	   local-data: "redis    A ${JAIL_NET_PREFIX}.16"
-	   local-data: "geoip    A ${JAIL_NET_PREFIX}.17"
-	   local-data: "stage    A ${JAIL_NET_PREFIX}.254"
+	   local-data: "base         A $(get_jail_ip base)"
+	   local-data: "dns          A $(get_jail_ip dns)"
+	   local-data: "mysql        A $(get_jail_ip mysql)"
+	   local-data: "clamav       A $(get_jail_ip clamav)"
+	   local-data: "spamassassin A $(get_jail_ip spamassassin)"
+	   local-data: "dspam        A $(get_jail_ip dspam)"
+	   local-data: "vpopmail     A $(get_jail_ip vpopmail)"
+	   local-data: "smtp         A $(get_jail_ip smtp)"
+	   local-data: "webmail      A $(get_jail_ip webmail)"
+	   local-data: "monitor      A $(get_jail_ip monitor)"
+	   local-data: "haproxy      A $(get_jail_ip haproxy)"
+	   local-data: "rspamd       A $(get_jail_ip rspamd)"
+	   local-data: "avg          A $(get_jail_ip avg)"
+	   local-data: "dovecot      A $(get_jail_ip dovecot)"
+	   local-data: "redis        A $(get_jail_ip redis)"
+	   local-data: "geoip        A $(get_jail_ip geoip)"
+	   local-data: "stage        A $(get_jail_ip stage)"
 
 EO_UNBOUND
 
@@ -103,3 +101,6 @@ configure_unbound
 start_unbound
 test_unbound
 promote_staged_jail dns
+
+# shellcheck disable=2039,2094
+echo -e "nameserver $(get_jail_ip dns)\n$(cat /etc/resolv.conf)" > /etc/resolv.conf

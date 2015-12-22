@@ -105,7 +105,7 @@ install_vpopmail_mysql_grants()
 
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
-	sed -i -e "s/localhost/$JAIL_NET_PREFIX.4/" "$_vpe"
+	sed -i -e "s/localhost/$(get_jail_ip mysql)/" "$_vpe"
 	sed -i -e 's/root/vpopmail/' "$_vpe"
 	sed -i -e "s/secret/$_vpass/" "$_vpe"
 

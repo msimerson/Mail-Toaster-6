@@ -126,6 +126,7 @@ jail_conf_header()
 {
 	if [ -e /etc/jail.conf ]; then return; fi
 
+	tell_status "adding /etc/jail.conf header"
     tee -a /etc/jail.conf <<EO_JAIL_CONF_HEAD
 
 exec.start = "/bin/sh /etc/rc";
@@ -166,6 +167,19 @@ get_jail_ip()
 	fi
 
 	return 2
+}
+
+get_reverse_ip()
+{
+	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
+	if [ -z "$_jail_ip" ]; then
+		echo "unknown jail: $1"
+		exit
+	fi
+
+	local _rev_ip
+	_rev_ip=$(echo "$_jail_ip" | awk '{split($1,a,".");printf("%s.%s.%s.%s",a[4],a[3],a[2],a[1])}')
+	echo "$_rev_ip.in-addr.arpa"
 }
 
 add_jail_conf()

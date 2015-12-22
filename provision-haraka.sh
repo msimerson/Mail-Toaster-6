@@ -1,11 +1,12 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";
-		devfs_ruleset = 7;"
+		devfs_ruleset = 7;
+		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 
 HARAKA_CONF="$STAGE_MNT/usr/local/haraka/config"
 
@@ -72,11 +73,12 @@ config_haraka_syslog()
 config_haraka_vpopmail()
 {
 	tell_status "configure smtp forward to vpopmail jail"
-	sed -i -e "s/^host=localhost/host=$JAIL_NET_PREFIX.8/" "$HARAKA_CONF/smtp_forward.ini"
+	sed -i -e "s/^host=localhost/host=$(get_jail_ip vpopmail)/" "$HARAKA_CONF/smtp_forward.ini"
 	sed -i -e 's/^port=2555/port=25/' "$HARAKA_CONF/smtp_forward.ini"
 
 	tell_status "config SMTP AUTH using vpopmaild"
-	echo "host=$JAIL_NET_PREFIX.8" > "$HARAKA_CONF/auth_vpopmaild.ini"
+	echo "host=$(get_jail_ip vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
+# shellcheck disable=1004
 	sed -i -e '/^# auth\/auth_ldap$/a\
 auth\/auth_vpopmaild
 ' "$HARAKA_CONF/plugins"
@@ -85,7 +87,7 @@ auth\/auth_vpopmaild
 config_haraka_qmail_deliverable()
 {
 	tell_status "config recipient validation with Qmail::Deliverable"
-	sed -i -e "s/^host=127.0.0.1/host=$JAIL_NET_PREFIX.8/" "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
+	sed -i -e "s/^host=127.0.0.1/host=$(get_jail_ip vpopmail)/" "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
 	sed -i -e 's/^#rcpt_to.qmail_deliverable/rcpt_to.qmail_deliverable/' "$HARAKA_CONF/plugins"
 	sed -i -e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' "$HARAKA_CONF/plugins"
 }
@@ -101,7 +103,7 @@ config_haraka_p0f()
 config_haraka_spamassassin()
 {
 	tell_status "configuring Haraka spamassassin plugin"
-	sed -i -e "s/^spamd_socket=127.0.0.1:783/spamd_socket=$JAIL_NET_PREFIX.6:783/" "$HARAKA_CONF/spamassassin.ini"
+	sed -i -e "s/^spamd_socket=127.0.0.1:783/spamd_socket=$(get_jail_ip spamassassin):783/" "$HARAKA_CONF/spamassassin.ini"
 	sed -i -e 's/^;spamd_user=$/spamd_user=first-recipient/' "$HARAKA_CONF/spamassassin.ini"
 	sed -i -e 's/^; reject_threshold$/reject_threshold/' "$HARAKA_CONF/spamassassin.ini"
 	sed -i -e 's/^; relay_reject_threshold$/relay_reject_threshold/' "$HARAKA_CONF/spamassassin.ini"
@@ -122,8 +124,9 @@ config_haraka_avg()
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";
 "
-	sed -i -e "s/;host.*/host = $JAIL_NET_PREFIX.14/" "$HARAKA_CONF/avg.ini"
+	sed -i -e "s/;host.*/host = $(get_jail_ip avg)/" "$HARAKA_CONF/avg.ini"
 	sed -i -e 's/;tmpdir.*/tmpdir=\/data\/avg/' "$HARAKA_CONF/avg.ini"
+# shellcheck disable=1004
 	sed -i -e '/clamd$/a\
 avg
 ' "$HARAKA_CONF/plugins"
@@ -132,7 +135,7 @@ avg
 config_haraka_clamav()
 {
 	tell_status "configure Haraka clamav plugin"
-	echo "clamd_socket=$JAIL_NET_PREFIX.5:3310" >> "$HARAKA_CONF/clamd.ini"
+	echo "clamd_socket=$(get_jail_ip clamav):3310" >> "$HARAKA_CONF/clamd.ini"
 	sed -i -e 's/^#clamd$/clamd/' "$HARAKA_CONF/plugins"
 }
 
@@ -176,7 +179,8 @@ cleanup_deprecated_haraka()
 config_haraka_rspamd()
 {
 	tell_status "configure Haraka rspamd plugin"
-	sed -i -e "s/;host.*/host = $JAIL_NET_PREFIX.13/" "$HARAKA_CONF/rspamd.ini"
+	sed -i -e "s/;host.*/host = $(get_jail_ip rspamd)/" "$HARAKA_CONF/rspamd.ini"
+# shellcheck disable=1004
 	sed -i -e '/spamassassin$/a\
 rspamd
 ' "$HARAKA_CONF/plugins"
@@ -233,7 +237,7 @@ config_haraka_dkim()
 config_haraka_karma()
 {
 	sed -i -e '/^dbid/ s/= 0/= 1/' "$HARAKA_CONF/karma.ini"
-	sed -i -e "/^server_ip/ s/127.0.0.1/$JAIL_NET_PREFIX.16/" "$HARAKA_CONF/karma.ini"
+        sed -i -e "/^server_ip/ s/127.0.0.1/$(get_jail_ip redis)/" "$HARAKA_CONF/karma.ini"
 }
 
 config_haraka_redis()

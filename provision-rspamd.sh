@@ -19,7 +19,7 @@ configure_rspamd()
 
     # add Redis address, for DMARC stats
     echo "dmarc {
-    servers = \"$JAIL_NET_PREFIX.16:6379\";
+    servers = \"$(get_jail_ip redis):6379\";
 }"  >> "$_local_etc/rspamd/rspamd.conf"
 
     # configure admin password?
