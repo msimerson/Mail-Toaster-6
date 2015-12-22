@@ -60,7 +60,7 @@ constrain_sshd_to_host()
 configure_tls_certs()
 {
     if [ -f /etc/ssl/private/server.key ]; then
-        echo "TLS certificates already exist"
+        tell_status "TLS certificates already exist"
         return
     fi
 

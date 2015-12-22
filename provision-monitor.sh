@@ -21,18 +21,20 @@ start_monitor()
 test_monitor()
 {
 	tell_status "testing monitor"
+    
+	local _email _server _pass
+	_email="postmaster@$TOASTER_MAIL_DOMAIN"
+    _server=$(get_jail_ip haraka)
+	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
 
-    local _email="postmaster@$TOASTER_MAIL_DOMAIN"
-    tell_status "sending an email to $_email"
-    stage_exec swaks -to "$_email" -server "$(get_jail_ip haraka)" || exit
+	tell_status "sending an email to $_email"
+	stage_exec swaks -to "$_email" -server "$_server" -timeout 50 || exit
 
-    tell_status "sending a TLS encrypted and authenticated email"
-    local _pass
-    _pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
-    stage_exec swaks -tls -to "$_email" -server "$(get_jail_ip haraka)" \
-        -au "$_email" -ap "$_pass" || exit
+	tell_status "sending a TLS encrypted and authenticated email"
+	stage_exec swaks -to "$_email" -server "$_server" -timeout 50 \
+        -tls -au "$_email" -ap "$_pass" || exit
 
-    echo "it worked"
+	echo "it worked"
 }
 
 base_snapshot_exists || exit

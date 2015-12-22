@@ -191,7 +191,7 @@ add_jail_conf()
 	
 	jail_conf_header
 
-	if grep -q "$1" /etc/jail.conf; then return; fi
+	if grep -q "^$1" /etc/jail.conf; then return; fi
 
 	local _path=""
 	local _safe; _safe=$(safe_jailname "$1")
