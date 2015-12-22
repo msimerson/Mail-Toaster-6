@@ -59,10 +59,10 @@ install_roundcube_mysql()
 roundcube_init_db()
 {
 	tell_status "initializating roundcube db"
-    pkg install -y curl || exit
-    stage_exec service php-fpm restart
+	pkg install -y curl || exit
+	stage_exec service php-fpm restart
 	curl -i -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/roundcube/installer/index.php?_step=3" || die
+		"http://$(get_jail_ip stage)/roundcube/installer/index.php?_step=3" || exit
 }
 
 install_roundcube()

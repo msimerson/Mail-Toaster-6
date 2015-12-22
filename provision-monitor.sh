@@ -11,21 +11,27 @@ install_monitor()
 configure_monitor()
 {
     tell_status "configuring monitor"
-	# local _local_etc="$STAGE_MNT/usr/local/etc"
-
 }
 
 start_monitor()
 {
     tell_status "starting monitor"
-	# stage_sysrc monitor_enable=YES
-	# stage_exec service monitor start
 }
 
 test_monitor()
 {
 	tell_status "testing monitor"
-	# stage_exec sockstat -l -4 | grep :80 || exit
+
+    local _email="postmaster@$TOASTER_MAIL_DOMAIN"
+    tell_status "sending an email to $_email"
+    stage_exec swaks -to "$_email" -server "$(get_jail_ip haraka)" || exit
+
+    tell_status "sending a TLS encrypted and authenticated email"
+    local _pass
+    _pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
+    stage_exec swaks -tls -to "$_email" -server "$(get_jail_ip haraka)" \
+        -au "$_email" -ap "$_pass" || exit
+
     echo "it worked"
 }
 
