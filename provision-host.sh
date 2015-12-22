@@ -12,20 +12,21 @@ update_host_ntpd()
 
 update_syslogd()
 {
-    tell_status "turn off syslog network listener"
+    tell_status "disable syslog network listener"
     sysrc syslogd_flags=-ss
     service syslogd restart
 }
 
 update_sendmail()
 {
-    tell_status "turn off sendmail network listening"
+    tell_status "disable sendmail network listening"
     sysrc sendmail_enable=NO
     service sendmail onestop
 }
 
 constrain_sshd_to_host()
 {
+    tell_status "checking sshd listening scope"
     if ! sockstat -L | egrep '\*:22 '; then
         return
     fi
@@ -110,13 +111,13 @@ table <bruteforce>  persist
 nat on \$ext_if from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
 
 # POP3 & IMAP traffic to dovecot jail
-rdr proto tcp from any to <ext_ips> port { 110 143 993 995 } -> $JAIL_NET_PREFIX.15
+rdr proto tcp from any to <ext_ips> port { 110 143 993 995 } -> $(get_jail_ip dovecot)
 
 # SMTP traffic to the Haraka jail
-rdr proto tcp from any to <ext_ips> port { 25 465 587 } -> $JAIL_NET_PREFIX.9
+rdr proto tcp from any to <ext_ips> port { 25 465 587 } -> $(get_jail_ip haraka)
 
 # HTTP traffic to HAproxy
-rdr proto tcp from any to <ext_ips> port { 80 443 } -> $JAIL_NET_PREFIX.12
+rdr proto tcp from any to <ext_ips> port { 80 443 } -> $(get_jail_ip haproxy)
 
 block in quick from <bruteforce>
 EO_PF_RULES
@@ -134,6 +135,7 @@ EO_PF_RULES
 
 install_jailmanage()
 {
+    tell_status "installing jailmanage"
     pkg install -y ca_root_nss || exit
     fetch -o /usr/local/sbin/jailmanage https://www.tnpi.net/computing/freebsd/jail_manage.txt
     chmod 755 /usr/local/sbin/jailmanage || exit

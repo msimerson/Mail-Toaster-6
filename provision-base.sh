@@ -86,6 +86,7 @@ EO_BASH_PROFILE
 
 config_bourne_shell()
 {
+	tell_status "making bourne sh more comfy"
 	local _profile=$BASE_MNT/root/.profile
 	local _bconf='
 alias ls="ls -FG"
@@ -98,7 +99,9 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 
 install_base()
 {
+	tell_status "installing packages desired in every jail"
 	stage_pkg_install pkg vim-lite sudo ca_root_nss || exit
+
 	stage_exec newaliases || exit
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then

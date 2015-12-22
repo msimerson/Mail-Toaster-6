@@ -76,26 +76,26 @@ frontend https-in
     default_backend www_webmail
 
 backend www_vpopmail
-    server vpopmail $JAIL_NET_PREFIX.8:80
+    server vpopmail $(get_jail_ip vpopmail):80
 
 backend www_smtp
-    server smtp $JAIL_NET_PREFIX.9:80
+    server smtp $(get_jail_ip haraka):80
     reqirep ^([^\ :]*)\ /haraka/(.*)    \1\ /\2
 
 backend socket_smtp
     timeout queue 5s
     timeout server 86400s
     timeout connect 86400s
-    server smtp $JAIL_NET_PREFIX.9:80
+    server smtp $(get_jail_ip haraka):80
 
 backend www_webmail
-    server webmail $JAIL_NET_PREFIX.10:80
+    server webmail $(get_jail_ip webmail):80
 
 backend www_monitor
-    server monitor $JAIL_NET_PREFIX.11:80
+    server monitor $(get_jail_ip monitor):80
 
 backend www_rspamd
-    server monitor $JAIL_NET_PREFIX.13:11334
+    server monitor $(get_jail_ip rspamd):11334
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
 EO_HAPROXY_CONF
 

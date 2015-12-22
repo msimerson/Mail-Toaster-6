@@ -1,7 +1,9 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
+# shellcheck disable=2016
 export JAIL_CONF_EXTRA='
 		mount += "/data/webmail $path/data nullfs rw 0 0";'
 
@@ -27,6 +29,7 @@ install_roundcube_mysql()
 	local _active_cfg="$ZFS_JAIL_MNT/webmail/usr/local/www/roundcube/config/config.inc.php"
 	if [ -f "$_active_cfg" ]; then
 		local _rcpass
+		# shellcheck disable=2086
         _rcpass=$(grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@)
 		if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
 			echo "preserving roundcube password $_rcpass"
@@ -78,7 +81,7 @@ install_roundcube()
 	sed -i -e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" "$_rcc_conf"
 
 	local _haraka_ip; _haraka_ip=$(get_jail_ip haraka)
-	sed -i -e "/'smtp_server'/  s/'';/'$_haraka_ip';/" "$_rcc_conf"
+	sed -i -e "/'smtp_server'/  s/'';/'tls:\/\/$_haraka_ip';/" "$_rcc_conf"
 	sed -i -e "/'smtp_port'/    s/25;/587;/" "$_rcc_conf"
 	sed -i -e "/'smtp_user'/    s/'';/'%u';/" "$_rcc_conf"
 	sed -i -e "/'smtp_pass'/    s/'';/'%p';/" "$_rcc_conf"
@@ -111,6 +114,8 @@ EO_RC_ADD
 
 install_squirrelmail_mysql()
 {
+	if [ "$TOASTER_MYSQL" != "1" ]; then return; fi
+
 	local _init_db=0
 	if ! mysql_db_exists squirrelmail; then
 		tell_status "creating squirrelmail database"
@@ -148,13 +153,13 @@ CREATE TABLE userprefs (
 	fi
 
 	tee -a "$_sq_dir/config_local.php" <<EO_SQUIRREL_SQL
-\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
-\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@${JAIL_NET_PREFIX}.4/squirrelmail';
+\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@$(get_jail_ip mysql)/squirrelmail';
+\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@$(get_jail_ip mysql)/squirrelmail';
 EO_SQUIRREL_SQL
 
 	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
 
-	echo "$_grant 'squirrelmail'@'${JAIL_NET_PREFIX}.10' IDENTIFIED BY '${_sqpass}';" \
+	echo "$_grant 'squirrelmail'@'$(get_jail_ip webmail)' IDENTIFIED BY '${_sqpass}';" \
 	    | jexec mysql /usr/local/bin/mysql || exit
 
 	echo "$_grant 'squirrelmail'@'$(get_jail_ip stage)' IDENTIFIED BY '${_sqpass}';" \
@@ -186,11 +191,11 @@ install_squirrelmail()
 
 	tee -a "$_sq_dir/config_local.php" <<EO_SQUIRREL
 \$domain = '$TOASTER_MAIL_DOMAIN';
-\$smtpServerAddress = '${JAIL_NET_PREFIX}.9';
+\$smtpServerAddress = '$(get_jail_ip haraka)';
 \$smtpPort = 465;
 \$smtp_auth_mech = 'login';
 \$use_smtp_tls = true;
-\$imapServerAddress = '${JAIL_NET_PREFIX}.15';
+\$imapServerAddress = '$(get_jail_ip dovecot)';
 \$imap_server_type = 'dovecot';
 \$data_dir = '/data/squirrelmail/data';
 \$attachment_dir = '/data/squirrelmail/attach';
@@ -291,6 +296,7 @@ install_lighttpd()
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
 	sed -i .bak -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_lighttpd_conf"
+# shellcheck disable=2016
 	sed -i .bak -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_lighttpd_conf"
 
 	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' "$_lighttpd_conf"
