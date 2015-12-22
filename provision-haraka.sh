@@ -17,6 +17,15 @@ install_haraka()
 
 	tell_status "installing Haraka"
 	stage_exec npm install -g Haraka ws express || exit
+
+	tell_status "updating files from GitHub repo"
+	local _ghi="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
+	local _ghu='https://raw.githubusercontent.com/haraka/Haraka/master'
+
+	# remove after Haraka > 2.7.2 release
+	fetch -o "$_ghi/plugins/karma.js" "$_ghu/plugins/karma.js"
+	fetch -o "$_ghi/plugins/redis.js" "$_ghu/plugins/redis.js"
+	fetch -o "$_ghi/plugins/rspamd.js" "$_ghu/plugins/rspamd.js"
 }
 
 install_geoip_dbs()
@@ -102,6 +111,11 @@ config_haraka_p0f()
 
 config_haraka_spamassassin()
 {
+	if [ ! -d "$ZFS_JAIL_MNT/spamassassin" ]; then
+		tell_status "skipping spamassassin setup, no jail exists"
+		return
+	fi
+
 	tell_status "configuring Haraka spamassassin plugin"
 	sed -i -e "s/^spamd_socket=127.0.0.1:783/spamd_socket=$(get_jail_ip spamassassin):783/" "$HARAKA_CONF/spamassassin.ini"
 	sed -i -e 's/^;spamd_user=$/spamd_user=first-recipient/' "$HARAKA_CONF/spamassassin.ini"
@@ -134,6 +148,11 @@ avg
 
 config_haraka_clamav()
 {
+	if [ ! -d "$ZFS_JAIL_MNT/spamassassin" ]; then
+		tell_status "skipping spamassassin setup, no jail exists"
+		return
+	fi
+
 	tell_status "configure Haraka clamav plugin"
 	echo "clamd_socket=$(get_jail_ip clamav):3310" >> "$HARAKA_CONF/clamd.ini"
 	sed -i -e 's/^#clamd$/clamd/' "$HARAKA_CONF/plugins"
@@ -178,6 +197,11 @@ cleanup_deprecated_haraka()
 
 config_haraka_rspamd()
 {
+	if [ ! -d "$ZFS_JAIL_MNT/rspamd" ]; then
+		tell_status "skipping rspamd, no jail exists"
+		return
+	fi
+
 	tell_status "configure Haraka rspamd plugin"
 	sed -i -e "s/;host.*/host = $(get_jail_ip rspamd)/" "$HARAKA_CONF/rspamd.ini"
 # shellcheck disable=1004

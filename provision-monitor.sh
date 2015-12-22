@@ -11,22 +11,30 @@ install_monitor()
 configure_monitor()
 {
     tell_status "configuring monitor"
-	# local _local_etc="$STAGE_MNT/usr/local/etc"
-
 }
 
 start_monitor()
 {
     tell_status "starting monitor"
-	# stage_sysrc monitor_enable=YES
-	# stage_exec service monitor start
 }
 
 test_monitor()
 {
 	tell_status "testing monitor"
-	# stage_exec sockstat -l -4 | grep :80 || exit
-    echo "it worked"
+    
+	local _email _server _pass
+	_email="postmaster@$TOASTER_MAIL_DOMAIN"
+    _server=$(get_jail_ip haraka)
+	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
+
+	tell_status "sending an email to $_email"
+	stage_exec swaks -to "$_email" -server "$_server" -timeout 50 || exit
+
+	tell_status "sending a TLS encrypted and authenticated email"
+	stage_exec swaks -to "$_email" -server "$_server" -timeout 50 \
+        -tls -au "$_email" -ap "$_pass" || exit
+
+	echo "it worked"
 }
 
 base_snapshot_exists || exit

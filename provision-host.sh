@@ -59,8 +59,15 @@ constrain_sshd_to_host()
 
 configure_tls_certs()
 {
-    mkdir "/etc/ssl/certs" "/etc/ssl/private"
-    chmod o-r "/etc/ssl/private"
+    if [ -f /etc/ssl/private/server.key ]; then
+        tell_status "TLS certificates already exist"
+        return
+    fi
+
+    if [ ! -d /etc/ssl/certs ]; then
+        mkdir "/etc/ssl/certs" "/etc/ssl/private"
+        chmod o-r "/etc/ssl/private"
+    fi
 
     grep -q commonName_default /etc/ssl/openssl.cnf || \
         sed -i -e "/^commonName_max.*/ a\ 
@@ -174,7 +181,7 @@ Index: etc/rc.d/jail
  		if ! $jail_jls -j $_j > /dev/null 2>&1; then
 EO_JAIL_RCD
 
-    sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
+    sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin dspam haraka monitor"
 }
 
 enable_jails()

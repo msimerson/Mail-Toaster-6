@@ -191,7 +191,7 @@ add_jail_conf()
 	
 	jail_conf_header
 
-	if grep -q "$1" /etc/jail.conf; then return; fi
+	if grep -q "^$1" /etc/jail.conf; then return; fi
 
 	local _path=""
 	local _safe; _safe=$(safe_jailname "$1")
@@ -220,9 +220,10 @@ stop_jail()
 
 stage_unmount()
 {
-	unmount_ports "$STAGE_MNT"
-	if has_data_fs "$1"; then unmount_data "$1"; fi
 	stage_unmount_dev
+	unmount_ports "$STAGE_MNT"
+	unmount_pkg_cache
+	if has_data_fs "$1"; then unmount_data "$1"; fi
 	unmount_aux_data "$1"
 }
 
@@ -251,6 +252,7 @@ create_staged_fs()
 	fi
 
 	stage_mount_ports
+	stage_mount_pkg_cache
 	echo
 }
 
@@ -379,7 +381,7 @@ promote_staged_jail()
 	stop_jail stage
 	stage_resolv_conf
 	stage_unmount "$1"
-	stage_clear_caches
+	#stage_clear_caches
 
 	rename_staged_to_ready "$1"
 
@@ -431,6 +433,12 @@ stage_mount_ports()
 	mount_nullfs /usr/ports "$STAGE_MNT/usr/ports" || exit
 }
 
+stage_mount_pkg_cache()
+{
+	echo "mount $STAGE_MNT/var/cache/pkg"
+	mount_nullfs /var/cache/pkg "$STAGE_MNT/var/cache/pkg" || exit
+}
+
 unmount_ports()
 {
 	if [ ! -d "$1/usr/ports/mail" ]; then
@@ -443,6 +451,16 @@ unmount_ports()
 
 	echo "unmount $1/usr/ports"
 	umount "$1/usr/ports" || exit
+}
+
+unmount_pkg_cache()
+{
+	if ! mount -t nullfs | grep -q "$STAGE_MNT/var/cache/pkg"; then
+		return
+	fi
+
+	echo "unmount $STAGE_MNT/var/cache/pkg"
+	umount "$STAGE_MNT/var/cache/pkg" || exit
 }
 
 freebsd_release_url_base()
@@ -465,6 +483,7 @@ stage_fbsd_package()
 has_data_fs()
 {
 	case $1 in
+		clamav )   return 0;;
 		avg )      return 0;;
 		geoip )    return 0;;
 		mysql )    return 0;;
@@ -524,10 +543,11 @@ data_mountpoint()
 	fi
 
 	case $1 in
+		avg )       echo "$_base_dir/data/avg"; return ;;
+		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
+		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
 		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
 		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
-		avg )       echo "$_base_dir/data/avg"; return ;;
-		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
 	esac
 
 	echo "$_base_dir/data"
