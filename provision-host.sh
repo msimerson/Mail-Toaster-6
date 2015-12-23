@@ -253,7 +253,7 @@ plumb_jail_nic()
 		sysrc cloned_interfaces=lo1
 	fi
 
-	local _missing
+	local _missing;
 	_missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
 	if [ -n "$_missing" ]; then
 		echo "creating interface lo1"
