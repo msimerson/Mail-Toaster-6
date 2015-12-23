@@ -31,6 +31,7 @@ echo "toaster host: $TOASTER_HOSTNAME"
 if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage; fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"
 
+# shellcheck disable=2009
 if ps -o args= -p "$$" | grep csh; then usage; fi
 echo "shell: $SHELL"
 
@@ -127,7 +128,7 @@ jail_conf_header()
 	if [ -e /etc/jail.conf ]; then return; fi
 
 	tell_status "adding /etc/jail.conf header"
-    tee -a /etc/jail.conf <<EO_JAIL_CONF_HEAD
+	tee -a /etc/jail.conf <<EO_JAIL_CONF_HEAD
 
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
@@ -142,31 +143,38 @@ EO_JAIL_CONF_HEAD
 
 get_jail_ip()
 {
+	local _start=${TOASTER_NET_START:=1}
+	local _incr=0
+
 	case "$1" in
-		base)         echo "$JAIL_NET_PREFIX.2"; return;;
-		dns)          echo "$JAIL_NET_PREFIX.3"; return;;
-		mysql)        echo "$JAIL_NET_PREFIX.4"; return;;
-		clamav)       echo "$JAIL_NET_PREFIX.5"; return;;
-		spamassassin) echo "$JAIL_NET_PREFIX.6"; return;;
-		dspam)        echo "$JAIL_NET_PREFIX.7"; return;;
-		vpopmail)     echo "$JAIL_NET_PREFIX.8"; return;;
-		haraka)       echo "$JAIL_NET_PREFIX.9"; return;;
-		webmail)      echo "$JAIL_NET_PREFIX.10"; return;;
-		monitor)      echo "$JAIL_NET_PREFIX.11"; return;;
-		haproxy)      echo "$JAIL_NET_PREFIX.12"; return;;
-		rspamd)       echo "$JAIL_NET_PREFIX.13"; return;;
-		avg)          echo "$JAIL_NET_PREFIX.14"; return;;
-		dovecot)      echo "$JAIL_NET_PREFIX.15"; return;;
-		redis)        echo "$JAIL_NET_PREFIX.16"; return;;
-		geoip)        echo "$JAIL_NET_PREFIX.17"; return;;
+		base)         _incr=1 ;;
+		dns)          _incr=2 ;;
+		mysql)        _incr=3 ;;
+		clamav)       _incr=4 ;;
+		spamassassin) _incr=5 ;;
+		dspam)        _incr=6 ;;
+		vpopmail)     _incr=7 ;;
+		haraka)       _incr=8 ;;
+		webmail)      _incr=9 ;;
+		monitor)      _incr=10 ;;
+		haproxy)      _incr=11 ;;
+		rspamd)       _incr=12 ;;
+		avg)          _incr=13 ;;
+		dovecot)      _incr=14 ;;
+		redis)        _incr=15 ;;
+		geoip)        _incr=16 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
-		echo "$JAIL_NET_PREFIX.2"; return
+		_incr=2
 	fi
 
-	return 2
+	# return error code if _incr unset
+	if [ "$_incr" = "0" ]; then return 2; fi
+
+	local _octet=$((_start + _incr))
+	echo "$JAIL_NET_PREFIX.$_octet"
 }
 
 get_reverse_ip()
