@@ -57,8 +57,8 @@ EO_MAKE_CONF
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
-    mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
-    chmod o-r "$BASE_MNT/etc/ssl/private"
+	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
+	chmod o-r "$BASE_MNT/etc/ssl/private"
 #	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
 }
 
