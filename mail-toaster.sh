@@ -143,7 +143,7 @@ EO_JAIL_CONF_HEAD
 
 get_jail_ip()
 {
-	local _start=${TOASTER_NET_START:=1}
+	local _start=${JAIL_NET_START:=1}
 	local _incr=0
 
 	case "$1" in
@@ -389,6 +389,7 @@ promote_staged_jail()
 	stop_jail stage
 	stage_resolv_conf
 	stage_unmount "$1"
+	ipcrm -W
 	#stage_clear_caches
 
 	rename_staged_to_ready "$1"

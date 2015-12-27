@@ -23,6 +23,8 @@ configure_rspamd()
 }"  >> "$_local_etc/rspamd/rspamd.conf"
 
     # configure admin password?
+
+    sed -i -e '/^filters/ s/spf/spf,dmarc/' "$_local_etc/rspamd/options.inc"
 }
 
 start_rspamd()
