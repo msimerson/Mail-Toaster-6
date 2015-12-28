@@ -23,9 +23,14 @@ install_haraka()
 	local _ghu='https://raw.githubusercontent.com/haraka/Haraka/master'
 
 	# remove after Haraka > 2.7.2 release
+	fetch -o "$_ghi/plugins/spamassassin.js" "$_ghu/plugins/spamassassin.js"
 	fetch -o "$_ghi/plugins/karma.js" "$_ghu/plugins/karma.js"
 	fetch -o "$_ghi/plugins/redis.js" "$_ghu/plugins/redis.js"
 	fetch -o "$_ghi/plugins/rspamd.js" "$_ghu/plugins/rspamd.js"
+	fetch -o "$_ghi/plugins/watch/index.js" "$_ghu/plugins/watch/index.js"
+	fetch -o "$_ghi/plugins/watch/html/client.js" "$_ghu/plugins/watch/html/client.js"
+	fetch -o "$_ghi/plugins/connect.geoip.js" "$_ghu/plugins/connect.geoip.js"
+	fetch -o "$_ghi/plugins/connect.p0f.js" "$_ghu/plugins/connect.p0f.js"
 }
 
 install_geoip_dbs()

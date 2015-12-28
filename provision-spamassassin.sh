@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_CONF_EXTRA="
@@ -23,7 +24,10 @@ install_sa_update()
 	cat <<EO_SAUPD > $STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update
 #!/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
-/usr/local/bin/perl -T /usr/local/bin/sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org --channel updates.spamassassin.org
+/usr/local/bin/perl -T /usr/local/bin/sa-update \
+	--gpgkey 6C6191E3 \
+	--channel sought.rules.yerp.org \
+	--channel updates.spamassassin.org
 /usr/local/bin/perl -T /usr/local/bin/sa-compile
 /usr/local/etc/rc.d/sa-spamd reload
 EO_SAUPD
@@ -88,6 +92,15 @@ bayes_sql_dsn       server=$(get_jail_ip redis):6379;database=2
 bayes_token_ttl 21d
 bayes_seen_ttl   8d
 bayes_auto_expire 1
+
+bayes_ignore_header X-Bogosity
+bayes_ignore_header X-Spam-Flag
+bayes_ignore_header X-Spam-Status
+bayes_ignore_header X-Spam-DCC
+bayes_ignore_header X-Spam-Checker-Version
+bayes_ignore_header X-Spam-Tests
+bayes_ignore_header X-Spam-Spammy
+bayes_ignore_header X-Spam-Hammy
     " | tee "$_sa_etc/redis-bayes.cf"
 }
 
@@ -95,11 +108,17 @@ configure_spamassassin()
 {
 	_sa_etc="$STAGE_MNT/usr/local/etc/mail/spamassassin"
 
-	sed -i .bak -e \
-		's/#loadplugin Mail::SpamAssassin::Plugin::TextCat/loadplugin Mail::SpamAssassin::Plugin::TextCat/' \
-		"$_sa_etc/v310.pre"
+	echo "
+loadplugin Mail::SpamAssassin::Plugin::TextCat
+loadplugin Mail::SpamAssassin::Plugin::ASN
+loadplugin Mail::SpamAssassin::Plugin::PDFInfo
+" | tee "$_sa_etc/local.pre"
 
-	echo "trusted_networks $JAIL_NET_PREFIX.
+	echo "
+report_safe 			0
+trusted_networks $JAIL_NET_PREFIX.
+
+skip_rbl_checks         0
 use_razor2              1
 use_dcc                 1
 
@@ -126,14 +145,14 @@ start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK"
+	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK --listen=0.0.0.0"
 	stage_exec service sa-spamd start
 }
 
 test_spamassassin()
 {
 	tell_status "testing spamassassin"
-	stage_exec sockstat -l -4 | grep 783 || exit
+	stage_exec sockstat -l -4 | grep :783 || exit
 	echo "it worked"
 }
 

@@ -5,6 +5,8 @@
 export JAIL_START_EXTRA="allow.sysvipc=1"
 export JAIL_CONF_EXTRA="
 		allow.sysvipc = 1;
+		mount.fdescfs;
+		mount.procfs;
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
 
 install_avg()
@@ -39,6 +41,9 @@ start_avg()
 {
 	tell_status "starting avgd"
 	stage_exec service avgd.sh restart
+
+	tell_status "downloading virus databases"
+	stage_exec avgupdate
 }
 
 test_avg()

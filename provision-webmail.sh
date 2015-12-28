@@ -4,8 +4,8 @@
 . mail-toaster.sh || exit
 
 # shellcheck disable=2016
-export JAIL_CONF_EXTRA='
-		mount += "/data/webmail $path/data nullfs rw 0 0";'
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/webmail \$path/data nullfs rw 0 0\";"
 
 install_php()
 {
@@ -14,7 +14,7 @@ install_php()
 
 	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$STAGE_MNT/usr/local/etc/php.ini"
 	sed -i .bak -e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
-        "$STAGE_MNT/usr/local/etc/php.ini"
+		"$STAGE_MNT/usr/local/etc/php.ini"
 }
 
 install_roundcube_mysql()
@@ -30,7 +30,7 @@ install_roundcube_mysql()
 	if [ -f "$_active_cfg" ]; then
 		local _rcpass
 		# shellcheck disable=2086
-        _rcpass=$(grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@)
+		_rcpass=$(grep '//roundcube:' $_active_cfg | cut -f3 -d: | cut -f1 -d@)
 		if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
 			echo "preserving roundcube password $_rcpass"
 		fi
@@ -39,8 +39,10 @@ install_roundcube_mysql()
 	fi
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
-	sed -i -e "s/roundcube:pass@/roundcube:${_rcpass}@/" "$_rcc_dir/config.inc.php"
-	sed -i -e "s/@localhost\//@$(get_jail_ip mysql)\//" "$_rcc_dir/config.inc.php"
+	sed -i .bak
+		-e "s/roundcube:pass@/roundcube:${_rcpass}@/" \
+		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
+		"$_rcc_dir/config.inc.php"
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
@@ -50,7 +52,7 @@ install_roundcube_mysql()
 			| jexec mysql /usr/local/bin/mysql || exit
 
 		echo "$_grant 'roundcube'@'$(get_jail_ip stage)' IDENTIFIED BY '${_rcpass}';" \
-		    | jexec mysql /usr/local/bin/mysql || exit
+			| jexec mysql /usr/local/bin/mysql || exit
 
 		roundcube_init_db
 	fi
@@ -78,13 +80,13 @@ install_roundcube()
 	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
 
 	local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
-	sed -i -e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" "$_rcc_conf"
-
-	local _haraka_ip; _haraka_ip=$(get_jail_ip haraka)
-	sed -i -e "/'smtp_server'/  s/'';/'tls:\/\/$_haraka_ip';/" "$_rcc_conf"
-	sed -i -e "/'smtp_port'/    s/25;/587;/" "$_rcc_conf"
-	sed -i -e "/'smtp_user'/    s/'';/'%u';/" "$_rcc_conf"
-	sed -i -e "/'smtp_pass'/    s/'';/'%p';/" "$_rcc_conf"
+	sed -i .bak \
+		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
+		-e "/'smtp_server'/  s/'';/'tls:\/\/haraka';/" \
+		-e "/'smtp_port'/    s/25;/587;/" \
+		-e "/'smtp_user'/    s/'';/'%u';/" \
+		-e "/'smtp_pass'/    s/'';/'%p';/" \
+		"$_rcc_conf"
 
 	tee -a "$_rcc_conf" <<'EO_RC_ADD'
 
@@ -93,9 +95,11 @@ $config['session_lifetime'] = 30;
 $config['enable_installer'] = true;
 $config['mime_types'] = '/usr/local/etc/mime.types';
 $config['smtp_conn_options'] = array(
- 'ssl'         => array(
+ 'ssl'            => array(
    'verify_peer'  => false,
    'verify_peer_name' => false,
+   'verify_depth' => 3,
+   'cafile'       => '/etc/ssl/cert.pem',
  ),
 );
 EO_RC_ADD
@@ -160,7 +164,7 @@ EO_SQUIRREL_SQL
 	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
 
 	echo "$_grant 'squirrelmail'@'$(get_jail_ip webmail)' IDENTIFIED BY '${_sqpass}';" \
-	    | jexec mysql /usr/local/bin/mysql || exit
+		| jexec mysql /usr/local/bin/mysql || exit
 
 	echo "$_grant 'squirrelmail'@'$(get_jail_ip stage)' IDENTIFIED BY '${_sqpass}';" \
 		| jexec mysql /usr/local/bin/mysql || exit
@@ -170,7 +174,7 @@ install_squirrelmail()
 {
 	tell_status "installing squirrelmail"
 	stage_pkg_install squirrelmail squirrelmail-sasql-plugin \
-        squirrelmail-quota_usage-plugin || exit
+		squirrelmail-quota_usage-plugin || exit
 
 	_sq_dir="$STAGE_MNT/usr/local/www/squirrelmail/config"
 
@@ -190,17 +194,12 @@ install_squirrelmail()
 	   "$_sq_dir/../plugins/quota_usage/config.php"
 
 	tee -a "$_sq_dir/config_local.php" <<EO_SQUIRREL
+\$signout_page = 'https://$TOASTER_HOSTNAME/';
 \$domain = '$TOASTER_MAIL_DOMAIN';
+
 \$smtpServerAddress = '$(get_jail_ip haraka)';
 \$smtpPort = 465;
-\$smtp_auth_mech = 'login';
 \$use_smtp_tls = true;
-\$imapServerAddress = '$(get_jail_ip dovecot)';
-\$imap_server_type = 'dovecot';
-\$data_dir = '/data/squirrelmail/data';
-\$attachment_dir = '/data/squirrelmail/attach';
-// \$check_referrer = '$TOASTER_MAIL_DOMAIN';
-\$check_mail_mechanism = 'advanced';
 // PHP 5.6 enables verify_peer by default, which is good but in this context,
 // unnecessary. Setting smtp_stream_options *should* disable that, but doesn't.
 // Leave squirrelmail disabled until squirrelmail gets this sorted out.
@@ -208,9 +207,22 @@ install_squirrelmail()
     'ssl' => [
        'verify_peer'      => false,
        'verify_peer_name' => false,
-       'allow_self_signed' => true,
+       'verify_depth' => 3,
+       'cafile' => '/etc/ssl/cert.pem',
+       // 'allow_self_signed' => true,
     ],
 ];
+\$smtp_auth_mech = 'login';
+
+\$imapServerAddress = '$(get_jail_ip dovecot)';
+\$imap_server_type = 'dovecot';
+\$use_imap_tls     = false;
+
+\$data_dir = '/data/squirrelmail/data';
+\$attachment_dir = '/data/squirrelmail/attach';
+// \$check_referrer = '$TOASTER_MAIL_DOMAIN';
+\$check_mail_mechanism = 'advanced';
+
 EO_SQUIRREL
 
 	mkdir -p "$STAGE_MNT/data/squirrelmail/attach" "$STAGE_MNT/data/squirrelmail/data"
@@ -280,14 +292,14 @@ EO_NGINX_MT6
  
 EO_NGINX_CONF
 
-    export BATCH=${BATCH:="1"}
+	export BATCH=${BATCH:="1"}
 	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
 }
 
 install_lighttpd()
 {
-    tell_status "installing lighttpd"
+	tell_status "installing lighttpd"
 	stage_pkg_install lighttpd
 	mkdir -p "$STAGE_MNT/var/spool/lighttpd/sockets"
 	chown -R www "$STAGE_MNT/var/spool/lighttpd/sockets"
@@ -301,7 +313,7 @@ install_lighttpd()
 
 	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' "$_lighttpd_conf"
 	fetch -o "$_lighttpd_dir/vhosts.d/mail-toaster.conf" \
-        http://mail-toaster.org/etc/mt6-lighttpd.txt
+		http://mail-toaster.org/etc/mt6-lighttpd.txt
 }
 
 install_php_mysql()
@@ -319,21 +331,21 @@ install_webmail()
 	install_php || exit
 	install_php_mysql
 
-    tell_status "starting PHP"
-    stage_sysrc php_fpm_enable=YES
-    stage_exec service php-fpm start
+	tell_status "starting PHP"
+	stage_sysrc php_fpm_enable=YES
+	stage_exec service php-fpm start
 
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-        install_lighttpd || exit
-        tell_status "starting lighttpd"
-        stage_sysrc lighttpd_enable=YES
-        stage_exec service lighttpd start
-    else
-        install_nginx || exit
-        tell_status "starting nginx"
-        stage_sysrc nginx_enable=YES
-        stage_exec service nginx start
-    fi
+		install_lighttpd || exit
+		tell_status "starting lighttpd"
+		stage_sysrc lighttpd_enable=YES
+		stage_exec service lighttpd start
+	else
+		install_nginx || exit
+		tell_status "starting nginx"
+		stage_sysrc nginx_enable=YES
+		stage_exec service nginx start
+	fi
 
 	install_roundcube || exit
 	install_squirrelmail || exit
