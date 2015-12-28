@@ -78,13 +78,15 @@ service tcpwrap {
 EO_DOVECOT_LOCAL
 
 	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
-	cp /etc/ssl/certs/server.crt "$STAGE_MNT/etc/ssl/certs/dovecot.pem"
-	cp /etc/ssl/private/server.key "$STAGE_MNT/etc/ssl/private/dovecot.pem"
-	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf"
+	cp /etc/ssl/certs/server.crt \
+        "$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
+	cp /etc/ssl/private/server.key \
+        "$STAGE_MNT/etc/ssl/private/dovecot.pem" || exit
+	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf" || exit
 	sed -i .bak \
         -e 's/^\!include auth-system/#\!include auth-system/' \
 	    -e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' \
-        "$_dcdir/conf.d/10-auth.conf"
+        "$_dcdir/conf.d/10-auth.conf" || exit
 }
 
 start_dovecot()

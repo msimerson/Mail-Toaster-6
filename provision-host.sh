@@ -95,6 +95,11 @@ commonName_default = $TOASTER_HOSTNAME \
 emailAddress_default = postmaster@$TOASTER_HOSTNAME \
 " /etc/ssl/openssl.cnf
 
+	if [ -f /etc/ssl/private/server.key ]; then
+        tell_status "preserving existing TLS certificates"
+        return
+    fi
+
 	echo
 	echo "A number of daemons use TLS to encrypt connections. Setting up TLS now"
 	echo "  saves having to do it multiple times later."
