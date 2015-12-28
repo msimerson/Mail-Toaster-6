@@ -4,8 +4,8 @@
 
 install_unbound()
 {
+	tell_status "installing unbound"
 	stage_pkg_install unbound || exit
-	stage_exec /usr/local/sbin/unbound-control-setup
 }
 
 configure_unbound()
@@ -14,9 +14,13 @@ configure_unbound()
 	local UNB_LOCAL=""
 	cp "$UNB_DIR/unbound.conf.sample" "$UNB_DIR/unbound.conf" || exit
 	if [ -f "unbound.conf.local" ]; then
-	  cp unbound.conf.local "$UNB_DIR"
-	  UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
+		tell_status "installing unbound.conf.local"
+		cp unbound.conf.local "$UNB_DIR"
+		UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
 	fi
+
+	tell_status "configuring unbound-control"
+	stage_exec /usr/local/sbin/unbound-control-setup
 
 	# for the munin status plugin
 	sed -i .bak \
@@ -28,6 +32,7 @@ configure_unbound()
 
 	get_public_ip
 
+	tell_status "installing unbound/toaster.conf"
 	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
 	   $UNB_LOCAL
 
@@ -84,6 +89,7 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 
 start_unbound()
 {
+	tell_status "starting unbound"
 	stage_sysrc unbound_enable=YES
 	stage_exec service unbound start || exit
 }
