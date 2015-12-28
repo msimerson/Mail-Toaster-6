@@ -19,10 +19,12 @@ configure_unbound()
 	fi
 
 	# for the munin status plugin
-	sed -i -e 's/# interface: 192.0.2.153/interface 0.0.0.0/' "$UNB_DIR/unbound.conf"
-	sed -i -e 's/# interface: 192.0.2.154/interface ::0/' "$UNB_DIR/unbound.conf"
-	sed -i -e 's/# control-enable: no/control-enable: yes/' "$UNB_DIR/unbound.conf"
-	sed -i -e "s/# control-interface: 127.*/control-interface: $(get_jail_ip dns)/" "$UNB_DIR/unbound.conf"
+	sed -i .bak \
+        -e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
+        -e 's/# interface: 192.0.2.154$/interface: ::0/' \
+        -e 's/# control-enable: no/control-enable: yes/' \
+        -e "s/# control-interface: 127.*/control-interface: 0.0.0.0/" \
+        "$UNB_DIR/unbound.conf"
 
 	get_public_ip
 

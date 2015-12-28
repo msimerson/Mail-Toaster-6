@@ -20,10 +20,12 @@ configure_redis()
     stage_exec chown redis:redis /data/db /data/log || exit
 
     local _redis_etc="$STAGE_MNT/usr/local/etc/redis.conf"
-    # sed -i -e 's/^# syslog-enabled no/syslog-enabled yes/' "$_redis_etc"
-    sed -i -e 's/^stop-writes-on-bgsave-error yes/stop-writes-on-bgsave-error no/' "$_redis_etc"
-    sed -i -e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' "$_redis_etc"
-    sed -i -e 's/^logfile .*/logfile \/data\/log\/redis.log/' "$_redis_etc"
+    # -e 's/^# syslog-enabled no/syslog-enabled yes/' "$_redis_etc"
+    sed -i .bak \
+        -e '/^stop-writes-on-bgsave-error/ s/yes/no/' \
+        -e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' \
+        -e 's/^logfile .*/logfile \/data\/log\/redis.log/' \
+        "$_redis_etc"
 
 	echo '/data/log/redis.log   redis:redis 644  7  *  @T00   JC   /var/run/redis/redis.pid' \
    		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis"

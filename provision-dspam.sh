@@ -49,8 +49,10 @@ configure_dspam()
     local _etc="$STAGE_MNT/usr/local/etc"
 
     cp "$_etc/dspam.conf.sample" "$_etc/dspam.conf"
-    sed -i -e 's/^#ServerPID/ServerPID/' "$_etc/dspam.conf"
-    sed -i -e '/^StorageDriver/ s/libpgsql/libmysql/' "$_etc/dspam.conf"
+    sed -i .bak \
+        -e 's/^#ServerPID/ServerPID/' \
+        -e '/^StorageDriver/ s/libpgsql/libmysql/' \
+        "$_etc/dspam.conf"
 
     configure_dspam_mysql
 

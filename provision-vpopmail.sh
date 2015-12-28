@@ -48,8 +48,10 @@ install_lighttpd()
 	stage_pkg_install lighttpd
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	sed -i -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_conf"
-	sed -i -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_conf"
+	sed -i .bak \
+        -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' \
+        -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
+        "$_conf"
 	cat <<EO_LIGHTTPD >> "$_conf"
 
 server.modules += ( "mod_alias" )
@@ -105,9 +107,11 @@ install_vpopmail_mysql_grants()
 
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
-	sed -i -e "s/localhost/$(get_jail_ip mysql)/" "$_vpe"
-	sed -i -e 's/root/vpopmail/' "$_vpe"
-	sed -i -e "s/secret/$_vpass/" "$_vpe"
+	sed -i .bak \
+        -e "s/localhost/$(get_jail_ip mysql)/" \
+        -e 's/root/vpopmail/' \
+        -e "s/secret/$_vpass/" \
+        "$_vpe"
 
 	local _vpopmail_ip; _vpopmail_ip=$(get_jail_ip vpopmail)
 	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_vpopmail_ip}' IDENTIFIED BY '${_vpass}';" \

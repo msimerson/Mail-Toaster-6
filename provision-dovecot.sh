@@ -81,8 +81,10 @@ EO_DOVECOT_LOCAL
 	cp /etc/ssl/certs/server.crt "$STAGE_MNT/etc/ssl/certs/dovecot.pem"
 	cp /etc/ssl/private/server.key "$STAGE_MNT/etc/ssl/private/dovecot.pem"
 	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf"
-	sed -i -e 's/^\!include auth-system/#\!include auth-system/' "$_dcdir/conf.d/10-auth.conf"
-	sed -i -e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' "$_dcdir/conf.d/10-auth.conf"
+	sed -i .bak \
+        -e 's/^\!include auth-system/#\!include auth-system/' \
+	    -e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' \
+        "$_dcdir/conf.d/10-auth.conf"
 }
 
 start_dovecot()
