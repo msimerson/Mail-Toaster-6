@@ -11,6 +11,10 @@ install_clamav()
 	stage_pkg_install clamav || exit
 	echo "done"
 
+	if [ -n "$TOASTER_NRPE" ]; then
+		stage_pkg_install nagios-check_clamav
+	fi
+
 	install_clamav_unofficial
 }
 

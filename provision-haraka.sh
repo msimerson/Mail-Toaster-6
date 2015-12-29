@@ -254,6 +254,7 @@ config_haraka_plugins()
 		-e 's/^#dkim_sign$/dkim_sign/' \
 		-e 's/^#karma$/karma/' \
 		-e 's/^# connect.fcrdns/connect.fcrdns/' \
+		-e 's/^max_unrecognized_commands/limit/' \
 		"$HARAKA_CONF/plugins"
 }
 
@@ -297,6 +298,13 @@ db=3
 EO_REDIS_CONF
 }
 
+config_haraka_geoip() {
+	sed -i .bak \
+		-e '/^;[asn]/ s/^;//' \
+		-e '/^;report_as=/ s/^;//' \
+		"$HARAKA_CONF/connect.geoip.ini"
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -328,6 +336,7 @@ configure_haraka()
 	config_haraka_watch
 	config_haraka_karma
 	config_haraka_redis
+	config_haraka_geoip
 
 	install_geoip_dbs
 	cleanup_deprecated_haraka

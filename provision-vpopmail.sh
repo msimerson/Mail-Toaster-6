@@ -157,6 +157,10 @@ install_vpopmail()
 
 	install_vpopmail_port
 	install_qmailadmin
+
+	if [ -n "$TOASTER_NRPE" ]; then
+		stage_pkg_install nrpe
+	fi
 }
 
 configure_vpopmail()

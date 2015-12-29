@@ -71,6 +71,10 @@ install_spamassassin()
 		stage_pkg_install mysql56-client p5-DBI p5-DBD-mysql
 	fi
 
+	if [ -n "$TOASTER_NRPE" ]; then
+		stage_pkg_install nagios-spamd-plugin
+	fi
+
 	install_spamassassin_port
 }
 
