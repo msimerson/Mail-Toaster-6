@@ -4,8 +4,8 @@
 
 install_unbound()
 {
+	tell_status "installing unbound"
 	stage_pkg_install unbound || exit
-	stage_exec /usr/local/sbin/unbound-control-setup
 }
 
 configure_unbound()
@@ -14,18 +14,25 @@ configure_unbound()
 	local UNB_LOCAL=""
 	cp "$UNB_DIR/unbound.conf.sample" "$UNB_DIR/unbound.conf" || exit
 	if [ -f "unbound.conf.local" ]; then
-	  cp unbound.conf.local "$UNB_DIR"
-	  UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
+		tell_status "installing unbound.conf.local"
+		cp unbound.conf.local "$UNB_DIR"
+		UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
 	fi
 
+	tell_status "configuring unbound-control"
+	stage_exec /usr/local/sbin/unbound-control-setup
+
 	# for the munin status plugin
-	sed -i -e 's/# interface: 192.0.2.153/interface 0.0.0.0/' "$UNB_DIR/unbound.conf"
-	sed -i -e 's/# interface: 192.0.2.154/interface ::0/' "$UNB_DIR/unbound.conf"
-	sed -i -e 's/# control-enable: no/control-enable: yes/' "$UNB_DIR/unbound.conf"
-	sed -i -e "s/# control-interface: 127.*/control-interface: $(get_jail_ip dns)/" "$UNB_DIR/unbound.conf"
+	sed -i .bak \
+		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
+		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
+		-e 's/# control-enable: no/control-enable: yes/' \
+		-e "s/# control-interface: 127.*/control-interface: 0.0.0.0/" \
+		"$UNB_DIR/unbound.conf"
 
 	get_public_ip
 
+	tell_status "installing unbound/toaster.conf"
 	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
 	   $UNB_LOCAL
 
@@ -82,6 +89,7 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 
 start_unbound()
 {
+	tell_status "starting unbound"
 	stage_sysrc unbound_enable=YES
 	stage_exec service unbound start || exit
 }

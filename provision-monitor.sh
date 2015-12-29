@@ -4,27 +4,27 @@
 
 install_monitor()
 {
-    tell_status "installing monitoring apps"
+	tell_status "installing monitoring apps"
 	stage_pkg_install nagios nrpe swaks p5-Net-SSLeay || exit
 }
 
 configure_monitor()
 {
-    tell_status "configuring monitor"
+	tell_status "configuring monitor"
 }
 
 start_monitor()
 {
-    tell_status "starting monitor"
+   	tell_status "starting monitor"
 }
 
 test_monitor()
 {
 	tell_status "testing monitor"
-    
+	
 	local _email _server _pass
 	_email="postmaster@$TOASTER_MAIL_DOMAIN"
-    _server=$(get_jail_ip haraka)
+	_server=$(get_jail_ip haraka)
 	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
 
 	tell_status "sending an email to $_email"
@@ -32,7 +32,7 @@ test_monitor()
 
 	tell_status "sending a TLS encrypted and authenticated email"
 	stage_exec swaks -to "$_email" -server "$_server" -timeout 50 \
-        -tls -au "$_email" -ap "$_pass" || exit
+		-tls -au "$_email" -ap "$_pass" || exit
 
 	echo "it worked"
 }

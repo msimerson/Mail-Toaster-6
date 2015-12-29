@@ -1,6 +1,6 @@
 # Build support
 
-- [ ] clamav unofficial
+- [x] clamav unofficial
 - [ ] set rspamd password (to what? prompt?)
 - [ ] IPv6 support
 - [ ] when MYSQL=1, configure

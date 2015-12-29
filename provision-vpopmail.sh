@@ -11,8 +11,8 @@ install_qmail()
 {
 	tell_status "setting up data fs for qmail control files"
 	mkdir -p "$STAGE_MNT/var/qmail" \
-	         "$ZFS_DATA_MNT/vpopmail/qmail-control" \
-	         "$ZFS_DATA_MNT/vpopmail/qmail-users"
+		"$ZFS_DATA_MNT/vpopmail/qmail-control" \
+		"$ZFS_DATA_MNT/vpopmail/qmail-users"
 
 	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
@@ -48,8 +48,10 @@ install_lighttpd()
 	stage_pkg_install lighttpd
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	sed -i -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_conf"
-	sed -i -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_conf"
+	sed -i .bak \
+		-e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' \
+		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
+		"$_conf"
 	cat <<EO_LIGHTTPD >> "$_conf"
 
 server.modules += ( "mod_alias" )
@@ -105,9 +107,11 @@ install_vpopmail_mysql_grants()
 
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
-	sed -i -e "s/localhost/$(get_jail_ip mysql)/" "$_vpe"
-	sed -i -e 's/root/vpopmail/' "$_vpe"
-	sed -i -e "s/secret/$_vpass/" "$_vpe"
+	sed -i .bak \
+		-e "s/localhost/$(get_jail_ip mysql)/" \
+		-e 's/root/vpopmail/' \
+		-e "s/secret/$_vpass/" \
+		"$_vpe"
 
 	local _vpopmail_ip; _vpopmail_ip=$(get_jail_ip vpopmail)
 	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_vpopmail_ip}' IDENTIFIED BY '${_vpass}';" \
@@ -174,7 +178,7 @@ start_vpopmail()
 test_vpopmail()
 {
 	echo "testing vpopmail"
-	sleep 1   # give the daemons a second to start listening
+	sleep 1 # give the daemons a second to start listening
 	stage_exec sockstat -l -4 | grep :89 || exit
 }
 

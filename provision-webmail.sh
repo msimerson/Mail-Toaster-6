@@ -457,8 +457,8 @@ test_webmail()
 {
 	tell_status "testing webmail"
 	stage_exec sockstat -l -4 | grep :80 || exit
-    stage_exec sockstat -l -4 | grep :9000 || exit
-    echo "it worked"
+	stage_exec sockstat -l -4 | grep :9000 || exit
+	echo "it worked"
 }
 
 base_snapshot_exists || exit
