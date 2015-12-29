@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_CONF_EXTRA="
@@ -7,25 +8,24 @@ export JAIL_CONF_EXTRA="
 
 install_redis()
 {
-    tell_status "installing redis"
+	tell_status "installing redis"
 	stage_pkg_install redis || exit
 }
 
 configure_redis()
 {
-    tell_status "configuring redis"
+	tell_status "configuring redis"
 
-    mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/log" \
-        "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" || exit
-    stage_exec chown redis:redis /data/db /data/log || exit
+	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/log" \
+		"$STAGE_MNT/usr/local/etc/newsyslog.conf.d" || exit
+	stage_exec chown redis:redis /data/db /data/log || exit
 
-    local _redis_etc="$STAGE_MNT/usr/local/etc/redis.conf"
-    # -e 's/^# syslog-enabled no/syslog-enabled yes/' "$_redis_etc"
-    sed -i .bak \
-        -e '/^stop-writes-on-bgsave-error/ s/yes/no/' \
-        -e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' \
-        -e 's/^logfile .*/logfile \/data\/log\/redis.log/' \
-        "$_redis_etc"
+	# -e 's/^# syslog-enabled no/syslog-enabled yes/'
+	sed -i .bak \
+		-e '/^stop-writes-on-bgsave-error/ s/yes/no/' \
+		-e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' \
+		-e 's/^logfile .*/logfile \/data\/log\/redis.log/' \
+		"STAGE_MNT/usr/local/etc/redis.conf"
 
 	echo '/data/log/redis.log   redis:redis 644  7  *  @T00   JC   /var/run/redis/redis.pid' \
    		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis"
@@ -33,7 +33,7 @@ configure_redis()
 
 start_redis()
 {
-    tell_status "starting redis"
+	tell_status "starting redis"
 	stage_sysrc redis_enable=YES
 	stage_exec service redis start
 }

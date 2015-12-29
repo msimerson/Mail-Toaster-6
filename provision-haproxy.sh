@@ -100,7 +100,7 @@ backend www_rspamd
 EO_HAPROXY_CONF
 
 	cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-        > "$STAGE_MNT/etc/ssl/private/server.pem" || exit
+		> "$STAGE_MNT/etc/ssl/private/server.pem" || exit
 }
 
 start_haproxy()

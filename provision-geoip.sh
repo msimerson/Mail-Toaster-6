@@ -7,24 +7,24 @@ export JAIL_CONF_EXTRA="
 
 install_geoip()
 {
-    tell_status "install GeoIP updater"
-    stage_pkg_install npm || exit
-    stage_exec npm install -g maxmind-geolite-mirror || exit
+	tell_status "install GeoIP updater"
+	stage_pkg_install npm || exit
+	stage_exec npm install -g maxmind-geolite-mirror || exit
 }
 
 configure_geoip()
 {
-    stage_sysrc syslogd_enable=NO
-    
-    mkdir -p "$STAGE_MNT/usr/local/etc/periodic/weekly"
-    stage_exec ln -s /usr/local/bin/maxmind-geolite-mirror \
-        /usr/local/etc/periodic/weekly/999.maxmind-geolite-mirror
+	stage_sysrc syslogd_enable=NO
+	
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/weekly"
+	stage_exec ln -s /usr/local/bin/maxmind-geolite-mirror \
+		/usr/local/etc/periodic/weekly/999.maxmind-geolite-mirror
 }
 
 start_geoip()
 {
-    tell_status "mirroring GeoIP databases"
-    stage_exec /usr/local/bin/maxmind-geolite-mirror
+	tell_status "mirroring GeoIP databases"
+	stage_exec /usr/local/bin/maxmind-geolite-mirror
 }
 
 test_geoip()
@@ -32,8 +32,8 @@ test_geoip()
 	echo "testing geoip..."
 	stage_exec ls /usr/local/share/GeoIP
 
-    test -f "$STAGE_MNT/usr/local/share/GeoIP/GeoIP.dat" || exit
-    echo "it worked"
+	test -f "$STAGE_MNT/usr/local/share/GeoIP/GeoIP.dat" || exit
+	echo "it worked"
 }
 
 base_snapshot_exists || exit

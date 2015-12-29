@@ -88,9 +88,9 @@ config_haraka_vpopmail()
 {
 	tell_status "configure smtp forward to vpopmail jail"
 	sed -i .bak \
-        -e "s/^host=localhost/host=$(get_jail_ip vpopmail)/" \
-        -e 's/^port=2555/port=25/' \
-        "$HARAKA_CONF/smtp_forward.ini"
+		-e "s/^host=localhost/host=$(get_jail_ip vpopmail)/" \
+		-e 's/^port=2555/port=25/' \
+		"$HARAKA_CONF/smtp_forward.ini"
 
 	tell_status "config SMTP AUTH using vpopmaild"
 	echo "host=$(get_jail_ip vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
@@ -105,9 +105,9 @@ config_haraka_qmail_deliverable()
 	tell_status "config recipient validation with Qmail::Deliverable"
 	sed -i -e "s/^host=127.0.0.1/host=$(get_jail_ip vpopmail)/" "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
 	sed -i .bak \
-        -e 's/^#rcpt_to.qmail_deliverable/rcpt_to.qmail_deliverable/' \
-        -e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
-        "$HARAKA_CONF/plugins"
+		-e 's/^#rcpt_to.qmail_deliverable/rcpt_to.qmail_deliverable/' \
+		-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
+		"$HARAKA_CONF/plugins"
 }
 
 config_haraka_p0f()
@@ -127,11 +127,11 @@ config_haraka_spamassassin()
 
 	tell_status "configuring Haraka spamassassin plugin"
 	sed -i.bak \
-        -e "/^spamd_socket/ s/127.0.0.1:/$(get_jail_ip spamassassin):/" \
-        -e 's/^;spamd_user=$/spamd_user=first-recipient/' \
-        -e '/^; reject_threshold/ s/^; //' \
-        -e 's/^; relay_reject_threshold$/relay_reject_threshold/' \
-        "$HARAKA_CONF/spamassassin.ini"
+		-e "/^spamd_socket/ s/127.0.0.1:/$(get_jail_ip spamassassin):/" \
+		-e 's/^;spamd_user=$/spamd_user=first-recipient/' \
+		-e '/^; reject_threshold/ s/^; //' \
+		-e 's/^; relay_reject_threshold$/relay_reject_threshold/' \
+		"$HARAKA_CONF/spamassassin.ini"
 
 	sed -i -e 's/^#spamassassin$/spamassassin/' "$HARAKA_CONF/plugins"
 }
@@ -150,9 +150,9 @@ config_haraka_avg()
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";
 "
 	sed -i .bak \
-        -e "s/;host.*/host = $(get_jail_ip avg)/" \
-        -e 's/;tmpdir.*/tmpdir=\/data\/avg/' \
-        "$HARAKA_CONF/avg.ini"
+		-e "s/;host.*/host = $(get_jail_ip avg)/" \
+		-e 's/;tmpdir.*/tmpdir=\/data\/avg/' \
+		"$HARAKA_CONF/avg.ini"
 # shellcheck disable=1004
 	sed -i -e '/clamd$/a\
 avg
@@ -217,9 +217,9 @@ config_haraka_rspamd()
 
 	tell_status "configure Haraka rspamd plugin"
 	sed -i .bak \
-        -e "s/;host.*/host = $(get_jail_ip rspamd)/" \
-        -e 's/;always_add_headers = false/always_add_headers = true/' \
-        "$HARAKA_CONF/rspamd.ini"
+		-e "s/;host.*/host = $(get_jail_ip rspamd)/" \
+		-e 's/;always_add_headers = false/always_add_headers = true/' \
+		"$HARAKA_CONF/rspamd.ini"
 # shellcheck disable=1004
 	sed -i -e '/spamassassin$/a\
 rspamd
@@ -234,27 +234,27 @@ config_haraka_watch()
 config_haraka_smtp_ini()
 {
 	sed -i .bak \
-        -e 's/^;listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' \
-        -e 's/^;nodes=cpus/nodes=2/' \
-        -e 's/^;daemonize=true/daemonize=true/' \
-        -e 's/^;daemon_pid_file/daemon_pid_file/' \
-        -e 's/^;daemon_log_file/daemon_log_file/' \
-        "$HARAKA_CONF/smtp.ini"
+		-e 's/^;listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' \
+		-e 's/^;nodes=cpus/nodes=2/' \
+		-e 's/^;daemonize=true/daemonize=true/' \
+		-e 's/^;daemon_pid_file/daemon_pid_file/' \
+		-e 's/^;daemon_log_file/daemon_log_file/' \
+		"$HARAKA_CONF/smtp.ini"
 }
 
 config_haraka_plugins()
 {
 	# enable a bunch of plugins
 	sed -i .bak \
-        -e 's/^#process_title$/process_title/' \
-        -e 's/^#spf$/spf/' \
-        -e 's/^#bounce$/bounce/' \
-        -e 's/^#data.uribl$/data.uribl/' \
-        -e 's/^#attachment$/attachment/' \
-        -e 's/^#dkim_sign$/dkim_sign/' \
-        -e 's/^#karma$/karma/' \
-        -e 's/^# connect.fcrdns/connect.fcrdns/' \
-        "$HARAKA_CONF/plugins"
+		-e 's/^#process_title$/process_title/' \
+		-e 's/^#spf$/spf/' \
+		-e 's/^#bounce$/bounce/' \
+		-e 's/^#data.uribl$/data.uribl/' \
+		-e 's/^#attachment$/attachment/' \
+		-e 's/^#dkim_sign$/dkim_sign/' \
+		-e 's/^#karma$/karma/' \
+		-e 's/^# connect.fcrdns/connect.fcrdns/' \
+		"$HARAKA_CONF/plugins"
 }
 
 config_haraka_dkim()
@@ -280,9 +280,9 @@ config_haraka_dkim()
 config_haraka_karma()
 {
 	sed -i .bak \
-        -e '/^dbid/ s/= 0/= 1/' \
-        -e "/^server_ip/ s/127.0.0.1/$(get_jail_ip redis)/" \
-        "$HARAKA_CONF/karma.ini"
+		-e '/^dbid/ s/= 0/= 1/' \
+		-e "/^server_ip/ s/127.0.0.1/$(get_jail_ip redis)/" \
+		"$HARAKA_CONF/karma.ini"
 }
 
 config_haraka_redis()

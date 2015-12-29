@@ -7,30 +7,30 @@ export JAIL_CONF_EXTRA="
 
 install_dovecot()
 {
-    stage_pkg_install dovecot2 || exit
+	stage_pkg_install dovecot2 || exit
 
-    tell_status "configure for vpopmail"
-    stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
-    stage_exec pw groupadd -n vpopmail -g 89
-    stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
+	tell_status "configure for vpopmail"
+	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
+	stage_exec pw groupadd -n vpopmail -g 89
+	stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
 
-    stage_exec mkdir -p /var/qmail
-    stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
-    stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
+	stage_exec mkdir -p /var/qmail
+	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
+	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 
-    if [ "$TOASTER_MYSQL" = "1" ]; then
-        stage_pkg_install mysql56-client
-    fi
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		stage_pkg_install mysql56-client
+	fi
 
-    stage_pkg_install dialog4ports
-    export BATCH=${BATCH:="1"}
-    stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
+	stage_pkg_install dialog4ports
+	export BATCH=${BATCH:="1"}
+	stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
 }
 
 configure_dovecot()
 {
-    local _dcdir="$STAGE_MNT/usr/local/etc/dovecot"
-    tee "$_dcdir/local.conf" <<'EO_DOVECOT_LOCAL'
+	local _dcdir="$STAGE_MNT/usr/local/etc/dovecot"
+	tee "$_dcdir/local.conf" <<'EO_DOVECOT_LOCAL'
 listen = *
 #mail_debug = yes
 auth_mechanisms = plain login digest-md5 cram-md5
@@ -79,25 +79,25 @@ EO_DOVECOT_LOCAL
 
 	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
 	cp /etc/ssl/certs/server.crt \
-        "$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
+		"$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
 	cp /etc/ssl/private/server.key \
-        "$STAGE_MNT/etc/ssl/private/dovecot.pem" || exit
+		"$STAGE_MNT/etc/ssl/private/dovecot.pem" || exit
 	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf" || exit
 	sed -i .bak \
-        -e 's/^\!include auth-system/#\!include auth-system/' \
-	    -e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' \
-        "$_dcdir/conf.d/10-auth.conf" || exit
+		-e 's/^\!include auth-system/#\!include auth-system/' \
+		-e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' \
+		"$_dcdir/conf.d/10-auth.conf" || exit
 }
 
 start_dovecot()
 {
-    stage_sysrc dovecot_enable=YES
-    stage_exec service dovecot start || exit
+	stage_sysrc dovecot_enable=YES
+	stage_exec service dovecot start || exit
 }
 
 test_dovecot()
 {
-    stage_exec sockstat -l -4 | grep 143 || exit
+	stage_exec sockstat -l -4 | grep 143 || exit
 }
 
 base_snapshot_exists || exit

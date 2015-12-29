@@ -575,25 +575,25 @@ get_public_facing_nic()
 {
 	export PUBLIC_NIC
 
-    if [ "$1" = 'ipv6' ]; then
-        PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | tail -n1)
-    else
-        PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
-    fi
+	if [ "$1" = 'ipv6' ]; then
+		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | tail -n1)
+	else
+		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
+	fi
 }
 
 get_public_ip()
 {
-    get_public_facing_nic "$1"
+	get_public_facing_nic "$1"
 
-    export PUBLIC_IP6
-    export PUBLIC_IP4
+	export PUBLIC_IP6
+	export PUBLIC_IP4
 
-    if [ "$1" = 'ipv6' ]; then
-        PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" | grep 'inet6' | grep -v fe80 | awk '{print $2}' | head -n1)
-    else
-        PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" | grep 'inet ' | awk '{print $2}' | head -n1)
-    fi
+	if [ "$1" = 'ipv6' ]; then
+		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" | grep 'inet6' | grep -v fe80 | awk '{print $2}' | head -n1)
+	else
+		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" | grep 'inet ' | awk '{print $2}' | head -n1)
+	fi
 }
 
 mysql_db_exists()
@@ -639,5 +639,5 @@ provision()
 		geoip)	      fetch_and_exec "$1"; return;;
 	esac
 
-    echo "unknown action $1"
+	echo "unknown action $1"
 }
