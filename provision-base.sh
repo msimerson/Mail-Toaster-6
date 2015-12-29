@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
@@ -35,6 +36,21 @@ install_freebsd()
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 }
 
+install_ssmtp()
+{
+	stage_pkg_install ssmtp || exit
+
+	tell_status "configuring ssmtp"
+	cp "$BASE_MNT/usr/local/etc/ssmtp/revaliases.sample" \
+	   "$BASE_MNT/usr/local/etc/ssmtp/revaliases" || exit
+
+	sed -e "/^root=/ s/postmaster/postmaster@$TOASTER_MAIL_DOMAIN/" \
+		-e "/^mailhub=/ s/=mail/=vpopmail/" \
+		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
+		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \
+		> "$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
+}
+
 configure_base()
 {
 	mkdir "$BASE_MNT/usr/ports" || exit
@@ -59,7 +75,6 @@ EO_MAKE_CONF
 
 	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
 	chmod o-r "$BASE_MNT/etc/ssl/private"
-#	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
 }
 
 install_bash()
@@ -107,6 +122,8 @@ install_base()
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash
 	fi
+
+	install_ssmtp
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
