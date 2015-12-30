@@ -73,6 +73,29 @@ disable_syslog()
 		"$BASE_MNT/etc/crontab"
 }
 
+disable_root_password()
+{
+	# prevent a nightly email notice about the empty root password
+	tell_status "disabling passwordless root account"
+	sed .bak -i -e 's/^root::/root:*:/' "$BASE_MNT/etc/master.passwd"
+	stage_exec pwd_mkdb /etc/master.passwd || exit
+}
+
+disable_cron_jobs()
+{
+	tell_status "disabling adjkerntz & atrun"
+	sed -i .bak \
+		-e '/^1.*adjkerntz/ s/^1/#1/' \
+		-e '/^\*.*atrun/ s/^\*/#*/' \
+		"$BASE_MNT/etc/crontab"
+}
+
+configure_ssl_dirs()
+{
+	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
+	chmod o-r "$BASE_MNT/etc/ssl/private"
+}
+
 configure_base()
 {
 	mkdir "$BASE_MNT/usr/ports" || exit
@@ -94,15 +117,9 @@ EO_MAKE_CONF
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
-	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
-	chmod o-r "$BASE_MNT/etc/ssl/private"
-
-	tell_status "disabling adjkerntz & atrun"
-	sed -i .bak \
-		-e '/^1.*adjkerntz/ s/^1/#1/' \
-		-e '/^\*.*atrun/ s/^\*/#*/' \
-		"$BASE_MNT/etc/crontab"
-
+	configure_ssl_dirs
+	disable_cron_jobs
+	disable_root_password
 	#disable_syslog
 }
 
