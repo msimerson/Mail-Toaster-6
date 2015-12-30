@@ -80,6 +80,8 @@ service tcpwrap {
 }
 EO_DOVECOT_LOCAL
 
+	tell_status "installing example config files"
+	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
 	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf" || exit
 
 	tell_status "switching auth from system to vpopmail"
@@ -89,7 +91,6 @@ EO_DOVECOT_LOCAL
 		"$_dcdir/conf.d/10-auth.conf" || exit
 
 	tell_status "installing dovecot TLS certificates"
-	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
 	cp /etc/ssl/certs/server.crt \
 		"$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
 	cp /etc/ssl/private/server.key \
@@ -99,18 +100,18 @@ EO_DOVECOT_LOCAL
 	sed -i .bak \
 		-e '/^#ssl_dh_parameters_length/ s/^#//; s/1024/2048/' \
 		-e '/^#ssl_prefer_server_ciphers/ s/^#//; s/no/yes/' \
-		-e '/^#ssl_cipher_list/ s/^#//; s/ALL:.*/ALL:!LOW:!SSLv2:!EXP:!aNull:!eNull::!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA'
-		"$_dcdir/conf.d/10-ssl.conf"
+		-e '/^#ssl_cipher_list/ s/^#//; s/ALL:.*/ALL:!LOW:!SSLv2:!EXP:!aNull:!eNull::!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA/' \
+		"$_dcdir/conf.d/10-ssl.conf" || exit
 
 	tell_status "generating a 2048 bit Diffie-Hellman params file"
 	openssl dhparam -out "$STAGE_MNT/etc/ssl/private/dhparams.pem" 2048 || exit
 	cat "$STAGE_MNT/etc/ssl/private/dhparams.pem" \
-		>> "$STAGE_MNT/etc/ssl/private/dovecot.pem" || exit
+		>> "$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
 }
 
 start_dovecot()
 {
-    tell_status "starting dovecot"
+	tell_status "starting dovecot"
 	stage_sysrc dovecot_enable=YES
 	stage_exec service dovecot start || exit
 }
