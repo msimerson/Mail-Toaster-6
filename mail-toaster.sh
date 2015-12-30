@@ -252,6 +252,8 @@ create_staged_fs()
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
 
 	stage_sysrc hostname="$1"
+	sed -i -e "/^hostname=/ s/_HOSTNAME_/$1/" \
+		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	if has_data_fs "$1"; then
 		zfs_create_fs "$ZFS_DATA_VOL"    "$ZFS_DATA_MNT"

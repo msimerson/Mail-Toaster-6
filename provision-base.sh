@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
@@ -35,6 +36,43 @@ install_freebsd()
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 }
 
+install_ssmtp()
+{
+	tell_status "installing ssmtp"
+	stage_pkg_install ssmtp || exit
+
+	tell_status "configuring ssmtp"
+	cp "$BASE_MNT/usr/local/etc/ssmtp/revaliases.sample" \
+	   "$BASE_MNT/usr/local/etc/ssmtp/revaliases" || exit
+
+	sed -e "/^root=/ s/postmaster/postmaster@$TOASTER_MAIL_DOMAIN/" \
+		-e "/^mailhub=/ s/=mail/=vpopmail/" \
+		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
+		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \
+		> "$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
+
+	tee "$BASE_MNT/etc/mail/mailer.conf" <<EO_MAILER_CONF
+sendmail	/usr/local/sbin/ssmtp
+send-mail	/usr/local/sbin/ssmtp
+mailq		/usr/local/sbin/ssmtp
+newaliases	/usr/local/sbin/ssmtp
+hoststat	/usr/bin/true
+purgestat	/usr/bin/true
+EO_MAILER_CONF
+
+	tell_status "disabling sendmail"
+	sysrc -f "$BASE_MNT/etc/rc.conf" sendmail_enable=NONE
+}
+
+disable_syslog()
+{
+	tell_status "disabling syslog"
+	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO syslogd_enable=NO
+	sed -i .bak \
+		-e '/^0.*newsyslog/ s/^0/#0/' \
+		"$BASE_MNT/etc/crontab"
+}
+
 configure_base()
 {
 	mkdir "$BASE_MNT/usr/ports" || exit
@@ -53,17 +91,24 @@ EO_MAKE_CONF
 
 	sysrc -f "$BASE_MNT/etc/rc.conf" \
 		hostname=base \
-		sendmail_enable=NONE \
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss
 
 	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
 	chmod o-r "$BASE_MNT/etc/ssl/private"
-#	echo 'zfs_enable="YES"' | tee -a "$BASE_MNT/boot/loader.conf"
+
+	tell_status "disabling adjkerntz & atrun"
+	sed -i .bak \
+		-e '/^1.*adjkerntz/ s/^1/#1/' \
+		-e '/^\*.*atrun/ s/^\*/#*/' \
+		"$BASE_MNT/etc/crontab"
+
+	#disable_syslog
 }
 
 install_bash()
 {
+	tell_status "installing bash"
 	stage_pkg_install bash || exit
 	stage_exec chpass -s /usr/local/bin/bash
 
@@ -97,6 +142,69 @@ PS1="$(whoami)@$(hostname -s):\\w # "
 	grep -q PS1 /root/.profile || echo "$_bconf" | tee -a /root/.profile
 }
 
+install_periodic_conf()
+{
+	tell_status "installing /etc/periodic.conf"
+	tee "$BASE_MNT/etc/periodic.conf" <<EO_PERIODIC
+# periodic.conf tuned for periodic inside jails
+# increase the signal, decrease the noise
+
+# some versions of FreeBSD bark b/c these are defined in
+# /etc/defaults/periodic.conf and do not exist. Hush.
+daily_local=""
+weekly_local=""
+monthly_local=""
+
+# in case /etc/aliases isn't set up properly
+daily_output="postmaster@$TOASTER_MAIL_DOMAIN"
+weekly_output="postmaster@$TOASTER_MAIL_DOMAIN"
+monthly_output="postmaster@$TOASTER_MAIL_DOMAIN"
+
+security_show_success="NO"
+security_show_info="YES"
+security_status_pkgaudit_enable="YES"
+security_status_tcpwrap_enable="YES"
+
+# These are redundant within a jail
+security_status_chksetuid_enable="NO"
+security_status_neggrpperm_enable="NO"
+security_status_ipfwlimit_enable="NO"
+security_status_ipfwdenied_enable="NO"
+security_status_pfdenied_enable="NO"
+security_status_kernelmsg_enable="NO"
+
+daily_accounting_enable="NO"
+daily_accounting_compress="YES"
+daily_clean_disks_enable="YES"
+daily_clean_disks_verbose="NO"
+daily_clean_hoststat_enable="NO"
+daily_clean_tmps_enable="YES"
+daily_clean_tmps_verbose="NO"
+daily_news_expire_enable="NO"
+
+daily_show_success="NO"
+daily_show_info="NO"
+daily_show_badconfig="YES"
+
+daily_status_disks_enable="NO"
+daily_status_include_submit_mailq="NO"
+daily_status_mail_rejects_enable="YES"
+daily_status_mailq_enable="NO"
+daily_status_network_enable="NO"
+daily_status_rwho_enable="NO"
+daily_submit_queuerun="NO"
+
+weekly_show_success="NO"
+weekly_show_info="NO"
+weekly_show_badconfig="YES"
+weekly_whatis_enable="NO"
+
+monthly_show_success="NO"
+monthly_show_info="NO"
+monthly_show_badconfig="YES"
+EO_PERIODIC
+}
+
 install_base()
 {
 	tell_status "installing packages desired in every jail"
@@ -107,6 +215,9 @@ install_base()
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash
 	fi
+
+	install_ssmtp
+	install_periodic_conf
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0

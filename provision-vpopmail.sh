@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
@@ -25,9 +26,14 @@ install_qmail()
 	tell_status "enabling qmail"
 	stage_exec /var/qmail/scripts/enable-qmail
 
+	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$STAGE_MNT/var/qmail/alias/.qmail-root"
+	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$STAGE_MNT/var/qmail/alias/.qmail-postmaster"
+	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$STAGE_MNT/var/qmail/alias/.qmail-mailer-daemon"
+
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 '
+
 	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
 
@@ -49,7 +55,7 @@ install_lighttpd()
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	sed -i .bak \
-		-e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' \
+		-e '/^server.use-ipv6/ s/enable/disable/' \
 		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
 		"$_conf"
 	cat <<EO_LIGHTTPD >> "$_conf"

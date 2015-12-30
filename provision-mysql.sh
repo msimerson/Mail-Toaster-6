@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_CONF_EXTRA="

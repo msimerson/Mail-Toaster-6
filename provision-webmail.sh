@@ -39,10 +39,10 @@ install_roundcube_mysql()
 	fi
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
-	sed -i .bak
+	sed -i .bak \
 		-e "s/roundcube:pass@/roundcube:${_rcpass}@/" \
 		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
-		"$_rcc_dir/config.inc.php"
+		"$_rcc_dir/config.inc.php" || exit
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
