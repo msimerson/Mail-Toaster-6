@@ -64,6 +64,15 @@ EO_MAILER_CONF
 	sysrc -f "$BASE_MNT/etc/rc.conf" sendmail_enable=NONE
 }
 
+disable_syslog()
+{
+	tell_status "disabling syslog"
+	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO syslogd_enable=NO
+	sed -i .bak \
+		-e '/^0.*newsyslog/ s/^0/#0/' \
+		"$BASE_MNT/etc/crontab"
+}
+
 configure_base()
 {
 	mkdir "$BASE_MNT/usr/ports" || exit
@@ -87,6 +96,14 @@ EO_MAKE_CONF
 
 	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
 	chmod o-r "$BASE_MNT/etc/ssl/private"
+
+	tell_status "disabling adjkerntz & atrun"
+	sed -i .bak \
+		-e '/^1.*adjkerntz/ s/^1/#1/' \
+		-e '/^\*.*atrun/ s/^\*/#*/' \
+		"$BASE_MNT/etc/crontab"
+
+	#disable_syslog
 }
 
 install_bash()
