@@ -167,7 +167,7 @@ get_jail_ip()
 	esac
 
 	if echo "$1" | grep -q ^base; then
-		_incr=2
+		_incr=1
 	fi
 
 	# return error code if _incr unset
