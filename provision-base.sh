@@ -59,9 +59,6 @@ newaliases	/usr/local/sbin/ssmtp
 hoststat	/usr/bin/true
 purgestat	/usr/bin/true
 EO_MAILER_CONF
-
-	tell_status "disabling sendmail"
-	sysrc -f "$BASE_MNT/etc/rc.conf" sendmail_enable=NONE
 }
 
 disable_syslog()
@@ -115,11 +112,11 @@ EO_MAKE_CONF
 	sysrc -f "$BASE_MNT/etc/rc.conf" \
 		hostname=base \
 		cron_flags='$cron_flags -J 15' \
-		syslogd_flags=-ss
+		syslogd_flags=-ss \
+		sendmail_enable=NONE
 
 	configure_ssl_dirs
 	disable_cron_jobs
-	disable_root_password
 	#disable_syslog
 }
 
@@ -211,11 +208,13 @@ daily_status_network_enable="NO"
 daily_status_rwho_enable="NO"
 daily_submit_queuerun="NO"
 
+weekly_accounting_enable="NO"
 weekly_show_success="NO"
 weekly_show_info="NO"
 weekly_show_badconfig="YES"
 weekly_whatis_enable="NO"
 
+monthly_accounting_enable="NO"
 monthly_show_success="NO"
 monthly_show_info="NO"
 monthly_show_badconfig="YES"
@@ -234,6 +233,7 @@ install_base()
 	fi
 
 	install_ssmtp
+	disable_root_password
 	install_periodic_conf
 }
 
