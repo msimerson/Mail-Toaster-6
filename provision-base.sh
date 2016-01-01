@@ -211,11 +211,13 @@ daily_status_network_enable="NO"
 daily_status_rwho_enable="NO"
 daily_submit_queuerun="NO"
 
+weekly_accounting_enable="NO"
 weekly_show_success="NO"
 weekly_show_info="NO"
 weekly_show_badconfig="YES"
 weekly_whatis_enable="NO"
 
+monthly_accounting_enable="NO"
 monthly_show_success="NO"
 monthly_show_info="NO"
 monthly_show_badconfig="YES"
