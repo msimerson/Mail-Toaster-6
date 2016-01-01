@@ -254,8 +254,22 @@ config_haraka_plugins()
 		-e 's/^#dkim_sign$/dkim_sign/' \
 		-e 's/^#karma$/karma/' \
 		-e 's/^# connect.fcrdns/connect.fcrdns/' \
+		"$HARAKA_CONF/plugins"
+}
+
+config_haraka_limit()
+{
+	tell_status "configuring limit plugin"
+	sed -i .bak \
 		-e 's/^max_unrecognized_commands/limit/' \
 		"$HARAKA_CONF/plugins"
+
+	sed -i .bak \
+		-e 's/^; max/max/' \
+		-e 's/^; history/history/' \
+		-e 's/^; backend=ram/backend=redis/' \
+		-e 's/^; discon/discon/' \
+		"$HARAKA_CONF/limit.ini"
 }
 
 config_haraka_dkim()
@@ -316,6 +330,7 @@ configure_haraka()
 
 	config_haraka_smtp_ini
 	config_haraka_plugins
+	config_haraka_limit
 	config_haraka_syslog
 	config_haraka_vpopmail
 	config_haraka_qmail_deliverable
