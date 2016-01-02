@@ -235,6 +235,18 @@ enable_jails()
 	jail_conf_header
 }
 
+update_ports_tree()
+{
+	tell_status "updating FreeBSD ports tree"
+	portsnap fetch || exit
+
+	if [ -d /usr/ports/mail/vpopmail ]; then
+		portsnap update || exit
+	else
+		portsnap extract || exit
+	fi
+}
+
 update_freebsd() {
 	tell_status "updating FreeBSD with security patches"
 
@@ -245,8 +257,7 @@ update_freebsd() {
 	tell_status "updating FreeBSD pkg collection"
 	pkg update || exit
 
-	tell_status "updating FreeBSD ports tree"
-	portsnap fetch update || portsnap fetch extract
+	update_ports_tree
 }
 
 plumb_jail_nic()
