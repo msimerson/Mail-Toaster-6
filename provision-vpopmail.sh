@@ -117,7 +117,7 @@ install_vpopmail_mysql_grants()
 		-e "s/localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
-		"$_vpe"
+		"$_vpe" || exit
 
 	local _vpopmail_ip; _vpopmail_ip=$(get_jail_ip vpopmail)
 	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_vpopmail_ip}' IDENTIFIED BY '${_vpass}';" \

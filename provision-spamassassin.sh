@@ -3,8 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 install_dcc_cleanup()
 {
@@ -108,6 +107,17 @@ bayes_ignore_header X-Spam-Hammy
     " | tee "$_sa_etc/redis-bayes.cf"
 }
 
+configure_geoip()
+{
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
+		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
+		return
+	fi
+
+	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
+		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+}
+
 configure_spamassassin()
 {
 	_sa_etc="$STAGE_MNT/usr/local/etc/mail/spamassassin"
@@ -139,6 +149,7 @@ add_header all Tests _TESTS_
 	install_sa_update
 	install_dcc_cleanup
 	configure_spamassassin_redis_bayes
+	configure_geoip
 
 	# SASQL ?
 	# create database spamassassin;

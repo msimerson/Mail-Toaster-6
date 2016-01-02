@@ -5,8 +5,7 @@
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
-		devfs_ruleset = 7;
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+		devfs_ruleset = 7;"
 
 HARAKA_CONF="$STAGE_MNT/usr/local/haraka/config"
 
@@ -35,10 +34,19 @@ install_haraka()
 
 install_geoip_dbs()
 {
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
+		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
+		return
+	fi
+
 	tell_status "enabling Haraka geoip plugin"
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 	sed -i -e 's/^;calc_distance=false/calc_distance=true/' "$HARAKA_CONF/connect.geoip.ini"
 	sed -i -e 's/^# connect.geoip/connect.geoip/' "$HARAKA_CONF/plugins"
+
+	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
+			mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+
 }
 
 add_devfs_rule()
