@@ -5,8 +5,7 @@
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
-		devfs_ruleset = 7;
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+		devfs_ruleset = 7;"
 
 HARAKA_CONF="$STAGE_MNT/usr/local/haraka/config"
 
@@ -35,17 +34,30 @@ install_haraka()
 
 install_geoip_dbs()
 {
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
+		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
+		return
+	fi
+
 	tell_status "enabling Haraka geoip plugin"
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 	sed -i -e 's/^;calc_distance=false/calc_distance=true/' "$HARAKA_CONF/connect.geoip.ini"
 	sed -i -e 's/^# connect.geoip/connect.geoip/' "$HARAKA_CONF/plugins"
+
+	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
+			mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+
 }
 
 add_devfs_rule()
 {
-	if ! grep -qs devfsrules_jail_bpf /etc/devfs.rules; then
-		tell_status "installing devfs ruleset for p0f"
-		tee -a /etc/devfs.rules <<EO_DEVFS
+	if grep -qs devfsrules_jail_bpf /etc/devfs.rules; then
+		tell_status "devfs BPF ruleset already present"
+		return
+	fi
+
+	tell_status "installing devfs ruleset for p0f"
+	tee -a /etc/devfs.rules <<EO_DEVFS
 [devfsrules_jail_bpf=7]
 add include \$devfsrules_hide_all
 add include \$devfsrules_unhide_basic
@@ -53,7 +65,7 @@ add include \$devfsrules_unhide_login
 add path zfs unhide
 add path 'bpf*' unhide
 EO_DEVFS
-	fi
+
 }
 
 install_p0f()
@@ -161,8 +173,8 @@ avg
 
 config_haraka_clamav()
 {
-	if [ ! -d "$ZFS_JAIL_MNT/spamassassin" ]; then
-		tell_status "skipping spamassassin setup, no jail exists"
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/clamav"; then
+		tell_status "WARNING: skipping clamav plugin, no clamav jail exists"
 		return
 	fi
 
@@ -219,16 +231,17 @@ config_haraka_rspamd()
 	sed -i .bak \
 		-e "s/;host.*/host = $(get_jail_ip rspamd)/" \
 		-e 's/;always_add_headers = false/always_add_headers = true/' \
-		"$HARAKA_CONF/rspamd.ini"
-# shellcheck disable=1004
+		"$HARAKA_CONF/rspamd.ini" || exit
+
+	# shellcheck disable=1004
 	sed -i -e '/spamassassin$/a\
 rspamd
-' "$HARAKA_CONF/plugins"
+' "$HARAKA_CONF/plugins" || exit
 }
 
 config_haraka_watch()
 {
-	echo 'watch' >> "$HARAKA_CONF/plugins"
+	echo 'watch' >> "$HARAKA_CONF/plugins" || exit
 }
 
 config_haraka_smtp_ini()
@@ -239,7 +252,7 @@ config_haraka_smtp_ini()
 		-e 's/^;daemonize=true/daemonize=true/' \
 		-e 's/^;daemon_pid_file/daemon_pid_file/' \
 		-e 's/^;daemon_log_file/daemon_log_file/' \
-		"$HARAKA_CONF/smtp.ini"
+		"$HARAKA_CONF/smtp.ini" || exit
 }
 
 config_haraka_plugins()
@@ -379,7 +392,16 @@ test_haraka()
 	echo "it worked"
 }
 
-base_snapshot_exists || exit
+preinstall_checks() {
+	base_snapshot_exists || exit
+
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/redis"; then
+		tell_status "FATAL: redis jail required but not provisioned."
+		exit
+	fi
+}
+
+preinstall_checks
 create_staged_fs haraka
 add_devfs_rule
 start_staged_jail haraka

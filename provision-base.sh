@@ -21,6 +21,13 @@ create_base_filesystem()
 	zfs_create_fs "$BASE_VOL"
 }
 
+freebsd_update()
+{
+	tell_status "apply FreeBSD security updates to base jail"
+	sed -i .bak -e 's/^Components.*/Components world kernel/' "$BASE_MNT/etc/freebsd-update.conf"
+	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
+}
+
 install_freebsd()
 {
 	if [ -n "$USE_BSDINSTALL" ]; then
@@ -31,9 +38,7 @@ install_freebsd()
 		stage_fbsd_package base "$BASE_MNT"
 	fi
 
-	tell_status "apply FreeBSD patches to base jail"
-	sed -i .bak -e 's/^Components.*/Components world kernel/' "$BASE_MNT/etc/freebsd-update.conf"
-	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
+	freebsd_update
 }
 
 install_ssmtp()
@@ -84,7 +89,9 @@ disable_cron_jobs()
 	sed -i .bak \
 		-e '/^1.*adjkerntz/ s/^1/#1/' \
 		-e '/^\*.*atrun/ s/^\*/#*/' \
-		"$BASE_MNT/etc/crontab"
+		"$BASE_MNT/etc/crontab" || exit
+
+	echo "done"
 }
 
 configure_ssl_dirs()
@@ -100,7 +107,7 @@ configure_base()
 	tell_status "adding base jail resolv.conf"
 	cp /etc/resolv.conf "$BASE_MNT/etc" || exit
 
-	tell_status "setting base jail's timezone (to hosts)"
+	tell_status "setting base jail timezone (to hosts)"
 	cp /etc/localtime "$BASE_MNT/etc" || exit
 
 	tell_status "setting base jail make.conf variables"
