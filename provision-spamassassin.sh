@@ -79,6 +79,11 @@ install_spamassassin()
 
 configure_spamassassin_redis_bayes()
 {
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/redis"; then
+		tell_status "redis jail missing, bayes not enabled"
+		return
+	fi
+
 	tell_status "configuring redis backed bayes"
 	echo "
 use_bayes               1
