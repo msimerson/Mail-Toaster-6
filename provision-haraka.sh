@@ -173,8 +173,8 @@ avg
 
 config_haraka_clamav()
 {
-	if [ ! -d "$ZFS_JAIL_MNT/spamassassin" ]; then
-		tell_status "skipping spamassassin setup, no jail exists"
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/clamav"; then
+		tell_status "WARNING: skipping clamav plugin, no clamav jail exists"
 		return
 	fi
 
