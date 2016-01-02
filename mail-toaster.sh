@@ -94,11 +94,13 @@ zfs_create_fs() {
 	if [ -z "$2" ]; then
 		tell_status "zfs create $1"
 		zfs create "$1" || exit
+		echo "done"
 		return
 	fi
 
 	tell_status "zfs create -o mountpoint=$2 $1"
 	zfs create -o mountpoint="$2" "$1"  || exit
+	echo "done"
 }
 
 zfs_destroy_fs()
@@ -486,9 +488,11 @@ stage_fbsd_package()
 
 	tell_status "downloading FreeBSD package $1"
 	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
+	echo "done"
 
 	tell_status "extracting FreeBSD package $1.tgz"
-	tar -C "$_dest" -xvpJf "$1.txz" || exit
+	tar -C "$_dest" -xpJf "$1.txz" || exit
+	echo "done"
 }
 
 has_data_fs()
