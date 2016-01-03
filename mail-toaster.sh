@@ -92,14 +92,14 @@ zfs_create_fs() {
 
 	if zfs_filesystem_exists "$1"; then return; fi
 
-	if grep "$ZFS_DATA_VOL" "$1"; then
+	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
 			zfs create -o mountpoint="$ZFS_DATA_MNT" "$ZFS_DATA_VOL"  || exit
 		fi
 	fi
 
-	if grep "$ZFS_JAIL_VOL" "$1"; then
+	if echo "$1" | grep "$ZFS_JAIL_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_JAIL_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_JAIL_MNT $ZFS_JAIL_VOL"
 			zfs create -o mountpoint="$ZFS_JAIL_MNT" "$ZFS_JAIL_VOL"  || exit

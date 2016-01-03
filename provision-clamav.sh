@@ -95,9 +95,11 @@ EOSIG
 		> "$STAGE_ETC/newsyslog.conf.d/clamav-unofficial-sigs"
 	stage_exec /usr/local/etc/periodic/daily/clamav-unofficial-sigs
 
-	dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
+	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
+		dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
 	 https://github.com/extremeshok/clamav-unofficial-sigs and follow
 	 the steps *after* the Quick Install Guide." 10 70
+	fi
 }
 
 configure_clamd()

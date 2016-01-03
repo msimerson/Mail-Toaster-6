@@ -42,8 +42,7 @@ install_geoip_dbs()
 	sed -i -e 's/^# connect.geoip/connect.geoip/' "$HARAKA_CONF/plugins"
 
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-			mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
-
+		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 }
 
 add_devfs_rule()
@@ -157,8 +156,8 @@ config_haraka_avg()
 	mkdir -p "$STAGE_MNT/data/avg" || exit
 
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";
-"
+		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
+
 	sed -i .bak \
 		-e "s/;host.*/host = $(get_jail_ip avg)/" \
 		-e 's/;tmpdir.*/tmpdir=\/data\/avg/' \

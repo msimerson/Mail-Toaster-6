@@ -42,6 +42,7 @@ test_redis()
 {
 	echo "testing redis"
 	stage_exec sockstat -l -4 | grep 6379 || exit
+	echo "it worked"
 }
 
 base_snapshot_exists || exit

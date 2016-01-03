@@ -118,6 +118,7 @@ start_dovecot()
 
 test_dovecot()
 {
+	tell_status "testing dovecot"
 	stage_exec sockstat -l -4 | grep 143 || exit
 	echo "it worked"
 }
