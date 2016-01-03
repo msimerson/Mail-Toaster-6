@@ -17,9 +17,13 @@ configure_geoip()
 {
 	stage_sysrc syslogd_enable=NO
 	
-	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/weekly"
-	stage_exec ln -s /usr/local/bin/maxmind-geolite-mirror \
-		/usr/local/etc/periodic/weekly/999.maxmind-geolite-mirror
+	local _weekly="$STAGE_MNT/usr/local/etc/periodic/weekly"
+	mkdir -p "$_weekly"
+	tee "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO
+#!/bin/sh
+/usr/local/bin/node /usr/local/lib/node_modules/maxmind-geolite-mirror
+EO_GEO
+	chmod 755 "$_weekly/999.maxmind-geolite-mirror"
 }
 
 start_geoip()

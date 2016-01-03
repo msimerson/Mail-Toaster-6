@@ -119,6 +119,7 @@ start_dovecot()
 test_dovecot()
 {
 	stage_exec sockstat -l -4 | grep 143 || exit
+	echo "it worked"
 }
 
 base_snapshot_exists || exit
