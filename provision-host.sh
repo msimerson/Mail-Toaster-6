@@ -69,7 +69,8 @@ constrain_sshd_to_host()
 		sed -i -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
 	fi
 
-	# grep ^Listen /etc/ssh/sshd_config
+	grep ^Listen /etc/ssh/sshd_config
+	service sshd configtest || exit
 	service sshd restart
 }
 
