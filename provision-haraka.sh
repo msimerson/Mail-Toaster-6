@@ -22,14 +22,11 @@ install_haraka()
 	local _ghu='https://raw.githubusercontent.com/haraka/Haraka/master'
 
 	# remove after Haraka > 2.7.2 release
-	fetch -o "$_ghi/plugins/spamassassin.js" "$_ghu/plugins/spamassassin.js"
-	fetch -o "$_ghi/plugins/karma.js" "$_ghu/plugins/karma.js"
-	fetch -o "$_ghi/plugins/redis.js" "$_ghu/plugins/redis.js"
-	fetch -o "$_ghi/plugins/rspamd.js" "$_ghu/plugins/rspamd.js"
-	fetch -o "$_ghi/plugins/watch/index.js" "$_ghu/plugins/watch/index.js"
-	fetch -o "$_ghi/plugins/watch/html/client.js" "$_ghu/plugins/watch/html/client.js"
-	fetch -o "$_ghi/plugins/connect.geoip.js" "$_ghu/plugins/connect.geoip.js"
-	fetch -o "$_ghi/plugins/connect.p0f.js" "$_ghu/plugins/connect.p0f.js"
+	for f in plugins/spamassassin.js plugins/karma.js plugins/redis.js plugins/rspamd.js plugins/watch/index.js plugins/watch/html/client.js plugins/connect.geoip.js plugins/connect.p0f.js
+	do
+		echo "fetching $f"
+		fetch -o "$_ghi/$f" "$_ghu/$f"
+	done
 }
 
 install_geoip_dbs()
@@ -106,7 +103,8 @@ config_haraka_vpopmail()
 
 	tell_status "config SMTP AUTH using vpopmaild"
 	echo "host=$(get_jail_ip vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
-# shellcheck disable=1004
+
+	# shellcheck disable=1004
 	sed -i -e '/^# auth\/auth_ldap$/a\
 auth\/auth_vpopmaild
 ' "$HARAKA_CONF/plugins"
@@ -165,7 +163,8 @@ config_haraka_avg()
 		-e "s/;host.*/host = $(get_jail_ip avg)/" \
 		-e 's/;tmpdir.*/tmpdir=\/data\/avg/' \
 		"$HARAKA_CONF/avg.ini"
-# shellcheck disable=1004
+
+	# shellcheck disable=1004
 	sed -i -e '/clamd$/a\
 avg
 ' "$HARAKA_CONF/plugins"
@@ -242,6 +241,12 @@ rspamd
 config_haraka_watch()
 {
 	echo 'watch' >> "$HARAKA_CONF/plugins" || exit
+
+	local _libdir="$STAGE_MNT/usr/local/lib/node_modules/Haraka/plugins/watch"
+	sed -i .bak \
+		-e '/^var rcpt_to_plugins/ s/in_host_list/qmail_deliverable/' \
+		-e "/^var data_plugins/ s/uribl/uribl', 'limit/; s/clamd/clamd', 'avg/" \
+		"$_libdir/html/client.js"
 }
 
 config_haraka_smtp_ini()
@@ -287,7 +292,8 @@ config_haraka_limit()
 
 config_haraka_dkim()
 {
-	sed -i -e 's/^disabled = true/disabled = false/' "$HARAKA_CONF/dkim_sign.ini"
+	sed -i .bak -e 's/^disabled = true/disabled = false/' \
+		"$HARAKA_CONF/dkim_sign.ini"
 
 	_dkim_dir="$ZFS_JAIL_MNT/haraka/usr/local/haraka/config/dkim/$TOASTER_MAIL_DOMAIN"
 	if [ -d "$_dkim_dir" ]; then
@@ -310,6 +316,7 @@ config_haraka_karma()
 	sed -i .bak \
 		-e '/^dbid/ s/= 0/= 1/' \
 		-e "/^server_ip/ s/127.0.0.1/$(get_jail_ip redis)/" \
+		-e '/^plugins=/ s/clamd, //' \
 		"$HARAKA_CONF/karma.ini"
 }
 
@@ -332,6 +339,12 @@ config_haraka_geoip() {
 		"$HARAKA_CONF/connect.geoip.ini"
 }
 
+config_haraka_http()
+{
+	tell_status "enable Haraka HTTP server"
+	sed -i -e 's/; listen=\[::\]:80/listen=0.0.0.0:80/' "$HARAKA_CONF/http.ini"
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -351,9 +364,7 @@ configure_haraka()
 
 	sed -i -e 's/^; reject=.*/reject=no/' "$HARAKA_CONF/data.headers.ini"
 
-	tell_status "enable Haraka HTTP server"
-	sed -i -e 's/; listen=\[::\]:80/listen=0.0.0.0:80/' "$HARAKA_CONF/http.ini"
-
+	config_haraka_http
 	config_haraka_tls
 	config_haraka_dkim
 	config_haraka_p0f
