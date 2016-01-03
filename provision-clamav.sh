@@ -121,8 +121,8 @@ configure_clamd()
 		-e 's/^#PhishingScanURLs yes/PhishingScanURLs yes/' \
 		-e 's/#HeuristicScanPrecedence yes/HeuristicScanPrecedence no/' \
 		-e 's/^#StructuredDataDetection yes/StructuredDataDetection yes/' \
-		-e 's/^#StructuredMinCreditCardCount 5/StructuredMinCreditCardCount 5/' \
-		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 5/' \
+		-e 's/^#StructuredMinCreditCardCount 5/StructuredMinCreditCardCount 10/' \
+		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 10/' \
 		-e 's/^#StructuredSSNFormatStripped yes/StructuredSSNFormatStripped no/' \
 		-e 's/^#ScanArchive yes/ScanArchive yes/' \
 		"$_conf" || exit
@@ -169,6 +169,7 @@ test_clamav()
 {
 	echo "testing ClamAV..."
 	stage_exec sockstat -l -4 | grep 3310 || exit
+	echo "It works! (clamd is listening)"
 }
 
 base_snapshot_exists || exit
