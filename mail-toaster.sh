@@ -89,7 +89,22 @@ zfs_snapshot_exists()
 }
 
 zfs_create_fs() {
+
 	if zfs_filesystem_exists "$1"; then return; fi
+
+	if echo "$1" | grep "$ZFS_DATA_VOL"; then
+		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
+			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
+			zfs create -o mountpoint="$ZFS_DATA_MNT" "$ZFS_DATA_VOL"  || exit
+		fi
+	fi
+
+	if echo "$1" | grep "$ZFS_JAIL_VOL"; then
+		if ! zfs_filesystem_exists "$ZFS_JAIL_VOL"; then
+			tell_status "zfs create -o mountpoint=$ZFS_JAIL_MNT $ZFS_JAIL_VOL"
+			zfs create -o mountpoint="$ZFS_JAIL_MNT" "$ZFS_JAIL_VOL"  || exit
+		fi
+	fi
 
 	if [ -z "$2" ]; then
 		tell_status "zfs create $1"
@@ -198,7 +213,7 @@ add_jail_conf()
 	if [ -z "$_jail_ip" ]; then
 		fatal_err "can't determine IP for $1"
 	fi
-	
+
 	jail_conf_header
 
 	if grep -q "^$1" /etc/jail.conf; then return; fi
@@ -258,7 +273,6 @@ create_staged_fs()
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	if has_data_fs "$1"; then
-		zfs_create_fs "$ZFS_DATA_VOL"    "$ZFS_DATA_MNT"
 		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 		mount_data "$1" "$STAGE_MNT"
 	fi
@@ -608,10 +622,10 @@ mysql_db_exists()
 	result=$(echo "$_query" | jexec mysql mysql -s -N)
 	if [ -z "$result" ]; then
 		echo "$1 db does not exist"
-		return 1  # db does not exist
+		return 1
 	else
 		echo "$1 db exists"
-		return 0  # db exists
+		return 0
 	fi
 }
 

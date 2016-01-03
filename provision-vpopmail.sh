@@ -26,9 +26,10 @@ install_qmail()
 	tell_status "enabling qmail"
 	stage_exec /var/qmail/scripts/enable-qmail
 
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$STAGE_MNT/var/qmail/alias/.qmail-root"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$STAGE_MNT/var/qmail/alias/.qmail-postmaster"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$STAGE_MNT/var/qmail/alias/.qmail-mailer-daemon"
+	local _alias="$STAGE_MNT/var/qmail/alias"
+	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-root"
+	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-postmaster"
+	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-mailer-daemon"
 
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
@@ -190,6 +191,7 @@ test_vpopmail()
 	echo "testing vpopmail"
 	sleep 1 # give the daemons a second to start listening
 	stage_exec sockstat -l -4 | grep :89 || exit
+	echo "it worked"
 }
 
 base_snapshot_exists || exit

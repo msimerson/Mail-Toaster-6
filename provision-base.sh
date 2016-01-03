@@ -24,7 +24,7 @@ create_base_filesystem()
 freebsd_update()
 {
 	tell_status "apply FreeBSD security updates to base jail"
-	sed -i .bak -e 's/^Components.*/Components world kernel/' "$BASE_MNT/etc/freebsd-update.conf"
+	sed -i .bak -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 }
 
@@ -120,7 +120,8 @@ EO_MAKE_CONF
 		hostname=base \
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags=-ss \
-		sendmail_enable=NONE
+		sendmail_enable=NONE \
+		update_motd=NO
 
 	configure_ssl_dirs
 	disable_cron_jobs
@@ -245,8 +246,7 @@ install_base()
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
-jail -r stage
-zfs_create_fs "$ZFS_JAIL_VOL" "$ZFS_JAIL_MNT"
+jail -r stage 2>/dev/null
 create_base_filesystem
 install_freebsd
 configure_base

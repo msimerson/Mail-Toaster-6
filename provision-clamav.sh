@@ -95,9 +95,11 @@ EOSIG
 		> "$STAGE_ETC/newsyslog.conf.d/clamav-unofficial-sigs"
 	stage_exec /usr/local/etc/periodic/daily/clamav-unofficial-sigs
 
-	dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
+	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
+		dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
 	 https://github.com/extremeshok/clamav-unofficial-sigs and follow
 	 the steps *after* the Quick Install Guide." 10 70
+	fi
 }
 
 configure_clamd()
@@ -121,8 +123,8 @@ configure_clamd()
 		-e 's/^#PhishingScanURLs yes/PhishingScanURLs yes/' \
 		-e 's/#HeuristicScanPrecedence yes/HeuristicScanPrecedence no/' \
 		-e 's/^#StructuredDataDetection yes/StructuredDataDetection yes/' \
-		-e 's/^#StructuredMinCreditCardCount 5/StructuredMinCreditCardCount 5/' \
-		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 5/' \
+		-e 's/^#StructuredMinCreditCardCount 5/StructuredMinCreditCardCount 10/' \
+		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 10/' \
 		-e 's/^#StructuredSSNFormatStripped yes/StructuredSSNFormatStripped no/' \
 		-e 's/^#ScanArchive yes/ScanArchive yes/' \
 		"$_conf" || exit
@@ -169,6 +171,7 @@ test_clamav()
 {
 	echo "testing ClamAV..."
 	stage_exec sockstat -l -4 | grep 3310 || exit
+	echo "It works! (clamd is listening)"
 }
 
 base_snapshot_exists || exit

@@ -8,19 +8,21 @@ export JAIL_CONF_EXTRA=""
 install_dcc_cleanup()
 {
 	tell_status "adding DCC cleanup periodic task"
-	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
-	cat <<EO_DCC > $STAGE_MNT/usr/local/etc/periodic/daily/501.dccd
+	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
+	mkdir -p "$_periodic"
+	cat <<EO_DCC > $_periodic/daily/501.dccd
 #!/bin/sh
 /usr/local/dcc/libexec/cron-dccd
 EO_DCC
-	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/501.dccd"
+	chmod 755 "$_periodic/daily/501.dccd"
 }
 
 install_sa_update()
 {
 	tell_status "adding sa-update periodic task"
-	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
-	cat <<EO_SAUPD > $STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update
+	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
+	mkdir -p "$_periodic/daily"
+	cat <<EO_SAUPD > $_periodic/daily/502.sa-update
 #!/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-update \
@@ -30,7 +32,7 @@ PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-compile
 /usr/local/etc/rc.d/sa-spamd reload
 EO_SAUPD
-	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update"
+	chmod 755 "$_periodic/daily/502.sa-update"
 }
 
 install_sought_rules() {

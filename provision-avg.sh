@@ -12,25 +12,28 @@ export JAIL_CONF_EXTRA="
 
 install_avg()
 {
-	tell_status "making FreeBSD like 2008"
+	tell_status "making FreeBSD like 2008 (32-bit)"
+	stage_fbsd_package lib32
+
+	tell_status "installing FreeBSD 7.x compatibility"
+	stage_exec make -C /usr/ports/misc/compat7x install distclean
+
+	tell_status "installing ancient libiconv.so.3"
+	fetch -o "$STAGE_MNT/usr/lib32/libiconv.so.3" http://mail-toaster.org/install/libiconv.so.3
+	sysrc -R "$STAGE_MNT" ldconfig32_paths="\$ldconfig32_paths /opt/avg/av/lib"
+
+	tell_status "downloading avg"
 	fetch -m http://download.avgfree.com/filedir/inst/avg2013ffb-r3115-a6155.i386.tar.gz || exit
 
-	stage_exec make -C /usr/ports/misc/compat7x install distclean
-	stage_fbsd_package lib32
-	fetch -o "$STAGE_MNT/usr/lib32/libiconv.so.3" http://mail-toaster.org/install/libiconv.so.3
-
-	sysrc -R "$STAGE_MNT" ldconfig32_paths="\$ldconfig32_paths /opt/avg/av/lib"
-	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d" || exit
-
-	tell_status "installing avgd"
+	tell_status "installing avg"
 	tar -C "$STAGE_MNT/tmp" -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
-	mkdir -p "$STAGE_MNT/opt/avg"
+	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d" "$STAGE_MNT/opt/avg" || exit
 	stage_exec /tmp/avg2013ffb-r3115-a6155.i386/install.sh
 }
 
 configure_avg()
 {
-	tell_status "configuring avgd"
+	tell_status "configuring avg"
 	stage_exec avgcfgctl -w Default.aspam.spamassassin.enabled="false"
 	stage_exec avgcfgctl -w Default.tcpd.avg.address="0.0.0.0"
 	stage_exec avgcfgctl -w Default.tcpd.smtp.enabled="false"
@@ -51,6 +54,7 @@ test_avg()
 {
 	tell_status "testing if AVG process is running"
 	sleep 2
+	# shellcheck disable=2009
 	ps ax -J stage | grep avg || exit
 
 	tell_status "verifying avgtcpd is listening"
