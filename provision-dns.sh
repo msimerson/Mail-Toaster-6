@@ -52,7 +52,7 @@ configure_unbound()
 	   local-data: "$(get_reverse_ip spamassassin) PTR spamassassin"
 	   local-data: "$(get_reverse_ip dspam) PTR dspam"
 	   local-data: "$(get_reverse_ip vpopmail) PTR vpopmail"
-	   local-data: "$(get_reverse_ip vpopmail) PTR haraka"
+	   local-data: "$(get_reverse_ip haraka) PTR haraka"
 	   local-data: "$(get_reverse_ip webmail) PTR webmail"
 	   local-data: "$(get_reverse_ip monitor) PTR monitor"
 	   local-data: "$(get_reverse_ip haproxy) PTR haproxy"
@@ -105,6 +105,7 @@ test_unbound()
 
 	# set it back to production value
 	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
+	echo "it worked."
 }
 
 base_snapshot_exists || exit
