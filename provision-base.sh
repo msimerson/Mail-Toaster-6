@@ -99,10 +99,13 @@ disable_root_password()
 
 disable_cron_jobs()
 {
-	tell_status "disabling adjkerntz & atrun"
+	tell_status "disabling adjkerntz, save-entropy, & atrun"
+	# nobody uses atrun, safe-entropy is done by the host, and
+	# the jail doesn't have permission to run adjkerntz.
 	sed -i .bak \
-		-e '/^1.*adjkerntz/ s/^1/#1/' \
-		-e '/^\*.*atrun/ s/^\*/#*/' \
+		-e '/^1.*adjkerntz/ s/^1/#1/'  \
+		-e '/^\*.*atrun/    s/^\*/#*/' \
+		-e '/^\*.*entropy/  s/^\*/#*/' \
 		"$BASE_MNT/etc/crontab" || exit
 
 	echo "done"
