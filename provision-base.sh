@@ -66,6 +66,20 @@ purgestat	/usr/bin/true
 EO_MAILER_CONF
 }
 
+configure_syslog()
+{
+	tell_status "forwarding syslog to host"
+	tee "$BASE_MNT/etc/syslog.conf" <<EO_SYSLOG
+*.*			@syslog
+EO_SYSLOG
+
+	tell_status "disabling newsyslog"
+	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
+	sed -i .bak \
+		-e '/^0.*newsyslog/ s/^0/#0/' \
+		"$BASE_MNT/etc/crontab"
+}
+
 disable_syslog()
 {
 	tell_status "disabling syslog"
@@ -119,13 +133,13 @@ EO_MAKE_CONF
 	sysrc -f "$BASE_MNT/etc/rc.conf" \
 		hostname=base \
 		cron_flags='$cron_flags -J 15' \
-		syslogd_flags=-ss \
+		syslogd_flags="-s -cc" \
 		sendmail_enable=NONE \
 		update_motd=NO
 
 	configure_ssl_dirs
 	disable_cron_jobs
-	#disable_syslog
+	configure_syslog
 }
 
 install_bash()

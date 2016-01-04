@@ -23,13 +23,20 @@ configure_unbound()
 	tell_status "configuring unbound-control"
 	stage_exec /usr/local/sbin/unbound-control-setup
 
+	tell_status "configuring unbound.conf"
 	# for the munin status plugin
 	sed -i .bak \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
 		-e 's/# control-enable: no/control-enable: yes/' \
 		-e "s/# control-interface: 127.*/control-interface: 0.0.0.0/" \
-		"$UNB_DIR/unbound.conf"
+		-e 's/# use-syslog: yes/use-syslog: yes/' \
+		-e 's/# hide-identity: no/hide-identity: yes/' \
+		-e 's/# hide-version: no/hide-version: yes/' \
+		-e '/# local-data-ptr:.*/ a\ 
+include: "/usr/local/etc/unbound/toaster.conf" \
+' \
+		"$UNB_DIR/unbound.conf" || exit
 
 	get_public_ip
 
@@ -37,14 +44,12 @@ configure_unbound()
 	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
 	   $UNB_LOCAL
 
-	   hide-identity: yes
-	   hide-version: yes
-
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
 
+	   local-data: "$(get_reverse_ip syslog) PTR syslog"
 	   local-data: "$(get_reverse_ip base) PTR base"
 	   local-data: "$(get_reverse_ip dns) PTR dns"
 	   local-data: "$(get_reverse_ip mysql) PTR mysql"
@@ -63,6 +68,7 @@ configure_unbound()
 	   local-data: "$(get_reverse_ip geoip) PTR geoip"
 	   local-data: "$(get_reverse_ip stage) PTR stage"
 
+	   local-data: "syslog       A $(get_jail_ip syslog)"
 	   local-data: "base         A $(get_jail_ip base)"
 	   local-data: "dns          A $(get_jail_ip dns)"
 	   local-data: "mysql        A $(get_jail_ip mysql)"
@@ -83,9 +89,6 @@ configure_unbound()
 
 EO_UNBOUND
 
-	sed -i.bak -e '/# local-data-ptr:.*/ a\ 
-include: "/usr/local/etc/unbound/toaster.conf" \
-' "$UNB_DIR/unbound.conf"
 }
 
 start_unbound()

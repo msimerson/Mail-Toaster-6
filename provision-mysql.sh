@@ -14,7 +14,8 @@ install_mysql()
 
 configure_mysql()
 {
-	true
+	tell_status "configuring mysql"
+	stage_sysrc mysql_args="--syslog"
 }
 
 start_mysql()

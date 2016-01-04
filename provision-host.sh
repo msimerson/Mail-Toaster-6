@@ -3,7 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
-update_host_ntpd()
+configure_ntpd()
 {
 	tell_status "enabling NTPd"
 	sysrc ntpd_enable=YES || exit
@@ -14,12 +14,11 @@ update_host_ntpd()
 update_syslogd()
 {
 	if grep ^syslogd_flags /etc/rc.conf; then
-		echo "preserving syslogd flags"
-		return
+		echo "NOTICE: changing syslogd flags"
 	fi
 
-	tell_status "disable syslog network listener"
-	sysrc syslogd_flags=-ss
+	tell_status "configuring syslog to accept messages from jails"
+	sysrc syslogd_flags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -cc"
 	service syslogd restart
 }
 
@@ -185,7 +184,7 @@ set_jail_start_order()
 	fi
 
 	tell_status "setting jail startup order"
-	sysrc jail_list="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin dspam haraka monitor"
+	sysrc jail_list="$JAIL_ORDERED_LIST"
 }
 
 rcd_jail_patch()
@@ -270,7 +269,7 @@ plumb_jail_nic()
 
 	if ! grep cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface for jails"
-		sysrc cloned_interfaces=lo1
+		sysrc cloned_interfaces=lo1 || exit
 	fi
 
 	local _missing;
@@ -279,11 +278,42 @@ plumb_jail_nic()
 		echo "creating interface lo1"
 		ifconfig lo1 create || exit
 	fi
+
+}
+
+assign_syslog_ip()
+{
+	if ! grep ifconfig_lo1 /etc/rc.conf; then
+		tell_status "adding syslog IP to lo1"
+		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0" || exit
+	fi
+
+	local _present
+	_present=$(ifconfig lo1 2>&1 | grep "$JAIL_NET_PREFIX.1 ")
+	if [ -z "$_present" ]; then
+		echo "assigning $JAIL_NET_PREFIX.1 to lo1"
+		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0 || exit
+	fi
+}
+
+configure_etc_hosts()
+{
+	# this is really important since syslog does a DNS lookup for the remote
+	# hosts DNS on *every* incoming syslog message.
+	local _hosts
+	_hosts="$(get_jail_ip syslog)		syslog
+$(get_jail_ip base)		base"
+	for j in $JAIL_ORDERED_LIST;
+	do
+		_hosts="$_hosts
+$(get_jail_ip "$j")		$j"
+	done
+	echo "$_hosts" | tee -a "/etc/hosts"
 }
 
 update_host() {
 	update_freebsd
-	update_host_ntpd
+	configure_ntpd
 	update_syslogd
 	update_sendmail
 	constrain_sshd_to_host
@@ -293,6 +323,8 @@ update_host() {
 	enable_jails
 	install_jailmanage
 	plumb_jail_nic
+	assign_syslog_ip
+	configure_etc_hosts
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
 

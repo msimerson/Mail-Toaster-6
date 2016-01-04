@@ -15,8 +15,6 @@ install_geoip()
 
 configure_geoip()
 {
-	stage_sysrc syslogd_enable=NO
-	
 	local _weekly="$STAGE_MNT/usr/local/etc/periodic/weekly"
 	mkdir -p "$_weekly"
 	tee "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO

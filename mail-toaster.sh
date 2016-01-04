@@ -9,6 +9,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
+export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin dspam haraka monitor"}
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
@@ -161,9 +162,10 @@ EO_JAIL_CONF_HEAD
 get_jail_ip()
 {
 	local _start=${JAIL_NET_START:=1}
-	local _incr=0
+	local _incr
 
 	case "$1" in
+		syslog)       _incr=0 ;;
 		base)         _incr=1 ;;
 		dns)          _incr=2 ;;
 		mysql)        _incr=3 ;;
@@ -188,7 +190,7 @@ get_jail_ip()
 	fi
 
 	# return error code if _incr unset
-	if [ "$_incr" = "0" ]; then return 2; fi
+	if [ -z "$_incr" ]; then return 2; fi
 
 	local _octet=$((_start + _incr))
 	echo "$JAIL_NET_PREFIX.$_octet"
@@ -666,4 +668,38 @@ provision()
 	esac
 
 	echo "unknown action $1"
+}
+
+reverse_list()
+{
+	# shellcheck disable=2068
+	for _j in $@; do
+		_rev_list="${_j} ${_rev_list}"
+	done
+	echo "$_rev_list"
+}
+
+unprovision()
+{
+	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
+	for _j in $_reversed; do
+		echo "$_j"
+
+		service jail stop "$_j"
+
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j"
+			zfs destroy "$ZFS_JAIL_VOL/$_j"
+		fi
+
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.ready"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j.ready"
+			zfs destroy "$ZFS_JAIL_VOL/$_j.ready"
+		fi
+
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
+			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
+		fi
+	done
 }
