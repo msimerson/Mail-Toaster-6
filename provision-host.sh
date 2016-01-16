@@ -133,8 +133,11 @@ add_jail_nat()
 		return
 	fi
 
-        if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
-        if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
+	get_public_ip
+	get_public_ip ipv6
+
+	if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
+	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
 
 	tell_status "enabling NAT for jails"
 	tee -a /etc/pf.conf <<EO_PF_RULES
@@ -300,15 +303,21 @@ configure_etc_hosts()
 {
 	# this is really important since syslog does a DNS lookup for the remote
 	# hosts DNS on *every* incoming syslog message.
+	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
+		tell_status "removing /etc/hosts toaster additions"
+		sed -i .bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+	fi
+
+	tell_status "adding /etc/hosts entries"
 	local _hosts
 	_hosts="
 $(get_jail_ip syslog)		syslog
-$(get_jail_ip base)		base"
+$(get_jail_ip base)		base
+$(get_jail_ip stage)		stage"
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip "$j")		$j
-$(get_jail_ip stage)		stage"
+$(get_jail_ip "$j")		$j"
 	done
 	echo "$_hosts" | tee -a "/etc/hosts"
 }

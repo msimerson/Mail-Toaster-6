@@ -9,7 +9,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin dspam haraka monitor"}
+export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
@@ -52,6 +52,7 @@ FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
+export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 export STAGE_MNT="$ZFS_JAIL_MNT/stage"
 
@@ -679,13 +680,12 @@ reverse_list()
 	echo "$_rev_list"
 }
 
-unprovision()
+unprovision_filesystems()
 {
-	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
-	for _j in $_reversed; do
-		echo "$_j"
-
-		service jail stop "$_j"
+	for _j in $JAIL_ORDERED_LIST; do
+		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
+			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
+		fi
 
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$_j"
@@ -701,5 +701,57 @@ unprovision()
 			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
 			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
 		fi
+
+		if has_data_fs "$_j"; then
+			if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
+				tell_status "destroying $ZFS_DATA_MNT/$_j"
+				zfs destroy "$ZFS_DATA_VOL/$_j"
+			fi
+		fi
 	done
+
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL"; then
+		tell_status "destroying $ZFS_JAIL_VOL"
+		zfs destroy "$ZFS_JAIL_VOL"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_DATA_VOL"; then
+		tell_status "destroying $ZFS_DATA_VOL"
+		zfs destroy "$ZFS_DATA_VOL"
+	fi
+
+	if zfs_filesystem_exists "$BASE_VOL"; then
+		tell_status "destroying $BASE_VOL"
+		zfs destroy -r "$BASE_VOL"
+	fi
+}
+
+unprovision_files()
+{
+	for _f in /etc/jail.conf /etc/pf.conf /usr/local/sbin/jailmanage; do
+		if [ -f "$_f" ]; then
+			tell_status "rm $_f"
+			rm "$_f"
+		fi
+	done
+
+	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
+		sed -i .bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+	fi
+}
+
+unprovision()
+{
+	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
+
+	if [ -f /etc/jail.conf ]; then
+		for _j in $_reversed; do
+			echo "$_j"
+			service jail stop "$_j"
+			sleep 1
+		done
+	fi
+
+	unprovision_filesystems
+	unprovision_files
 }
