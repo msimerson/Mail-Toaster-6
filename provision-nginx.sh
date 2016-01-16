@@ -48,11 +48,6 @@ EO_NGINX_CONF
 	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
 
-    tell_status "starting nginx"
-    stage_sysrc nginx_enable=YES
-    stage_exec service nginx start
-
-
 }
 
 start_nginx()
