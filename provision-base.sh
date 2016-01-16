@@ -3,8 +3,6 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
-export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
-
 create_base_filesystem()
 {
 	if [ -e "$BASE_MNT/dev/null" ];
