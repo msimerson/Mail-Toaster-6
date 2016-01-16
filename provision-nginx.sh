@@ -5,7 +5,7 @@
 
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/webmail \$path/data nullfs rw 0 0\";"
+		mount += \"$ZFS_DATA_MNT/nginx \$path/data nullfs rw 0 0\";"
 
 
 install_nginx()
@@ -16,7 +16,7 @@ install_nginx()
 	mkdir -p "$_nginx_conf" || exit
 
 	tee "$_nginx_conf/mail-toaster.conf" <<'EO_NGINX_MT6'
-set_real_ip_from 127.0.0.12;
+set_real_ip_from $(get_jail_ip haproxy);
 real_ip_header X-Forwarded-For;
 
 location / {
@@ -40,11 +40,6 @@ EO_NGINX_MT6
  
          #access_log  logs/host.access.log  main;
  
--        location / {
--            root   /usr/local/www/nginx;
--            index  index.html index.htm;
--        }
- 
          #error_page  404              /404.html;
  
 EO_NGINX_CONF
@@ -62,7 +57,10 @@ EO_NGINX_CONF
 
 start_nginx()
 {
-	true
+    tell_status "starting nginx"
+    stage_sysrc nginx_enable=YES
+    stage_exec service nginx start
+
 }
 
 test_nginx()
@@ -76,7 +74,6 @@ base_snapshot_exists || exit
 create_staged_fs nginx
 start_staged_jail
 install_nginx
-#configure_webmail
 start_nginx
 test_nginx
 promote_staged_jail nginx
