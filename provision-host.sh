@@ -301,12 +301,14 @@ configure_etc_hosts()
 	# this is really important since syslog does a DNS lookup for the remote
 	# hosts DNS on *every* incoming syslog message.
 	local _hosts
-	_hosts="$(get_jail_ip syslog)		syslog
+	_hosts="
+$(get_jail_ip syslog)		syslog
 $(get_jail_ip base)		base"
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip "$j")		$j"
+$(get_jail_ip "$j")		$j
+$(get_jail_ip stage)		stage"
 	done
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
