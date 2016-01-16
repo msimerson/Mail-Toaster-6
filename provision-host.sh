@@ -314,7 +314,6 @@ $(get_jail_ip "$j")		$j"
 update_host() {
 	update_freebsd
 	configure_ntpd
-	update_syslogd
 	update_sendmail
 	constrain_sshd_to_host
 	check_global_listeners
@@ -324,6 +323,7 @@ update_host() {
 	install_jailmanage
 	plumb_jail_nic
 	assign_syslog_ip
+	update_syslogd
 	configure_etc_hosts
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
