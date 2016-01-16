@@ -600,6 +600,12 @@ get_public_facing_nic()
 	else
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
 	fi
+
+        if [ -z "$PUBLIC_NIC" ];
+        then
+            echo "public NIC detection failed"
+            exit 1
+        fi
 }
 
 get_public_ip()

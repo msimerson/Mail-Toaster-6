@@ -134,6 +134,9 @@ add_jail_nat()
 		return
 	fi
 
+        if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
+        if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
+
 	tell_status "enabling NAT for jails"
 	tee -a /etc/pf.conf <<EO_PF_RULES
 ext_if="$PUBLIC_NIC"
