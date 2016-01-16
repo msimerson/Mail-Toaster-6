@@ -15,13 +15,9 @@ install_nginx()
 	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
 	mkdir -p "$_nginx_conf" || exit
 
-	tee "$_nginx_conf/mail-toaster.conf" <<'EO_NGINX_MT6'
-set_real_ip_from $(get_jail_ip haproxy);
-real_ip_header X-Forwarded-For;
+    set_real_ip_from $(get_jail_ip haproxy);
+    real_ip_header X-Forwarded-For;
 
-location / {
-   root   /usr/local/www/data;
-   index  index.html index.htm;
 }
 
 EO_NGINX_MT6
