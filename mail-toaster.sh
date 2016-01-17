@@ -656,27 +656,12 @@ fetch_and_exec()
 
 provision()
 {
-	case "$1" in
-		host)	      fetch_and_exec "$1"; return;;
-		base)	      fetch_and_exec "$1"; return;;
-		dns)	      fetch_and_exec "$1"; return;;
-		mysql)	      fetch_and_exec "$1"; return;;
-		clamav)	      fetch_and_exec "$1"; return;;
-		spamassassin) fetch_and_exec "$1"; return;;
-		dspam)	      fetch_and_exec "$1"; return;;
-		vpopmail)     fetch_and_exec "$1"; return;;
-		haraka)	      fetch_and_exec "$1"; return;;
-		webmail)      fetch_and_exec "$1"; return;;
-		monitor)      fetch_and_exec "$1"; return;;
-		haproxy)      fetch_and_exec "$1"; return;;
-		rspamd)	      fetch_and_exec "$1"; return;;
-		avg)	      fetch_and_exec "$1"; return;;
-		dovecot)      fetch_and_exec "$1"; return;;
-		redis)	      fetch_and_exec "$1"; return;;
-		geoip)	      fetch_and_exec "$1"; return;;
-	esac
+	if ! get_jail_ip "$1"; then
+		echo "unknown jail $1"
+		return;
+	fi
 
-	echo "unknown action $1"
+	fetch_and_exec "$1"
 }
 
 reverse_list()
