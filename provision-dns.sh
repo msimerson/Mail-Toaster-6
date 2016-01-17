@@ -66,6 +66,10 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	   local-data: "$(get_reverse_ip dovecot) PTR dovecot"
 	   local-data: "$(get_reverse_ip redis) PTR redis"
 	   local-data: "$(get_reverse_ip geoip) PTR geoip"
+	   local-data: "$(get_reverse_ip nginx) PTR nginx"
+	   local-data: "$(get_reverse_ip lighttpd) PTR lighttpd"
+	   local-data: "$(get_reverse_ip apache) PTR apache"
+	   local-data: "$(get_reverse_ip postgres) PTR postgres"
 	   local-data: "$(get_reverse_ip stage) PTR stage"
 
 	   local-data: "syslog       A $(get_jail_ip syslog)"
@@ -85,6 +89,10 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	   local-data: "dovecot      A $(get_jail_ip dovecot)"
 	   local-data: "redis        A $(get_jail_ip redis)"
 	   local-data: "geoip        A $(get_jail_ip geoip)"
+	   local-data: "nginx        A $(get_jail_ip nginx)"
+	   local-data: "lighttpd     A $(get_jail_ip lighttpd)"
+	   local-data: "apache       A $(get_jail_ip apache)"
+	   local-data: "postgres     A $(get_jail_ip postgres)"
 	   local-data: "stage        A $(get_jail_ip stage)"
 
 EO_UNBOUND

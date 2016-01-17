@@ -183,6 +183,10 @@ get_jail_ip()
 		dovecot)      _incr=14 ;;
 		redis)        _incr=15 ;;
 		geoip)        _incr=16 ;;
+		nginx)        _incr=17 ;;
+		lighttpd)     _incr=18 ;;
+		apache)       _incr=19 ;;
+		postgres)     _incr=20 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -522,6 +526,10 @@ has_data_fs()
 		redis )    return 0;;
 		vpopmail ) return 0;;
 		webmail )  return 0;;
+		nginx )    return 0;;
+		lighttpd ) return 0;;
+		apache )   return 0;;
+		postgres ) return 0;;
 	esac
 
 	return 1
