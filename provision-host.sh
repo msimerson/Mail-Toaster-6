@@ -175,7 +175,7 @@ install_jailmanage()
 {
 	tell_status "installing jailmanage"
 	pkg install -y ca_root_nss || exit
-	fetch -o /usr/local/sbin/jailmanage https://www.tnpi.net/computing/freebsd/jail_manage.txt
+	fetch -o /usr/local/sbin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
 	chmod 755 /usr/local/sbin/jailmanage || exit
 }
 
