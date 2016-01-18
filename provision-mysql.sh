@@ -16,6 +16,11 @@ configure_mysql()
 {
 	tell_status "configuring mysql"
 	stage_sysrc mysql_args="--syslog"
+
+	if [ -f "$ZFS_JAIL_MNT/mysql/etc/my.cnf" ]; then
+		tell_status "preserving /etc/my.cnf"
+		cp "$ZFS_JAIL_MNT/mysql/etc/my.cnf" "$STAGE_MNT/etc/my.cnf"
+	fi
 }
 
 start_mysql()
@@ -25,7 +30,7 @@ start_mysql()
 
 	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
 		# mysql jail already exists, unmount the data dir since two mysql's
-		# cannot access the data
+		# cannot access the data concurrently
 		unmount_data mysql
 	fi
 
