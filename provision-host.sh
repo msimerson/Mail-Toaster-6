@@ -22,6 +22,13 @@ update_syslogd()
 	service syslogd restart
 }
 
+constrain_syslogd_to_host()
+{
+	tell_status "disabling syslog network listener"
+	sysrc syslogd_flags=-ss
+	service syslogd restart
+}
+
 update_sendmail()
 {
 	if grep ^sendmail_enable /etc/rc.conf; then
@@ -247,7 +254,7 @@ update_ports_tree()
 	portsnap fetch || exit
 
 	if [ -d /usr/ports/mail/vpopmail ]; then
-		portsnap update || exit
+		portsnap update || portsnap extract || exit
 	else
 		portsnap extract || exit
 	fi
@@ -327,6 +334,7 @@ update_host() {
 	configure_ntpd
 	update_sendmail
 	constrain_sshd_to_host
+	constrain_syslogd_to_host
 	check_global_listeners
 	add_jail_nat
 	configure_tls_certs
