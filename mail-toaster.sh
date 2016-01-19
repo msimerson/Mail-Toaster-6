@@ -656,6 +656,10 @@ fetch_and_exec()
 
 provision()
 {
+	case "$1" in
+		host)   fetch_and_exec "$1"; return;;
+	esac
+
 	if ! get_jail_ip "$1"; then
 		echo "unknown jail $1"
 		return;
