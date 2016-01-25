@@ -126,7 +126,7 @@ check_global_listeners()
 {
 	tell_status "checking for host listeners on all IPs"
 
-	if sockstat -L | egrep '\*:[0-9]' | grep -v 123; then
+	if sockstat -L -4 | egrep '\*:[0-9]' | grep -v 123; then
 		echo "oops!, you should not having anything listening
 		on all your IP addresses!"
 		exit 2
@@ -288,7 +288,6 @@ plumb_jail_nic()
 		echo "creating interface lo1"
 		ifconfig lo1 create || exit
 	fi
-
 }
 
 assign_syslog_ip()

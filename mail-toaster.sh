@@ -187,6 +187,7 @@ get_jail_ip()
 		lighttpd)     _incr=18 ;;
 		apache)       _incr=19 ;;
 		postgres)     _incr=20 ;;
+		minecraft)    _incr=21 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -751,4 +752,12 @@ unprovision()
 
 	unprovision_filesystems
 	unprovision_files
+}
+
+add_pf_portmap()
+{
+	sed -i .bak -e "/^block / a\
+# map port $1 traffic to $2
+rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
+" /etc/pf.conf
 }

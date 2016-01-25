@@ -308,7 +308,7 @@ install_lighttpd()
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
 	sed -i .bak -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_lighttpd_conf"
-# shellcheck disable=2016
+	# shellcheck disable=2016
 	sed -i .bak -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_lighttpd_conf"
 
 	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' "$_lighttpd_conf"
