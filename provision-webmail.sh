@@ -12,9 +12,13 @@ install_php()
 	tell_status "installing PHP"
 	stage_pkg_install php56 php56-fileinfo php56-mcrypt php56-exif php56-openssl
 
-	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$STAGE_MNT/usr/local/etc/php.ini"
-	sed -i .bak -e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
-		"$STAGE_MNT/usr/local/etc/php.ini"
+	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
+	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
+	sed -i .bak \
+		-e '/^;date.timezone/ s/^;//; s/=.*/= America\/Los_Angeles/' \
+		-e '/^post_max_size/ s/8M/25M/' \
+		-e '/^upload_max_filesize/ s/2M/24M/' \
+		"$_php_ini"
 }
 
 install_roundcube_mysql()
