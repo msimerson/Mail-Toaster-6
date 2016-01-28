@@ -750,6 +750,7 @@ unprovision()
 		done
 	fi
 
+	ipcrm -W
 	unprovision_filesystems
 	unprovision_files
 }
