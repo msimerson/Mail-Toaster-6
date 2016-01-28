@@ -15,7 +15,7 @@ install_php()
 	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
 	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
 	sed -i .bak \
-		-e '/^;date.timezone/ s/^;//; s/=.*/= America\/Los_Angeles/' \
+		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
 		-e '/^post_max_size/ s/8M/25M/' \
 		-e '/^upload_max_filesize/ s/2M/24M/' \
 		"$_php_ini"
