@@ -250,7 +250,7 @@ real_ip_header X-Forwarded-For;
 client_max_body_size 25m;
 
 location / {
-   root   /usr/local/www/data;
+   root   /data/htdocs;
    index  index.html index.htm;
 }
 
@@ -312,13 +312,50 @@ install_lighttpd()
 	local _lighttpd_dir="$STAGE_MNT/usr/local/etc/lighttpd"
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
-	sed -i .bak -e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' "$_lighttpd_conf"
 	# shellcheck disable=2016
-	sed -i .bak -e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' "$_lighttpd_conf"
+	sed -i .bak \
+		-e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' \
+		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
+		-e 's/^#include_shell "cat/include_shell "cat/' \
+		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
+		"$_lighttpd_conf"
 
-	sed -i .bak -e 's/^#include_shell "cat/include_shell "cat/' "$_lighttpd_conf"
-	fetch -o "$_lighttpd_dir/vhosts.d/mail-toaster.conf" \
-		http://mail-toaster.org/etc/mt6-lighttpd.txt
+	tee "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
+server.modules += ( "mod_alias" )
+
+alias.url = ( "/cgi-bin/"        => "/usr/local/www/cgi-bin/",
+              "/squirrelmail/"   => "/usr/local/www/squirrelmail/",
+              "/roundcube/"      => "/usr/local/www/roundcube/",
+              "/v-webmail/"      => "/usr/local/www/v-webmail/htdocs/",
+              "/horde/"          => "/usr/local/www/horde/",
+              "/awstatsclasses"  => "/usr/local/www/awstats/classes/",
+              "/awstatscss"      => "/usr/local/www/awstats/css/",
+              "/awstatsicons"    => "/usr/local/www/awstats/icons/",
+              "/awstats/"        => "/usr/local/www/awstats/cgi-bin/",
+           )
+
+server.modules += ( "mod_cgi" )
+
+$HTTP["url"] =~ "^/awstats/" {
+   cgi.assign = ( "" => "/usr/bin/perl" )
+}
+$HTTP["url"] =~ "^/cgi-bin" {
+   cgi.assign = ( "" => "" )
+}
+
+server.modules += ( "mod_fastcgi" )
+fastcgi.server = (
+                   ".php" =>
+                    ( "php-tcp" =>
+                      (
+                        "host" => "172.16.15.10",
+                        "port" => 9000,
+                        "check-local" => "disable",
+                        "broken-scriptfilename" => "enable",
+                      )
+                    )
+                 )
+EO_LIGHTTPD_MT6
 }
 
 install_php_mysql()
@@ -356,12 +393,10 @@ install_webmail()
 	install_squirrelmail || exit
 }
 
-configure_webmail()
+install_index()
 {
-	mkdir -p "$STAGE_MNT/usr/local/www/data"
-
-	tell_status "installing index.html"
-	tee "$STAGE_MNT/usr/local/www/data/index.html" <<'EO_INDEX'
+    tell_status "installing index.html"
+    tee "$_htdocs/index.html" <<'EO_INDEX'
 <html>
 <head>
  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
@@ -449,16 +484,30 @@ body {
 </body>
 </html>
 EO_INDEX
+}
+
+configure_webmail()
+{
+	_htdocs="$ZFS_DATA_MNT/webmail/htdocs"
+	if [ ! -d "$_htdocs" ]; then
+	   mkdir -p "$_htdocs"
+	fi
+
+	if [ ! -f "$_htdocs/index.html" ]; then
+		install_index
+	fi
 
 	tell_status "installing mime.types"
 	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-	http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
 
-	tell_status "installing robots.txt"
-	tee "$STAGE_MNT/usr/local/www/data/robots.txt" <<EO_ROBOTS_TXT
+	if [ ! -f "$_htdocs/robots.txt" ]; then
+		tell_status "installing robots.txt"
+		tee "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
 User-agent: *
 Disallow: /
 EO_ROBOTS_TXT
+	fi
 }
 
 start_webmail()
