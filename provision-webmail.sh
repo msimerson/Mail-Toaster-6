@@ -17,7 +17,7 @@ install_php()
 	sed -i .bak \
 		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
 		-e '/^post_max_size/ s/8M/25M/' \
-		-e '/^upload_max_filesize/ s/2M/24M/' \
+		-e '/^upload_max_filesize/ s/2M/25M/' \
 		"$_php_ini"
 }
 
@@ -247,6 +247,7 @@ install_nginx()
 	tee "$_nginx_conf/mail-toaster.conf" <<'EO_NGINX_MT6'
 set_real_ip_from 127.0.0.12;
 real_ip_header X-Forwarded-For;
+client_max_body_size 25m;
 
 location / {
    root   /usr/local/www/data;
@@ -359,6 +360,7 @@ configure_webmail()
 {
 	mkdir -p "$STAGE_MNT/usr/local/www/data"
 
+	tell_status "installing index.html"
 	tee "$STAGE_MNT/usr/local/www/data/index.html" <<'EO_INDEX'
 <html>
 <head>
@@ -448,8 +450,15 @@ body {
 </html>
 EO_INDEX
 
+	tell_status "installing mime.types"
 	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-        http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+	http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+
+	tell_status "installing robots.txt"
+	tee "$STAGE_MNT/usr/local/www/data/robots.txt" <<EO_ROBOTS_TXT
+User-agent: *
+Disallow: /
+EO_ROBOTS_TXT
 }
 
 start_webmail()
