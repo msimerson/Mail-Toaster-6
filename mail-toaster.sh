@@ -188,6 +188,7 @@ get_jail_ip()
 		apache)       _incr=19 ;;
 		postgres)     _incr=20 ;;
 		minecraft)    _incr=21 ;;
+		joomla)       _incr=22 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
