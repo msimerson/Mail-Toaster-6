@@ -244,8 +244,8 @@ install_nginx()
 	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
 	mkdir -p "$_nginx_conf" || exit
 
-	tee "$_nginx_conf/mail-toaster.conf" <<'EO_NGINX_MT6'
-set_real_ip_from 127.0.0.12;
+	tee "$_nginx_conf/mail-toaster.conf" <<EO_NGINX_MT6
+set_real_ip_from 172.16.15.12;
 real_ip_header X-Forwarded-For;
 client_max_body_size 25m;
 
@@ -254,11 +254,11 @@ location / {
    index  index.html index.htm;
 }
 
-location ~  ^/(squirrelmail|roundcube)/(.+\.php)$ {
+location ~  ^/(squirrelmail|roundcube)/(.+\.php)\$ {
     alias /usr/local/www;
     fastcgi_pass   127.0.0.1:9000;
     fastcgi_index  index.php;
-    fastcgi_param  SCRIPT_FILENAME  $document_root/$1/$2;
+    fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
     include        fastcgi_params;
 }
 
@@ -291,7 +291,7 @@ EO_NGINX_MT6
 -            root   /usr/local/www/nginx;
 -            index  index.html index.htm;
 -        }
-+	include conf.d/mail-toaster.conf;
++        include conf.d/mail-toaster.conf;
  
          #error_page  404              /404.html;
  

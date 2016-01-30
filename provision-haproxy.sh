@@ -29,7 +29,7 @@ defaults
 #   timeout     client 86400s
     timeout     tunnel 1h
 
-#listen stats 0.0.0.0:9000
+#listen stats *:9000
 #    mode http
 #    balance
 #    stats uri /haproxy_stats
@@ -45,7 +45,7 @@ frontend http-in
     redirect scheme https code 301 if !is_websocket !{ ssl_fc }
 
 frontend https-in
-    bind *:443 ssl crt /etc/ssl/private/server.pem
+    bind *:443 ssl crt /etc/ssl/private
     # ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128:AES256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK
     reqadd X-Forwarded-Proto:\ https
     default_backend www_webmail
@@ -100,8 +100,14 @@ backend www_rspamd
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
 EO_HAPROXY_CONF
 
-	cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-		> "$STAGE_MNT/etc/ssl/private/server.pem" || exit
+	if ls /etc/ssl/private/*.pem; then
+		tell_status "copying PEM files"
+		cp /etc/ssl/private/*.pem "$STAGE_MNT/etc/ssl/private/"
+	else
+		tell_status "concatenating server key and crt to PEM"
+		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
+			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit
+	fi
 }
 
 start_haproxy()
