@@ -199,7 +199,7 @@ set_jail_start_order()
 
 rcd_jail_patch()
 {
-	if grep _rev_jail_list /etc/rc.d/jail; then
+	if grep -q _rev_jail_list /etc/rc.d/jail; then
 		echo "rc.d/jail is already patched"
 		return
 	fi
@@ -325,6 +325,10 @@ $(get_jail_ip stage)		stage"
 		_hosts="$_hosts
 $(get_jail_ip "$j")		$j"
 	done
+    _hosts="$_hosts
+$(get_jail_ip "minecraft")		minecraft
+$(get_jail_ip "joomla")		joomla
+"
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 
