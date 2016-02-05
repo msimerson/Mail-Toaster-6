@@ -47,6 +47,12 @@ install_maildrop()
 	fetch -o "$STAGE_MNT/etc/mailfilter" http://mail-toaster.com/install/mt6-mailfilter.txt
 	chown 89:89 "$STAGE_MNT/etc/mailfilter"
 	chmod 600 "$STAGE_MNT/etc/mailfilter"
+
+	tell_status "adding legacy mailfilter for MT5 compatibility"
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
+	chown 89:89 "$STAGE_MNT/usr/local/etc/mailfilter"
+	chmod 600 "$STAGE_MNT/usr/local/etc/mailfilter"
 }
 
 install_lighttpd()

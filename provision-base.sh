@@ -11,9 +11,10 @@ create_base_filesystem()
 		umount "$BASE_MNT/dev" || exit
 	fi
 
-	if [ -d "$BASE_MNT" ];
+	if zfs_filesystem_exists "$BASE_VOL";
 	then
-		zfs_destroy_fs "$BASE_VOL"
+		echo "$BASE_VOL already exists"
+		return
 	fi
 
 	zfs_create_fs "$BASE_VOL"
@@ -28,6 +29,11 @@ freebsd_update()
 
 install_freebsd()
 {
+	if [ -f "$BASE_MNT/COPYRIGHT" ]; then
+		echo "FreeBSD already installed"
+		return
+	fi
+
 	if [ -n "$USE_BSDINSTALL" ]; then
 		export BSDINSTALL_DISTSITE;
 		BSDINSTALL_DISTSITE="$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
@@ -35,8 +41,6 @@ install_freebsd()
 	else
 		stage_fbsd_package base "$BASE_MNT"
 	fi
-
-	freebsd_update
 }
 
 install_ssmtp()
@@ -89,6 +93,10 @@ disable_syslog()
 
 disable_root_password()
 {
+	if ! grep -q '^root::' "$BASE_MNT/etc/master.passwd"; then
+		return
+	fi
+
 	# prevent a nightly email notice about the empty root password
 	tell_status "disabling passwordless root account"
 	sed -i .bak -e 's/^root::/root:*:/' "$BASE_MNT/etc/master.passwd"
@@ -97,6 +105,11 @@ disable_root_password()
 
 disable_cron_jobs()
 {
+	if grep -q '^1.*adjkerntz' "$BASE_MNT/etc/crontab"; then
+		tell_status "cron jobs already configured"
+		return
+	fi
+
 	tell_status "disabling adjkerntz, save-entropy, & atrun"
 	# nobody uses atrun, safe-entropy is done by the host, and
 	# the jail doesn't have permission to run adjkerntz.
@@ -115,9 +128,24 @@ configure_ssl_dirs()
 	chmod o-r "$BASE_MNT/etc/ssl/private"
 }
 
+configure_make_conf() {
+	local _make="$BASE_MNT/etc/make.conf"
+	if grep -qs WRKDIRPREFIX "$_make"; then
+		return
+	fi
+
+	tell_status "setting base jail make.conf variables"
+	tee -a "$_make" <<EO_MAKE_CONF
+WITH_PKGNG=yes
+WRKDIRPREFIX?=/tmp/portbuild
+EO_MAKE_CONF
+}
+
 configure_base()
 {
-	mkdir "$BASE_MNT/usr/ports" || exit
+	if [ ! -d "$BASE_MNT/usr/ports" ]; then
+		mkdir "$BASE_MNT/usr/ports" || exit
+	fi
 
 	tell_status "adding base jail resolv.conf"
 	cp /etc/resolv.conf "$BASE_MNT/etc" || exit
@@ -125,11 +153,7 @@ configure_base()
 	tell_status "setting base jail timezone (to hosts)"
 	cp /etc/localtime "$BASE_MNT/etc" || exit
 
-	tell_status "setting base jail make.conf variables"
-	tee -a "$BASE_MNT/etc/make.conf" <<EO_MAKE_CONF
-WITH_PKGNG=yes
-WRKDIRPREFIX?=/tmp/portbuild
-EO_MAKE_CONF
+	configure_make_conf
 
 	sysrc -f "$BASE_MNT/etc/rc.conf" \
 		hostname=base \
@@ -264,6 +288,7 @@ zfs_snapshot_exists "$BASE_SNAP" && exit 0
 jail -r stage 2>/dev/null
 create_base_filesystem
 install_freebsd
+freebsd_update
 configure_base
 config_bourne_shell
 start_staged_jail base "$BASE_MNT" || exit
