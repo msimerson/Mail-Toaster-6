@@ -21,8 +21,8 @@ install_haraka()
 	local _ghi="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
 	local _ghu='https://raw.githubusercontent.com/haraka/Haraka/master'
 
-	# remove after Haraka > 2.7.2 release
-	for f in plugins/spamassassin.js plugins/karma.js plugins/redis.js plugins/rspamd.js plugins/watch/index.js plugins/watch/html/client.js plugins/connect.geoip.js plugins/connect.p0f.js
+	# remove after Haraka v2.8.0 release
+	for f in plugins.js plugins/watch/index.js plugins/watch/package.json plugins/dkim_verify.js outbound.js
 	do
 		echo "fetching $f"
 		fetch -o "$_ghi/$f" "$_ghu/$f"
