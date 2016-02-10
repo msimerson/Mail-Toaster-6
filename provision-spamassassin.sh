@@ -62,6 +62,17 @@ mail_spamassassin_UNSET=SSL PGSQL GNUPG GNUPG2"
 	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean || exit	
 }
 
+install_spamassassin_nrpe()
+{
+	if [ -z "$TOASTER_NRPE" ]; then
+		echo "TOASTER_NRPE unset, skipping nrpe plugin"
+		return
+	fi
+
+	tell_status "installing nrpe spamd plugin"
+	stage_pkg_install nagios-spamd-plugin
+}
+
 install_spamassassin()
 {
 	tell_status "install SpamAssassin optional dependencies"
@@ -69,13 +80,11 @@ install_spamassassin()
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents || exit
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
+		tell_status "installing mysql deps for spamassassin"
 		stage_pkg_install mysql56-client p5-DBI p5-DBD-mysql
 	fi
 
-	if [ -n "$TOASTER_NRPE" ]; then
-		stage_pkg_install nagios-spamd-plugin
-	fi
-
+	install_spamassassin_nrpe
 	install_spamassassin_port
 }
 
