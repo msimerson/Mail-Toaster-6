@@ -6,18 +6,6 @@
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/clamav \$path/var/db/clamav nullfs rw 0 0\";"
 
-install_clamav()
-{
-	stage_pkg_install clamav || exit
-	echo "done"
-
-	if [ -n "$TOASTER_NRPE" ]; then
-		stage_pkg_install nagios-check_clamav
-	fi
-
-	install_clamav_unofficial
-}
-
 install_clamav_unofficial()
 {
 	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
@@ -100,6 +88,26 @@ EOSIG
 	 https://github.com/extremeshok/clamav-unofficial-sigs and follow
 	 the steps *after* the Quick Install Guide." 10 70
 	fi
+}
+
+install_clamav_nrpe()
+{
+	if [ -z "$TOASTER_NRPE" ]; then
+		echo "TOASTER_NRPE unset, skipping nrpe plugin"
+		return
+	fi
+
+	tell_status "installing clamav nrpe plugin"
+	stage_pkg_install nagios-check_clamav
+}
+
+install_clamav()
+{
+	stage_pkg_install clamav || exit
+	echo "done"
+
+	install_clamav_nrpe
+	install_clamav_unofficial
 }
 
 configure_clamd()

@@ -157,6 +157,17 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 	fi
 }
 
+install_nrpe()
+{
+	if [ -z "$TOASTER_NRPE" ]; then
+		echo "TOASTER_NRPE unset, skipping nrpe plugin"
+		return
+	fi
+
+	tell_status "install nagios plugins (mailq)"
+	stage_pkg_install nrpe
+}
+
 install_vpopmail()
 {
 	install_qmail
@@ -170,10 +181,7 @@ install_vpopmail()
 
 	install_vpopmail_port
 	install_qmailadmin
-
-	if [ -n "$TOASTER_NRPE" ]; then
-		stage_pkg_install nrpe
-	fi
+	install_nrpe
 }
 
 configure_vpopmail()
