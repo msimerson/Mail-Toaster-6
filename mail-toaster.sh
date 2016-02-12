@@ -532,6 +532,7 @@ has_data_fs()
 		lighttpd ) return 0;;
 		apache )   return 0;;
 		postgres ) return 0;;
+		haproxy )  return 0;;
 	esac
 
 	return 1
