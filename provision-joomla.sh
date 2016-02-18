@@ -35,13 +35,13 @@ install_joomla()
 
 configure_nginx()
 {
-	if [ -f "ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" ]; then
+	if [ -f "$ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" ]; then
 		tell_status "preserving nginx.conf"
-		cp "ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" \
+		cp "$ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" \
 			"$STAGE_MNT/usr/local/etc/nginx/nginx.conf"
 		return
 	fi
-	
+
 	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
 	mkdir -p "$_nginx_conf" || exit
 
@@ -93,9 +93,9 @@ configure_php()
 {
 	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
 
-	if [ -f "ZFS_JAIL_MNT/joomla/usr/local/etc/php.ini" ]; then
+	if [ -f "$ZFS_JAIL_MNT/joomla/usr/local/etc/php.ini" ]; then
 		tell_status "preserving php.ini"
-		cp "ZFS_JAIL_MNT/joomla/usr/local/etc/php.ini" "$_php_ini"
+		cp "$ZFS_JAIL_MNT/joomla/usr/local/etc/php.ini" "$_php_ini"
 		return
 	fi
 
@@ -114,9 +114,9 @@ configure_joomla()
 
 	_htdocs="$STAGE_MNT/usr/local/www/joomla3"
 
-	if [ -f "ZFS_JAIL_MNT/joomla/usr/local/www/joomla3/configuration.php" ]; then
+	if [ -f "$ZFS_JAIL_MNT/joomla/usr/local/www/joomla3/configuration.php" ]; then
 		echo "preserving joomla3 configuration.php"
-		cp "ZFS_JAIL_MNT/joomla/usr/local/www/joomla3/configuration.php" "$_htdocs/"
+		cp "$ZFS_JAIL_MNT/joomla/usr/local/www/joomla3/configuration.php" "$_htdocs/"
 		return
 	fi
 
