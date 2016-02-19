@@ -3,6 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/haproxy \$path/data nullfs rw 0 0\";"
+
 install_haproxy()
 {
 	tell_status "installing haproxy"
@@ -11,7 +14,13 @@ install_haproxy()
 
 configure_haproxy()
 {
-	tell_status "configuring haproxy"
+	if [ -f "$ZFS_DATA_MNT/haproxy/etc/haproxy.conf" ]; then
+		tell_status "using $ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+		stage_sysrc haproxy_config="/data/etc/haproxy.conf"
+		return
+	fi
+
+	tell_status "configuring MT6 default haproxy"
 	tee "$STAGE_MNT/usr/local/etc/haproxy.conf" <<EO_HAPROXY_CONF
 global
     daemon
@@ -114,14 +123,25 @@ start_haproxy()
 {
 	tell_status "starting haproxy"
 	stage_sysrc haproxy_enable=YES
+
+	if [ -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
+		echo "haproxy is running, this might fail."
+	fi
+
 	stage_exec service haproxy start
 }
 
 test_haproxy()
 {
 	tell_status "testing haproxy"
-	stage_exec sockstat -l -4 | grep 443 || exit
-	echo "it worked"
+	if [ ! -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
+		stage_exec sockstat -l -4 | grep 443 || exit
+		echo "it worked"
+		return
+	fi
+
+	echo "previous haproxy is running, ignoring errors"
+	stage_exec sockstat -l -4 | grep 443
 }
 
 base_snapshot_exists || exit
