@@ -237,7 +237,7 @@ add_jail_conf()
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = ${_jail_ip};${_path}${JAIL_CONF_EXTRA}
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
 }
@@ -318,6 +318,7 @@ start_staged_jail()
 
 	tell_status "stage jail $_name startup"
 
+        # shellcheck disable=2086
 	jail -c \
 		name=stage \
 		host.hostname="$_name" \
