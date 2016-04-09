@@ -30,7 +30,7 @@ install_haraka()
 	#stage_exec make -C /usr/ports/www/npm install clean
 
 	tell_status "installing Haraka"
-	stage_exec npm install -g Haraka@2.8.0-alpha.6 ws express || exit
+	stage_exec npm install -g Haraka ws express || exit
 
 	#haraka_github_updates
 }

@@ -534,6 +534,7 @@ has_data_fs()
 		apache )   return 0;;
 		postgres ) return 0;;
 		haproxy )  return 0;;
+		minecraft ) return 0;;
 	esac
 
 	return 1

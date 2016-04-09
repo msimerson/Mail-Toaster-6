@@ -3,6 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/minecraft \$path/data nullfs rw 0 0\";"
+
 install_minecraft()
 {
 	tell_status "installing java"
@@ -10,7 +13,8 @@ install_minecraft()
 
 	tell_status "installing minecraft"
 	stage_pkg_install tmux dialog4ports || exit
-	stage_make_conf games_minecraft-server 'games_minecraft-server_SET=DAEMON'
+	stage_make_conf games_minecraft-server 'games_minecraft-server_SET=DAEMON
+games_minecraft-server_UNSET=STANDALONE'
 	export BATCH=${BATCH:="1"}
 	stage_exec make -C /usr/ports/games/minecraft-server install clean
 }
@@ -22,7 +26,7 @@ configure_minecraft()
 	# stage_exec /usr/local/bin/minecraft-server
 	stage_exec service minecraft onestart
 	local _eula="$STAGE_MNT/usr/local/etc/minecraft-server/eula.txt"
-	until [ -f "$_eula" ]; do	
+	until [ -f "$_eula" ]; do
 		echo "waiting for $_eula to appear"
 		sleep 1
 	done
