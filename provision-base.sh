@@ -124,7 +124,14 @@ disable_cron_jobs()
 
 configure_ssl_dirs()
 {
-	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
+	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
+		mkdir "$BASE_MNT/etc/ssl/certs"
+	fi
+
+	if [ ! -d "$BASE_MNT/etc/ssl/private" ]; then
+		mkdir "$BASE_MNT/etc/ssl/private"
+	fi
+
 	chmod o-r "$BASE_MNT/etc/ssl/private"
 }
 
