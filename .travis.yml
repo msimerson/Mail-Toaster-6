@@ -1,6 +1,5 @@
 language: node_js
 node_js:
-    - "4"
     - "5"
 
 # services:
@@ -13,9 +12,9 @@ addons:
 #      - shellcheck
 
 before_install:
-     - echo "deb http://archive.ubuntu.com/ubuntu/ wily universe" | sudo tee -a /etc/apt/sources.list
-     - sudo apt-get update -qq
-     - sudo apt-get install -y shellcheck
+    - echo "deb http://archive.ubuntu.com/ubuntu/ wily universe" | sudo tee -a /etc/apt/sources.list
+    - sudo apt-get update -qq
+    - sudo apt-get install -y shellcheck
 #    - docker build -t tnpi/mt6:latest .
 #    - docker run -d --name mt6 tnpi/mt6:latest /
 

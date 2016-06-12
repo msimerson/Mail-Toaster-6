@@ -239,7 +239,7 @@ EO_SQUIRREL
 
 install_nginx()
 {
-	stage_pkg_install nginx dialog4ports || exit
+	stage_pkg_install nginx dialog4ports openssl || exit
 
 	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
 	mkdir -p "$_nginx_conf" || exit
