@@ -124,7 +124,14 @@ disable_cron_jobs()
 
 configure_ssl_dirs()
 {
-	mkdir "$BASE_MNT/etc/ssl/certs" "$BASE_MNT/etc/ssl/private"
+	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
+		mkdir "$BASE_MNT/etc/ssl/certs"
+	fi
+
+	if [ ! -d "$BASE_MNT/etc/ssl/private" ]; then
+		mkdir "$BASE_MNT/etc/ssl/private"
+	fi
+
 	chmod o-r "$BASE_MNT/etc/ssl/private"
 }
 
@@ -236,7 +243,7 @@ security_status_kernelmsg_enable="NO"
 
 daily_accounting_enable="NO"
 daily_accounting_compress="YES"
-daily_clean_disks_enable="YES"
+daily_clean_disks_enable="NO"
 daily_clean_disks_verbose="NO"
 daily_clean_hoststat_enable="NO"
 daily_clean_tmps_enable="YES"
@@ -282,6 +289,7 @@ install_base()
 	install_ssmtp
 	disable_root_password
 	install_periodic_conf
+	stage_exec pkg upgrade -y
 }
 
 zfs_snapshot_exists "$BASE_SNAP" && exit 0

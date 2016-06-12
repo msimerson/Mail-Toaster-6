@@ -45,14 +45,14 @@ install_maildrop()
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" http://mail-toaster.com/install/mt6-mailfilter.txt
-	chown 89:89 "$STAGE_MNT/etc/mailfilter"
-	chmod 600 "$STAGE_MNT/etc/mailfilter"
+	stage_exec chown 89:89 "$STAGE_MNT/etc/mailfilter"
+	stage_exec chmod 600 "$STAGE_MNT/etc/mailfilter"
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
 	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
 	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
-	chown 89:89 "$STAGE_MNT/usr/local/etc/mailfilter"
-	chmod 600 "$STAGE_MNT/usr/local/etc/mailfilter"
+	stage_exec chown 89:89 "$STAGE_MNT/usr/local/etc/mailfilter"
+	stage_exec chmod 600 "$STAGE_MNT/usr/local/etc/mailfilter"
 }
 
 install_lighttpd()
@@ -86,10 +86,10 @@ EO_LIGHTTPD
 install_qmailadmin()
 {
 	tell_status "installing qmailadmin"
-	stage_pkg_install autorespond cracklib ezmlm-idx autoconf automake
+	stage_pkg_install autorespond ezmlm-idx autoconf automake
 	stage_make_conf mail_qmailadmin_ '
-mail_qmailadmin_SET=CRACKLIB HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
-mail_qmailadmin_UNSET=CATCHALL IDX_SQL
+mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
+mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 '
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin
 	stage_exec make -C /usr/ports/mail/qmailadmin install clean

@@ -176,7 +176,7 @@ start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK --listen=0.0.0.0"
+	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK --listen=0.0.0.0 --min-spare=3 --max-spare=6 --max-conn-per-child=25"
 	stage_exec service sa-spamd start
 }
 

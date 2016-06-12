@@ -1,6 +1,6 @@
 language: node_js
 node_js:
-    - "0.10"
+    - "5"
 
 # services:
 #    - docker
@@ -9,7 +9,7 @@ addons:
   apt:
     sources:
     packages:
-      - shellcheck
+#      - shellcheck
 
 before_install:
     - echo "deb http://archive.ubuntu.com/ubuntu/ wily universe" | sudo tee -a /etc/apt/sources.list
@@ -25,7 +25,7 @@ before_script:
 
 script:
    - sh -n *.sh
-   - shellcheck -e SC2009,SC2086,SC2153,SC2016,SC1004 *.sh
+   - shellcheck -e SC2009,SC2086,SC2153,SC2016,SC1004,SC2119 *.sh
 
 # after_success:
 # after_failure:

@@ -22,7 +22,7 @@ start_monitor()
 test_monitor()
 {
 	tell_status "testing monitor"
-	
+
 	local _email _server _pass
 	_email="postmaster@$TOASTER_MAIL_DOMAIN"
 	_server=$(get_jail_ip haraka)
