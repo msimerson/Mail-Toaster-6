@@ -256,7 +256,7 @@ daily_show_badconfig="YES"
 
 daily_status_disks_enable="NO"
 daily_status_include_submit_mailq="NO"
-daily_status_mail_rejects_enable="YES"
+daily_status_mail_rejects_enable="NO"
 daily_status_mailq_enable="NO"
 daily_status_network_enable="NO"
 daily_status_rwho_enable="NO"
