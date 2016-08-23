@@ -351,7 +351,7 @@ config_haraka_dkim()
 
 config_haraka_karma()
 {
-	if [ -d "$PREVIOUS_CONF/karma.ini" ]; then
+	if [ -f "$PREVIOUS_CONF/karma.ini" ]; then
 		tell_status "preserving karma.ini"
 		cp "$PREVIOUS_CONF/karma.ini" "$HARAKA_CONF/karma.ini"
 		return
