@@ -50,7 +50,7 @@ if [ "$TOASTER_MYSQL" = "1" ]; then
 fi
 
 usage() {
-	echo; echo "Oops, you aren't following instructions!"; echo
+	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 	exit
 }
@@ -563,6 +563,7 @@ has_data_fs()
 		postgres ) return 0;;
 		haproxy )  return 0;;
 		minecraft ) return 0;;
+		haraka )   return 0;;
 	esac
 
 	return 1
