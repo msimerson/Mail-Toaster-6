@@ -4,7 +4,8 @@
 . mail-toaster.sh || exit
 
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/minecraft \$path/data nullfs rw 0 0\";"
+		mount += \"$ZFS_DATA_MNT/minecraft/etc \$path/usr/local/etc/minecraft-server nullfs rw 0 0\";
+		mount += \"$ZFS_DATA_MNT/minecraft/db \$path/var/db/minecraft-server nullfs rw 0 0\";"
 
 install_minecraft()
 {
@@ -15,13 +16,15 @@ install_minecraft()
 	stage_pkg_install tmux dialog4ports || exit
 	stage_make_conf games_minecraft-server 'games_minecraft-server_SET=DAEMON
 games_minecraft-server_UNSET=STANDALONE'
-	export BATCH=${BATCH:="1"}
+	# export BATCH=${BATCH:="1"}
 	stage_exec make -C /usr/ports/games/minecraft-server install clean
 }
 
 configure_minecraft()
 {
 	tell_status "configuring minecraft"
+	mkdir "$ZFS_DATA_MNT/minecraft/etc"
+	mkdir "$ZFS_DATA_MNT/minecraft/db"
 
 	# stage_exec /usr/local/bin/minecraft-server
 	stage_exec service minecraft onestart
