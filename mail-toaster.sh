@@ -1,5 +1,33 @@
 #!/bin/sh
 
+config()
+{
+	if [ ! -f "mail-toaster.conf" ]; then
+		echo "creating mail-toaster.conf with defaults"
+		tee mail-toaster.conf <<EO_MT_CONF
+export TOASTER_HOSTNAME="mail.example.com"
+export TOASTER_MAIL_DOMAIN="example.com"
+
+export JAIL_NET_PREFIX="172.16.15"
+export JAIL_NET_MASK="/12"
+export JAIL_NET_INTERFACE="lo1"
+export JAIL_ORDERED_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
+export ZFS_VOL="zroot"
+export ZFS_JAIL_MNT="/jails"
+export ZFS_DATA_MNT="/data"
+export TOASTER_MYSQL="1"
+
+EO_MT_CONF
+	fi
+
+	echo "loading config from mail-toaster.conf"
+	# shellcheck disable=SC1091,SC2039
+	. mail-toaster.conf
+}
+
+# load the local config file
+config
+
 # Required settings
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
