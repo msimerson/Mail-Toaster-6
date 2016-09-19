@@ -218,6 +218,7 @@ get_jail_ip()
 		minecraft)    _incr=21 ;;
 		joomla)       _incr=22 ;;
 		memcached)    _incr=24 ;;
+		sphinxsearch) _incr=25 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
