@@ -72,6 +72,7 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	   local-data: "$(get_reverse_ip postgres) PTR postgres"
 	   local-data: "$(get_reverse_ip minecraft) PTR minecraft"
 	   local-data: "$(get_reverse_ip joomla) PTR joomla"
+	   local-data: "$(get_reverse_ip memcached) PTR memcached"
 	   local-data: "$(get_reverse_ip stage) PTR stage"
 
 	   local-data: "syslog       A $(get_jail_ip syslog)"
@@ -97,6 +98,7 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	   local-data: "postgres     A $(get_jail_ip postgres)"
 	   local-data: "minecraft    A $(get_jail_ip minecraft)"
 	   local-data: "joomla       A $(get_jail_ip joomla)"
+	   local-data: "memcached    A $(get_jail_ip memcached)"
 	   local-data: "stage        A $(get_jail_ip stage)"
 
 EO_UNBOUND
