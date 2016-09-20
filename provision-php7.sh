@@ -52,7 +52,7 @@ test_php()
 	tell_status "testing php7"
 	stage_exec sockstat -l -4 | grep :9000 || exit
 	echo "it worked"
-    eco  "You probably need to created a shared source between Nginx and this PHP jail"
+    echo  "You probably need to created a shared source between Nginx and this PHP jail"
 }
 
 base_snapshot_exists || exit
