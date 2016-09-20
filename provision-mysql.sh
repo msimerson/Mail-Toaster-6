@@ -6,11 +6,29 @@
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/mysql \$path/var/db/mysql nullfs rw 0 0\";"
 
+install_db_server()
+{
+	#Check if MariaDB needs to be installed
+	if [ "$TOASTER_MARIADB" = "1" ]; then
+	        install_mariadb
+    else
+		install_mysql
+	fi
+
+}
+
 install_mysql()
 {
 	tell_status "installing mysql"
 	stage_pkg_install mysql56-server || exit
 }
+
+install_mariadb()
+{
+	tell_status "installing mariadb"
+	stage_pkg_install mariadb101-server || exit
+}
+
 
 configure_mysql()
 {
@@ -53,7 +71,7 @@ test_mysql()
 base_snapshot_exists || exit
 create_staged_fs mysql
 start_staged_jail
-install_mysql
+install_db_server
 start_mysql
 configure_mysql
 test_mysql
