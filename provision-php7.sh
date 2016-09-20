@@ -4,8 +4,9 @@
 . mail-toaster.sh || exit
 
 # shellcheck disable=2016
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/php7 \$path/data nullfs rw 0 0\";"
+#@TODO create a shared dir between nginx and php7
+#export JAIL_CONF_EXTRA="
+#		mount += \"$ZFS_DATA_MNT/php7 \$path/data nullfs rw 0 0\";"
 
 install_php()
 {
