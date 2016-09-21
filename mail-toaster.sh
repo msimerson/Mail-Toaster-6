@@ -16,6 +16,7 @@ export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="1"
+export TOASTER_MARIADB="0"
 
 EO_MT_CONF
 	fi
@@ -45,6 +46,7 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
+export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
