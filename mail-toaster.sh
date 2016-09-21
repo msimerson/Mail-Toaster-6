@@ -219,6 +219,7 @@ get_jail_ip()
 		postgres)     _incr=20 ;;
 		minecraft)    _incr=21 ;;
 		joomla)       _incr=22 ;;
+		php7)         _incr=23 ;;
 		memcached)    _incr=24 ;;
 		sphinxsearch) _incr=25 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
