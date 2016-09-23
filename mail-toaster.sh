@@ -3,9 +3,12 @@
 config()
 {
 	if [ ! -f "mail-toaster.conf" ]; then
+		local _HOSTNAME;
+		local _EMAIL_DOMAIN;
+
 		echo "editing prefs"
-		local _HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
-		local _EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
+		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
 
 		echo "creating mail-toaster.conf with defaults"
 		tee mail-toaster.conf <<EO_MT_CONF
