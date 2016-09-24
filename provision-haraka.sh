@@ -139,7 +139,7 @@ config_haraka_vpopmail()
 		echo "host=$(get_jail_ip vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
 	fi
 
-	if ! grep -qs ^auth_vpopmaild "$HARAKA_CONF/plugins"; then
+	if ! grep -qs ^auth/auth_vpopmaild "$HARAKA_CONF/plugins"; then
 		tell_status "enabling vpopmaild plugin"
 "$HARAKA_CONF/plugins"
 		# shellcheck disable=1004
@@ -476,6 +476,7 @@ configure_haraka()
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then
 		config_install_default plugins
 	fi
+
 	config_haraka_smtp_ini
 	config_haraka_plugins
 	config_haraka_limit
