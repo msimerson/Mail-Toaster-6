@@ -24,6 +24,7 @@ export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="1"
 export TOASTER_MARIADB="0"
+export TOASTER_AUDIT="0"
 
 EO_MT_CONF
 	fi
@@ -455,8 +456,17 @@ stage_resolv_conf()
 	echo "nameserver $_nsip" | tee "$STAGE_MNT/etc/resolv.conf"
 }
 
+seed_pkg_audit()
+{
+	if [ "$TOASTER_AUDIT" = "1" ]; then
+		tell_status "installing FreeBSD package audit database"
+		stage_exec /usr/sbin/pkg audit -F
+	fi
+}
+
 promote_staged_jail()
 {
+	seed_pkg_audit
 	tell_status "promoting jail $1"
 	stop_jail stage
 	stage_resolv_conf
