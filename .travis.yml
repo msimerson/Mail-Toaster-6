@@ -2,7 +2,7 @@ language: bash
 
 # required until the apt addon shellcheck is available
 #sudo: required
-dist: trusty
+#dist: trusty
 
 # services:
 #    - docker
