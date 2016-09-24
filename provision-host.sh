@@ -320,14 +320,20 @@ configure_etc_hosts()
 $(get_jail_ip syslog)		syslog
 $(get_jail_ip base)		base
 $(get_jail_ip stage)		stage"
+
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
 $(get_jail_ip "$j")		$j"
 	done
+
     _hosts="$_hosts
 $(get_jail_ip "minecraft")		minecraft
 $(get_jail_ip "joomla")		joomla
+$(get_jail_ip "php7") php7
+$(get_jail_ip "memcached") memcached
+$(get_jail_ip "sphinxsearch") sphinxsearch
+
 "
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
