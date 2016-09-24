@@ -265,7 +265,10 @@ add_jail_conf()
 
 	jail_conf_header
 
-	if grep -q "^$1" /etc/jail.conf; then return; fi
+	if grep -q "^$1" /etc/jail.conf; then
+		tell_status "$1 already in /etc/jail.conf"
+		return;
+	fi
 
 	local _path=""
 	local _safe; _safe=$(safe_jailname "$1")
@@ -274,6 +277,7 @@ add_jail_conf()
 		path = $ZFS_JAIL_MNT/${1};"
 	fi
 
+	tell_status "adding $1 to /etc/jail.conf"
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
