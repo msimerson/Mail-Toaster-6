@@ -14,8 +14,9 @@ language: bash
 addons:
   apt:
     sources:
+      - debian-sid
     packages:
-       - shellcheck
+      - shellcheck
 
 before_install:
 #   - echo "deb http://archive.ubuntu.com/ubuntu/ wily universe" | sudo tee -a /etc/apt/sources.list
