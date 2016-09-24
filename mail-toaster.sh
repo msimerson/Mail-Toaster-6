@@ -230,6 +230,7 @@ get_jail_ip()
 		php7)         _incr=23 ;;
 		memcached)    _incr=24 ;;
 		sphinxsearch) _incr=25 ;;
+		elasticsearch) _incr=26 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -589,7 +590,8 @@ has_data_fs()
 		postgres ) return 0;;
 		haproxy )  return 0;;
 		minecraft ) return 0;;
-		haraka )   return 0;;
+		haraka )    return 0;;
+		elasticsearch ) return 0;;
 	esac
 
 	return 1

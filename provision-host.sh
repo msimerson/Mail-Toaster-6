@@ -333,6 +333,7 @@ $(get_jail_ip "joomla")		joomla
 $(get_jail_ip "php7") php7
 $(get_jail_ip "memcached") memcached
 $(get_jail_ip "sphinxsearch") sphinxsearch
+$(get_jail_ip "elasticsearch") elasticsearch
 
 "
 	echo "$_hosts" | tee -a "/etc/hosts"
