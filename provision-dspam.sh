@@ -76,7 +76,7 @@ test_dspam()
 {
 	tell_status "testing dspam"
 	sleep 2
-	stage_exec sockstat -l -4 | grep :24 || exit
+	stage_listening 24
 	echo "it worked"
 }
 

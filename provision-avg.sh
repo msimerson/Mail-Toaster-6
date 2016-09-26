@@ -58,7 +58,7 @@ test_avg()
 	ps ax -J stage | grep avg || exit
 
 	tell_status "verifying avgtcpd is listening"
-	sockstat -l | grep 54322 || exit
+	stage_listening 54322
 	echo "it works"
 }
 

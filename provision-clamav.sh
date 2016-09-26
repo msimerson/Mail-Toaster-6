@@ -177,8 +177,8 @@ start_clamav()
 
 test_clamav()
 {
-	echo "testing ClamAV..."
-	stage_exec sockstat -l -4 | grep 3310 || exit
+	echo "testing ClamAV clamd"
+	stage_listening 3310
 	echo "It works! (clamd is listening)"
 }
 

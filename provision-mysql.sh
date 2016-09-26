@@ -63,7 +63,7 @@ test_mysql()
 	else
 		sleep 1
 		echo 'SHOW DATABASES' | stage_exec mysql || exit
-		stage_exec sockstat -l -4 | grep 3306 || exit
+		stage_listening 3306
 		echo "it worked"
 	fi
 }
