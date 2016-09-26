@@ -328,6 +328,7 @@ create_staged_fs()
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	if has_data_fs "$1"; then
+		tell_status "creating data volume"
 		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 		mount_data "$1" "$STAGE_MNT"
 	fi

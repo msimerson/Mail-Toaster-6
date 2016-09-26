@@ -275,7 +275,10 @@ update_freebsd() {
 
 plumb_jail_nic()
 {
-	if [ "$JAIL_NET_INTERFACE" != "lo1" ]; then return; fi
+	if [ "$JAIL_NET_INTERFACE" != "lo1" ]; then
+		tell_status "plumb_jail_nic: using $JAIL_NET_INTERFACE"
+		return;
+	fi
 
 	if ! grep cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface for jails"
