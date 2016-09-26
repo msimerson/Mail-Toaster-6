@@ -230,6 +230,7 @@ get_jail_ip()
 		php7)         _incr=23 ;;
 		memcached)    _incr=24 ;;
 		sphinxsearch) _incr=25 ;;
+		elasticsearch) _incr=26 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -327,6 +328,7 @@ create_staged_fs()
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	if has_data_fs "$1"; then
+		tell_status "creating data volume"
 		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 		mount_data "$1" "$STAGE_MNT"
 	fi
@@ -589,7 +591,8 @@ has_data_fs()
 		postgres ) return 0;;
 		haproxy )  return 0;;
 		minecraft ) return 0;;
-		haraka )   return 0;;
+		haraka )    return 0;;
+		elasticsearch ) return 0;;
 	esac
 
 	return 1
