@@ -50,7 +50,7 @@ start_php()
 test_php()
 {
 	tell_status "testing php7"
-	stage_exec sockstat -l -4 | grep :9000 || exit
+	stage_listening 9000
 	echo "it worked"
     echo  "You probably need to created a shared source between Nginx and this PHP jail"
 }

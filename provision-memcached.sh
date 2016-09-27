@@ -25,7 +25,7 @@ start_memcached()
 test_memcached()
 {
 	tell_status "testing memcached"
-	stage_exec sockstat -l -4 | grep :11211 || exit
+	stage_listening 11211
 	echo "it worked"
 }
 

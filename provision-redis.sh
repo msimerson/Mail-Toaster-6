@@ -41,7 +41,7 @@ start_redis()
 test_redis()
 {
 	echo "testing redis"
-	stage_exec sockstat -l -4 | grep 6379 || exit
+	stage_listening 6379
 	echo "it worked"
 }
 

@@ -528,7 +528,7 @@ test_haraka()
 	sleep 3
 
 	tell_status "testing Haraka"
-	stage_exec sockstat -l -4 | grep :25 || exit
+	stage_listening 25
 	echo "it worked"
 }
 

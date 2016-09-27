@@ -49,7 +49,7 @@ start_minecraft()
 test_minecraft()
 {
 	tell_status "testing minecraft"
-	stage_exec sockstat -l -4 | grep :25565 || exit
+	stage_listening 25565
 	echo "it worked"
 }
 

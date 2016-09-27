@@ -135,13 +135,13 @@ test_haproxy()
 {
 	tell_status "testing haproxy"
 	if [ ! -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
-		stage_exec sockstat -l -4 | grep 443 || exit
+		stage_listening 443
 		echo "it worked"
 		return
 	fi
 
 	echo "previous haproxy is running, ignoring errors"
-	stage_exec sockstat -l -4 | grep 443
+	sockstat -l -4 -6 -p 443 -j "$(jls -j stage jid)"
 }
 
 base_snapshot_exists || exit

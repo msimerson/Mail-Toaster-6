@@ -183,7 +183,7 @@ start_spamassassin()
 test_spamassassin()
 {
 	tell_status "testing spamassassin"
-	stage_exec sockstat -l -4 | grep :783 || exit
+	stage_listening 783
 	echo "it worked"
 }
 

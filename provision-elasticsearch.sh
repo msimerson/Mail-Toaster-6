@@ -97,11 +97,13 @@ test_elasticsearch()
 	sleep 10
 
 	tell_status "testing Elasticsearch (listening 9200)"
-	sockstat -l -4 -6 -j "$(jls -j stage jid)" -p 9200 || exit
-	echo "it worked"
+	stage_listening 9200
+
+	tell_status "waiting 10 seconds for kibana to start"
+	sleep 10
 
 	tell_status "testing Kibana (listening 5601)"
-	sockstat -l -4 -6 -j "$(jls -j stage jid)" -p 5601 || exit
+	stage_listening 5601
 	echo "it worked"
 }
 

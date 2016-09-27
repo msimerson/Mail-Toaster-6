@@ -143,8 +143,11 @@ start_joomla()
 test_joomla()
 {
 	tell_status "testing joomla"
-	stage_exec sockstat -l -4 | grep :80 || exit
-	stage_exec sockstat -l -4 | grep :9000 || exit
+	stage_listening 80
+	echo "httpd is listening"
+
+	stage_listening 9000
+	echo "php fpm is listening"
 	echo "it worked"
 }
 

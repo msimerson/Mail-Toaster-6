@@ -204,7 +204,7 @@ test_vpopmail()
 {
 	echo "testing vpopmail"
 	sleep 1 # give the daemons a second to start listening
-	stage_exec sockstat -l -4 | grep :89 || exit
+	stage_listening 89
 	echo "it worked"
 }
 

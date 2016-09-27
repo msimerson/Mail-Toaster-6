@@ -50,7 +50,7 @@ start_nginx()
 test_nginx()
 {
 	tell_status "testing nginx"
-	stage_exec sockstat -l -4 | grep :80 || exit
+	stage_listening 80
 	echo "it worked"
 }
 

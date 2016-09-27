@@ -395,8 +395,8 @@ install_webmail()
 
 install_index()
 {
-    tell_status "installing index.html"
-    tee "$_htdocs/index.html" <<'EO_INDEX'
+	tell_status "installing index.html"
+	tee "$_htdocs/index.html" <<'EO_INDEX'
 <html>
 <head>
  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
@@ -517,9 +517,11 @@ start_webmail()
 
 test_webmail()
 {
-	tell_status "testing webmail"
-	stage_exec sockstat -l -4 | grep :80 || exit
-	stage_exec sockstat -l -4 | grep :9000 || exit
+	tell_status "testing webmail httpd"
+	stage_listening 80
+
+	tell_status "testing webmail php"
+	stage_listening 9000
 	echo "it worked"
 }
 

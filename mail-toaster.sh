@@ -520,6 +520,12 @@ stage_exec()
 	jexec "$SAFE_NAME" "$@"
 }
 
+stage_listening()
+{
+	echo "checking for port $1 listener in staged jail"
+	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" || exit
+}
+
 stage_mount_ports()
 {
 	echo "mount $STAGE_MNT/usr/ports"
