@@ -99,6 +99,9 @@ test_elasticsearch()
 	tell_status "testing Elasticsearch (listening 9200)"
 	stage_listening 9200
 
+	tell_status "waiting 10 seconds for kibana to start"
+	sleep 10
+
 	tell_status "testing Kibana (listening 5601)"
 	stage_listening 5601
 	echo "it worked"
