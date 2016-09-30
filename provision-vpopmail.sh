@@ -51,8 +51,8 @@ install_maildrop()
 	tell_status "adding legacy mailfilter for MT5 compatibility"
 	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
 	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
-	stage_exec chown 89:89 "$STAGE_MNT/usr/local/etc/mailfilter"
-	stage_exec chmod 600 "$STAGE_MNT/usr/local/etc/mailfilter"
+	stage_exec chown 89:89 "$STAGE_MNT/usr/local/etc/mail/mailfilter"
+	stage_exec chmod 600 "$STAGE_MNT/usr/local/etc/mail/mailfilter"
 }
 
 install_lighttpd()

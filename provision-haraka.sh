@@ -473,6 +473,14 @@ configure_haraka()
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
 	fi
 
+	if [ ! -f "$HARAKA_CONF/deny_includes_uuid" ]; then
+		echo '12' > "$HARAKA_CONF/deny_includes_uuid"
+	fi
+
+	if [ ! -f "$HARAKA_CONF/rate_limit.ini" ]; then
+		echo "redis_server = $(get_jail_ip redis)" > "$HARAKA_CONF/rate_limit.ini"
+	fi
+
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then
 		config_install_default plugins
 	fi
