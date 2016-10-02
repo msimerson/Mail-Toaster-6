@@ -99,7 +99,7 @@ commonName_default = $TOASTER_HOSTNAME \
 
 	grep -q emailAddress_default /etc/ssl/openssl.cnf || \
 		sed -i -e "/^emailAddress_max.*/ a\ 
-emailAddress_default = postmaster@$TOASTER_HOSTNAME \
+emailAddress_default = $TOASTER_ADMIN_EMAIL \
 " /etc/ssl/openssl.cnf
 
 	if [ -f /etc/ssl/private/server.key ]; then

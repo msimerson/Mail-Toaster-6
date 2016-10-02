@@ -14,6 +14,7 @@ config()
 		tee mail-toaster.conf <<EO_MT_CONF
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
+export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
 
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
@@ -40,6 +41,7 @@ config
 # Required settings
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
+export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
