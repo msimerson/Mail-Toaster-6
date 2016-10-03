@@ -52,7 +52,7 @@ install_ssmtp()
 	cp "$BASE_MNT/usr/local/etc/ssmtp/revaliases.sample" \
 	   "$BASE_MNT/usr/local/etc/ssmtp/revaliases" || exit
 
-	sed -e "/^root=/ s/postmaster/postmaster@$TOASTER_MAIL_DOMAIN/" \
+	sed -e "/^root=/ s/postmaster/$TOASTER_ADMIN_EMAIL/" \
 		-e "/^mailhub=/ s/=mail/=vpopmail/" \
 		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
 		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \
@@ -224,9 +224,9 @@ weekly_local=""
 monthly_local=""
 
 # in case /etc/aliases isn't set up properly
-daily_output="postmaster@$TOASTER_MAIL_DOMAIN"
-weekly_output="postmaster@$TOASTER_MAIL_DOMAIN"
-monthly_output="postmaster@$TOASTER_MAIL_DOMAIN"
+daily_output="$TOASTER_ADMIN_EMAIL"
+weekly_output="$TOASTER_ADMIN_EMAIL"
+monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
 security_show_info="YES"

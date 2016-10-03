@@ -27,9 +27,9 @@ install_qmail()
 	stage_exec /var/qmail/scripts/enable-qmail
 
 	local _alias="$STAGE_MNT/var/qmail/alias"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-root"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-postmaster"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-mailer-daemon"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-root"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-postmaster"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-mailer-daemon"
 
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
