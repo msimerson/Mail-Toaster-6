@@ -3,7 +3,10 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA="
+		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";"
 export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 install_dovecot()
@@ -24,17 +27,22 @@ install_dovecot()
 		stage_pkg_install mysql56-client
 	fi
 
-	tell_status "building dovecot with vpopmail"
+	tell_status "building dovecot with vpopmail support"
 	stage_pkg_install dialog4ports
 	export BATCH=${BATCH:="1"}
 	stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
 }
 
-configure_dovecot()
-{
+configure_dovecot_local_conf() {
+	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+
+	if [ -f "$_localconf" ]; then
+		tell_status "preserving $_localconf"
+		return
+	fi
+
 	tell_status "configuring dovecot"
-	local _dcdir="$STAGE_MNT/usr/local/etc/dovecot"
-	tee "$_dcdir/local.conf" <<'EO_DOVECOT_LOCAL'
+	tee "$_localconf" <<'EO_DOVECOT_LOCAL'
 #mail_debug = yes
 auth_mechanisms = plain login digest-md5 cram-md5
 auth_username_format = %Lu
@@ -80,6 +88,19 @@ service tcpwrap {
 }
 EO_DOVECOT_LOCAL
 
+}
+
+configure_dovecot()
+{
+	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
+
+	if [ ! -d "$_dcdir" ]; then
+		tell_status "creating $_dcdir"
+		mkdir "$_dcdir" || exit
+	fi
+
+	configure_dovecot_local_conf
+
 	tell_status "installing example config files"
 	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
 	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf" || exit
@@ -113,6 +134,7 @@ start_dovecot()
 {
 	tell_status "starting dovecot"
 	stage_sysrc dovecot_enable=YES
+	stage_sysrc dovecot_config="/data/etc/dovecot.conf"
 	stage_exec service dovecot start || exit
 }
 

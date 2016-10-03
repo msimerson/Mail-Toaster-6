@@ -592,6 +592,7 @@ has_data_fs()
 		mysql )    return 0;;
 		redis )    return 0;;
 		vpopmail ) return 0;;
+		dovecot )  return 0;;
 		webmail )  return 0;;
 		nginx )    return 0;;
 		lighttpd ) return 0;;
