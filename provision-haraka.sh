@@ -49,7 +49,7 @@ install_geoip_dbs()
 
 	if ! grep -qs ^connect.geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"
-		sed -i .bak -e 's/^# connect.geoip/connect.geoip/' "$HARAKA_CONF/plugins"
+		sed -i .bak -e '/^# connect.geoip/ s/#//' "$HARAKA_CONF/plugins"
 	fi
 
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
@@ -100,7 +100,7 @@ config_haraka_syslog()
 {
 	if ! grep -qs ^log.syslog "$HARAKA_CONF/plugins"; then
 		tell_status "enable logging to syslog"
-		sed -i '' -e 's/# log.syslog$/log.syslog/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# log.syslog$/ s/#//' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
@@ -114,12 +114,11 @@ EO_DLF
 		fi
 	fi
 
-	# TODO: enable this after modern-syslog works with node v6
-# 	if ! grep  -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
-# 		# don't write to daemon_log_file if syslog write was successful
-# 		echo "[general]
-# always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
-# 	fi
+	if ! grep  -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
+		# don't write to daemon_log_file if syslog write was successful
+		echo "[general]
+always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
+	fi
 }
 
 config_haraka_smtp_forward()
@@ -159,10 +158,13 @@ host=$(get_jail_ip vpopmail)" | \
 		tee -a "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
 	fi
 
-	sed -i .bak \
-		-e 's/^#rcpt_to.qmail_deliverable/rcpt_to.qmail_deliverable/' \
-		-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
-		"$HARAKA_CONF/plugins"
+	if ! grep -qs ^rcpt_to.qmail_deliverable "$HARAKA_CONF/plugins"; then
+		tell_status "enabling rcpt_to.qmail_deliverable plugin"
+		sed -i .bak \
+			-e '/^#rcpt_to.qmail_deliverable/ s/#//' \
+			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
+			"$HARAKA_CONF/plugins"
+	fi
 }
 
 config_haraka_p0f()
@@ -171,7 +173,7 @@ config_haraka_p0f()
 
 	if ! grep -qs ^connect.p0f "$HARAKA_CONF/plugins"; then
 		tell_status "enable Haraka p0f plugin"
-		sed -i '' -e 's/^# connect.p0f/connect.p0f/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# connect.p0f/ s/#//' "$HARAKA_CONF/plugins"
 	fi
 }
 
@@ -182,8 +184,10 @@ config_haraka_spamassassin()
 		return
 	fi
 
-	tell_status "enabling Haraka spamassassin plugin"
-	sed -i '' -e 's/^#spamassassin$/spamassassin/' "$HARAKA_CONF/plugins"
+	if ! grep -qs ^spamassasssin "$HARAKA_CONF/plugins"; then
+		tell_status "enabling Haraka spamassassin plugin"
+		sed -i '' -e '/^#spamassassin/ s/#//' "$HARAKA_CONF/plugins"
+	fi
 
 	if [ ! -f "$HARAKA_CONF/spamassassin.ini" ]; then
 		tell_status "configuring Haraka spamassassin plugin"
@@ -233,7 +237,7 @@ config_haraka_clamav()
 
 	if ! grep -qs ^clamd "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka clamav plugin"
-		sed -i '' -e 's/^#clamd$/clamd/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^#clamd/ s/#//' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs ^clamd_socket "$HARAKA_CONF/clamd.ini"; then
@@ -258,7 +262,7 @@ Phishing=false
 config_haraka_tls() {
 	if ! grep -qs ^tls "$HARAKA_CONF/plugins"; then
 		tell_status "enable TLS encryption"
-		sed -i '' -e 's/^# tls$/tls/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# tls$/ s/#//' "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/tls_cert.pem" ]; then
@@ -344,14 +348,14 @@ config_haraka_plugins()
 
 	# enable a bunch of plugins
 	sed -i .bak \
-		-e 's/^#process_title$/process_title/' \
-		-e 's/^#spf$/spf/' \
-		-e 's/^#bounce$/bounce/' \
-		-e 's/^#data.uribl$/data.uribl/' \
-		-e 's/^#attachment$/attachment/' \
-		-e 's/^#dkim_sign$/dkim_sign/' \
-		-e 's/^#karma$/karma/' \
-		-e 's/^# connect.fcrdns/connect.fcrdns/' \
+		-e '/^#process_title/ s/#//' \
+		-e '/^#spf$/ s/#//' \
+		-e '/^#bounce/ s/#//' \
+		-e '/^#data.uribl/ s/#//' \
+		-e '/^#attachment/ s/#//' \
+		-e '/^#dkim_sign/ s/#//' \
+		-e '/^#karma$/ s/#//' \
+		-e '/^# connect.fcrdns/ s/# //' \
 		"$HARAKA_CONF/plugins"
 }
 
