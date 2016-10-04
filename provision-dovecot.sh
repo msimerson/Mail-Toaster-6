@@ -3,8 +3,6 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA="
-		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";"
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
@@ -114,7 +112,7 @@ configure_example_config()
 	fi
 
 	tell_status "installing example config files"
-	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
+	cp -R "$STAGE_MNT/usr/local/etc/dovecot/example-config/" "$_dcdir/" || exit
 	sed -i .bak \
 		-e 's/^#listen = \*, ::/listen = \*/' \
 		"$_dcdir/dovecot.conf" || exit
@@ -123,7 +121,7 @@ configure_example_config()
 configure_system_auth()
 {
 	local _authconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-auth.conf"
-	if grep -qs '^!include auth\-system' "$_authconf"; then
+	if ! grep -qs '^!include auth\-system' "$_authconf"; then
 		tell_status "system auth already disabled"
 		return
 	fi
@@ -137,7 +135,7 @@ configure_system_auth()
 configure_vsz_limit()
 {
 	local _master="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-master.conf"
-	if greq -q ^default_vsz_limit "$_master"; then
+	if grep -q ^default_vsz_limit "$_master"; then
 		tell_status "vsz_limit already configured"
 		return
 	fi
@@ -150,15 +148,24 @@ configure_vsz_limit()
 
 configure_tls_certs()
 {
+	local _sslconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-ssl.conf"
+	if grep -qs ^ssl_cert "$_sslconf"; then
+		tell_status "removing ssl_cert from 10-ssl.conf"
+		sed -i .bak \
+			-e '/ssl_cert/ s/^s/#s/' \
+			-e '/ssl_key/ s/^s/#s/' \
+			"$_sslconf"
+	fi
+
 	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
 	if [ ! -d "$_ssldir/certs" ]; then
-		mkdir "$_ssldir/certs"
-		chmod 644 "$_ssldir/certs"
+		mkdir -p "$_ssldir/certs" || exit
+		chmod 644 "$_ssldir/certs" || exit
 	fi
 
 	if [ ! -d "$_ssldir/private" ]; then
-		mkdir "$_ssldir/private"
-		chmod 644 "$_ssldir/private"
+		mkdir "$_ssldir/private" || exit
+		chmod 644 "$_ssldir/private" || exit
 	fi
 
 	if [ -f "$_ssldir/certs/dovecot.pem" ]; then
