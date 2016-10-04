@@ -4,6 +4,7 @@
 . mail-toaster.sh || exit
 
 export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 install_dovecot()
@@ -24,17 +25,22 @@ install_dovecot()
 		stage_pkg_install mysql56-client
 	fi
 
-	tell_status "building dovecot with vpopmail"
+	tell_status "building dovecot with vpopmail support"
 	stage_pkg_install dialog4ports
 	export BATCH=${BATCH:="1"}
 	stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
 }
 
-configure_dovecot()
-{
+configure_dovecot_local_conf() {
+	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+
+	if [ -f "$_localconf" ]; then
+		tell_status "preserving $_localconf"
+		return
+	fi
+
 	tell_status "configuring dovecot"
-	local _dcdir="$STAGE_MNT/usr/local/etc/dovecot"
-	tee "$_dcdir/local.conf" <<'EO_DOVECOT_LOCAL'
+	tee "$_localconf" <<'EO_DOVECOT_LOCAL'
 #mail_debug = yes
 auth_mechanisms = plain login digest-md5 cram-md5
 auth_username_format = %Lu
@@ -56,6 +62,14 @@ service auth {
   }
 }
 
+passdb {
+  driver = vpopmail
+}
+userdb {
+  driver = vpopmail
+  args = quota_template=quota_rule=*:backend=%q
+}
+
 shutdown_clients = no
 verbose_proctitle = yes
 protocol imap {
@@ -67,6 +81,12 @@ protocol pop3 {
   pop3_client_workarounds = outlook-no-nuls oe-ns-eoh
   pop3_uidl_format = %08Xu%08Xv
 }
+
+ssl_cert = </data/etc/ssl/certs/dovecot.pem
+ssl_key = </data/etc/ssl/private/dovecot.pem
+ssl_prefer_server_ciphers = yes
+ssl_dh_parameters_length = 2048
+ssl_cipher_list = ALL:!LOW:!SSLv2:!EXP:!aNull:!eNull::!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
 
 login_access_sockets = tcpwrap
 
@@ -80,39 +100,121 @@ service tcpwrap {
 }
 EO_DOVECOT_LOCAL
 
-	tell_status "installing example config files"
-	cp -R "$_dcdir/example-config/" "$_dcdir/" || exit
-	sed -i -e 's/^#listen = \*, ::/listen = \*/' "$_dcdir/dovecot.conf" || exit
+}
 
-	tell_status "switching auth from system to vpopmail"
+configure_example_config()
+{
+	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
+
+	if [ -f "$_dcdir/dovecot.conf" ]; then
+		tell_status "dovecot config files already present"
+		return
+	fi
+
+	tell_status "installing example config files"
+	cp -R "$STAGE_MNT/usr/local/etc/dovecot/example-config/" "$_dcdir/" || exit
 	sed -i .bak \
-		-e 's/^\!include auth-system/#\!include auth-system/' \
-		-e 's/^#\!include auth-vpopmail/\!include auth-vpopmail/' \
-		"$_dcdir/conf.d/10-auth.conf" || exit
+		-e 's/^#listen = \*, ::/listen = \*/' \
+		"$_dcdir/dovecot.conf" || exit
+}
+
+configure_system_auth()
+{
+	local _authconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-auth.conf"
+	if ! grep -qs '^!include auth\-system' "$_authconf"; then
+		tell_status "system auth already disabled"
+		return
+	fi
+
+	tell_status "disabling auth-system"
+	sed -i .bak \
+		-e '/^\!include auth-system/ s/\!/#!/' \
+		"$_authconf" || exit
+}
+
+configure_vsz_limit()
+{
+	local _master="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-master.conf"
+	if grep -q ^default_vsz_limit "$_master"; then
+		tell_status "vsz_limit already configured"
+		return
+	fi
+
+	tell_status "bumping up default_vsz_limit 256 -> 384"
+	sed -i .bak \
+		-e '/^#default_vsz_limit/ s/#//; s/256/384/' \
+		"$_master"
+}
+
+configure_tls_certs()
+{
+	local _sslconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-ssl.conf"
+	if grep -qs ^ssl_cert "$_sslconf"; then
+		tell_status "removing ssl_cert from 10-ssl.conf"
+		sed -i .bak \
+			-e '/ssl_cert/ s/^s/#s/' \
+			-e '/ssl_key/ s/^s/#s/' \
+			"$_sslconf"
+	fi
+
+	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
+	if [ ! -d "$_ssldir/certs" ]; then
+		mkdir -p "$_ssldir/certs" || exit
+		chmod 644 "$_ssldir/certs" || exit
+	fi
+
+	if [ ! -d "$_ssldir/private" ]; then
+		mkdir "$_ssldir/private" || exit
+		chmod 644 "$_ssldir/private" || exit
+	fi
+
+	if [ -f "$_ssldir/certs/dovecot.pem" ]; then
+		tell_status "dovecot TLS certificates already installed"
+		return
+	fi
 
 	tell_status "installing dovecot TLS certificates"
-	cp /etc/ssl/certs/server.crt \
-		"$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
-	cp /etc/ssl/private/server.key \
-		"$STAGE_MNT/etc/ssl/private/dovecot.pem" || exit
+	cp /etc/ssl/certs/server.crt "$_ssldir/certs/dovecot.pem" || exit
+	cp /etc/ssl/private/server.key "$_ssldir/private/dovecot.pem" || exit
+}
 
-	tell_status "boosting TLS encryption strength"
-	sed -i .bak \
-		-e '/^#ssl_dh_parameters_length/ s/^#//; s/1024/2048/' \
-		-e '/^#ssl_prefer_server_ciphers/ s/^#//; s/no/yes/' \
-		-e '/^#ssl_cipher_list/ s/^#//; s/ALL:.*/ALL:!LOW:!SSLv2:!EXP:!aNull:!eNull::!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA/' \
-		"$_dcdir/conf.d/10-ssl.conf" || exit
+configure_tls_dh()
+{
+	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
+	local _dhparams="$_ssldir/private/dhparams.pem"
+
+	if [ -f "$_dhparams" ]; then
+		tell_status "$_dhparams exists"
+		return
+	fi
 
 	tell_status "generating a 2048 bit Diffie-Hellman params file"
-	openssl dhparam -out "$STAGE_MNT/etc/ssl/private/dhparams.pem" 2048 || exit
-	cat "$STAGE_MNT/etc/ssl/private/dhparams.pem" \
-		>> "$STAGE_MNT/etc/ssl/certs/dovecot.pem" || exit
+	openssl dhparam -out "$_dhparams" 2048 || exit
+	cat "$_dhparams" >> "$_ssldir/certs/dovecot.pem" || exit
+}
+
+configure_dovecot()
+{
+	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
+
+	if [ ! -d "$_dcdir" ]; then
+		tell_status "creating $_dcdir"
+		mkdir "$_dcdir" || exit
+	fi
+
+	configure_dovecot_local_conf
+	configure_example_config
+	configure_system_auth
+	configure_vsz_limit
+	configure_tls_certs
+	configure_tls_dh
 }
 
 start_dovecot()
 {
 	tell_status "starting dovecot"
 	stage_sysrc dovecot_enable=YES
+	stage_sysrc dovecot_config="/data/etc/dovecot.conf"
 	stage_exec service dovecot start || exit
 }
 
