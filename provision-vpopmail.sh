@@ -51,8 +51,8 @@ install_maildrop()
 	tell_status "adding legacy mailfilter for MT5 compatibility"
 	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
 	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
-	chown 89:89 "$STAGE_MNT/usr/local/etc/mailfilter"
-	chmod 600 "$STAGE_MNT/usr/local/etc/mailfilter"
+	chown 89:89 "$STAGE_MNT/usr/local/etc/mail/mailfilter"
+	chmod 600 "$STAGE_MNT/usr/local/etc/mail/mailfilter"
 }
 
 install_lighttpd()
@@ -165,7 +165,7 @@ install_nrpe()
 	fi
 
 	tell_status "install nagios plugins (mailq)"
-	stage_pkg_install nrpe
+	stage_pkg_install nagios-plugins
 }
 
 install_vpopmail()
