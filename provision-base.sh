@@ -237,6 +237,7 @@ weekly_status_security_inline="YES"
 monthly_status_security_inline="YES"
 
 # These are redundant within a jail
+security_status_chkmounts_enable="NO"
 security_status_chksetuid_enable="NO"
 security_status_neggrpperm_enable="NO"
 security_status_ipfwlimit_enable="NO"
