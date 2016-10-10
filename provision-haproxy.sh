@@ -50,7 +50,7 @@ frontend http-in
     bind *:80
     acl is_websocket hdr(Upgrade) -i WebSocket
     acl is_websocket hdr_beg(Host) -i ws
-    use_backend socket_smtp    if  is_websocket
+    use_backend websocket_haraka    if  is_websocket
     redirect scheme https code 301 if !is_websocket !{ ssl_fc }
 
 frontend https-in
@@ -73,7 +73,7 @@ frontend https-in
     acl isoqlog      path_beg /isoqlog
     acl rspamd       path_beg /rspamd
 
-    use_backend socket_smtp    if  is_websocket
+    use_backend websocket_haraka if  is_websocket
     use_backend www_monitor    if  munin
     use_backend www_monitor    if  nagios
     use_backend www_smtp       if  watch
@@ -92,7 +92,7 @@ backend www_smtp
     server smtp $(get_jail_ip haraka):80
     reqirep ^([^\ :]*)\ /haraka/(.*)    \1\ /\2
 
-backend socket_smtp
+backend websocket_haraka
     timeout queue 5s
     timeout server 86400s
     timeout connect 86400s
