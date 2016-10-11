@@ -317,12 +317,6 @@ config_haraka_watch()
 	if [ ! -f "$HARAKA_CONF/watch.ini" ]; then
 		echo '[wss]' > "$HARAKA_CONF/watch.ini"
 	fi
-
-	local _libdir="$STAGE_MNT/usr/local/lib/node_modules/Haraka/plugins/watch"
-	sed -i .bak \
-		-e '/^var rcpt_to_plugins/ s/in_host_list/qmail_deliverable/' \
-		-e "/^var data_plugins/ s/uribl/uribl', 'limit/; s/clamd/clamd', 'avg/" \
-		"$_libdir/html/client.js"
 }
 
 config_haraka_smtp_ini()
@@ -466,6 +460,14 @@ config_haraka_http()
 	fi
 }
 
+config_haraka_haproxy()
+{
+	if [ ! -f "$HARAKA_CONF/haproxy_hosts" ]; then
+		tell_status "enable haproxy support"
+		get_jail_ip haraka | tee -a "$HARAKA_CONF/haproxy_hosts"
+	fi
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -514,6 +516,7 @@ configure_haraka()
 	config_haraka_karma
 	config_haraka_redis
 	config_haraka_geoip
+	config_haraka_haproxy
 
 	install_geoip_dbs
 }
