@@ -14,7 +14,7 @@ install_dovecot()
 
 	tell_status "configure dovecot for vpopmail"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
-	stage_exec pw groupadd -n vpopmail -g 89
+	stage_exec pw groupadd -n vchkpw -g 89
 	stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
 
 	stage_exec mkdir -p /var/qmail
