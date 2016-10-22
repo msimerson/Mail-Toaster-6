@@ -233,6 +233,7 @@ get_jail_ip()
 		memcached)    _incr=24 ;;
 		sphinxsearch) _incr=25 ;;
 		elasticsearch) _incr=26 ;;
+		nictool)      _incr=27 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -528,6 +529,12 @@ stage_listening()
 	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" || exit
 }
 
+stage_test_running()
+{
+	echo "checking for process $1 in staged jail"
+	pgrep -j stage $1 || exit
+}
+
 stage_mount_ports()
 {
 	echo "mount $STAGE_MNT/usr/ports"
@@ -602,6 +609,7 @@ has_data_fs()
 		minecraft ) return 0;;
 		haraka )    return 0;;
 		elasticsearch ) return 0;;
+		nictool)   return 0;;
 	esac
 
 	return 1
