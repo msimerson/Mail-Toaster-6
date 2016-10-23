@@ -232,9 +232,9 @@ security_show_success="NO"
 security_show_info="YES"
 security_status_pkgaudit_enable="YES"
 security_status_tcpwrap_enable="YES"
-daily_status_security_inline="YES"
-weekly_status_security_inline="YES"
-monthly_status_security_inline="YES"
+daily_status_security_inline="NO"
+weekly_status_security_inline="NO"
+monthly_status_security_inline="NO"
 
 # These are redundant within a jail
 security_status_chkmounts_enable="NO"
