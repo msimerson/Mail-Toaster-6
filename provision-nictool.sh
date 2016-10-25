@@ -62,6 +62,9 @@ install_nictool_server() {
 	if [ ! -f "$_ntsconf" ]; then
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
+		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' $_ntsconf
+		echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'$(get_jail_ip nictool)' IDENTIFIED BY 'lootcin205';" \
+			| jexec mysql /usr/local/bin/mysql || exit
 	fi
 
 	tell_status "installing NicToolServer dependencies"
@@ -70,8 +73,67 @@ install_nictool_server() {
 
 install_apache_setup()
 {
-	fetch -o "$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf" \
-		http://www.nictool.com/download/nictool-24.conf
+	_htcnf="$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf"
+	tee "$_htcnf" <<"EO_NICTOOL_APACHE24"
+LoadModule perl_module libexec/apache24/mod_perl.so
+PerlRequire /usr/local/nictool/client/lib/nictoolclient.conf
+
+<VirtualHost _default_:80>
+    ServerName $TOASTER_HOSTNAME
+    Alias /images/ \"/usr/local/nictool/client/htdocs/images/\"
+    DocumentRoot /usr/local/nictool/client/htdocs
+    DirectoryIndex index.cgi
+
+    <Files \"*.cgi\">
+       SetHandler perl-script
+       PerlResponseHandler ModPerl::Registry
+       PerlOptions +ParseHeaders
+       Options +ExecCGI
+    </Files>
+
+    <Directory \"/usr/local/nictool/client/htdocs\">
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+<IfDefine !MODPERL2>
+   PerlFreshRestart On
+</IfDefine>
+PerlTaintCheck Off
+
+Listen 8082
+
+PerlRequire /usr/local/nictool/server/lib/nictoolserver.conf
+
+<VirtualHost *:8082>
+    KeepAlive Off
+    <Location />
+        SetHandler perl-script
+        PerlResponseHandler NicToolServer
+    </Location>
+    <Location /soap>
+        SetHandler perl-script
+        PerlResponseHandler Apache::SOAP
+        PerlSetVar dispatch_to \"/usr/local/nictool/server, NicToolServer::SOAP\"
+    </Location>
+</VirtualHost>
+EO_NICTOOL_APACHE24
+
+}
+
+install_nictool_db()
+{
+	if mysql_db_exists nictool; then
+		tell_status "nictool mysql db exists"
+		return
+	fi
+
+	tell_status "creating nictool mysql db"
+	echo "CREATE DATABASE nictool;" | jexec mysql /usr/local/bin/mysql || exit
+	for f in "$STAGE_MNT/usr/local/nictool/server/sql/*.sql"; do
+		echo $f
+		cat $f | jexec mysql /usr/local/bin/mysql nictool
+	done
 }
 
 install_nictool()
@@ -81,11 +143,12 @@ install_nictool()
 	install_nictool_server
 	install_nictool_client
 	install_apache_setup
+	install_nictool_db
 }
 
 start_nictool()
 {
-	tell_status "starting NicTool"
+	tell_status "starting NicTool (apache 24)"
 	stage_sysrc apache24_enable=YES
 	stage_exec service apache24 start
 }
