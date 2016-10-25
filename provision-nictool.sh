@@ -74,24 +74,24 @@ install_nictool_server() {
 install_apache_setup()
 {
 	_htcnf="$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf"
-	tee "$_htcnf" <<"EO_NICTOOL_APACHE24"
+	tee "$_htcnf" <<EO_NICTOOL_APACHE24
 LoadModule perl_module libexec/apache24/mod_perl.so
 PerlRequire /usr/local/nictool/client/lib/nictoolclient.conf
 
 <VirtualHost _default_:80>
     ServerName $TOASTER_HOSTNAME
-    Alias /images/ \"/usr/local/nictool/client/htdocs/images/\"
+    Alias /images/ "/usr/local/nictool/client/htdocs/images/"
     DocumentRoot /usr/local/nictool/client/htdocs
     DirectoryIndex index.cgi
 
-    <Files \"*.cgi\">
+    <Files "*.cgi">
        SetHandler perl-script
        PerlResponseHandler ModPerl::Registry
        PerlOptions +ParseHeaders
        Options +ExecCGI
     </Files>
 
-    <Directory \"/usr/local/nictool/client/htdocs\">
+    <Directory "/usr/local/nictool/client/htdocs">
         Require all granted
     </Directory>
 </VirtualHost>
@@ -114,7 +114,7 @@ PerlRequire /usr/local/nictool/server/lib/nictoolserver.conf
     <Location /soap>
         SetHandler perl-script
         PerlResponseHandler Apache::SOAP
-        PerlSetVar dispatch_to \"/usr/local/nictool/server, NicToolServer::SOAP\"
+        PerlSetVar dispatch_to "/usr/local/nictool/server, NicToolServer::SOAP"
     </Location>
 </VirtualHost>
 EO_NICTOOL_APACHE24
