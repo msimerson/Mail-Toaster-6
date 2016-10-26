@@ -474,7 +474,11 @@ config_haraka_helo()
 {
 	if [ ! -f "$HARAKA_CONF/helo.checks.ini" ]; then
 		tell_status "disabling HELO rejections"
-		echo "[reject]\nmismatch=false" | tee "$HARAKA_CONF/helo.checks.ini"
+		
+        tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
+[reject]
+mismatch=false
+EO_HELO_INI
 	fi
 
 	if [ ! -f "helo.checks.regexps" ]; then
