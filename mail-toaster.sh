@@ -234,6 +234,7 @@ get_jail_ip()
 		sphinxsearch) _incr=25 ;;
 		elasticsearch) _incr=26 ;;
 		nictool)      _incr=27 ;;
+		sqwebmail)     _incr=28 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -610,6 +611,7 @@ has_data_fs()
 		haraka )    return 0;;
 		elasticsearch ) return 0;;
 		nictool)   return 0;;
+		sqwebmail )  return 0;;
 	esac
 
 	return 1
