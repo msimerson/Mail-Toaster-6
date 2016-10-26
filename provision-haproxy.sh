@@ -66,6 +66,7 @@ frontend https-in
     acl nagios       path_beg /nagios
     acl watch        path_beg /watch
     acl haraka       path_beg /haraka
+    acl haraka       path_beg /logs
     acl qmailadmin   path_beg /qmailadmin
     acl qmailadmin   path_beg /cgi-bin/qmailadmin
     acl sqwebmail    path_beg /sqwebmail
@@ -76,11 +77,11 @@ frontend https-in
     use_backend websocket_haraka if  is_websocket
     use_backend www_monitor    if  munin
     use_backend www_monitor    if  nagios
-    use_backend www_smtp       if  watch
+    use_backend www_haraka     if  watch
     use_backend www_vpopmail   if  qmailadmin
-    use_backend www_vpopmail   if  sqwebmail
+    use_backend www_sqwebmail  if  sqwebmail
     use_backend www_vpopmail   if  isoqlog
-    use_backend www_smtp       if  haraka
+    use_backend www_haraka     if  haraka
     use_backend www_rspamd     if  rspamd
 
     default_backend www_webmail
@@ -88,15 +89,18 @@ frontend https-in
 backend www_vpopmail
     server vpopmail $(get_jail_ip vpopmail):80
 
-backend www_smtp
-    server smtp $(get_jail_ip haraka):80
+backend www_sqwebmail
+    server sqwebmail $(get_jail_ip sqwebmail):80
+
+backend www_haraka
+    server haraka $(get_jail_ip haraka):80
     reqirep ^([^\ :]*)\ /haraka/(.*)    \1\ /\2
 
 backend websocket_haraka
     timeout queue 5s
     timeout server 86400s
     timeout connect 86400s
-    server smtp $(get_jail_ip haraka):80
+    server haraka $(get_jail_ip haraka):80
 
 backend www_webmail
     server webmail $(get_jail_ip webmail):80
