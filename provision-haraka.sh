@@ -36,6 +36,7 @@ install_haraka()
 
 	# install modern-syslog from github until a npm release > 1.1.3 is published
 	stage_exec npm install -g strongloop/modern-syslog Haraka ws express || exit
+	stage_exec npm install -g haraka-plugin-log-reader
 
 	#haraka_github_updates
 }
@@ -49,7 +50,7 @@ install_geoip_dbs()
 
 	if ! grep -qs ^connect.geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"
-		sed -i .bak -e '/^# connect.geoip/ s/#//' "$HARAKA_CONF/plugins"
+		sed -i .bak -e '/^# connect.geoip/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
@@ -100,7 +101,7 @@ config_haraka_syslog()
 {
 	if ! grep -qs ^log.syslog "$HARAKA_CONF/plugins"; then
 		tell_status "enable logging to syslog"
-		sed -i '' -e '/^# log.syslog$/ s/#//' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# log.syslog$/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
@@ -114,11 +115,12 @@ EO_DLF
 		fi
 	fi
 
-	if ! grep  -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
-		# don't write to daemon_log_file if syslog write was successful
-		echo "[general]
-always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
-	fi
+    # no haraka.log prevents log-reader from being able to work
+#	if ! grep -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
+#		# don't write to daemon_log_file if syslog write was successful
+#		echo "[general]
+#always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
+#	fi
 }
 
 config_haraka_smtp_forward()
@@ -143,7 +145,7 @@ config_haraka_vpopmail()
 "$HARAKA_CONF/plugins"
 		# shellcheck disable=1004
 		sed -i '.bak' \
-		    -e '/^# auth\/auth_ldap$/a\
+			-e '/^# auth\/auth_ldap$/a\
 auth\/auth_vpopmaild
 ' "$HARAKA_CONF/plugins"
 	fi
@@ -173,7 +175,7 @@ config_haraka_p0f()
 
 	if ! grep -qs ^connect.p0f "$HARAKA_CONF/plugins"; then
 		tell_status "enable Haraka p0f plugin"
-		sed -i '' -e '/^# connect.p0f/ s/#//' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# connect.p0f/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 }
 
@@ -262,7 +264,7 @@ Phishing=false
 config_haraka_tls() {
 	if ! grep -qs ^tls "$HARAKA_CONF/plugins"; then
 		tell_status "enable TLS encryption"
-		sed -i '' -e '/^# tls$/ s/#//' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# tls$/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/tls_cert.pem" ]; then
@@ -279,7 +281,7 @@ config_haraka_dnsbl()
 		echo 'reject=false
 search=all
 enable_stats=false
-zones=b.barracudacentral.org, truncate.gbudb.net, psbl.surriel.com, bl.spamcop.net, dnsbl-1.uceprotect.net, zen.spamhaus.org, dnsbl.sorbs.net, dnsbl.justspam.org, bad.psky.me
+zones=b.barracudacentral.org, truncate.gbudb.net, psbl.surriel.com, bl.spamcop.net, dnsbl-1.uceprotect.net, zen.spamhaus.org, dnsbl.sorbs.net, dnsbl.justspam.org
 ' | tee -a "$HARAKA_CONF/dnsbl.ini"
 	fi
 }
@@ -468,6 +470,50 @@ config_haraka_haproxy()
 	fi
 }
 
+config_haraka_helo()
+{
+	if [ ! -f "$HARAKA_CONF/helo.checks.ini" ]; then
+		tell_status "disabling HELO rejections"
+		
+        tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
+[reject]
+mismatch=false
+EO_HELO_INI
+	fi
+
+	if [ ! -f "helo.checks.regexps" ]; then
+		tell_status "rejecting brutefore AUTH signature"
+		echo "ylmf\-pc" | tee "$HARAKA_CONF/helo.checks.regexps"
+	fi
+}
+
+config_haraka_results()
+{
+	if [ -f "$HARAKA_CONF/results.ini" ]; then
+		return
+	fi
+
+	tell_status "cleaning up results"
+	tee "$HARAKA_CONF/results.ini" <<EO_RESULTS
+[connect.fcrdns]
+hide=ptr_names,ptr_name_to_ip,ptr_name_has_ips,ptr_multidomain,has_rdns
+
+[data.headers]
+order=fail,pass,msg
+
+[data.uribl]
+hide=skip
+
+[dnsbl]
+hide=pass
+
+[rcpt_to.qmail_deliverable]
+order=fail,pass,msg
+
+EO_RESULTS
+}
+
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -517,6 +563,8 @@ configure_haraka()
 	config_haraka_redis
 	config_haraka_geoip
 	config_haraka_haproxy
+	config_haraka_helo
+	config_haraka_results
 
 	install_geoip_dbs
 }
