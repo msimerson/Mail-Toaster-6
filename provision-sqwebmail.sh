@@ -19,12 +19,48 @@ security_courier-authlib_SET=AUTH_VCHKPW
 
 install_sqwebmail_src()
 {
+
     stage_make_conf mail_sqwebmail "
 mail_sqwebmail_SET=AUTH_VCHKPW
 mail_sqwebmail_UNSET=SENTRENAME
 "
 	export BATCH=${BATCH:="1"}
 	stage_exec make -C /usr/ports/mail/sqwebmail deinstall install clean || exit
+}
+
+install_qmail()
+{
+    tell_status "linking qmail control and user dirs"
+    stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
+    stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
+
+    tell_status "installing qmail"
+    mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
+    echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
+    stage_pkg_install netqmail daemontools ucspi-tcp || exit
+
+    stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
+mail_qmail_UNSET=RCDLINK
+'
+}
+
+install_vpopmail()
+{
+    VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
+    VPOPMAIL_OPTIONS_UNSET="ROAMING"
+
+    if [ "$TOASTER_MYSQL" = "1" ]; then
+        VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
+        VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
+    fi
+
+    tell_status "installing vpopmail port with custom options"
+    stage_make_conf mail_vpopmail_ "
+mail_vpopmail_SET=$VPOPMAIL_OPTIONS_SET
+mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
+"
+    stage_pkg_install gmake gettext dialog4ports fakeroot
+    stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 
 install_sqwebmail()
@@ -34,11 +70,20 @@ install_sqwebmail()
 		stage_pkg_install mysql56-client dialog4ports
 	fi
 
+    install_qmail
+    install_vpopmail
+
 	tell_status "installing sqwebmail"
-	stage_pkg_install sqwebmail courier-authlib vpopmail gettext lighttpd || exit
+	stage_pkg_install sqwebmail courier-authlib lighttpd || exit
 
 	stage_exec mkdir -p /var/qmail
+    if [ -d "$STAGE_MNT/var/qmail/users" ]; then
+        rm -rf "$STAGE_MNT/var/qmail/users"
+    fi
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
+    if [ -d "$STAGE_MNT/var/qmail/control" ]; then
+        rm -rf "$STAGE_MNT/var/qmail/control"
+    fi
 	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 
     install_authdaemond
@@ -116,20 +161,23 @@ start_sqwebmail()
 	stage_exec service lighttpd start || exit
 }
 
-test_dovecot()
+test_sqwebmail()
 {
 	tell_status "testing sqwebmaild"
-    if [ ! -f /var/sqwebmail/sqwebmail.sock ]; then
+    if [ ! -S "$STAGE_MNT/var/sqwebmail/sqwebmail.sock" ]; then
+        tell_status "sqwebmail socket missing"
         exit
     fi
 
 	tell_status "testing courier-authdaemond"
-    if [ ! -f /var/run/authdaemond/socket ]; then
+    if [ ! -S "$STAGE_MNT/var/run/authdaemond/socket" ]; then
+        tell_status "courier-authdaemond socket missing"
         exit
     fi
 
-	tell_status "testing lighttpd"
+	tell_status "testing lighttpd on port 80"
 	stage_listening 80
+
 	echo "it worked"
 }
 
