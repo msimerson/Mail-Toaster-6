@@ -221,6 +221,13 @@ tmpdir=/data/avg/spool
 " | tee -a "$HARAKA_CONF/avg.ini"
 	fi
 
+	if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
+		tell_status "update tmpdir in avg.ini"
+		sed -i .bak -e \
+			'/^tmpdir/ s/avg$/avg\/spool/g' \
+			"$HARAKA_CONF/avg.ini"
+	fi
+
 	if ! grep -q ^avg "$HARAKA_CONF/plugins"; then
 		tell_status "enabling avg plugin"
 		# shellcheck disable=1004
