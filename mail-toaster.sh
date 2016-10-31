@@ -308,7 +308,7 @@ stage_unmount()
 	unmount_ports "$STAGE_MNT"
 	unmount_pkg_cache
 	if has_data_fs "$1"; then unmount_data "$1"; fi
-	unmount_aux_data "$1"
+	stage_unmount_aux_data "$1"
 }
 
 cleanup_staged_fs()
@@ -342,7 +342,7 @@ create_staged_fs()
 	echo
 }
 
-unmount_aux_data()
+stage_unmount_aux_data()
 {
 	case $1 in
 		spamassassin)  unmount_data geoip ;;
@@ -351,7 +351,7 @@ unmount_aux_data()
 	esac
 }
 
-mount_aux_data() {
+stage_mount_aux_data() {
 	case $1 in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
@@ -383,7 +383,7 @@ start_staged_jail()
 		$JAIL_START_EXTRA \
 		|| exit
 
-	mount_aux_data "$_name"
+	stage_mount_aux_data "$_name"
 
 	pkg -j stage update
 }
