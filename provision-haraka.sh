@@ -210,14 +210,14 @@ config_haraka_avg()
 	fi
 
 	tell_status "configuring Haraka avg plugin"
-	mkdir -p "$STAGE_MNT/data/avg" || exit
+	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
 
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
 
 	if ! grep -qs ^host "$HARAKA_CONF/avg.ini"; then
 		echo "host = $(get_jail_ip avg)
-tmpdir=/data/avg
+tmpdir=/data/avg/spool
 " | tee -a "$HARAKA_CONF/avg.ini"
 	fi
 
