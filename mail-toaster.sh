@@ -599,6 +599,7 @@ has_data_fs()
 		geoip )    return 0;;
 		mysql )    return 0;;
 		redis )    return 0;;
+		spamassassin ) return 0;;
 		vpopmail ) return 0;;
 		dovecot )  return 0;;
 		webmail )  return 0;;
