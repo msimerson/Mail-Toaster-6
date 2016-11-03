@@ -97,6 +97,16 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 	install_lighttpd
 }
 
+mysql_error_warning()
+{
+	echo; echo "-----------------"
+	echo "WARNING: could not connect to MySQL. (Maybe it's password protected?)"
+	echo "If this is a new install, you will need to manually set up MySQL for"
+	echo "vpopmail use. "
+	echo "-----------------"; echo
+	sleep 5
+}
+
 install_vpopmail_mysql_grants()
 {
 	tell_status "enabling vpopmail MySQL access"
@@ -109,7 +119,11 @@ install_vpopmail_mysql_grants()
 
 	if ! mysql_db_exists vpopmail; then
 		tell_status "creating vpopmail database"
-		echo "CREATE DATABASE vpopmail;" | jexec mysql /usr/local/bin/mysql || exit
+		echo "CREATE DATABASE vpopmail;" | jexec mysql /usr/local/bin/mysql || mysql_error_warning
+	fi
+
+	if ! mysql_db_exists vpopmail; then
+		return
 	fi
 
 	local _last; _last=$(grep -v ^# "$_vpe" | head -n1 | cut -f4 -d'|')
