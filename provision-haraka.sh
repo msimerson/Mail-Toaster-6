@@ -36,7 +36,7 @@ install_haraka()
 
 	# install modern-syslog from github until a npm release > 1.1.3 is published
 	stage_exec npm install -g strongloop/modern-syslog Haraka ws express || exit
-	stage_exec npm install -g haraka-plugin-log-reader
+	stage_exec bash -c "cd /data && npm install haraka-plugin-log-reader"
 
 	#haraka_github_updates
 }
