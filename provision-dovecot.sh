@@ -12,24 +12,47 @@ install_dovecot()
 	tell_status "installing dovecot v2 package"
 	stage_pkg_install dovecot2 || exit
 
-	tell_status "configure dovecot for vpopmail"
+	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
-	stage_exec pw groupadd -n vchkpw -g 89
-	stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
 
-	stage_exec mkdir -p /var/qmail
-	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
-	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
+	install_vpopmail_port
 
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		stage_pkg_install mysql56-client
-	fi
+	tell_status "mounting shared vpopmail fs"
+	mount_data vpopmail
+
+	tell_status "linking to shared qmail control dirs"
+	stage_exec rm -rf /var/qmail/users || exit
+	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users || exit
+
+	stage_exec rm -rf /var/qmail/control || exit
+	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control || exit
 
 	tell_status "building dovecot with vpopmail support"
 	stage_pkg_install dialog4ports
 	export BATCH=${BATCH:="1"}
-	stage_exec make -C /usr/ports/mail/dovecot2 deinstall install clean || exit
+	stage_exec make -C /usr/ports/mail/dovecot2 clean build deinstall install clean || exit
 }
+
+install_vpopmail_port()
+{
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		tell_status "installing vpopmail mysql dependency"
+		stage_pkg_install mysql56-client
+	fi
+
+	tell_status "copying vpopmail options from vpopmail jail"
+	grep ^mail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
+	mkdir -p "$STAGE_MNT/var/db/ports/mail_vpopmail" || exit
+	cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" \
+		"$STAGE_MNT/var/db/ports/mail_vpopmail" || exit
+
+	tell_status "install vpopmail deps"
+	stage_pkg_install gmake gettext ucspi-tcp netqmail fakeroot
+
+	tell_status "installing vpopmail port with custom options"
+	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+}
+
 
 configure_dovecot_local_conf() {
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
@@ -39,7 +62,7 @@ configure_dovecot_local_conf() {
 		return
 	fi
 
-	tell_status "configuring dovecot"
+	tell_status "installing $_localconf"
 	tee "$_localconf" <<'EO_DOVECOT_LOCAL'
 #mail_debug = yes
 auth_mechanisms = plain login digest-md5 cram-md5
@@ -49,8 +72,8 @@ first_valid_gid = 89
 first_valid_uid = 89
 last_valid_gid = 89
 last_valid_uid = 89
+mail_privileged_group = 89
 login_greeting = Mail Toaster (Dovecot) ready.
-mail_privileged_group = mail
 mail_plugins = $mail_plugins quota
 protocols = imap pop3
 service auth {
@@ -199,6 +222,7 @@ configure_dovecot()
 
 	if [ ! -d "$_dcdir" ]; then
 		tell_status "creating $_dcdir"
+		echo "mkdir $_dcdir"
 		mkdir "$_dcdir" || exit
 	fi
 
@@ -232,4 +256,5 @@ install_dovecot
 configure_dovecot
 start_dovecot
 test_dovecot
+unmount_data vpopmail
 promote_staged_jail dovecot
