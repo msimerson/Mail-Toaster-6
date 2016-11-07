@@ -25,7 +25,7 @@ export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="1"
 export TOASTER_MARIADB="0"
-export TOASTER_AUDIT="0"
+export TOASTER_PKG_AUDIT="0"
 
 EO_MT_CONF
 	fi
@@ -233,7 +233,7 @@ get_jail_ip()
 		memcached)    _incr=24 ;;
 		sphinxsearch) _incr=25 ;;
 		elasticsearch) _incr=26 ;;
-		nictool)      _incr=27 ;;
+		nictool)       _incr=27 ;;
 		sqwebmail)     _incr=28 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
@@ -462,7 +462,7 @@ stage_resolv_conf()
 
 seed_pkg_audit()
 {
-	if [ "$TOASTER_AUDIT" = "1" ]; then
+	if [ "$TOASTER_PKG_AUDIT" = "1" ]; then
 		tell_status "installing FreeBSD package audit database"
 		stage_exec /usr/sbin/pkg audit -F
 	fi
@@ -584,7 +584,7 @@ stage_fbsd_package()
 	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
 	echo "done"
 
-	tell_status "extracting FreeBSD package $1.tgz"
+	tell_status "extracting FreeBSD package $1.tgz to $_dest"
 	tar -C "$_dest" -xpJf "$1.txz" || exit
 	echo "done"
 }
