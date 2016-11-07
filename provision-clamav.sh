@@ -26,62 +26,63 @@ install_clamav_unofficial()
 		dialog --yesno "$_es_mess" 18 74 || return
 	fi
 
-	tell_status "installing ClamAV unofficial 4.8"
-	local CLAMAV_UV=4.8
-	local STAGE_ETC="$STAGE_MNT/usr/local/etc"
+	local CLAMAV_UV=5.4.1
+	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
 	stage_pkg_install gnupg1 rsync bind-tools
 	fetch -m -o "$STAGE_MNT/tmp/" \
 	  "https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz"
 	tar -xz -C "$STAGE_MNT/tmp/" -f "$STAGE_MNT/tmp/$CLAMAV_UV.tar.gz" || exit
 
-	local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-4.8"
-	local _conf="$STAGE_ETC/clamav-unofficial-sigs.conf"
+	local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-$CLAMAV_UV"
+	local _conf="$STAGE_MNT/etc/clamav-unofficial-sigs"
 
-	if [ ! -f "$_conf" ]; then
-		if [ -f "clamav-unofficial-sigs.conf" ]; then
-			tell_status "installing local clamav-unofficial-sigs.conf"
-			cp "clamav-unofficial-sigs.conf" "$STAGE_ETC/"
-		fi
-	fi
+	tell_status "installing config files"
+	mkdir -p "$_conf" || exit
+	cp -r "$_dist/config/" "$_conf/" || exit
+	cp "$_conf/os.freebsd.conf" "$_conf/os.conf" || exit
 
-	if [ ! -f "$_conf" ]; then
-		if [ -f "$ZFS_JAIL_MNT/clamav/usr/local/etc/clamav-unofficial-sigs.conf" ]; then
-			tell_status "preserving clamav-unofficial-sigs.conf"
-			cp "$ZFS_JAIL_MNT/clamav/usr/local/etc/clamav-unofficial-sigs.conf" \
-				"$STAGE_ETC/"
-		fi
-	fi
-
-	if [ ! -f "$_conf" ]; then
-		tell_status "updating clamav-unofficial-sigs.conf"
-		local _dist_conf="$_dist/clamav-unofficial-sigs.conf"
+	if [ -f "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" ]; then
+		tell_status "preserving user.conf"
+		cp "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" \
+			"$_conf/" || exit
+		echo "done"
+	else
+		tell_status "completing user configuration"
 		sed -i .bak \
-			-e 's/\/var\/lib/\/var\/db/' \
-			-e 's/^clam_user="clam"/clam_user="clamav"/' \
-			-e 's/^clam_group="clam"/clam_group="clamav"/' \
-			"$_dist_conf"
-		cp "$_dist_conf" "$_conf" || exit
+			-e '/^#user_configuration_complete/ s/^#//' \
+			"$_conf/user.conf"
+		echo "done"
 	fi
 
+	if grep -qs ^Antidebug_AntiVM "$_conf/master.conf"; then
+		tell_status "disabling error throwing rules"
+		echo "see https://github.com/extremeshok/clamav-unofficial-sigs/issues/151"
+		sed -i .bak \
+			-e '/^Antidebug_AntiVM/ s/^A/#A/' \
+			-e '/^email/ s/^e/#e/' \
+			"$_conf/master.conf"
+	fi
+
+	tell_status "installing clamav-unofficial-sigs.sh"
 	local _sigs_sh="$_dist/clamav-unofficial-sigs.sh"
 	sed -i .bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' "$_sigs_sh"
 	chmod 755 "$_sigs_sh" || exit
-
 	cp "$_sigs_sh" "$STAGE_MNT/usr/local/bin" || exit
-	cp "$_dist/clamav-unofficial-sigs.8" "$STAGE_MNT/usr/local/man/man8" || exit
-	mkdir -p "$STAGE_MNT/var/log/clamav-unofficial-sigs" || exit
-	mkdir -p "$STAGE_ETC/periodic/daily" || exit
 
-	tee "$STAGE_ETC/periodic/daily/clamav-unofficial-sigs" <<EOSIG
-#!/bin/sh
-/usr/local/bin/clamav-unofficial-sigs.sh -c /usr/local/etc/clamav-unofficial-sigs.conf
-EOSIG
-	chmod 755 "$STAGE_ETC/periodic/daily/clamav-unofficial-sigs" || exit
-	mkdir -p "$STAGE_ETC/newsyslog.conf.d" || exit
-	echo '/var/log/clamav-unofficial-sigs.log root:wheel 640  3 1000 * J' \
-		> "$STAGE_ETC/newsyslog.conf.d/clamav-unofficial-sigs"
-	stage_exec /usr/local/etc/periodic/daily/clamav-unofficial-sigs
+	mkdir -p "$STAGE_MNT/var/log/clamav-unofficial-sigs" || exit
+	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh --install-cron
+	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh --install-logrotate
+	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh --install-man
+
+	tell_status "starting a ClamAV UNOFFICIAL update"
+	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh
+
+	for f in EMAIL_Cryptowall.yar antidebug_antivm.yar; do
+		if [ -f "$ZFS_DATA_MNT/clamav/$f" ]; then
+			rm "$ZFS_DATA_MNT/clamav/$f"
+		fi
+	done
 
 	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
 		dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
