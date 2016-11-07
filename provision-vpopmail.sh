@@ -13,7 +13,7 @@ install_qmail()
 	tell_status "setting up data fs for qmail control files"
 	mkdir -p "$STAGE_MNT/var/qmail" \
 		"$ZFS_DATA_MNT/vpopmail/qmail-control" \
-		"$ZFS_DATA_MNT/vpopmail/qmail-users"
+		"$ZFS_DATA_MNT/vpopmail/qmail-users" || exit
 
 	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
@@ -23,18 +23,9 @@ install_qmail()
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
-	tell_status "enabling qmail"
-	stage_exec /var/qmail/scripts/enable-qmail
-
-	local _alias="$STAGE_MNT/var/qmail/alias"
-	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-root"
-	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-postmaster"
-	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-mailer-daemon"
-
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 '
-
 	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
 
@@ -185,6 +176,7 @@ install_nrpe()
 install_vpopmail()
 {
 	install_qmail
+	configure_qmail
 	install_maildrop
 
 	# stage_exec pw groupadd -n vpopmail -g 89
@@ -196,6 +188,17 @@ install_vpopmail()
 	install_vpopmail_port
 	install_qmailadmin
 	install_nrpe
+}
+
+configure_qmail()
+{
+	tell_status "enabling qmail"
+	stage_exec /var/qmail/scripts/enable-qmail
+
+	local _alias="$STAGE_MNT/var/qmail/alias"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-root"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-postmaster"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-mailer-daemon"
 }
 
 configure_vpopmail()

@@ -347,7 +347,6 @@ stage_unmount_aux_data()
 	case $1 in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
-		dovecot)       unmount_data vpopmail ;;
 	esac
 }
 
@@ -355,7 +354,6 @@ stage_mount_aux_data() {
 	case $1 in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
-		dovecot )       mount_data vpopmail ;;
 	esac
 }
 
@@ -369,7 +367,7 @@ start_staged_jail()
 
 	tell_status "stage jail $_name startup"
 
-        # shellcheck disable=2086
+    # shellcheck disable=2086
 	jail -c \
 		name=stage \
 		host.hostname="$_name" \
