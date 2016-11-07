@@ -333,10 +333,12 @@ $(get_jail_ip "$j")		$j"
     _hosts="$_hosts
 $(get_jail_ip "minecraft")		minecraft
 $(get_jail_ip "joomla")		joomla
-$(get_jail_ip "php7") php7
-$(get_jail_ip "memcached") memcached
-$(get_jail_ip "sphinxsearch") sphinxsearch
-$(get_jail_ip "elasticsearch") elasticsearch
+$(get_jail_ip "php7") 	php7
+$(get_jail_ip "memcached") 	memcached
+$(get_jail_ip "sphinxsearch") 	sphinxsearch
+$(get_jail_ip "elasticsearch") 	elasticsearch
+$(get_jail_ip "nictool") 	nictool
+$(get_jail_ip "sqwebmail") 	sqwebmail
 
 "
 	echo "$_hosts" | tee -a "/etc/hosts"
