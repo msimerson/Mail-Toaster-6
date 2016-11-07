@@ -204,14 +204,14 @@ relay_reject_threshold=7
 
 config_haraka_avg()
 {
+	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
+
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
-		echo "AVG not installed, skipping"
+		echo "AVG data FS missing, not enabling"
 		return
 	fi
 
 	tell_status "configuring Haraka avg plugin"
-	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
-
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
 
