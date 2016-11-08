@@ -15,6 +15,7 @@ config()
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
 export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
+export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
 
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
@@ -42,6 +43,7 @@ config
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
+export TOASTER_SRC_URL=${TOASTER_SRC_URL:="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
@@ -729,9 +731,7 @@ mysql_db_exists()
 
 fetch_and_exec()
 {
-	local _toaster_sh="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
-
-	fetch -m "$_toaster_sh/provision-$1.sh"
+	fetch -m "$TOASTER_SRC_URL/provision-$1.sh"
 	sh "provision-$1.sh"
 }
 

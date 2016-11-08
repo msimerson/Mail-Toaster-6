@@ -35,15 +35,15 @@ install_maildrop()
 	stage_pkg_install maildrop
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" http://mail-toaster.com/install/mt6-mailfilter.txt
-	chown 89:89 "$STAGE_MNT/etc/mailfilter"
-	chmod 600 "$STAGE_MNT/etc/mailfilter"
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/mailfilter.txt" || exit
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
-	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
-	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
-	chown 89:89 "$STAGE_MNT/usr/local/etc/mail/mailfilter"
-	chmod 600 "$STAGE_MNT/usr/local/etc/mail/mailfilter"
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit
+
+	tell_status "setting permissions on mailfilter files"
+	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
+	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
 }
 
 install_lighttpd()
@@ -173,11 +173,19 @@ install_nrpe()
 	stage_pkg_install nagios-plugins
 }
 
+install_qqtool()
+{
+	tell_status "installing qqtool"
+	fetch -o "$STAGE_MNT/usr/local/bin/qqtool" "$TOASTER_SRC_URL/qmail/qqtool.pl"
+	chmod 755 "$STAGE_MNT/usr/local/bin/qqtool"
+}
+
 install_vpopmail()
 {
 	install_qmail
 	configure_qmail
 	install_maildrop
+	install_qqtool
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
@@ -204,7 +212,7 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | stage_exec sh
+	fetch -o - "$TOASTER_SRC_URL/qmail/run.txt" | stage_exec sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
