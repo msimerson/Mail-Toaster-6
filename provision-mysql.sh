@@ -10,11 +10,10 @@ install_db_server()
 {
 	#Check if MariaDB needs to be installed
 	if [ "$TOASTER_MARIADB" = "1" ]; then
-	        install_mariadb
+		install_mariadb
     else
 		install_mysql
 	fi
-
 }
 
 install_mysql()
@@ -29,7 +28,6 @@ install_mariadb()
 	stage_pkg_install mariadb101-server || exit
 }
 
-
 configure_mysql()
 {
 	tell_status "configuring mysql"
@@ -39,6 +37,17 @@ configure_mysql()
 		tell_status "preserving /etc/my.cnf"
 		cp "$ZFS_JAIL_MNT/mysql/etc/my.cnf" "$STAGE_MNT/etc/my.cnf"
 	fi
+
+	local _my_cnf="$ZFS_DATA_MNT/mysql/var/db/mysql/my.cnf"
+
+	if [ ! -f "$_my_cnf" ]; then
+		tell_status "installing $_my_cnf"
+		tee -a "$_my_cnf" <<EO_MY_CNF
+[mysqld]
+innodb_doublewrite = off
+EO_MY_CNF
+	fi
+
 }
 
 start_mysql()
