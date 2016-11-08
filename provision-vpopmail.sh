@@ -180,12 +180,21 @@ install_qqtool()
 	chmod 755 "$STAGE_MNT/usr/local/bin/qqtool"
 }
 
+install_quota_report()
+{
+	tell_status "installing quota_report"
+    mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
+	fetch -o "$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
+	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
+}
+
 install_vpopmail()
 {
 	install_qmail
 	configure_qmail
 	install_maildrop
 	install_qqtool
+	install_quota_report
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
