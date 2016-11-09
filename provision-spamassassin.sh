@@ -222,6 +222,9 @@ add_header all Tests _TESTS_
 EO_LOCAL_CONF
 	fi
 
+	tell_status "initialize sa-update"
+	stage_exec sa-update
+
 	install_sought_rules
 	install_sa_update
 	install_dcc_cleanup
