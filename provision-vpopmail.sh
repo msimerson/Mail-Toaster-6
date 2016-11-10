@@ -190,7 +190,7 @@ install_quota_report()
 	chmod 755 "$_qr"
 
 	sed -i .bak \
-		-e "/$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
+		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
 		"$_qr"
 }
