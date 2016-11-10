@@ -10,7 +10,7 @@ export JAIL_CONF_EXTRA="
 install_authdaemond()
 {
 	tell_status "building courier-authlib with vpopmail support"
-    stage_make_conf security_courier-authlib "
+	stage_make_conf security_courier-authlib "
 security_courier-authlib_SET=AUTH_VCHKPW
 "
 	export BATCH=${BATCH:="1"}
@@ -20,7 +20,7 @@ security_courier-authlib_SET=AUTH_VCHKPW
 install_sqwebmail_src()
 {
 
-    stage_make_conf mail_sqwebmail "
+	stage_make_conf mail_sqwebmail "
 mail_sqwebmail_SET=AUTH_VCHKPW
 mail_sqwebmail_UNSET=SENTRENAME
 "
@@ -30,69 +30,70 @@ mail_sqwebmail_UNSET=SENTRENAME
 
 install_qmail()
 {
-    tell_status "linking qmail control and user dirs"
-    stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
-    stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
+	tell_status "linking qmail control and user dirs"
+	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
+	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
 
-    tell_status "installing qmail"
-    mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
-    echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
-    stage_pkg_install netqmail daemontools ucspi-tcp || exit
+	tell_status "installing qmail"
+	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
+	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
+	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
-    stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
+	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 '
 }
 
-install_vpopmail()
+install_vpopmail_port()
 {
-    VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
-    VPOPMAIL_OPTIONS_UNSET="ROAMING"
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		tell_status "installing vpopmail mysql dependency"
+		stage_pkg_install mysql56-client
+	fi
 
-    if [ "$TOASTER_MYSQL" = "1" ]; then
-        VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
-        VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
-    fi
+	tell_status "copying vpopmail options from vpopmail jail"
+	grep ^mail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
+	mkdir -p "$STAGE_MNT/var/db/ports/mail_vpopmail" || exit
+	cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" \
+		"$STAGE_MNT/var/db/ports/mail_vpopmail" || exit
 
-    tell_status "installing vpopmail port with custom options"
-    stage_make_conf mail_vpopmail_ "
-mail_vpopmail_SET=$VPOPMAIL_OPTIONS_SET
-mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
-"
-    stage_pkg_install gmake gettext dialog4ports fakeroot
-    stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+	tell_status "install vpopmail deps"
+	stage_pkg_install gmake gettext ucspi-tcp netqmail fakeroot maildrop
+
+	tell_status "installing vpopmail port with custom options"
+	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
+
+	tell_status "mounting shared vpopmail fs"
+	mount_data vpopmail
+
+	tell_status "linking to shared qmail control dirs"
+	stage_exec rm -rf /var/qmail/users || exit
+	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users || exit
+
+	stage_exec rm -rf /var/qmail/control || exit
+	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control || exit
 }
 
 install_sqwebmail()
 {
 	if [ "$TOASTER_MYSQL" = "1" ]; then
-        tell_status "installing mysql client libs (for vpopmail)"
+		tell_status "installing mysql client libs (for vpopmail)"
 		stage_pkg_install mysql56-client dialog4ports
 	fi
 
-    install_qmail
-    install_vpopmail
+	install_qmail
+	install_vpopmail_port
 
 	tell_status "installing sqwebmail"
 	stage_pkg_install sqwebmail courier-authlib lighttpd || exit
 
-	stage_exec mkdir -p /var/qmail
-    if [ -d "$STAGE_MNT/var/qmail/users" ]; then
-        rm -rf "$STAGE_MNT/var/qmail/users"
-    fi
-	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
-    if [ -d "$STAGE_MNT/var/qmail/control" ]; then
-        rm -rf "$STAGE_MNT/var/qmail/control"
-    fi
-	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
-
-    install_authdaemond
-    install_sqwebmail_src
+	install_authdaemond
+	install_sqwebmail_src
 }
 
 configure_lighttpd()
 {
-    stage_sysrc lighttpd_enable=YES
+	stage_sysrc lighttpd_enable=YES
 
 	local _lighttpd="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 
@@ -127,12 +128,12 @@ EO_LIGHTTPD
 
 configure_authdaemon()
 {
-    stage_sysrc courier_authdaemond_enable=YES
+	stage_sysrc courier_authdaemond_enable=YES
 
-    tell_status "configuring authdaemond"
-    sed -i .bak \
-        -e '/^authmodulelist/ s/authuserdb authvchkpw authpam authldap authmysql authpgsql/authvchkpw/' \
-        "$STAGE_MNT/usr/local/etc/authlib/authdaemonrc"
+	tell_status "configuring authdaemond"
+	sed -i .bak \
+		-e '/^authmodulelist/ s/authuserdb authvchkpw authpam authldap authmysql authpgsql/authvchkpw/' \
+		"$STAGE_MNT/usr/local/etc/authlib/authdaemonrc"
 }
 
 configure_sqwebmail()
@@ -140,7 +141,7 @@ configure_sqwebmail()
 	tell_status "configuring sqwebmail"
 	stage_sysrc sqwebmaild_enable=YES
 
-    configure_authdaemon
+	configure_authdaemon
 
 	tee -a "$STAGE_MNT/usr/local/etc/sqwebmail/maildirfilterconfig" <<EO_MFC
 MAILDIRFILTER=../.mailfilter
@@ -164,7 +165,7 @@ start_sqwebmail()
 test_sqwebmail()
 {
 	tell_status "testing sqwebmaild"
-    if [ ! -S "$STAGE_MNT/var/sqwebmail/sqwebmail.sock" ]; then
+	if [ ! -S "$STAGE_MNT/var/sqwebmail/sqwebmail.sock" ]; then
         tell_status "sqwebmail socket missing"
         exit
     fi
