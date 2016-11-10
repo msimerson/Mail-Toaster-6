@@ -35,7 +35,7 @@ install_maildrop()
 	stage_pkg_install maildrop
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/mailfilter.txt" || exit
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
 	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
