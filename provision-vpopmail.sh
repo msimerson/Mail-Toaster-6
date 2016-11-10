@@ -182,10 +182,17 @@ install_qqtool()
 
 install_quota_report()
 {
+	_qr="$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
+
 	tell_status "installing quota_report"
 	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
-	fetch -o "$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
-	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
+	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
+	chmod 755 "$_qr"
+
+	sed -i .bak \
+		-e "/$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
+		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
+		"$_qr"
 }
 
 install_vpopmail()
