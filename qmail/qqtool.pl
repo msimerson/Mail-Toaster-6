@@ -86,12 +86,12 @@ sub message_delete {
 
 sub messages_delete {
 
-    my $svc_dir = '/var/qmail/control/qmail-smtpd';
+    my $svc_dir = '/var/qmail/supervise/qmail-smtpd';
     if ( ! -d $svc_dir ) {
         warn "The service directory does not exist: $svc_dir";
         return;
     }
-    warn "checking control dir $svc_dir, ok";
+    warn "checking service dir $svc_dir, ok";
 
     my $r = send_signal('-d');
     die "qmail-send wouldn't die!\n" if ($r);

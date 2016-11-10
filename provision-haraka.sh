@@ -142,7 +142,7 @@ config_haraka_vpopmail()
 
 	if ! grep -qs ^auth/auth_vpopmaild "$HARAKA_CONF/plugins"; then
 		tell_status "enabling vpopmaild plugin"
-"$HARAKA_CONF/plugins"
+
 		# shellcheck disable=1004
 		sed -i '.bak' \
 			-e '/^# auth\/auth_ldap$/a\

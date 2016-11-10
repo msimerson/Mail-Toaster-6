@@ -35,7 +35,7 @@ install_maildrop()
 	stage_pkg_install maildrop
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/mailfilter.txt" || exit
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
 	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
@@ -180,12 +180,28 @@ install_qqtool()
 	chmod 755 "$STAGE_MNT/usr/local/bin/qqtool"
 }
 
+install_quota_report()
+{
+	_qr="$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
+
+	tell_status "installing quota_report"
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
+	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
+	chmod 755 "$_qr"
+
+	sed -i .bak \
+		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
+		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
+		"$_qr"
+}
+
 install_vpopmail()
 {
 	install_qmail
 	configure_qmail
 	install_maildrop
 	install_qqtool
+	install_quota_report
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
