@@ -53,7 +53,6 @@ install_vpopmail_port()
 	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 
-
 configure_dovecot_local_conf() {
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 

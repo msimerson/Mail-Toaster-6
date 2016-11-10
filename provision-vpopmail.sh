@@ -183,7 +183,7 @@ install_qqtool()
 install_quota_report()
 {
 	tell_status "installing quota_report"
-    mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
 	fetch -o "$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
 	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
 }

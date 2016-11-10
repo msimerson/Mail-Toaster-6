@@ -166,15 +166,15 @@ test_sqwebmail()
 {
 	tell_status "testing sqwebmaild"
 	if [ ! -S "$STAGE_MNT/var/sqwebmail/sqwebmail.sock" ]; then
-        tell_status "sqwebmail socket missing"
-        exit
-    fi
+		tell_status "sqwebmail socket missing"
+		exit
+	fi
 
 	tell_status "testing courier-authdaemond"
-    if [ ! -S "$STAGE_MNT/var/run/authdaemond/socket" ]; then
-        tell_status "courier-authdaemond socket missing"
-        exit
-    fi
+	if [ ! -S "$STAGE_MNT/var/run/authdaemond/socket" ]; then
+		tell_status "courier-authdaemond socket missing"
+		exit
+	fi
 
 	tell_status "testing lighttpd on port 80"
 	stage_listening 80
