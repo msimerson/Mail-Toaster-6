@@ -594,25 +594,26 @@ stage_fbsd_package()
 has_data_fs()
 {
 	case $1 in
-		clamav )   return 0;;
-		avg )      return 0;;
-		geoip )    return 0;;
-		mysql )    return 0;;
-		redis )    return 0;;
+		clamav )       return 0;;
+		avg )          return 0;;
+		geoip )        return 0;;
+		mysql )        return 0;;
+		redis )        return 0;;
 		spamassassin ) return 0;;
-		vpopmail ) return 0;;
-		dovecot )  return 0;;
-		webmail )  return 0;;
-		nginx )    return 0;;
-		lighttpd ) return 0;;
-		apache )   return 0;;
-		postgres ) return 0;;
-		haproxy )  return 0;;
-		minecraft ) return 0;;
-		haraka )    return 0;;
+		vpopmail )     return 0;;
+		dovecot )      return 0;;
+		webmail )      return 0;;
+		nginx )        return 0;;
+		lighttpd )     return 0;;
+		apache )       return 0;;
+		postgres )     return 0;;
+		haproxy )      return 0;;
+		minecraft )    return 0;;
+		haraka )       return 0;;
 		elasticsearch ) return 0;;
-		nictool)   return 0;;
-		sqwebmail )  return 0;;
+		nictool)       return 0;;
+		sqwebmail )    return 0;;
+		dhcp )         return 0;;
 	esac
 
 	return 1

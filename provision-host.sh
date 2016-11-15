@@ -164,6 +164,9 @@ rdr proto tcp from any to <ext_ips> port { 25 465 587 } -> $(get_jail_ip haraka)
 # HTTP traffic to HAproxy
 rdr proto tcp from any to <ext_ips> port { 80 443 } -> $(get_jail_ip haproxy)
 
+# DHCP traffic
+rdr proto udp from any to any port { 67 68 } -> $(get_jail_ip dhcp)
+
 block in quick from <bruteforce>
 EO_PF_RULES
 

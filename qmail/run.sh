@@ -257,68 +257,61 @@ EO_QMAILCTL
 install_vpopmail_etc()
 {
 	ETC="/usr/local/vpopmail/etc"
-	if [ -z "$ETC/tcp.smtp" ];
-	then
+	if [ -s "$ETC/tcp.smtp" ]; then
 		echo -n "Re"
 	fi
 
 	echo "installing $ETC/tcp.smtp"
 	mkdir -p $ETC || exit
-	#tee $ETC/tcp.smtp <<'EO_VPOPMAIL_ETC'
-	cat <<'EO_VPOPMAIL_ETC' > $ETC/tcp.smtp
+	tee "$ETC/tcp.smtp" <<EO_VPOPMAIL_ETC
 # if the chkuser patch is compiled into qmail,
 # CHKUSER_MBXQUOTA rejects messages when the users mailbox quota is filled
 127.0.0.1:allow,RELAYCLIENT=""
-172.16.15.9:allow,RELAYCLIENT=""
+${JAIL_NET_PREFIX}.9:allow,RELAYCLIENT=""
 :allow,CHKUSER_MBXQUOTA="99"
 EO_VPOPMAIL_ETC
+
 	/usr/local/bin/qmailctl cdb
     if [ -f "$ETC/tcp.smtp.cdb" ]; then
         if [ -f "$SUP/qmail-smtpd/run" ]; then
             echo "adding tcp.smtp.cdb to qmail-smtpd/run"
-            sed -i .bak -e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' "$SUP/qmail-smtpd/run"
+            sed -i .bak \
+                -e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' \
+                "$SUP/qmail-smtpd/run"
         fi
     fi
 }
 
 install_symlinks()
 {
-	if [ ! -L "/service" ];
-	then
+	if [ ! -L "/service" ]; then
 		echo "ln -s /var/service /service"
 		ln -s /var/service /service
 	fi
 
-	if [ ! -L "/service/qmail-smtpd" ];
-	then
+	if [ ! -L "/service/qmail-smtpd" ]; then
 		echo "supervising qmail-smtpd"
 		ln -s /var/qmail/supervise/qmail-smtpd /service/qmail-smtpd
 	fi
 
-	if [ ! -L "/service/qmail-send" ];
-	then
+	if [ ! -L "/service/qmail-send" ]; then
 		echo "supervising qmail-send"
 		ln -s /var/qmail/supervise/qmail-send /service/qmail-send
 	fi
 
-	if [ ! -L "/service/vpopmaild" ];
-	then
+	if [ ! -L "/service/vpopmaild" ]; then
 		echo "supervising vpopmaild"
 		ln -s /var/qmail/supervise/vpopmaild /service/vpopmaild
 	fi
 
-	if [ ! -L "/service/qmail-deliverabled" ];
-	then
+	if [ ! -L "/service/qmail-deliverabled" ]; then
 		echo "supervising qmail-deliverabled"
 		ln -s /var/qmail/supervise/deliverabled /service/qmail-deliverabled
 	fi
 
-	if [ ! -L "/service/clear" ];
-	then
-		if [ -d "/var/qmail/supervise/clear" ];
-		then
-# TODO: test this
-			#ln -s /var/qmail/supervise/clear /service/clear
+	if [ ! -L "/service/clear" ]; then
+		if [ -d "/var/qmail/supervise/clear" ]; then
+			ln -s /var/qmail/supervise/clear /service/clear
 		fi
 	fi
 }
@@ -334,8 +327,7 @@ install_vpopmaild_run()
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/vpopmaild/log/main"
-	#tee "$RUN" <<'EO_VPOPMAILD'
-	cat <<'EO_VPOPMAILD' > $RUN
+	tee "$RUN" <<'EO_VPOPMAILD'
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
@@ -344,7 +336,7 @@ EO_VPOPMAILD
 	chmod 755 $RUN
 
 	echo "installing $LOGRUN"
-	cat <<'EO_VPOPMAILD_LOG' > "$LOGRUN"
+	tee "$LOGRUN" <<'EO_VPOPMAILD_LOG'
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
@@ -382,8 +374,7 @@ exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
 EO_DELIVERABLED_RUN
 	chmod 755 "$LOGRUN"
 
-	if [ ! `pkg query %n -F p5-HTTP-Daemon` ];
-	then
+	if [ ! "$(pkg query %n -F p5-HTTP-Daemon)" ]; then
 		echo "Installing HTTP::Daemon"
 		pkg install -y p5-HTTP-Daemon
 		make -C /usr/ports/www/p5-HTTP-Daemon deinstall install clean
@@ -409,9 +400,9 @@ install_qmail_chkuser()
 		exit
 	fi
 
-	cd $PORTBUILDDIR
+	cd $PORTBUILDDIR || exit
 	fetch -o - $CHKPATCH | tar -xzOf - | patch -p1
-	if [ -f *.rej ]; then
+	if stat -t ./*.rej >/dev/null 2>&1; then
 		echo "Patch did not apply cleanly, I refuse to proceed!"
 		exit
 	fi
@@ -427,8 +418,7 @@ install_qmail_chkuser()
 install_clear_run()
 {
 	RUN="$SUP/clear/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -461,9 +451,8 @@ chmod 755 /service/*/run
 chmod 755 /service/*/log/run
 chown -R qmaill $SUP/*/log
 
-if [ ! `grep svscan_enable /etc/rc.conf` ];
-then
-	echo 'svscan_enable="YES"' >> /etc/rc.conf
+if ! grep -qs svscan_enable /etc/rc.conf; then
+	sysrc svscan_enable=YES
 fi
 
 service svscan restart
