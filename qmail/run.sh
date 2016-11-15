@@ -257,7 +257,7 @@ EO_QMAILCTL
 install_vpopmail_etc()
 {
 	ETC="/usr/local/vpopmail/etc"
-	if [ -z "$ETC/tcp.smtp" ]; then
+	if [ -s "$ETC/tcp.smtp" ]; then
 		echo -n "Re"
 	fi
 
@@ -327,8 +327,7 @@ install_vpopmaild_run()
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/vpopmaild/log/main"
-	#tee "$RUN" <<'EO_VPOPMAILD'
-	cat <<'EO_VPOPMAILD' > $RUN
+	tee "$RUN" <<'EO_VPOPMAILD'
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
@@ -337,7 +336,7 @@ EO_VPOPMAILD
 	chmod 755 $RUN
 
 	echo "installing $LOGRUN"
-	cat <<'EO_VPOPMAILD_LOG' > "$LOGRUN"
+	tee "$LOGRUN" <<'EO_VPOPMAILD_LOG'
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
@@ -375,8 +374,7 @@ exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
 EO_DELIVERABLED_RUN
 	chmod 755 "$LOGRUN"
 
-	if [ ! `pkg query %n -F p5-HTTP-Daemon` ];
-	then
+	if [ ! "$(pkg query %n -F p5-HTTP-Daemon)" ]; then
 		echo "Installing HTTP::Daemon"
 		pkg install -y p5-HTTP-Daemon
 		make -C /usr/ports/www/p5-HTTP-Daemon deinstall install clean
@@ -402,9 +400,9 @@ install_qmail_chkuser()
 		exit
 	fi
 
-	cd $PORTBUILDDIR
+	cd $PORTBUILDDIR || exit
 	fetch -o - $CHKPATCH | tar -xzOf - | patch -p1
-	if [ -f *.rej ]; then
+	if stat -t ./*.rej >/dev/null 2>&1; then
 		echo "Patch did not apply cleanly, I refuse to proceed!"
 		exit
 	fi
@@ -453,9 +451,8 @@ chmod 755 /service/*/run
 chmod 755 /service/*/log/run
 chown -R qmaill $SUP/*/log
 
-if [ ! `grep svscan_enable /etc/rc.conf` ];
-then
-	echo 'svscan_enable="YES"' >> /etc/rc.conf
+if ! grep -qs svscan_enable /etc/rc.conf; then
+	sysrc svscan_enable=YES
 fi
 
 service svscan restart
