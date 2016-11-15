@@ -228,7 +228,7 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	fetch -o - "$TOASTER_SRC_URL/qmail/run.txt" | stage_exec sh
+	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."

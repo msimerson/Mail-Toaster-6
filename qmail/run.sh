@@ -257,68 +257,61 @@ EO_QMAILCTL
 install_vpopmail_etc()
 {
 	ETC="/usr/local/vpopmail/etc"
-	if [ -z "$ETC/tcp.smtp" ];
-	then
+	if [ -z "$ETC/tcp.smtp" ]; then
 		echo -n "Re"
 	fi
 
 	echo "installing $ETC/tcp.smtp"
 	mkdir -p $ETC || exit
-	#tee $ETC/tcp.smtp <<'EO_VPOPMAIL_ETC'
-	cat <<'EO_VPOPMAIL_ETC' > $ETC/tcp.smtp
+	tee "$ETC/tcp.smtp" <<EO_VPOPMAIL_ETC
 # if the chkuser patch is compiled into qmail,
 # CHKUSER_MBXQUOTA rejects messages when the users mailbox quota is filled
 127.0.0.1:allow,RELAYCLIENT=""
-172.16.15.9:allow,RELAYCLIENT=""
+${JAIL_NET_PREFIX}.9:allow,RELAYCLIENT=""
 :allow,CHKUSER_MBXQUOTA="99"
 EO_VPOPMAIL_ETC
+
 	/usr/local/bin/qmailctl cdb
     if [ -f "$ETC/tcp.smtp.cdb" ]; then
         if [ -f "$SUP/qmail-smtpd/run" ]; then
             echo "adding tcp.smtp.cdb to qmail-smtpd/run"
-            sed -i .bak -e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' "$SUP/qmail-smtpd/run"
+            sed -i .bak \
+                -e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' \
+                "$SUP/qmail-smtpd/run"
         fi
     fi
 }
 
 install_symlinks()
 {
-	if [ ! -L "/service" ];
-	then
+	if [ ! -L "/service" ]; then
 		echo "ln -s /var/service /service"
 		ln -s /var/service /service
 	fi
 
-	if [ ! -L "/service/qmail-smtpd" ];
-	then
+	if [ ! -L "/service/qmail-smtpd" ]; then
 		echo "supervising qmail-smtpd"
 		ln -s /var/qmail/supervise/qmail-smtpd /service/qmail-smtpd
 	fi
 
-	if [ ! -L "/service/qmail-send" ];
-	then
+	if [ ! -L "/service/qmail-send" ]; then
 		echo "supervising qmail-send"
 		ln -s /var/qmail/supervise/qmail-send /service/qmail-send
 	fi
 
-	if [ ! -L "/service/vpopmaild" ];
-	then
+	if [ ! -L "/service/vpopmaild" ]; then
 		echo "supervising vpopmaild"
 		ln -s /var/qmail/supervise/vpopmaild /service/vpopmaild
 	fi
 
-	if [ ! -L "/service/qmail-deliverabled" ];
-	then
+	if [ ! -L "/service/qmail-deliverabled" ]; then
 		echo "supervising qmail-deliverabled"
 		ln -s /var/qmail/supervise/deliverabled /service/qmail-deliverabled
 	fi
 
-	if [ ! -L "/service/clear" ];
-	then
-		if [ -d "/var/qmail/supervise/clear" ];
-		then
-# TODO: test this
-			#ln -s /var/qmail/supervise/clear /service/clear
+	if [ ! -L "/service/clear" ]; then
+		if [ -d "/var/qmail/supervise/clear" ]; then
+			ln -s /var/qmail/supervise/clear /service/clear
 		fi
 	fi
 }
@@ -427,8 +420,7 @@ install_qmail_chkuser()
 install_clear_run()
 {
 	RUN="$SUP/clear/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
