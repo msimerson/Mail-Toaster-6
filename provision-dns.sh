@@ -76,6 +76,9 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	   local-data: "$(get_reverse_ip memcached) PTR memcached"
 	   local-data: "$(get_reverse_ip sphinxsearch) PTR sphinxsearch"
 	   local-data: "$(get_reverse_ip elasticsearch) PTR elasticsearch"
+	   local-data: "$(get_reverse_ip nictool) PTR nictool"
+	   local-data: "$(get_reverse_ip sqwebmail) PTR sqwebmail"
+	   local-data: "$(get_reverse_ip dhcp) PTR dhcp"
 	   local-data: "$(get_reverse_ip stage) PTR stage"
 
 	   local-data: "syslog       A $(get_jail_ip syslog)"
@@ -105,6 +108,9 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	   local-data: "memcached    A $(get_jail_ip memcached)"
 	   local-data: "sphinxsearch A $(get_jail_ip sphinxsearch)"
 	   local-data: "elasticsearch A $(get_jail_ip elasticsearch)"
+	   local-data: "nictool       A $(get_jail_ip nictool)"
+	   local-data: "sqwebmail     A $(get_jail_ip sqwebmail)"
+	   local-data: "dhcp          A $(get_jail_ip dhcp)"
 	   local-data: "stage        A $(get_jail_ip stage)"
 
 EO_UNBOUND
