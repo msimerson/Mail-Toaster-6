@@ -237,7 +237,7 @@ get_jail_ip()
 		elasticsearch) _incr=26 ;;
 		nictool)       _incr=27 ;;
 		sqwebmail)     _incr=28 ;;
-		dhcp           _incr=29 ;;
+		dhcp )         _incr=29 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
