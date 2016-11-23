@@ -11,7 +11,7 @@ install_db_server()
 	#Check if MariaDB needs to be installed
 	if [ "$TOASTER_MARIADB" = "1" ]; then
 		install_mariadb
-    else
+	else
 		install_mysql
 	fi
 }
@@ -38,8 +38,12 @@ configure_mysql()
 		cp "$ZFS_JAIL_MNT/mysql/etc/my.cnf" "$STAGE_MNT/etc/my.cnf"
 	fi
 
-	local _my_cnf="$ZFS_DATA_MNT/mysql/var/db/mysql/my.cnf"
+	local _dbdir="$ZFS_DATA_MNT/mysql/var/db/mysql"
+	if [ ! -d "$_dbdir" ]; then
+		mkdir -p $_dbdir || exit
+	fi
 
+	local _my_cnf="$_dbdir/my.cnf"
 	if [ ! -f "$_my_cnf" ]; then
 		tell_status "installing $_my_cnf"
 		tee -a "$_my_cnf" <<EO_MY_CNF
