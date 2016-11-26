@@ -516,6 +516,7 @@ stage_make_conf()
 		return
 	fi
 
+	tell_status "setting $1 make.conf options"
 	echo "$2" | tee -a "$STAGE_MNT/etc/make.conf" || exit
 }
 

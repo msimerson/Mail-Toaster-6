@@ -52,7 +52,7 @@ install_spamassassin_port()
 	tell_status "install SpamAssassin from ports (w/opts)"
 	stage_pkg_install dialog4ports p5-Encode-Detect || exit
 
-	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE"
+	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY GNUPG_NONE"
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		_SA_OPTS="MYSQL $_SA_OPTS"
 	fi
@@ -130,7 +130,7 @@ install_spamassassin()
 	fi
 
 	tell_status "install SpamAssassin optional dependencies"
-	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP || exit
+	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP p5-Net-CIDR-Lite p5-IO-Socket-INET6 || exit
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd || exit
 	install_spamassassin_razor
 
