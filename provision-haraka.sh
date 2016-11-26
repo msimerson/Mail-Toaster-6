@@ -520,6 +520,14 @@ order=fail,pass,msg
 EO_RESULTS
 }
 
+config_haraka_log_rotation()
+{
+	tell_status "configuring haraka.log rotation"
+	mkdir -p "$STAGE_ETC/newsyslog.conf.d" || exit
+	tee -a "$STAGE_ETC/newsyslog.conf.d/haraka.log" <<EO_HARAKA
+/var/log/haraka.log			644  7	   *	@T00  JC
+EO_HARAKA
+}
 
 configure_haraka()
 {
@@ -572,6 +580,7 @@ configure_haraka()
 	config_haraka_haproxy
 	config_haraka_helo
 	config_haraka_results
+	config_haraka_log_rotation
 
 	install_geoip_dbs
 }
