@@ -3,6 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+
 # shellcheck disable=2016
 #@TODO create a shared dir between nginx and php7
 #export JAIL_CONF_EXTRA="

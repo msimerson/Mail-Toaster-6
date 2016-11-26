@@ -3,6 +3,8 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
 
 install_sphinxsearch()
 {
@@ -11,7 +13,7 @@ install_sphinxsearch()
 	stage_make_conf textproc_sphinxsearch   'textproc_sphinxsearch_SET=ID64'
 
 	stage_pkg_install dialog4ports || exit
-	
+
 	tell_status "Compiling Sphinx search"
 
 	export BATCH=${BATCH:="1"}
