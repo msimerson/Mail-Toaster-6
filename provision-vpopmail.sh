@@ -5,6 +5,7 @@
 
 export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
+export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
@@ -245,7 +246,13 @@ test_vpopmail()
 {
 	echo "testing vpopmail"
 	sleep 1 # give the daemons a second to start listening
+	stage_listening 25
+	stage_listening 80
 	stage_listening 89
+	stage_listening 8998
+
+	stage_test_running lighttpd
+	#stage_test_running vpopmaild
 	echo "it worked"
 }
 

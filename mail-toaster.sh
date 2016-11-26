@@ -614,7 +614,7 @@ has_data_fs()
 		elasticsearch ) return 0;;
 		nictool)        return 0;;
 		sqwebmail )     return 0;;
-		dhcpd )		    return 0;;
+		dhcp )	        return 0;;
 	esac
 
 	return 1

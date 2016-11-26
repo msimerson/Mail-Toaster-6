@@ -3,6 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+
 configure_ntpd()
 {
 	tell_status "enabling NTPd"

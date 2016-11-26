@@ -3,6 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+
 create_base_filesystem()
 {
 	if [ -e "$BASE_MNT/dev/null" ];
