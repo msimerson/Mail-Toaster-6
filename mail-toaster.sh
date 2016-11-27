@@ -206,17 +206,19 @@ EO_JAIL_CONF_HEAD
 
 get_jail_ip()
 {
-	if echo "$1" | grep -q ^base; then
-		echo "$JAIL_NET_PREFIX.1"
-		return
-	fi
-
-	if [ "$1" = "stage" ]; then
-		echo "$JAIL_NET_PREFIX.254"
-		return
-	fi
-
 	local _start=${JAIL_NET_START:=1}
+
+	case "$1" in
+		syslog) echo "$JAIL_NET_PREFIX.$_start";   return;;
+		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))";   return;;
+		stage)  echo "$JAIL_NET_PREFIX.254"; return;;
+	esac
+
+	if echo "$1" | grep -q ^base; then
+		echo "$JAIL_NET_PREFIX.$((_start + 1))"
+		return
+	fi
+
 	local _octet="$_start"
 
 	for j in $JAIL_ORDERED_LIST

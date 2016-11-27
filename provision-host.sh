@@ -329,10 +329,9 @@ configure_etc_hosts()
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip "$j")		$j"
+$(get_jail_ip $j)		$j"
 	done
 
-"
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 

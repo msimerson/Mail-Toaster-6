@@ -12,6 +12,27 @@ install_unbound()
 	stage_pkg_install unbound || exit
 }
 
+get_jails_conf()
+{
+    echo "
+
+	   access-control: 0.0.0.0/0 refuse
+	   access-control: 127.0.0.0/8 allow
+	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
+	   access-control: $PUBLIC_IP4 allow
+
+	   local-data: \"stage        A $(get_jail_ip stage)\"
+	   local-data: \"$(get_reverse_ip stage) PTR stage\""
+
+	local _octet=${JAIL_NET_START:=1}
+	for _j in $JAIL_ORDERED_LIST
+	do
+	    echo "
+	   local-data: \"$_j       A $(get_jail_ip $_j)\"
+	   local-data: \"$(get_reverse_ip $_j) PTR $_j\""
+	done
+}
+
 configure_unbound()
 {
 	local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
@@ -44,31 +65,9 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	get_public_ip
 
 	tell_status "installing unbound/toaster.conf"
-	local _ubconf=<<EO_UNBOUND_CONFIG
-	   $UNB_LOCAL
 
-	   access-control: 0.0.0.0/0 refuse
-	   access-control: 127.0.0.0/8 allow
-	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
-	   access-control: $PUBLIC_IP4 allow
-
-	   local-data: "$(get_reverse_ip stage) PTR stage"
-	   local-data: "stage        A $(get_jail_ip stage)"
-EO_UNBOUND_CONFIG
-
-	local _octet=${JAIL_NET_START:=1}
-	for j in $JAIL_ORDERED_LIST
-	do
-		_ubconf=<<EO_PER_JAIL
-	   $_ubconf
-
-	   local-data: "$(get_reverse_ip $_j) PTR $_j"
-	   local-data: "$_j       A $(get_jail_ip $_j)"
-EO_PER_JAIL
-
-	done
-
-	tee -a "$UNB_DIR/toaster.conf" "$_ubconf"
+	tee -a "$UNB_DIR/toaster.conf" "$UNB_LOCAL
+	   $(get_jails_conf)"
 }
 
 start_unbound()
