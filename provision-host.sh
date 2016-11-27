@@ -200,7 +200,7 @@ set_jail_start_order()
 	fi
 
 	tell_status "setting jail startup order"
-	sysrc jail_list="$JAIL_ORDERED_LIST"
+	sysrc jail_list="$JAIL_STARTUP_LIST"
 }
 
 rcd_jail_patch()
@@ -327,10 +327,10 @@ configure_etc_hosts()
 	local _hosts
 	_hosts="
 $(get_jail_ip syslog)		syslog
-$(get_jail_ip base)		base
+$(get_jail_ip base) 		base
 $(get_jail_ip stage)		stage"
 
-	for j in $JAIL_ORDERED_LIST;
+	for j in $JAIL_STARTUP_LIST;
 	do
 		_hosts="$_hosts
 $(get_jail_ip "$j")		$j"

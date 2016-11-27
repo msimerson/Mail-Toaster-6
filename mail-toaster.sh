@@ -20,7 +20,7 @@ export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
-export JAIL_ORDERED_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
+export JAIL_STARTUP_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
@@ -50,7 +50,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
+export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
@@ -238,6 +238,7 @@ get_jail_ip()
 		nictool)       _incr=27 ;;
 		sqwebmail)     _incr=28 ;;
 		dhcp )         _incr=29 ;;
+		letsencrypt )  _incr=30 ;;
 		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -615,7 +616,8 @@ has_data_fs()
 		elasticsearch ) return 0;;
 		nictool)        return 0;;
 		sqwebmail )     return 0;;
-		dhcp )	        return 0;;
+		dhcp )          return 0;;
+		letsencrypt )   return 0;;
 	esac
 
 	return 1
@@ -763,7 +765,7 @@ reverse_list()
 
 unprovision_filesystems()
 {
-	for _j in $JAIL_ORDERED_LIST; do
+	for _j in $JAIL_STARTUP_LIST; do
 		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
 			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
 		fi
@@ -823,7 +825,7 @@ unprovision_files()
 
 unprovision()
 {
-	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
+	local _reversed; _reversed=$(reverse_list "$JAIL_STARTUP_LIST")
 
 	if [ -f /etc/jail.conf ]; then
 		for _j in $_reversed; do
