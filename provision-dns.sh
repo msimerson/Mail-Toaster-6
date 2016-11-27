@@ -65,9 +65,11 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	get_public_ip
 
 	tell_status "installing unbound/toaster.conf"
+	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
+       $UNB_LOCAL
 
-	tee -a "$UNB_DIR/toaster.conf" "$UNB_LOCAL
-	   $(get_jails_conf)"
+	   $(get_jails_conf)
+EO_UNBOUND
 }
 
 start_unbound()
