@@ -51,6 +51,8 @@ export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
 export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
+export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt"}
+
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
@@ -204,53 +206,30 @@ EO_JAIL_CONF_HEAD
 
 get_jail_ip()
 {
-	local _start=${JAIL_NET_START:=1}
-	local _incr
-
-	case "$1" in
-		syslog)       _incr=0 ;;
-		base)         _incr=1 ;;
-		dns)          _incr=2 ;;
-		mysql)        _incr=3 ;;
-		clamav)       _incr=4 ;;
-		spamassassin) _incr=5 ;;
-		dspam)        _incr=6 ;;
-		vpopmail)     _incr=7 ;;
-		haraka)       _incr=8 ;;
-		webmail)      _incr=9 ;;
-		monitor)      _incr=10 ;;
-		haproxy)      _incr=11 ;;
-		rspamd)       _incr=12 ;;
-		avg)          _incr=13 ;;
-		dovecot)      _incr=14 ;;
-		redis)        _incr=15 ;;
-		geoip)        _incr=16 ;;
-		nginx)        _incr=17 ;;
-		lighttpd)     _incr=18 ;;
-		apache)       _incr=19 ;;
-		postgres)     _incr=20 ;;
-		minecraft)    _incr=21 ;;
-		joomla)       _incr=22 ;;
-		php7)         _incr=23 ;;
-		memcached)    _incr=24 ;;
-		sphinxsearch) _incr=25 ;;
-		elasticsearch) _incr=26 ;;
-		nictool)       _incr=27 ;;
-		sqwebmail)     _incr=28 ;;
-		dhcp )         _incr=29 ;;
-		letsencrypt )  _incr=30 ;;
-		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
-	esac
-
 	if echo "$1" | grep -q ^base; then
-		_incr=1
+		echo "$JAIL_NET_PREFIX.1"
+		return
 	fi
 
-	# return error code if _incr unset
-	if [ -z "$_incr" ]; then return 2; fi
+	if [ "$1" = "stage" ]; then
+		echo "$JAIL_NET_PREFIX.254"
+		return
+	fi
 
-	local _octet=$((_start + _incr))
-	echo "$JAIL_NET_PREFIX.$_octet"
+	local _start=${JAIL_NET_START:=1}
+	local _octet="$_start"
+
+	for j in $JAIL_ORDERED_LIST
+	do
+		if [ "$1" = "$j" ]; then
+			echo "$JAIL_NET_PREFIX.$_octet"
+			return
+		fi
+		_octet=$((_octet + 1))
+	done
+
+	# return error code if _incr unset
+	return 2
 }
 
 get_reverse_ip()
