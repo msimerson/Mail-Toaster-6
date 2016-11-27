@@ -12,6 +12,27 @@ install_unbound()
 	stage_pkg_install unbound || exit
 }
 
+get_jails_conf()
+{
+    echo "
+
+	   access-control: 0.0.0.0/0 refuse
+	   access-control: 127.0.0.0/8 allow
+	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
+	   access-control: $PUBLIC_IP4 allow
+
+	   local-data: \"stage        A $(get_jail_ip stage)\"
+	   local-data: \"$(get_reverse_ip stage) PTR stage\""
+
+	local _octet=${JAIL_NET_START:=1}
+	for _j in $JAIL_ORDERED_LIST
+	do
+	    echo "
+	   local-data: \"$_j       A $(get_jail_ip $_j)\"
+	   local-data: \"$(get_reverse_ip $_j) PTR $_j\""
+	done
+}
+
 configure_unbound()
 {
 	local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
@@ -47,77 +68,8 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
 	   $UNB_LOCAL
 
-	   access-control: 0.0.0.0/0 refuse
-	   access-control: 127.0.0.0/8 allow
-	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
-	   access-control: $PUBLIC_IP4 allow
-
-	   local-data: "$(get_reverse_ip syslog) PTR syslog"
-	   local-data: "$(get_reverse_ip base) PTR base"
-	   local-data: "$(get_reverse_ip dns) PTR dns"
-	   local-data: "$(get_reverse_ip mysql) PTR mysql"
-	   local-data: "$(get_reverse_ip clamav) PTR clamav"
-	   local-data: "$(get_reverse_ip spamassassin) PTR spamassassin"
-	   local-data: "$(get_reverse_ip dspam) PTR dspam"
-	   local-data: "$(get_reverse_ip vpopmail) PTR vpopmail"
-	   local-data: "$(get_reverse_ip haraka) PTR haraka"
-	   local-data: "$(get_reverse_ip webmail) PTR webmail"
-	   local-data: "$(get_reverse_ip monitor) PTR monitor"
-	   local-data: "$(get_reverse_ip haproxy) PTR haproxy"
-	   local-data: "$(get_reverse_ip rspamd) PTR rspamd"
-	   local-data: "$(get_reverse_ip avg) PTR avg"
-	   local-data: "$(get_reverse_ip dovecot) PTR dovecot"
-	   local-data: "$(get_reverse_ip redis) PTR redis"
-	   local-data: "$(get_reverse_ip geoip) PTR geoip"
-	   local-data: "$(get_reverse_ip nginx) PTR nginx"
-	   local-data: "$(get_reverse_ip lighttpd) PTR lighttpd"
-	   local-data: "$(get_reverse_ip apache) PTR apache"
-	   local-data: "$(get_reverse_ip postgres) PTR postgres"
-	   local-data: "$(get_reverse_ip minecraft) PTR minecraft"
-	   local-data: "$(get_reverse_ip joomla) PTR joomla"
-	   local-data: "$(get_reverse_ip php7) PTR php7"
-	   local-data: "$(get_reverse_ip memcached) PTR memcached"
-	   local-data: "$(get_reverse_ip sphinxsearch) PTR sphinxsearch"
-	   local-data: "$(get_reverse_ip elasticsearch) PTR elasticsearch"
-	   local-data: "$(get_reverse_ip nictool) PTR nictool"
-	   local-data: "$(get_reverse_ip sqwebmail) PTR sqwebmail"
-	   local-data: "$(get_reverse_ip dhcp) PTR dhcp"
-	   local-data: "$(get_reverse_ip stage) PTR stage"
-
-	   local-data: "syslog       A $(get_jail_ip syslog)"
-	   local-data: "base         A $(get_jail_ip base)"
-	   local-data: "dns          A $(get_jail_ip dns)"
-	   local-data: "mysql        A $(get_jail_ip mysql)"
-	   local-data: "clamav       A $(get_jail_ip clamav)"
-	   local-data: "spamassassin A $(get_jail_ip spamassassin)"
-	   local-data: "dspam        A $(get_jail_ip dspam)"
-	   local-data: "vpopmail     A $(get_jail_ip vpopmail)"
-	   local-data: "haraka       A $(get_jail_ip haraka)"
-	   local-data: "webmail      A $(get_jail_ip webmail)"
-	   local-data: "monitor      A $(get_jail_ip monitor)"
-	   local-data: "haproxy      A $(get_jail_ip haproxy)"
-	   local-data: "rspamd       A $(get_jail_ip rspamd)"
-	   local-data: "avg          A $(get_jail_ip avg)"
-	   local-data: "dovecot      A $(get_jail_ip dovecot)"
-	   local-data: "redis        A $(get_jail_ip redis)"
-	   local-data: "geoip        A $(get_jail_ip geoip)"
-	   local-data: "nginx        A $(get_jail_ip nginx)"
-	   local-data: "lighttpd     A $(get_jail_ip lighttpd)"
-	   local-data: "apache       A $(get_jail_ip apache)"
-	   local-data: "postgres     A $(get_jail_ip postgres)"
-	   local-data: "minecraft    A $(get_jail_ip minecraft)"
-	   local-data: "joomla       A $(get_jail_ip joomla)"
-	   local-data: "php7         A $(get_jail_ip php7)"
-	   local-data: "memcached    A $(get_jail_ip memcached)"
-	   local-data: "sphinxsearch A $(get_jail_ip sphinxsearch)"
-	   local-data: "elasticsearch A $(get_jail_ip elasticsearch)"
-	   local-data: "nictool       A $(get_jail_ip nictool)"
-	   local-data: "sqwebmail     A $(get_jail_ip sqwebmail)"
-	   local-data: "dhcp          A $(get_jail_ip dhcp)"
-	   local-data: "stage        A $(get_jail_ip stage)"
-
+	   $(get_jails_conf)
 EO_UNBOUND
-
 }
 
 start_unbound()

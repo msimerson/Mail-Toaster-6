@@ -200,7 +200,7 @@ set_jail_start_order()
 	fi
 
 	tell_status "setting jail startup order"
-	sysrc jail_list="$JAIL_ORDERED_LIST"
+	sysrc jail_list="$JAIL_STARTUP_LIST"
 }
 
 rcd_jail_patch()
@@ -325,28 +325,13 @@ configure_etc_hosts()
 
 	tell_status "adding /etc/hosts entries"
 	local _hosts
-	_hosts="
-$(get_jail_ip syslog)		syslog
-$(get_jail_ip base)		base
-$(get_jail_ip stage)		stage"
 
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip "$j")		$j"
+$(get_jail_ip $j)		$j"
 	done
 
-    _hosts="$_hosts
-$(get_jail_ip "minecraft")		minecraft
-$(get_jail_ip "joomla")		joomla
-$(get_jail_ip "php7") 	php7
-$(get_jail_ip "memcached") 	memcached
-$(get_jail_ip "sphinxsearch") 	sphinxsearch
-$(get_jail_ip "elasticsearch") 	elasticsearch
-$(get_jail_ip "nictool") 	nictool
-$(get_jail_ip "sqwebmail") 	sqwebmail
-
-"
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 

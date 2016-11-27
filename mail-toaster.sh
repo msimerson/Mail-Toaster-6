@@ -20,7 +20,7 @@ export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
-export JAIL_ORDERED_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
+export JAIL_STARTUP_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
@@ -50,7 +50,9 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
+export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
+export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt"}
+
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
@@ -205,51 +207,31 @@ EO_JAIL_CONF_HEAD
 get_jail_ip()
 {
 	local _start=${JAIL_NET_START:=1}
-	local _incr
 
 	case "$1" in
-		syslog)       _incr=0 ;;
-		base)         _incr=1 ;;
-		dns)          _incr=2 ;;
-		mysql)        _incr=3 ;;
-		clamav)       _incr=4 ;;
-		spamassassin) _incr=5 ;;
-		dspam)        _incr=6 ;;
-		vpopmail)     _incr=7 ;;
-		haraka)       _incr=8 ;;
-		webmail)      _incr=9 ;;
-		monitor)      _incr=10 ;;
-		haproxy)      _incr=11 ;;
-		rspamd)       _incr=12 ;;
-		avg)          _incr=13 ;;
-		dovecot)      _incr=14 ;;
-		redis)        _incr=15 ;;
-		geoip)        _incr=16 ;;
-		nginx)        _incr=17 ;;
-		lighttpd)     _incr=18 ;;
-		apache)       _incr=19 ;;
-		postgres)     _incr=20 ;;
-		minecraft)    _incr=21 ;;
-		joomla)       _incr=22 ;;
-		php7)         _incr=23 ;;
-		memcached)    _incr=24 ;;
-		sphinxsearch) _incr=25 ;;
-		elasticsearch) _incr=26 ;;
-		nictool)       _incr=27 ;;
-		sqwebmail)     _incr=28 ;;
-		dhcp )         _incr=29 ;;
-		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
+		syslog) echo "$JAIL_NET_PREFIX.$_start";   return;;
+		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))";   return;;
+		stage)  echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
-		_incr=1
+		echo "$JAIL_NET_PREFIX.$((_start + 1))"
+		return
 	fi
 
-	# return error code if _incr unset
-	if [ -z "$_incr" ]; then return 2; fi
+	local _octet="$_start"
 
-	local _octet=$((_start + _incr))
-	echo "$JAIL_NET_PREFIX.$_octet"
+	for j in $JAIL_ORDERED_LIST
+	do
+		if [ "$1" = "$j" ]; then
+			echo "$JAIL_NET_PREFIX.$_octet"
+			return
+		fi
+		_octet=$((_octet + 1))
+	done
+
+	# return error code if _incr unset
+	return 2
 }
 
 get_reverse_ip()
@@ -615,7 +597,8 @@ has_data_fs()
 		elasticsearch ) return 0;;
 		nictool)        return 0;;
 		sqwebmail )     return 0;;
-		dhcp )	        return 0;;
+		dhcp )          return 0;;
+		letsencrypt )   return 0;;
 	esac
 
 	return 1
@@ -763,7 +746,7 @@ reverse_list()
 
 unprovision_filesystems()
 {
-	for _j in $JAIL_ORDERED_LIST; do
+	for _j in $JAIL_STARTUP_LIST; do
 		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
 			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
 		fi
@@ -823,7 +806,7 @@ unprovision_files()
 
 unprovision()
 {
-	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
+	local _reversed; _reversed=$(reverse_list "$JAIL_STARTUP_LIST")
 
 	if [ -f /etc/jail.conf ]; then
 		for _j in $_reversed; do
