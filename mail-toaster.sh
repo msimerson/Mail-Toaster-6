@@ -292,7 +292,7 @@ stage_unmount()
 	stage_unmount_dev
 	unmount_ports "$STAGE_MNT"
 	unmount_pkg_cache
-	if has_data_fs "$1"; then unmount_data "$1"; fi
+	unmount_data "$1"
 	stage_unmount_aux_data "$1"
 }
 
@@ -316,11 +316,9 @@ create_staged_fs()
 	sed -i -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
-	if has_data_fs "$1"; then
-		tell_status "creating data volume"
-		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-		mount_data "$1" "$STAGE_MNT"
-	fi
+	tell_status "creating data volume"
+	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	mount_data "$1" "$STAGE_MNT"
 
 	stage_mount_ports
 	stage_mount_pkg_cache
@@ -575,35 +573,6 @@ stage_fbsd_package()
 	echo "done"
 }
 
-has_data_fs()
-{
-	case $1 in
-		clamav )        return 0;;
-		avg )           return 0;;
-		geoip )         return 0;;
-		mysql )         return 0;;
-		redis )         return 0;;
-		spamassassin )  return 0;;
-		vpopmail )      return 0;;
-		dovecot )       return 0;;
-		webmail )       return 0;;
-		nginx )         return 0;;
-		lighttpd )      return 0;;
-		apache )        return 0;;
-		postgres )      return 0;;
-		haproxy )       return 0;;
-		minecraft )     return 0;;
-		haraka )        return 0;;
-		elasticsearch ) return 0;;
-		nictool)        return 0;;
-		sqwebmail )     return 0;;
-		dhcp )          return 0;;
-		letsencrypt )   return 0;;
-	esac
-
-	return 1
-}
-
 mount_data()
 {
 	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
@@ -766,11 +735,9 @@ unprovision_filesystems()
 			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
 		fi
 
-		if has_data_fs "$_j"; then
-			if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
-				tell_status "destroying $ZFS_DATA_MNT/$_j"
-				zfs destroy "$ZFS_DATA_VOL/$_j"
-			fi
+		if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
+			tell_status "destroying $ZFS_DATA_MNT/$_j"
+			zfs destroy "$ZFS_DATA_VOL/$_j"
 		fi
 	done
 
