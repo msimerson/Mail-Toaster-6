@@ -66,7 +66,7 @@ include: "/usr/local/etc/unbound/toaster.conf" \
 
 	tell_status "installing unbound/toaster.conf"
 	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
-       $UNB_LOCAL
+	   $UNB_LOCAL
 
 	   $(get_jails_conf)
 EO_UNBOUND
