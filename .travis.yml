@@ -35,6 +35,7 @@ script:
    - shellcheck -e SC2009,SC2039,SC2086,SC2153,SC2016,SC1004,SC2119 *.sh
    - sh -n qmail/run.sh
    - shellcheck -e SC2039 qmail/run.sh
+   - sh test/*.sh
 
 # after_success:
 # after_failure:
