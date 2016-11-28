@@ -112,8 +112,12 @@ EO_RC_ADD
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_roundcube_mysql
 	else
-		sed -i -e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/roundcube\/sqlite.db?mode=0646'/" "$_rcc_conf"
-		if [ ! -f "/data/roundcube/sqlite.db" ]; then
+		stage_pkg_install php56-pdo_sqlite
+		sed -i.bak \
+			-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/roundcube\/sqlite.db?mode=0646';/" \
+			"$_rcc_conf"
+
+		if [ ! -f "$ZFS_DATA_MNT/webmail/roundcube/sqlite.db" ]; then
 			roundcube_init_db
 		fi
 	fi
