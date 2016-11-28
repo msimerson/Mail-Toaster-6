@@ -44,6 +44,71 @@ update_sendmail()
 	service sendmail onestop
 }
 
+install_periodic_conf()
+{
+	if [ -f /etc/periodic.conf ]; then
+		return
+	fi
+
+	tell_status "installing /etc/periodic.conf"
+	tee -a /etc/periodic.conf <<EO_PERIODIC
+# older versions of FreeBSD bark b/c these are defined in
+# /etc/defaults/periodic.conf and do not exist. Hush.
+daily_local=""
+weekly_local=""
+monthly_local=""
+
+# in case /etc/aliases isn't set up properly
+daily_output="$TOASTER_ADMIN_EMAIL"
+weekly_output="$TOASTER_ADMIN_EMAIL"
+monthly_output="$TOASTER_ADMIN_EMAIL"
+
+security_show_success="NO"
+security_show_info="YES"
+security_status_chksetuid_enable="NO"
+security_status_neggrpperm_enable="NO"
+security_status_pkgaudit_enable="YES"
+security_status_tcpwrap_enable="YES"
+
+security_status_ipfwlimit_enable="NO"
+security_status_ipfwdenied_enable="NO"
+security_status_pfdenied_enable="NO"
+
+daily_accounting_enable="NO"
+daily_accounting_compress="YES"
+daily_clean_disks_enable="NO"
+daily_clean_disks_days=14
+daily_clean_disks_verbose="NO"
+daily_clean_hoststat_enable="NO"
+daily_clean_tmps_enable="YES"
+daily_clean_tmps_verbose="NO"
+daily_news_expire_enable="NO"
+daily_scrub_zfs_enable="YES"
+
+daily_show_success="NO"
+daily_show_info="NO"
+daily_show_badconfig="YES"
+
+daily_status_disks_enable="NO"
+daily_status_include_submit_mailq="NO"
+daily_status_mail_rejects_enable="YES"
+daily_status_mailq_enable="NO"
+daily_status_rwho_enable="NO"
+daily_submit_queuerun="NO"
+daily_status_smart_enable=YES
+daily_status_smart_devices="AUTO"
+
+weekly_show_success="NO"
+weekly_show_info="NO"
+weekly_show_badconfig="YES"
+weekly_whatis_enable="NO"
+
+monthly_show_success="NO"
+monthly_show_info="NO"
+monthly_show_badconfig="YES"
+EO_PERIODIC
+}
+
 constrain_sshd_to_host()
 {
 	if grep ^ListenAddress /etc/ssh/sshd_config; then
@@ -339,6 +404,7 @@ update_host() {
 	update_freebsd
 	configure_ntpd
 	update_sendmail
+	install_periodic_conf
 	constrain_sshd_to_host
 	constrain_syslogd_to_host
 	check_global_listeners
