@@ -48,7 +48,7 @@ test_tinydns()
 	echo "it worked."
 
 	tell_status "switching tinydns IP to deployment IP"
-	$(get_jail_ip tinydns) > "$STAGE_MNT/var/service/tinydns/env/IP"
+	get_jail_ip tinydns > "$STAGE_MNT/var/service/tinydns/env/IP"
 }
 
 base_snapshot_exists || exit
