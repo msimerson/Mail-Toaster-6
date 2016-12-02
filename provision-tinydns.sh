@@ -21,7 +21,7 @@ configure_tinydns()
 	fi
 
 	tell_status "creating tinydns server"
-	stage_exec tinydns-conf bind bin /var/service/tinydns $(get_jail_ip stage)
+	stage_exec tinydns-conf bind bin /var/service/tinydns "$(get_jail_ip stage)"
 
 	tell_status "configuring tinydns data"
 	if [ ! -d "$ZFS_DATA_MNT/tinydns/root" ]; then
