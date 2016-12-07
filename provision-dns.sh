@@ -81,6 +81,9 @@ start_unbound()
 
 test_unbound()
 {
+	tell_status "testing unbound"
+	stage_test_running unbound
+
 	# use stage IP for DNS resolution
 	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 
