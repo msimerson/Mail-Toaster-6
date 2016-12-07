@@ -141,8 +141,8 @@ install_nginx()
 
 	patch -d "$STAGE_MNT/usr/local/etc/nginx" <<'EO_NGINX_CONF'
 --- nginx.conf-dist	2016-11-03 05:11:28.000000000 -0700
-+++ nginx.conf	2016-12-07 16:29:52.835309001 -0800
-@@ -41,17 +41,26 @@
++++ nginx.conf	2016-12-07 14:54:31.075259094 -0800
+@@ -41,17 +41,21 @@
  
      server {
          listen       80;
