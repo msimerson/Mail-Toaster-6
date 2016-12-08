@@ -106,6 +106,15 @@ backend websocket_haraka
 backend www_webmail
     server webmail $(get_jail_ip webmail):80
 
+backend www_roundcube
+    server roundcube $(get_jail_ip roundcube):80
+
+backend www_squirrelmail
+    server squirrelmail $(get_jail_ip squirrelmail):80
+
+backend www_rainloop
+    server rainloop $(get_jail_ip rainloop):80
+
 backend www_monitor
     server monitor $(get_jail_ip monitor):80
 
