@@ -108,12 +108,14 @@ backend www_webmail
 
 backend www_roundcube
     server roundcube $(get_jail_ip roundcube):80
+    reqirep ^([^\ :]*)\ /roundcube/(.*)    \1\ /\2
 
 backend www_squirrelmail
     server squirrelmail $(get_jail_ip squirrelmail):80
 
 backend www_rainloop
     server rainloop $(get_jail_ip rainloop):80
+    reqirep ^([^\ :]*)\ /rainloop/(.*)    \1\ /\2
 
 backend www_monitor
     server monitor $(get_jail_ip monitor):80
