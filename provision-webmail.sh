@@ -51,9 +51,6 @@ EO_NGINX_MT6
  
 EO_NGINX_CONF
 
-	export BATCH=${BATCH:="1"}
-	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
-	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
 }
 
 install_lighttpd()
@@ -119,13 +116,16 @@ install_index()
   });
   function changeWebmail(sel) {
       if (sel.value === 'roundcube') $('#webmail-item').prop('src','/roundcube/');
+      if (sel.value === 'rainloop') $('#webmail-item').prop('src','/rainloop/');
       if (sel.value === 'squirrelmail') $('#webmail-item').prop('src','/squirrelmail/');
+      if (sel.value === 'sqwebmail') $('#webmail-item').prop('src','/cgi-bin/sqwebmail?index=1');
       console.log(sel);
   };
   function changeAdmin(sel) {
       if (sel.value === 'qmailadmin') $('#admin-item').prop('src','/cgi-bin/qmailadmin/qmailadmin/');
       if (sel.value === 'rspamd') $('#admin-item').prop('src','/rspamd/');
       if (sel.value === 'watch') $('#admin-item').prop('src','/watch/');
+      if (sel.value === 'rainloop') $('#admin-item').prop('src','/rainloop/?admin');
   };
   function changeStats(sel) {
       if (sel.value === 'munin') $('#stats-item').prop('src','/munin/');
@@ -146,7 +146,9 @@ body {
            <select id="webmail-select" onChange="changeWebmail(this);">
                <option value=webmail>Webmail</option>
                <option value=roundcube>Roundcube</option>
+               <option value=rainloop>Rainloop</option>
                <option value=squirrelmail>Squirrelmail</option>
+               <option value=sqwebmail>Sqwebmail</option>
            </select>
        </a>
        </li>
@@ -156,6 +158,7 @@ body {
                <option value=qmailadmin>Qmailadmin</option>
                <option value=rspamd>Rspamd</option>
                <option value=watch>Haraka Watch</option>
+               <option value=rainloop>Rainloop Admin</option>
            </select>
        </a>
        </li>
