@@ -1,21 +1,20 @@
 #!/bin/sh
 
-config()
+create_default_config()
 {
-	if [ ! -f "mail-toaster.conf" ]; then
-		local _HOSTNAME;
-		local _EMAIL_DOMAIN;
+	local _HOSTNAME;
+	local _EMAIL_DOMAIN;
 
-		echo "editing prefs"
-		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
-		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+	echo "editing prefs"
+	_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
+	_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
 
-		# for Travis (Linux) where dialog doesn't exist
-		if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
-		if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
+	# for Travis CI (Linux) where dialog doesn't exist
+	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
+	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
 
-		echo "creating mail-toaster.conf with defaults"
-		tee mail-toaster.conf <<EO_MT_CONF
+	echo "creating mail-toaster.conf with defaults"
+	tee mail-toaster.conf <<EO_MT_CONF
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
 export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
@@ -31,11 +30,18 @@ export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="1"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
+export SQUIRREL_SQL="1"
 
 EO_MT_CONF
+}
+
+config()
+{
+	if [ ! -f "mail-toaster.conf" ]; then
+		create_default_config
 	fi
 
-	echo "loading config from mail-toaster.conf"
+	echo "loading mail-toaster.conf"
 	# shellcheck disable=SC1091,SC2039
 	. mail-toaster.conf
 }
@@ -65,6 +71,8 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
+export SQUIRREL_SQL=${SQUIRREL_SQL:="1"}
+
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi

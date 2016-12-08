@@ -13,7 +13,7 @@ install_php()
 	tell_status "installing PHP"
 	stage_pkg_install php56 php56-fileinfo php56-mcrypt php56-exif php56-openssl
 
-	if [ "$TOASTER_MYSQL" = "1" ]; then
+	if [ "$SQUIRREL_SQL" = "1" ]; then
 		tell_status "install php mysql module"
 		stage_pkg_install php56-mysql
 	fi
@@ -29,9 +29,8 @@ install_php()
 
 install_squirrelmail_mysql()
 {
-	if [ "$TOASTER_MYSQL" != "1" ]; then return; fi
+	if [ "$SQUIRREL_SQL" != "1" ]; then return; fi
 
-	local _init_db=0
 	if ! mysql_db_exists squirrelmail; then
 		tell_status "creating squirrelmail database"
 		echo "CREATE DATABASE squirrelmail;" | jexec mysql /usr/local/bin/mysql || exit
@@ -92,7 +91,7 @@ install_squirrelmail()
 
 	_sq_dir="$STAGE_MNT/usr/local/www/squirrelmail/config"
 
-	local _active_cfg; _active_cfg="$_sq_dir/config.inc.php"
+	local _active_cfg; _active_cfg="$_sq_dir/config_local.php"
 	if [ -f "$_active_cfg" ]; then
 		_sqpass=$(grep '//squirrelmail:' "$_active_cfg" | cut -f3 -d: | cut -f1 -d@)
 		echo "preserving existing squirrelmail mysql password: $_sqpass"

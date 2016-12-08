@@ -23,58 +23,8 @@ install_php()
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "install php mysql module"
-		stage_pkg_install php56-mysql
+		stage_pkg_install php56-pdo_mysql
 	fi
-}
-
-install_rainloop_mysql()
-{
-	local _init_db=0
-	if ! mysql_db_exists rainloopmail; then
-		tell_status "creating rainloop mysql db"
-		echo "CREATE DATABASE rainloopmail;" | jexec mysql /usr/local/bin/mysql || exit
-		_init_db=1
-	fi
-
-	local _active_cfg="$ZFS_JAIL_MNT/rainloop/usr/local/www/rainloop/config/config.inc.php"
-	if [ -f "$_active_cfg" ]; then
-		local _rcpass
-		# shellcheck disable=2086
-		_rcpass=$(grep '//rainloop:' $_active_cfg | grep ^\$config | cut -f3 -d: | cut -f1 -d@)
-		if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
-			echo "preserving rainloop password $_rcpass"
-		fi
-	else
-		_rcpass=$(openssl rand -hex 18)
-	fi
-
-	local _rcc_dir="$STAGE_MNT/usr/local/www/rainloop/config"
-	sed -i .bak \
-		-e "s/rainloop:pass@/rainloop:${_rcpass}@/" \
-		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
-		"$_rcc_dir/config.inc.php" || exit
-
-	if [ "$_init_db" = "1" ]; then
-		tell_status "configuring rainloop mysql permissions"
-		local _grant='GRANT ALL PRIVILEGES ON rainloopmail.* to'
-
-		echo "$_grant 'rainloop'@'$(get_jail_ip rainloop)' IDENTIFIED BY '${_rcpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
-
-		echo "$_grant 'rainloop'@'$(get_jail_ip stage)' IDENTIFIED BY '${_rcpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
-
-		rainloop_init_db
-	fi
-}
-
-rainloop_init_db()
-{
-	tell_status "initializating rainloop db"
-	pkg install -y curl || exit
-	stage_exec service php-fpm restart
-	curl -i -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/rainloop/installer/index.php?_step=3" || exit
 }
 
 install_rainloop()
@@ -84,55 +34,6 @@ install_rainloop()
 
 	tell_status "installing rainloop"
 	stage_pkg_install rainloop-community
-
-	# for sqlite storage
-	# mkdir -p "$STAGE_MNT/data"
-	# chown 80:80 "$STAGE_MNT/data"
-
-	# local _rcc_conf="$STAGE_MNT/usr/local/www/rainloop/config/config.inc.php"
-	# cp "$_rcc_conf.sample" "$_rcc_conf" || exit
-
-	# local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
-	# sed -i .bak \
-	# 	-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
-	# 	-e "/'smtp_server'/  s/'';/'tls:\/\/haraka';/" \
-	# 	-e "/'smtp_port'/    s/25;/587;/" \
-	# 	-e "/'smtp_user'/    s/'';/'%u';/" \
-	# 	-e "/'smtp_pass'/    s/'';/'%p';/" \
-	# 	"$_rcc_conf"
-
-# 	tee -a "$_rcc_conf" <<'EO_RC_ADD'
-
-# $config['log_driver'] = 'syslog';
-# $config['session_lifetime'] = 30;
-# $config['enable_installer'] = true;
-# $config['mime_types'] = '/usr/local/etc/mime.types';
-# $config['smtp_conn_options'] = array(
-#  'ssl'            => array(
-#    'verify_peer'  => false,
-#    'verify_peer_name' => false,
-#    'verify_depth' => 3,
-#    'cafile'       => '/etc/ssl/cert.pem',
-#  ),
-# );
-# EO_RC_ADD
-
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		# install_rainloop_mysql
-	else
-		# stage_pkg_install php56-pdo_sqlite
-		# sed -i.bak \
-		# 	-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/sqlite.db?mode=0646';/" \
-		# 	"$_rcc_conf"
-
-		# if [ ! -f "$ZFS_DATA_MNT/rainloop/sqlite.db" ]; then
-		# 	rainloop_init_db
-		# fi
-	fi
-
-	# sed -i.bak \
-	# 	-e "s/enable_installer'] = true;/enable_installer'] = false;/" \
-	# 	"$_rcc_conf"
 }
 
 install_nginx()
@@ -141,8 +42,8 @@ install_nginx()
 
 	patch -d "$STAGE_MNT/usr/local/etc/nginx" <<'EO_NGINX_CONF'
 --- nginx.conf-dist	2016-11-03 05:11:28.000000000 -0700
-+++ nginx.conf	2016-12-07 16:29:52.835309001 -0800
-@@ -41,17 +41,26 @@
++++ nginx.conf	2016-12-08 11:20:33.255330697 -0800
+@@ -41,17 +41,22 @@
  
      server {
          listen       80;
@@ -158,13 +59,9 @@ install_nginx()
 -            index  index.html index.htm;
 +            root   /usr/local/www/rainloop;
 +            index  index.php;
++            try_files $uri $uri/ /index.php?$query_string;
          }
  
-+        location /rainloop/ {
-+            root /usr/local/www;
-+            index  index.php;
-+        }
-+
 +        set_real_ip_from 172.16.15.12;
 +        real_ip_header X-Forwarded-For;
 +        client_max_body_size 25m;
@@ -172,7 +69,7 @@ install_nginx()
          #error_page  404              /404.html;
  
          # redirect server error pages to the static page /50x.html
-@@ -69,13 +78,13 @@
+@@ -69,20 +74,27 @@
  
          # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
          #
@@ -184,23 +81,71 @@ install_nginx()
 -        #    include        fastcgi_params;
 -        #}
 +        location ~ \.php$ {
-+            root           /usr/local/www/rainloop;
++            root   /usr/local/www/rainloop;
++            try_files $uri $uri/ /index.php?$query_string;
++            fastcgi_split_path_info ^(.+\.php)(.*)$;
++            fastcgi_keep_conn on;
 +            fastcgi_pass   127.0.0.1:9000;
 +            fastcgi_index  index.php;
-+            fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
++            fastcgi_param  SCRIPT_FILENAME $document_root$fastcgi_script_name;
 +            include        fastcgi_params;
 +        }
  
          # deny access to .htaccess files, if Apache's document root
          # concurs with nginx's one
+         #
+-        #location ~ /\.ht {
+-        #    deny  all;
+-        #}
++        location ~ /\.ht {
++            deny  all;
++        }
++
++        location ^~ /data {
++            deny all;
++        }
+     }
+ 
+ 
 EO_NGINX_CONF
 }
 
 configure_rainloop()
 {
-	tell_status "installing mime.types"
-	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+	# for persistent data storage
+	chown 80:80 "$STAGE_MNT/data"
+
+	local _rl_ver; _rl_ver="$(pkg -j stage info rainloop-community | grep Version | awk '{ print $3 }')"
+	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
+	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
+
+    function __get_custom_data_full_path()
+    {
+	    return '/data/'; // custom data folder path
+    }
+EO_INCLUDE
+
+	if [ ! -f "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" ]; then
+		tell_status "installing domains/default.ini"
+		tee -a "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" <<EO_INI
+imap_host = "dovecot"
+imap_port = 143
+imap_secure = "None"
+imap_short_login = Off
+sieve_use = Off
+sieve_allow_raw = Off
+sieve_host = ""
+sieve_port = 4190
+sieve_secure = "None"
+smtp_host = "haraka"
+smtp_port = 587
+smtp_secure = "TLS"
+smtp_short_login = Off
+smtp_auth = On
+smtp_php_mail = Off
+white_list = ""
+EO_INI
+	fi
 }
 
 start_rainloop()
