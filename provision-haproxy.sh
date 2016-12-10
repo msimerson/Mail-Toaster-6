@@ -30,15 +30,15 @@ global
     ssl-default-bind-options no-sslv3 no-tls-tickets
     ssl-dh-param-file /data/ssl/dhparam.pem
     tune.ssl.default-dh-param 2048
-    option      httpclose
-    option      http-server-close
-    option      log-separate-errors
-    log         global
 
 defaults
     mode        http
     balance     roundrobin
     option      forwardfor   # set X-Forwarded-For
+    option      httpclose
+    option      http-server-close
+    option      log-separate-errors
+    log         global
     timeout     connect 5s
     timeout     server 30s
     timeout     client 30s
