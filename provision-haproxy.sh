@@ -150,11 +150,10 @@ EO_HAPROXY_CONF
         mkdir -p "$ZFS_DATA_MNT/haproxy/ssl" || exit 1
     fi
 
-    if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl" ]; then
+    if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem" ]; then
         tell_status "creating dhparam file for haproxy"
-        openssl dharam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
+        openssl dhparam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
     fi
-
 }
 
 start_haproxy()

@@ -10,19 +10,6 @@ export JAIL_CONF_EXTRA="
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 
-haraka_github_updates() {
-	tell_status "updating files from GitHub repo"
-	local _ghi="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
-	local _ghu='https://raw.githubusercontent.com/haraka/Haraka/master'
-
-	# remove after Haraka v2.8.0 release
-	for f in plugins.js plugins/watch/index.js plugins/watch/package.json plugins/dkim_verify.js outbound.js
-	do
-		echo "fetching $f"
-		fetch -o "$_ghi/$f" "$_ghu/$f"
-	done
-}
-
 install_haraka()
 {
 	tell_status "installing node & npm"
@@ -32,13 +19,8 @@ install_haraka()
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git
 
-	#stage_exec npm install -g Haraka ws express || exit
-
-	# install modern-syslog from github until a npm release > 1.1.3 is published
-	stage_exec npm install -g strongloop/modern-syslog Haraka ws express || exit
+	stage_exec npm install -g Haraka ws express || exit
 	stage_exec bash -c "cd /data && npm install haraka-plugin-log-reader"
-
-	#haraka_github_updates
 }
 
 install_geoip_dbs()
@@ -115,7 +97,7 @@ EO_DLF
 		fi
 	fi
 
-    # no haraka.log prevents log-reader from being able to work
+    # absense of haraka.log prevents log-reader from working
 #	if ! grep -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
 #		# don't write to daemon_log_file if syslog write was successful
 #		echo "[general]
