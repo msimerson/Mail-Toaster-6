@@ -28,6 +28,12 @@ global
     maxconn     256  # Total Max Connections. This is dependent on ulimit
     nbproc      1
     ssl-default-bind-options no-sslv3 no-tls-tickets
+    ssl-dh-param-file /data/ssl/dhparam.pem
+    tune.ssl.default-dh-param 2048
+    option      httpclose
+    option      http-server-close
+    option      log-separate-errors
+    log         global
 
 defaults
     mode        http
@@ -56,7 +62,7 @@ frontend http-in
 
 frontend https-in
     bind *:443 ssl crt /etc/ssl/private
-    # ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128:AES256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK
+    # ciphers AES128+EECDH:AES128+EDH
     reqadd X-Forwarded-Proto:\ https
     default_backend www_webmail
 
@@ -74,16 +80,22 @@ frontend https-in
     acl sqwebmail    path_beg /cgi-bin/sqwebmail
     acl isoqlog      path_beg /isoqlog
     acl rspamd       path_beg /rspamd
+    acl roundcube    path_beg /roundcube
+    acl rainloop     path_beg /rainloop
+    acl squirrelmail path_beg /squirrelmail
 
     use_backend websocket_haraka if  is_websocket
-    use_backend www_monitor    if  munin
-    use_backend www_monitor    if  nagios
-    use_backend www_haraka     if  watch
-    use_backend www_vpopmail   if  qmailadmin
-    use_backend www_sqwebmail  if  sqwebmail
-    use_backend www_vpopmail   if  isoqlog
-    use_backend www_haraka     if  haraka
-    use_backend www_rspamd     if  rspamd
+    use_backend www_monitor      if  munin
+    use_backend www_monitor      if  nagios
+    use_backend www_haraka       if  watch
+    use_backend www_vpopmail     if  qmailadmin
+    use_backend www_sqwebmail    if  sqwebmail
+    use_backend www_vpopmail     if  isoqlog
+    use_backend www_haraka       if  haraka
+    use_backend www_rspamd       if  rspamd
+    use_backend www_roundcube    if  roundcube
+    use_backend www_rainloop     if  rainloop
+    use_backend www_squirrelmail if  squirrelmail
 
     default_backend www_webmail
 
@@ -106,6 +118,17 @@ backend websocket_haraka
 backend www_webmail
     server webmail $(get_jail_ip webmail):80
 
+backend www_roundcube
+    server roundcube $(get_jail_ip roundcube):80
+    reqirep ^([^\ :]*)\ /roundcube/(.*)    \1\ /\2
+
+backend www_squirrelmail
+    server squirrelmail $(get_jail_ip squirrelmail):80
+
+backend www_rainloop
+    server rainloop $(get_jail_ip rainloop):80
+    reqirep ^([^\ :]*)\ /rainloop/(.*)    \1\ /\2
+
 backend www_monitor
     server monitor $(get_jail_ip monitor):80
 
@@ -120,8 +143,18 @@ EO_HAPROXY_CONF
 	else
 		tell_status "concatenating server key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit
+			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit 1
 	fi
+
+    if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl" ]; then
+        mkdir -p "$ZFS_DATA_MNT/haproxy/ssl" || exit 1
+    fi
+
+    if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl" ]; then
+        tell_status "creating dhparam file for haproxy"
+        openssl dharam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
+    fi
+
 }
 
 start_haproxy()

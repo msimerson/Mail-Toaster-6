@@ -10,12 +10,7 @@ export JAIL_CONF_EXTRA="
 
 install_nginx()
 {
-	stage_pkg_install nginx dialog4ports || exit
-
-	tell_status "building nginx with HTTP_REALIP option"
-	export BATCH=${BATCH:="1"}
-	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
-	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
+	stage_pkg_install nginx || exit
 }
 
 configure_nginx()

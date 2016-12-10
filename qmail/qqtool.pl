@@ -502,17 +502,13 @@ Community funding was contributed by the following mail-toaster@simerson.net mai
 Report to author. Patches welcome.
 
 
-=head1 TODO
+=head1 FEATURE WISHES
 
 In list mode, when showing messages in the queue, show which addresses delivery has failed for, so you know exactly why a message is still in the queue (useful for mailing lists with many recipients)
 
 Interactive mode - step through messages offering to delete/expire/skip each
 
 Clean mode - Leave qmail down after stopping it, useful for multiple invocations
-
-Write the messages into a "inactive" queue before deleting them.
-
-Ability to restore messages from "inactive" to the real queue.
 
 
 =head1 SEE ALSO
