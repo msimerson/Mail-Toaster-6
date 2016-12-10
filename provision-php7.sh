@@ -47,7 +47,6 @@ start_php()
 	tell_status "starting PHP"
 	stage_sysrc php_fpm_enable=YES
 	stage_exec service php-fpm start
-
 }
 
 test_php()

@@ -232,7 +232,7 @@ weekly_output="$TOASTER_ADMIN_EMAIL"
 monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
-security_show_info="YES"
+security_show_info="NO"
 security_status_pkgaudit_enable="YES"
 security_status_tcpwrap_enable="YES"
 daily_status_security_inline="NO"

@@ -35,5 +35,3 @@ start_staged_jail
 install_sphinxsearch
 start_sphinxsearch
 promote_staged_jail sphinxsearch
-
-
