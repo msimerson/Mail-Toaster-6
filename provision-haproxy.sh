@@ -30,15 +30,15 @@ global
     ssl-default-bind-options no-sslv3 no-tls-tickets
     ssl-dh-param-file /data/ssl/dhparam.pem
     tune.ssl.default-dh-param 2048
-    option      httpclose
-    option      http-server-close
-    option      log-separate-errors
-    log         global
 
 defaults
     mode        http
     balance     roundrobin
     option      forwardfor   # set X-Forwarded-For
+    option      httpclose
+    option      http-server-close
+    option      log-separate-errors
+    log         global
     timeout     connect 5s
     timeout     server 30s
     timeout     client 30s
@@ -150,11 +150,10 @@ EO_HAPROXY_CONF
         mkdir -p "$ZFS_DATA_MNT/haproxy/ssl" || exit 1
     fi
 
-    if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl" ]; then
+    if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem" ]; then
         tell_status "creating dhparam file for haproxy"
-        openssl dharam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
+        openssl dhparam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
     fi
-
 }
 
 start_haproxy()

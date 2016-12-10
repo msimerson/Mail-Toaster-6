@@ -113,9 +113,10 @@ EO_NGINX_CONF
 configure_rainloop()
 {
 	# for persistent data storage
-	chown 80:80 "$STAGE_MNT/data"
+	chown 80:80 "$ZFS_DATA_MNT/rainloop/"
 
-	local _rl_ver; _rl_ver="$(pkg -j stage info rainloop-community | grep Version | awk '{ print $3 }')"
+	local _rl_ver;
+    _rl_ver="$(pkg -j stage info rainloop-community | grep Version | awk '{ print $3 }')"
 	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
 	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
 
