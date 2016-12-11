@@ -4,7 +4,8 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/dns \$path/data nullfs rw 0 0\"";
 
 install_unbound()
 {
