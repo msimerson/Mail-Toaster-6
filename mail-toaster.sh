@@ -725,18 +725,19 @@ reverse_list()
 	echo "$_rev_list"
 }
 
+unprovision_last()
+{
+	for _j in $JAIL_ORDERED_LIST; do
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
+			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
+		fi
+	done
+}
+
 unprovision_filesystems()
 {
-	for _j in $JAIL_STARTUP_LIST; do
-		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
-			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j"
-			zfs destroy "$ZFS_JAIL_VOL/$_j"
-		fi
-
+	for _j in $JAIL_ORDERED_LIST; do
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.ready"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$_j.ready"
 			zfs destroy "$ZFS_JAIL_VOL/$_j.ready"
@@ -747,9 +748,18 @@ unprovision_filesystems()
 			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
 		fi
 
+		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
+			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
+		fi
+
 		if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
 			tell_status "destroying $ZFS_DATA_MNT/$_j"
 			zfs destroy "$ZFS_DATA_VOL/$_j"
+		fi
+
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j"
+			zfs destroy "$ZFS_JAIL_VOL/$_j"
 		fi
 	done
 
@@ -785,7 +795,7 @@ unprovision_files()
 
 unprovision()
 {
-	local _reversed; _reversed=$(reverse_list "$JAIL_STARTUP_LIST")
+	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
 
 	if [ -f /etc/jail.conf ]; then
 		for _j in $_reversed; do
