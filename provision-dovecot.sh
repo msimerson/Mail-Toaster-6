@@ -65,6 +65,7 @@ configure_dovecot_local_conf() {
 	tell_status "installing $_localconf"
 	tee "$_localconf" <<'EO_DOVECOT_LOCAL'
 #mail_debug = yes
+auth_verbose=yes
 auth_mechanisms = plain login digest-md5 cram-md5
 auth_username_format = %Lu
 disable_plaintext_auth = no
