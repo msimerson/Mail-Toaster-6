@@ -12,16 +12,12 @@ install_php()
 {
 	tell_status "installing PHP"
 	# curl so that Joomla updater works
-	stage_pkg_install php56 php56-curl php56-mysql
+	stage_pkg_install php70 php70-curl php70-mysql
 }
 
 install_nginx()
 {
-	stage_pkg_install nginx dialog4ports || exit
-
-	export BATCH=${BATCH:="1"}
-	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
-	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
+	stage_pkg_install nginx || exit
 }
 
 install_joomla()
