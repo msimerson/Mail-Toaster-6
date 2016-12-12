@@ -20,20 +20,24 @@ install_elasticsearch()
 	stage_exec /usr/local/lib/elasticsearch/bin/plugin install lmenezes/elasticsearch-kopf
 
 	if [ ! -d "$ZFS_DATA_MNT/elasticsearch/etc" ]; then
+		tell_status "creating $ZFS_DATA_MNT/elasticsearch/etc"
 		mkdir "$ZFS_DATA_MNT/elasticsearch/etc"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/elasticsearch/db" ]; then
+		tell_status "creating $ZFS_DATA_MNT/elasticsearch/db"
 		mkdir "$ZFS_DATA_MNT/elasticsearch/db" || exit
 		chown 965:965 "$ZFS_DATA_MNT/elasticsearch/db"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/elasticsearch/log" ]; then
+		tell_status "creating $ZFS_DATA_MNT/elasticsearch/log"
 		mkdir "$ZFS_DATA_MNT/elasticsearch/log" || exit
 		chown 965:965 "$ZFS_DATA_MNT/elasticsearch/log"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/elasticsearch/plugins" ]; then
+		tell_status "creating $ZFS_DATA_MNT/elasticsearch/plugins"
 		mkdir "$ZFS_DATA_MNT/elasticsearch/plugins"
 	fi
 
@@ -75,6 +79,7 @@ configure_kibana()
 		return
 	fi
 
+	tell_status "installing kibana.yml"
 	cp "$STAGE_MNT/usr/local/etc/kibana.yml" "$ZFS_DATA_MNT/elasticsearch/etc/"
 }
 
@@ -82,12 +87,10 @@ start_elasticsearch()
 {
 	tell_status "starting Elasticsearch"
 	stage_sysrc elasticsearch_enable=YES
-	stage_sysrc elasticsearch_config=/data/etc
 	stage_exec service elasticsearch start
 
 	tell_status "starting Kibana"
 	stage_sysrc kibana_enable=YES
-	stage_sysrc kibana_config=/data/etc/kibana.yml
 	stage_exec service kibana start
 }
 
@@ -105,6 +108,11 @@ test_elasticsearch()
 	tell_status "testing Kibana (listening 5601)"
 	stage_listening 5601
 	echo "it worked"
+
+	# not so good things can happen if two ES instances access the data dir
+	# so wait until just before promotion to switch the active config
+	stage_sysrc elasticsearch_config=/data/etc
+	stage_sysrc kibana_config=/data/etc/kibana.yml
 }
 
 base_snapshot_exists || exit
