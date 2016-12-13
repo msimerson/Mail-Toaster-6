@@ -110,25 +110,15 @@ install_nginx()
 EO_NGINX_CONF
 }
 
-configure_rainloop()
+install_default_ini()
 {
-	# for persistent data storage
-	chown 80:80 "$ZFS_DATA_MNT/rainloop/"
+	if [ -f "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" ]; then
+        tell_status "preserving default.ini"
+        return
+    fi
 
-	local _rl_ver;
-    _rl_ver="$(pkg -j stage info rainloop-community | grep Version | awk '{ print $3 }')"
-	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
-	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
-
-    function __get_custom_data_full_path()
-    {
-	    return '/data/'; // custom data folder path
-    }
-EO_INCLUDE
-
-	if [ ! -f "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" ]; then
-		tell_status "installing domains/default.ini"
-		tee -a "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" <<EO_INI
+	tell_status "installing domains/default.ini"
+	tee -a "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" <<EO_INI
 imap_host = "dovecot"
 imap_port = 143
 imap_secure = "None"
@@ -146,7 +136,29 @@ smtp_auth = On
 smtp_php_mail = Off
 white_list = ""
 EO_INI
-	fi
+}
+
+set_default_path()
+{
+	local _rl_ver;
+	_rl_ver="$(pkg -j stage info rainloop-community | grep Version | awk '{ print $3 }')"
+	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
+	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
+
+    function __get_custom_data_full_path()
+    {
+	    return '/data/'; // custom data folder path
+    }
+EO_INCLUDE
+}
+
+configure_rainloop()
+{
+	# for persistent data storage
+	chown 80:80 "$ZFS_DATA_MNT/rainloop/"
+
+    set_default_path
+    install_default_ini
 }
 
 start_rainloop()
