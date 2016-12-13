@@ -11,7 +11,7 @@ use Pod::Usage;
 
 getopts('a:h:q:s:v');
 
-print "           Qmail Queue Tool   v6.0.0\n\n";
+print "           Qmail Queue Tool   v6.0.1\n\n";
 print "Only the root user has permission to read the queue.
 You are not root, goodbye!\n"
 and exit 0 if $UID != 0;
@@ -342,6 +342,8 @@ sub send_signal {
 
     # send qmail-send a TERM signal
     system "$svc $signal $qcontrol";
+
+    if ($signal ne '-d') { return 1; }
 
     # loop up to a hundred seconds waiting for qmail-send to exit
     foreach my $i ( 1 .. 100 ) {
