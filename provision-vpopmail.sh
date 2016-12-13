@@ -187,10 +187,10 @@ install_quota_report()
 
 	tell_status "installing quota_report"
 	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
-	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
-	chmod 755 "$_qr"
+	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report" || exit
+	chmod 755 "$_qr" || exit
 
-	sed -i .bak \
+	sed -i \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
 		"$_qr"
