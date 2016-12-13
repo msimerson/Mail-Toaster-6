@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/local/bin/perl
 # Nov 9, 2016
 # Author: Matt Simerson
 #   based on shell script by Clarence Mills (cmills@opensitesolutions.com), Dec 1 2008
@@ -57,7 +57,7 @@ foreach my $domain ( `$vpopdir/bin/vdominfo -n` ) {
         if ( $usage && $usage >= $warn ) {
             $OVER .= sprintf("%5s %7s %-20s %-50s\n", $cnum, "$usage%", $name, "$user\@$domain" );
 
-            open( my $MAIL, '|', '/usr/bin/mail -s "**** Warning **** Mail Quota Usage"'." $admin" ) or die "unable to pipe to mail\n";
+            open( my $MAIL, '|-', '/usr/bin/mail -s "**** Warning **** Mail Quota Usage"'." $admin" ) or die "unable to pipe to mail\n";
             print $MAIL get_message( $name, $cnum, $usage, "$user\@$domain", $dir);
             close $MAIL;
         }
@@ -66,7 +66,7 @@ foreach my $domain ( `$vpopdir/bin/vdominfo -n` ) {
 
 # Only send mail to admin if there are users over quota
 if ( $OVER =~ /\@/ ) {
-    open( my $MAIL, '|', '/usr/bin/mail -s "Users nearing Quota" ' . $admin ) or die "unable to pipe to mail\n";
+    open( my $MAIL, '|-', '/usr/bin/mail -s "Users nearing Quota" ' . $admin ) or die "unable to pipe to mail\n";
     print $MAIL $OVER;
     if ( $NONE =~ /@/ ) {
         print $MAIL $NONE;
@@ -77,7 +77,7 @@ if ( $OVER =~ /\@/ ) {
 # Ony mail NOQUOTA report on the 1st of each month
 my $day=`date | awk '{print \$3}'`;
 if ( $day == 1 && $NONE =~ /\@/ ) {
-    open( my $MAIL, '|', '/usr/bin/mail -s "Users with No Quota" ' . $admin ) or die "unable to pipe to mail\n";
+    open( my $MAIL, '|-', '/usr/bin/mail -s "Users with No Quota" ' . $admin ) or die "unable to pipe to mail\n";
     print $MAIL $NONE;
     close $MAIL;
 } 
