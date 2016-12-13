@@ -103,8 +103,8 @@ FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
 FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-10.2-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-10.2-RELEASE@p7
+# host OS version, ex: base-10.3-RELEASE and the snapshot name will be the OS
+# patch level, ex: base-10.3-RELEASE@p7
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -362,7 +362,7 @@ start_staged_jail()
 
 	tell_status "stage jail $_name startup"
 
-    # shellcheck disable=2086
+	# shellcheck disable=2086
 	jail -c \
 		name=stage \
 		host.hostname="$_name" \
@@ -662,11 +662,11 @@ get_public_facing_nic()
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
 	fi
 
-        if [ -z "$PUBLIC_NIC" ];
-        then
-            echo "public NIC detection failed"
-            exit 1
-        fi
+	if [ -z "$PUBLIC_NIC" ];
+	then
+		echo "public NIC detection failed"
+		exit 1
+	fi
 }
 
 get_public_ip()
@@ -795,6 +795,11 @@ unprovision_files()
 
 unprovision()
 {
+	if [ "$1" == "last" ]; then
+		unprovision_last
+		return
+	fi
+
 	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
 
 	if [ -f /etc/jail.conf ]; then
@@ -816,4 +821,10 @@ add_pf_portmap()
 # map port $1 traffic to $2
 rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
 " /etc/pf.conf
+}
+
+selfupdate()
+{
+	fetch $TOASTER_SRC_URL/mail-toaster.sh
+	. mail-toaster.sh
 }
