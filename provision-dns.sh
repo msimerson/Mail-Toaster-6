@@ -5,7 +5,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/dns \$path/data nullfs rw 0 0\"";
+		mount += \"$ZFS_DATA_MNT/dns \$path/data nullfs rw 0 0\";";
 
 install_unbound()
 {
@@ -15,7 +15,7 @@ install_unbound()
 
 get_mt6_data()
 {
-    echo "
+	echo "
 
 	   local-data: \"stage        A $(get_jail_ip stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\""
@@ -23,16 +23,48 @@ get_mt6_data()
 	local _octet=${JAIL_NET_START:=1}
 	for _j in $JAIL_ORDERED_LIST
 	do
-	    echo "
+		echo "
 	   local-data: \"$_j       A $(get_jail_ip $_j)\"
 	   local-data: \"$(get_reverse_ip $_j) PTR $_j\""
 	done
 }
 
+install_access_conf()
+{
+	if [ ! -f "$ZFS_DATA_MNT/dns/access.conf" ]; then
+		tell_status "installing access.conf"
+		tee "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
+
+	   access-control: 0.0.0.0/0 refuse
+	   access-control: 127.0.0.0/8 allow
+	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
+	   access-control: $PUBLIC_IP4 allow
+
+EO_UNBOUND_ACCESS
+	else
+		tell_status "preserving access.conf"
+	fi
+}
+
+install_local_conf()
+{
+	if [ -f "$ZFS_DATA_MNT/dns/mt6-local.conf" ]; then
+		tell_status "updating unbound/mt6-local.conf"
+	else
+		tell_status "installing unbound/mt6-local.conf"
+	fi
+
+	tee "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
+	   $UNB_LOCAL
+
+	   $(get_mt6_data)
+EO_UNBOUND
+}
+
 configure_unbound()
 {
 	local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
-	local UNB_LOCAL=""
+	UNB_LOCAL=""
 
 	cp "$UNB_DIR/unbound.conf.sample" "$UNB_DIR/unbound.conf" || exit
 	if [ -f 'unbound.conf.local' ]; then
@@ -68,29 +100,8 @@ include: "/data/mt6-local.conf" \
 
 	get_public_ip
 
-	if [ ! -f "$ZFS_DATA_MNT/dns/access.conf" ]; then
-		tell_status "installing access.conf"
-		tee "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
-
-	   access-control: 0.0.0.0/0 refuse
-	   access-control: 127.0.0.0/8 allow
-	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
-	   access-control: $PUBLIC_IP4 allow
-
-EO_UNBOUND_ACCESS
-	fi
-
-	if [ -f "$ZFS_DATA_MNT/dns/mt6-local.conf" ]; then
-		tell_status "updating unbound/mt6-local.conf"
-	else
-		tell_status "installing unbound/mt6-local.conf"
-	fi
-
-	tee "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
-	   $UNB_LOCAL
-
-	   $(get_mt6_data)
-EO_UNBOUND
+	install_access_conf
+	install_local_conf
 }
 
 start_unbound()
