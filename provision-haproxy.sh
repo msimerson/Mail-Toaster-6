@@ -83,6 +83,7 @@ frontend https-in
     acl roundcube    path_beg /roundcube
     acl rainloop     path_beg /rainloop
     acl squirrelmail path_beg /squirrelmail
+    acl nictool      path_beg /nictool
 
     use_backend websocket_haraka if  is_websocket
     use_backend www_monitor      if  munin
@@ -96,6 +97,7 @@ frontend https-in
     use_backend www_roundcube    if  roundcube
     use_backend www_rainloop     if  rainloop
     use_backend www_squirrelmail if  squirrelmail
+    use_backend www_nictool      if  nictool
 
     default_backend www_webmail
 
@@ -135,6 +137,11 @@ backend www_monitor
 backend www_rspamd
     server monitor $(get_jail_ip rspamd):11334
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
+
+backend www_nictool
+    server monitor $(get_jail_ip nictool):80
+    reqirep ^([^\ :]*)\ /nictool/(.*)    \1\ /\2
+
 EO_HAPROXY_CONF
 
 	if ls /etc/ssl/private/*.pem; then
