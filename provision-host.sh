@@ -270,6 +270,13 @@ set_jail_start_order()
 
 rcd_jail_patch()
 {
+	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
+	if [ "$_fbsd_major" == "11" ]; then
+		tell_status "reverse jails when shutting down"
+		sysrc jail_reverse_stop=YES
+		return
+	fi
+
 	if grep -q _rev_jail_list /etc/rc.d/jail; then
 		echo "rc.d/jail is already patched"
 		return
