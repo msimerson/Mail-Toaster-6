@@ -55,18 +55,71 @@ install_local_conf()
 	fi
 
 	tee "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
-	   $UNB_LOCAL
+	   $UNBOUND_LOCAL
 
 	   $(get_mt6_data)
 EO_UNBOUND
 }
 
+tweak_unbound_conf()
+{
+	tell_status "configuring unbound.conf"
+	# control.conf for the munin stats plugin
+	sed -i .bak \
+		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
+		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
+		-e '/# use-syslog/      s/# //' \
+		-e '/# chroot: /        s/# //; s/".*"/""/' \
+		-e '/# hide-identity: / s/# //; s/no/yes/' \
+		-e '/# hide-version: /  s/# //; s/no/yes/' \
+		-e '/# access-control: ::ffff:127.*/ a\ 
+include: "/data/access.conf" \
+' \
+		-e '/# local-data-ptr:.*/ a\ 
+include: "/data/mt6-local.conf" \
+' \
+		-e '/^remote-control:/ a\ 
+	include: "/data/control.conf" \
+' \
+		"$UNBOUND_DIR/unbound.conf" || exit
+}
+
+enable_control()
+{
+	tell_status "configuring unbound-control"
+	if [ -d "$ZFS_DATA_MNT/dns/control" ]; then
+		tell_status "preserving unbound control"
+		return
+	fi
+
+	tell_status "creating $ZFS_DATA_MNT/dns/control"
+	mkdir "$ZFS_DATA_MNT/dns/control" || exit
+
+	tee -a "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+		control-enable: yes
+		control-interface: 0.0.0.0
+
+		# chroot must be disabled for unbound to access the server certs here
+		server-key-file: "/data/control/unbound_server.key"
+		server-cert-file: "/data/control/unbound_server.pem"
+
+		control-key-file: "/data/control/unbound_control.key"
+		control-cert-file: "/data/control/unbound_control.pem"
+EO_CONTROL_CONF
+
+	sed -i \
+		-e '/^DESTDIR=/ s/=.*$/=\/data\/control/' \
+		"$STAGE_MNT/usr/local/sbin/unbound-control-setup"
+
+	stage_exec /usr/local/sbin/unbound-control-setup
+}
+
 configure_unbound()
 {
-	local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
-	UNB_LOCAL=""
+	UNBOUND_DIR="$STAGE_MNT/usr/local/etc/unbound"
+	UNBOUND_LOCAL=""
 
-	cp "$UNB_DIR/unbound.conf.sample" "$UNB_DIR/unbound.conf" || exit
+	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf" || exit
 	if [ -f 'unbound.conf.local' ]; then
 		tell_status "moving unbound.conf.local to data volume"
 		mv unbound.conf.local $ZFS_DATA_MNT/dns/ || exit
@@ -74,30 +127,11 @@ configure_unbound()
 
 	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
 		tell_status "activating unbound.conf.local"
-		UNB_LOCAL='include: "/data/unbound.conf.local"'
+		UNBOUND_LOCAL='include: "/data/unbound.conf.local"'
 	fi
 
-	tell_status "configuring unbound-control"
-	stage_exec /usr/local/sbin/unbound-control-setup
-
-	tell_status "configuring unbound.conf"
-	# for the munin status plugin
-	sed -i .bak \
-		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
-		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
-		-e 's/# control-enable: no/control-enable: yes/' \
-		-e "s/# control-interface: 127.*/control-interface: 0.0.0.0/" \
-		-e 's/# use-syslog: yes/use-syslog: yes/' \
-		-e 's/# hide-identity: no/hide-identity: yes/' \
-		-e 's/# hide-version: no/hide-version: yes/' \
-		-e '/# access-control: ::ffff:127.*/ a\ 
-include: "/data/access.conf" \
-' \
-		-e '/# local-data-ptr:.*/ a\ 
-include: "/data/mt6-local.conf" \
-' \
-		"$UNB_DIR/unbound.conf" || exit
-
+	enable_control
+	tweak_unbound_conf
 	get_public_ip
 
 	install_access_conf
