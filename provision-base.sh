@@ -203,14 +203,54 @@ EO_BASH_PROFILE
 config_bourne_shell()
 {
 	tell_status "making bourne sh more comfy"
-	local _profile=$BASE_MNT/root/.profile
+	local _profile="$BASE_MNT/etc/profile"
 	local _bconf='
-alias ls="ls -FG"
-alias ll="ls -alFG"
-PS1="$(whoami)@$(hostname -s):\\w # "
-'
+	alias ls="ls -FG"
+	alias ll="ls -alFG"
+	PS1="$(whoami)@$(hostname -s):\\w # "
+	'
 	grep -q PS1 "$_profile" || echo "$_bconf" | tee -a "$_profile"
-	grep -q PS1 /root/.profile || echo "$_bconf" | tee -a /root/.profile
+	grep -q PS1 /etc/profile || echo "$_bconf" | tee -a /etc/profile
+}
+
+config_csh_shell()
+{
+	local _cconf='
+alias h         history 25
+alias j         jobs -l
+alias la        ls -aF
+alias lf        ls -FA
+alias ll        ls -lAF
+
+setenv  EDITOR  vi
+setenv  PAGER   more
+setenv  BLOCKSIZE       K
+
+if ($?prompt) then
+        # An interactive shell -- set some stuff up
+        set prompt = "%N@%m:%~ %# "
+        set promptchars = "%#"
+
+        set filec
+        set history = 1000
+        set savehist = (1000 merge)
+        set autolist = ambiguous
+        # Use history to aid expansion
+        set autoexpand
+        set autorehash
+        if ( $?tcsh ) then
+                bindkey "^W" backward-delete-word
+                bindkey -k up history-search-backward
+                bindkey -k down history-search-forward
+        endif
+
+endif
+'
+EO_CSH_SHELL
+
+	_cshrc="$BASE_MNT/etc/csh.cshrc"
+	grep -q PS1 "$_cshrc"      || echo "$_cconf" | tee -a "$_cshrc"
+	grep -q PS1 /etc/csh.cshrc || echo "$_cconf" | tee -a /etc/csh.cshrc
 }
 
 install_periodic_conf()
@@ -306,6 +346,7 @@ install_freebsd
 freebsd_update
 configure_base
 config_bourne_shell
+config_csh_shell
 start_staged_jail base "$BASE_MNT" || exit
 install_base
 jail -r stage
