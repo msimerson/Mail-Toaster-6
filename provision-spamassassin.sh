@@ -3,7 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
-export JAIL_CONF_EXTRA=""
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/spamassassin \$path/data nullfs rw 0 0\";"
 
 install_dcc_cleanup()
 {
@@ -36,6 +38,10 @@ EO_SAUPD
 }
 
 install_sought_rules() {
+	if [ -f "$ZFS_DATA_MNT/spamassassin/var/3.004001/sought_rules_yerp_org.cf" ]; then
+		return
+	fi
+
 	tell_status "installing sought rules"
 	fetch -o - http://yerp.org/rules/GPG.KEY | stage_exec sa-update --import - || exit
 	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org || exit
@@ -46,7 +52,7 @@ install_spamassassin_port()
 	tell_status "install SpamAssassin from ports (w/opts)"
 	stage_pkg_install dialog4ports p5-Encode-Detect || exit
 
-	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY UPDATE_AND_COMPILE GNUPG_NONE"
+	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY GNUPG_NONE"
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		_SA_OPTS="MYSQL $_SA_OPTS"
 	fi
@@ -59,7 +65,7 @@ mail_spamassassin_UNSET=SSL PGSQL GNUPG GNUPG2"
 	fi
 
 	#export BATCH=1  # if set, GPG key importing will fail
-	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean || exit	
+	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean || exit
 }
 
 install_spamassassin_nrpe()
@@ -73,17 +79,67 @@ install_spamassassin_nrpe()
 	stage_pkg_install nagios-spamd-plugin
 }
 
+install_spamassassin_data_fs()
+{
+	for _d in $ZFS_DATA_MNT/spamassassin/etc $ZFS_DATA_MNT/spamassassin/var $STAGE_MNT/usr/local/etc/mail; do
+		if [ ! -d "$_d" ]; then
+			tell_status "creating $_d"
+			mkdir "$_d" || exit
+		fi
+	done
+
+	stage_exec ln -s /data/etc /usr/local/etc/mail/spamassassin
+	stage_exec ln -s /data/var /var/db/spamassassin
+}
+
+install_spamassassin_razor()
+{
+	stage_pkg_install razor-agents || exit
+
+	stage_exec razor-admin -home=/etc/razor -create -d
+	stage_exec razor-admin -home=/etc/razor -register -d
+
+	if [ ! -f "$STAGE_MNT/etc/razor/razor-agent.conf" ]; then
+		echo "razor failed to register"
+		exit
+	fi
+
+	sed -i .bak -e \
+		'/^logfile/ s/= /= \/var\/log\//' \
+		"$STAGE_MNT/etc/razor/razor-agent.conf"
+
+	tell_status "setting up razor-agent log rotation"
+	if [ ! -d "$STAGE_MNT/etc/newsyslog.conf.d" ]; then
+		mkdir "$STAGE_MNT/etc/newsyslog.conf.d" || exit
+	fi
+
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent" <<EO_RAZOR
+/var/log/razor-agent.log    600 5   1000 *  Z
+EO_RAZOR
+}
+
 install_spamassassin()
 {
+	if grep -qs ^spamassassin /etc/jail.conf && ! grep -qs data/spamassassin /etc/jail.conf; then
+		tell_status "exploding"
+		echo "You MUST add this line to the spamassassin section in /etc/jail.conf to continue:"
+		echo
+		echo 'mount += "/data/spamassassin $path/data nullfs rw 0 0";'
+		echo
+		exit
+	fi
+
 	tell_status "install SpamAssassin optional dependencies"
-	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP || exit
-	stage_pkg_install gnupg1 re2c libidn dcc-dccd razor-agents || exit
+	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP p5-Net-CIDR-Lite p5-IO-Socket-INET6 || exit
+	stage_pkg_install gnupg1 re2c libidn dcc-dccd || exit
+	install_spamassassin_razor
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing mysql deps for spamassassin"
 		stage_pkg_install mysql56-client p5-DBI p5-DBD-mysql
 	fi
 
+	install_spamassassin_data_fs
 	install_spamassassin_nrpe
 	install_spamassassin_port
 }
@@ -136,15 +192,20 @@ configure_geoip()
 
 configure_spamassassin()
 {
-	_sa_etc="$STAGE_MNT/usr/local/etc/mail/spamassassin"
+	_sa_etc="$ZFS_DATA_MNT/spamassassin/etc"
 
-	echo "
+	if [ ! -f "$_sa_etc/local.pre" ]; then
+		tell_status "installing local.pre"
+		tee -a "$_sa_etc/local.pre" <<EO_LOCAL_PRE
 loadplugin Mail::SpamAssassin::Plugin::TextCat
 loadplugin Mail::SpamAssassin::Plugin::ASN
 loadplugin Mail::SpamAssassin::Plugin::PDFInfo
-" | tee "$_sa_etc/local.pre"
+EO_LOCAL_PRE
+	fi
 
-	echo "
+	if [ ! -f "$_sa_etc/local.cf" ]; then
+		tell_status "installing local.cf"
+		tee -a "$_sa_etc/local.cf" <<EO_LOCAL_CONF
 report_safe 			0
 trusted_networks $JAIL_NET_PREFIX.
 
@@ -159,7 +220,11 @@ add_header all Status _YESNO_, score=_SCORE_ required=_REQD_ autolearn=_AUTOLEAR
 add_header all DCC _DCCB_: _DCCR_
 add_header all Checker-Version SpamAssassin _VERSION_ (_SUBVERSION_) on _HOSTNAME_
 add_header all Tests _TESTS_
-" | tee -a "$_sa_etc/local.cf"
+EO_LOCAL_CONF
+	fi
+
+	tell_status "initialize sa-update"
+	stage_exec sa-update
 
 	install_sought_rules
 	install_sa_update
@@ -176,14 +241,15 @@ start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j stage spamd_flags="-v -q -x -u spamd -H /var/spool/spamd -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK --listen=0.0.0.0 --min-spare=3 --max-spare=6 --max-conn-per-child=25"
+	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd -A 127.0.0.0/8 -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK --listen=0.0.0.0 --min-spare=3 --max-spare=6 --max-conn-per-child=25"
 	stage_exec service sa-spamd start
 }
 
 test_spamassassin()
 {
 	tell_status "testing spamassassin"
-	stage_exec sockstat -l -4 | grep :783 || exit
+	stage_test_running perl
+	stage_listening 783
 	echo "it worked"
 }
 

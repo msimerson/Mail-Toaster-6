@@ -3,108 +3,139 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/dns \$path/data nullfs rw 0 0\";";
+
 install_unbound()
 {
 	tell_status "installing unbound"
 	stage_pkg_install unbound || exit
 }
 
-configure_unbound()
+get_mt6_data()
 {
-	local UNB_DIR="$STAGE_MNT/usr/local/etc/unbound"
-	local UNB_LOCAL=""
-	cp "$UNB_DIR/unbound.conf.sample" "$UNB_DIR/unbound.conf" || exit
-	if [ -f "unbound.conf.local" ]; then
-		tell_status "installing unbound.conf.local"
-		cp unbound.conf.local "$UNB_DIR"
-		UNB_LOCAL='include: "/usr/local/etc/unbound/unbound.conf.local"'
-	fi
+	echo "
 
-	tell_status "configuring unbound-control"
-	stage_exec /usr/local/sbin/unbound-control-setup
+	   local-data: \"stage        A $(get_jail_ip stage)\"
+	   local-data: \"$(get_reverse_ip stage) PTR stage\""
 
-	tell_status "configuring unbound.conf"
-	# for the munin status plugin
-	sed -i .bak \
-		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
-		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
-		-e 's/# control-enable: no/control-enable: yes/' \
-		-e "s/# control-interface: 127.*/control-interface: 0.0.0.0/" \
-		-e 's/# use-syslog: yes/use-syslog: yes/' \
-		-e 's/# hide-identity: no/hide-identity: yes/' \
-		-e 's/# hide-version: no/hide-version: yes/' \
-		-e '/# local-data-ptr:.*/ a\ 
-include: "/usr/local/etc/unbound/toaster.conf" \
-' \
-		"$UNB_DIR/unbound.conf" || exit
+	local _octet=${JAIL_NET_START:=1}
+	for _j in $JAIL_ORDERED_LIST
+	do
+		echo "
+	   local-data: \"$_j       A $(get_jail_ip $_j)\"
+	   local-data: \"$(get_reverse_ip $_j) PTR $_j\""
+	done
+}
 
-	get_public_ip
-
-	tell_status "installing unbound/toaster.conf"
-	tee -a "$UNB_DIR/toaster.conf" <<EO_UNBOUND
-	   $UNB_LOCAL
+install_access_conf()
+{
+	if [ ! -f "$ZFS_DATA_MNT/dns/access.conf" ]; then
+		tell_status "installing access.conf"
+		tee "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
 
-	   local-data: "$(get_reverse_ip syslog) PTR syslog"
-	   local-data: "$(get_reverse_ip base) PTR base"
-	   local-data: "$(get_reverse_ip dns) PTR dns"
-	   local-data: "$(get_reverse_ip mysql) PTR mysql"
-	   local-data: "$(get_reverse_ip clamav) PTR clamav"
-	   local-data: "$(get_reverse_ip spamassassin) PTR spamassassin"
-	   local-data: "$(get_reverse_ip dspam) PTR dspam"
-	   local-data: "$(get_reverse_ip vpopmail) PTR vpopmail"
-	   local-data: "$(get_reverse_ip haraka) PTR haraka"
-	   local-data: "$(get_reverse_ip webmail) PTR webmail"
-	   local-data: "$(get_reverse_ip monitor) PTR monitor"
-	   local-data: "$(get_reverse_ip haproxy) PTR haproxy"
-	   local-data: "$(get_reverse_ip rspamd) PTR rspamd"
-	   local-data: "$(get_reverse_ip avg) PTR avg"
-	   local-data: "$(get_reverse_ip dovecot) PTR dovecot"
-	   local-data: "$(get_reverse_ip redis) PTR redis"
-	   local-data: "$(get_reverse_ip geoip) PTR geoip"
-	   local-data: "$(get_reverse_ip nginx) PTR nginx"
-	   local-data: "$(get_reverse_ip lighttpd) PTR lighttpd"
-	   local-data: "$(get_reverse_ip apache) PTR apache"
-	   local-data: "$(get_reverse_ip postgres) PTR postgres"
-	   local-data: "$(get_reverse_ip minecraft) PTR minecraft"
-	   local-data: "$(get_reverse_ip joomla) PTR joomla"
-	   local-data: "$(get_reverse_ip memcached) PTR memcached"
-	   local-data: "$(get_reverse_ip sphinxsearch) PTR sphinxsearch"
-	   local-data: "$(get_reverse_ip stage) PTR stage"
+EO_UNBOUND_ACCESS
+	else
+		tell_status "preserving access.conf"
+	fi
+}
 
-	   local-data: "syslog       A $(get_jail_ip syslog)"
-	   local-data: "base         A $(get_jail_ip base)"
-	   local-data: "dns          A $(get_jail_ip dns)"
-	   local-data: "mysql        A $(get_jail_ip mysql)"
-	   local-data: "clamav       A $(get_jail_ip clamav)"
-	   local-data: "spamassassin A $(get_jail_ip spamassassin)"
-	   local-data: "dspam        A $(get_jail_ip dspam)"
-	   local-data: "vpopmail     A $(get_jail_ip vpopmail)"
-	   local-data: "haraka       A $(get_jail_ip haraka)"
-	   local-data: "webmail      A $(get_jail_ip webmail)"
-	   local-data: "monitor      A $(get_jail_ip monitor)"
-	   local-data: "haproxy      A $(get_jail_ip haproxy)"
-	   local-data: "rspamd       A $(get_jail_ip rspamd)"
-	   local-data: "avg          A $(get_jail_ip avg)"
-	   local-data: "dovecot      A $(get_jail_ip dovecot)"
-	   local-data: "redis        A $(get_jail_ip redis)"
-	   local-data: "geoip        A $(get_jail_ip geoip)"
-	   local-data: "nginx        A $(get_jail_ip nginx)"
-	   local-data: "lighttpd     A $(get_jail_ip lighttpd)"
-	   local-data: "apache       A $(get_jail_ip apache)"
-	   local-data: "postgres     A $(get_jail_ip postgres)"
-	   local-data: "minecraft    A $(get_jail_ip minecraft)"
-	   local-data: "joomla       A $(get_jail_ip joomla)"
-	   local-data: "memcached    A $(get_jail_ip memcached)"
-	   local-data: "sphinxsearch A $(get_jail_ip sphinxsearch)"
-	   local-data: "stage        A $(get_jail_ip stage)"
+install_local_conf()
+{
+	if [ -f "$ZFS_DATA_MNT/dns/mt6-local.conf" ]; then
+		tell_status "updating unbound/mt6-local.conf"
+	else
+		tell_status "installing unbound/mt6-local.conf"
+	fi
 
+	tee "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
+	   $UNBOUND_LOCAL
+
+	   $(get_mt6_data)
 EO_UNBOUND
+}
 
+tweak_unbound_conf()
+{
+	tell_status "configuring unbound.conf"
+	# control.conf for the munin stats plugin
+	sed -i .bak \
+		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
+		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
+		-e '/# use-syslog/      s/# //' \
+		-e '/# chroot: /        s/# //; s/".*"/""/' \
+		-e '/# hide-identity: / s/# //; s/no/yes/' \
+		-e '/# hide-version: /  s/# //; s/no/yes/' \
+		-e '/# access-control: ::ffff:127.*/ a\ 
+include: "/data/access.conf" \
+' \
+		-e '/# local-data-ptr:.*/ a\ 
+include: "/data/mt6-local.conf" \
+' \
+		-e '/^remote-control:/ a\ 
+	include: "/data/control.conf" \
+' \
+		"$UNBOUND_DIR/unbound.conf" || exit
+}
+
+enable_control()
+{
+	tell_status "configuring unbound-control"
+	if [ -d "$ZFS_DATA_MNT/dns/control" ]; then
+		tell_status "preserving unbound control"
+		return
+	fi
+
+	tell_status "creating $ZFS_DATA_MNT/dns/control"
+	mkdir "$ZFS_DATA_MNT/dns/control" || exit
+
+	tee -a "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+		control-enable: yes
+		control-interface: 0.0.0.0
+
+		# chroot must be disabled for unbound to access the server certs here
+		server-key-file: "/data/control/unbound_server.key"
+		server-cert-file: "/data/control/unbound_server.pem"
+
+		control-key-file: "/data/control/unbound_control.key"
+		control-cert-file: "/data/control/unbound_control.pem"
+EO_CONTROL_CONF
+
+	sed -i \
+		-e '/^DESTDIR=/ s/=.*$/=\/data\/control/' \
+		"$STAGE_MNT/usr/local/sbin/unbound-control-setup"
+
+	stage_exec /usr/local/sbin/unbound-control-setup
+}
+
+configure_unbound()
+{
+	UNBOUND_DIR="$STAGE_MNT/usr/local/etc/unbound"
+	UNBOUND_LOCAL=""
+
+	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf" || exit
+	if [ -f 'unbound.conf.local' ]; then
+		tell_status "moving unbound.conf.local to data volume"
+		mv unbound.conf.local $ZFS_DATA_MNT/dns/ || exit
+	fi
+
+	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
+		tell_status "activating unbound.conf.local"
+		UNBOUND_LOCAL='include: "/data/unbound.conf.local"'
+	fi
+
+	enable_control
+	tweak_unbound_conf
+	get_public_ip
+
+	install_access_conf
+	install_local_conf
 }
 
 start_unbound()
@@ -116,6 +147,9 @@ start_unbound()
 
 test_unbound()
 {
+	tell_status "testing unbound"
+	stage_test_running unbound
+
 	# use stage IP for DNS resolution
 	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 

@@ -1,26 +1,47 @@
 #!/bin/sh
 
-config()
+create_default_config()
 {
-	if [ ! -f "mail-toaster.conf" ]; then
-		echo "creating mail-toaster.conf with defaults"
-		tee mail-toaster.conf <<EO_MT_CONF
-export TOASTER_HOSTNAME="mail.example.com"
-export TOASTER_MAIL_DOMAIN="example.com"
+	local _HOSTNAME;
+	local _EMAIL_DOMAIN;
+
+	echo "editing prefs"
+	_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
+	_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+
+	# for Travis CI (Linux) where dialog doesn't exist
+	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
+	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
+
+	echo "creating mail-toaster.conf with defaults"
+	tee mail-toaster.conf <<EO_MT_CONF
+export TOASTER_HOSTNAME="$_HOSTNAME"
+export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
+export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
+export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
 
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
-export JAIL_ORDERED_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
+export JAIL_STARTUP_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="1"
+export TOASTER_MARIADB="0"
+export TOASTER_PKG_AUDIT="0"
+export SQUIRREL_SQL="1"
 
 EO_MT_CONF
+}
+
+config()
+{
+	if [ ! -f "mail-toaster.conf" ]; then
+		create_default_config
 	fi
 
-	echo "loading config from mail-toaster.conf"
+	echo "loading mail-toaster.conf"
 	# shellcheck disable=SC1091,SC2039
 	. mail-toaster.conf
 }
@@ -31,13 +52,17 @@ config
 # Required settings
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
+export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
+export TOASTER_SRC_URL=${TOASTER_SRC_URL:="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
+export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail roundcube haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop"
+
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
@@ -45,6 +70,9 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
+export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
+export SQUIRREL_SQL=${SQUIRREL_SQL:="1"}
+
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
@@ -75,8 +103,8 @@ FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
 FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-10.2-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-10.2-RELEASE@p7
+# host OS version, ex: base-10.3-RELEASE and the snapshot name will be the OS
+# patch level, ex: base-10.3-RELEASE@p7
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -191,46 +219,31 @@ EO_JAIL_CONF_HEAD
 get_jail_ip()
 {
 	local _start=${JAIL_NET_START:=1}
-	local _incr
 
 	case "$1" in
-		syslog)       _incr=0 ;;
-		base)         _incr=1 ;;
-		dns)          _incr=2 ;;
-		mysql)        _incr=3 ;;
-		clamav)       _incr=4 ;;
-		spamassassin) _incr=5 ;;
-		dspam)        _incr=6 ;;
-		vpopmail)     _incr=7 ;;
-		haraka)       _incr=8 ;;
-		webmail)      _incr=9 ;;
-		monitor)      _incr=10 ;;
-		haproxy)      _incr=11 ;;
-		rspamd)       _incr=12 ;;
-		avg)          _incr=13 ;;
-		dovecot)      _incr=14 ;;
-		redis)        _incr=15 ;;
-		geoip)        _incr=16 ;;
-		nginx)        _incr=17 ;;
-		lighttpd)     _incr=18 ;;
-		apache)       _incr=19 ;;
-		postgres)     _incr=20 ;;
-		minecraft)    _incr=21 ;;
-		joomla)       _incr=22 ;;
-		memcached)    _incr=24 ;;
-		sphinxsearch) _incr=25 ;;
-		stage)        echo "$JAIL_NET_PREFIX.254"; return;;
+		syslog) echo "$JAIL_NET_PREFIX.$_start";   return;;
+		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))";   return;;
+		stage)  echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
-		_incr=1
+		echo "$JAIL_NET_PREFIX.$((_start + 1))"
+		return
 	fi
 
-	# return error code if _incr unset
-	if [ -z "$_incr" ]; then return 2; fi
+	local _octet="$_start"
 
-	local _octet=$((_start + _incr))
-	echo "$JAIL_NET_PREFIX.$_octet"
+	for j in $JAIL_ORDERED_LIST
+	do
+		if [ "$1" = "$j" ]; then
+			echo "$JAIL_NET_PREFIX.$_octet"
+			return
+		fi
+		_octet=$((_octet + 1))
+	done
+
+	# return error code if _incr unset
+	return 2
 }
 
 get_reverse_ip()
@@ -255,7 +268,10 @@ add_jail_conf()
 
 	jail_conf_header
 
-	if grep -q "^$1" /etc/jail.conf; then return; fi
+	if grep -q "^$1" /etc/jail.conf; then
+		tell_status "$1 already in /etc/jail.conf"
+		return;
+	fi
 
 	local _path=""
 	local _safe; _safe=$(safe_jailname "$1")
@@ -264,6 +280,7 @@ add_jail_conf()
 		path = $ZFS_JAIL_MNT/${1};"
 	fi
 
+	tell_status "adding $1 to /etc/jail.conf"
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
@@ -287,8 +304,8 @@ stage_unmount()
 	stage_unmount_dev
 	unmount_ports "$STAGE_MNT"
 	unmount_pkg_cache
-	if has_data_fs "$1"; then unmount_data "$1"; fi
-	unmount_aux_data "$1"
+	unmount_data "$1"
+	stage_unmount_aux_data "$1"
 }
 
 cleanup_staged_fs()
@@ -311,30 +328,27 @@ create_staged_fs()
 	sed -i -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
-	if has_data_fs "$1"; then
-		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-		mount_data "$1" "$STAGE_MNT"
-	fi
+	tell_status "creating data volume"
+	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	mount_data "$1" "$STAGE_MNT"
 
 	stage_mount_ports
 	stage_mount_pkg_cache
 	echo
 }
 
-unmount_aux_data()
+stage_unmount_aux_data()
 {
 	case $1 in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
-		dovecot)       unmount_data vpopmail ;;
 	esac
 }
 
-mount_aux_data() {
+stage_mount_aux_data() {
 	case $1 in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
-		dovecot )       mount_data vpopmail ;;
 	esac
 }
 
@@ -348,7 +362,7 @@ start_staged_jail()
 
 	tell_status "stage jail $_name startup"
 
-        # shellcheck disable=2086
+	# shellcheck disable=2086
 	jail -c \
 		name=stage \
 		host.hostname="$_name" \
@@ -362,7 +376,7 @@ start_staged_jail()
 		$JAIL_START_EXTRA \
 		|| exit
 
-	mount_aux_data "$_name"
+	stage_mount_aux_data "$_name"
 
 	pkg -j stage update
 }
@@ -441,8 +455,17 @@ stage_resolv_conf()
 	echo "nameserver $_nsip" | tee "$STAGE_MNT/etc/resolv.conf"
 }
 
+seed_pkg_audit()
+{
+	if [ "$TOASTER_PKG_AUDIT" = "1" ]; then
+		tell_status "installing FreeBSD package audit database"
+		stage_exec /usr/sbin/pkg audit -F
+	fi
+}
+
 promote_staged_jail()
 {
+	seed_pkg_audit
 	tell_status "promoting jail $1"
 	stop_jail stage
 	stage_resolv_conf
@@ -485,6 +508,7 @@ stage_make_conf()
 		return
 	fi
 
+	tell_status "setting $1 make.conf options"
 	echo "$2" | tee -a "$STAGE_MNT/etc/make.conf" || exit
 }
 
@@ -492,6 +516,18 @@ stage_exec()
 {
 	echo "jexec $SAFE_NAME $*"
 	jexec "$SAFE_NAME" "$@"
+}
+
+stage_listening()
+{
+	echo "checking for port $1 listener in staged jail"
+	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" || exit
+}
+
+stage_test_running()
+{
+	echo "checking for process $1 in staged jail"
+	pgrep -j stage $1 || exit
 }
 
 stage_mount_ports()
@@ -544,31 +580,9 @@ stage_fbsd_package()
 	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
 	echo "done"
 
-	tell_status "extracting FreeBSD package $1.tgz"
+	tell_status "extracting FreeBSD package $1.tgz to $_dest"
 	tar -C "$_dest" -xpJf "$1.txz" || exit
 	echo "done"
-}
-
-has_data_fs()
-{
-	case $1 in
-		clamav )   return 0;;
-		avg )      return 0;;
-		geoip )    return 0;;
-		mysql )    return 0;;
-		redis )    return 0;;
-		vpopmail ) return 0;;
-		webmail )  return 0;;
-		nginx )    return 0;;
-		lighttpd ) return 0;;
-		apache )   return 0;;
-		postgres ) return 0;;
-		haproxy )  return 0;;
-		minecraft ) return 0;;
-		haraka )   return 0;;
-	esac
-
-	return 1
 }
 
 mount_data()
@@ -648,11 +662,11 @@ get_public_facing_nic()
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
 	fi
 
-        if [ -z "$PUBLIC_NIC" ];
-        then
-            echo "public NIC detection failed"
-            exit 1
-        fi
+	if [ -z "$PUBLIC_NIC" ];
+	then
+		echo "public NIC detection failed"
+		exit 1
+	fi
 }
 
 get_public_ip()
@@ -684,9 +698,7 @@ mysql_db_exists()
 
 fetch_and_exec()
 {
-	local _toaster_sh="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
-
-	fetch -m "$_toaster_sh/provision-$1.sh"
+	fetch -m "$TOASTER_SRC_URL/provision-$1.sh"
 	sh "provision-$1.sh"
 }
 
@@ -713,18 +725,19 @@ reverse_list()
 	echo "$_rev_list"
 }
 
+unprovision_last()
+{
+	for _j in $JAIL_ORDERED_LIST; do
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
+			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
+		fi
+	done
+}
+
 unprovision_filesystems()
 {
 	for _j in $JAIL_ORDERED_LIST; do
-		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
-			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j"
-			zfs destroy "$ZFS_JAIL_VOL/$_j"
-		fi
-
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.ready"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$_j.ready"
 			zfs destroy "$ZFS_JAIL_VOL/$_j.ready"
@@ -735,11 +748,18 @@ unprovision_filesystems()
 			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
 		fi
 
-		if has_data_fs "$_j"; then
-			if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
-				tell_status "destroying $ZFS_DATA_MNT/$_j"
-				zfs destroy "$ZFS_DATA_VOL/$_j"
-			fi
+		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
+			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
+		fi
+
+		if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
+			tell_status "destroying $ZFS_DATA_MNT/$_j"
+			zfs destroy "$ZFS_DATA_VOL/$_j"
+		fi
+
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$_j"
+			zfs destroy "$ZFS_JAIL_VOL/$_j"
 		fi
 	done
 
@@ -775,6 +795,11 @@ unprovision_files()
 
 unprovision()
 {
+	if [ "$1" == "last" ]; then
+		unprovision_last
+		return
+	fi
+
 	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
 
 	if [ -f /etc/jail.conf ]; then
@@ -796,4 +821,10 @@ add_pf_portmap()
 # map port $1 traffic to $2
 rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
 " /etc/pf.conf
+}
+
+selfupdate()
+{
+	fetch $TOASTER_SRC_URL/mail-toaster.sh
+	. mail-toaster.sh
 }

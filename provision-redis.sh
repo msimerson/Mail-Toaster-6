@@ -3,6 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/redis \$path/data nullfs rw 0 0\";"
 
@@ -41,7 +42,7 @@ start_redis()
 test_redis()
 {
 	echo "testing redis"
-	stage_exec sockstat -l -4 | grep 6379 || exit
+	stage_listening 6379
 	echo "it worked"
 }
 

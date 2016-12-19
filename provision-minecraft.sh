@@ -3,6 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/minecraft/etc \$path/usr/local/etc/minecraft-server nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/minecraft/db \$path/var/db/minecraft-server nullfs rw 0 0\";"
@@ -49,7 +50,7 @@ start_minecraft()
 test_minecraft()
 {
 	tell_status "testing minecraft"
-	stage_exec sockstat -l -4 | grep :25565 || exit
+	stage_listening 25565
 	echo "it worked"
 }
 

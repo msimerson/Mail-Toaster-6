@@ -3,6 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/haproxy \$path/data nullfs rw 0 0\";"
 
@@ -27,11 +28,17 @@ global
     maxconn     256  # Total Max Connections. This is dependent on ulimit
     nbproc      1
     ssl-default-bind-options no-sslv3 no-tls-tickets
+    ssl-dh-param-file /data/ssl/dhparam.pem
+    tune.ssl.default-dh-param 2048
 
 defaults
     mode        http
     balance     roundrobin
     option      forwardfor   # set X-Forwarded-For
+    option      httpclose
+    option      http-server-close
+    option      log-separate-errors
+    log         global
     timeout     connect 5s
     timeout     server 30s
     timeout     client 30s
@@ -50,12 +57,12 @@ frontend http-in
     bind *:80
     acl is_websocket hdr(Upgrade) -i WebSocket
     acl is_websocket hdr_beg(Host) -i ws
-    use_backend socket_smtp    if  is_websocket
+    use_backend websocket_haraka    if  is_websocket
     redirect scheme https code 301 if !is_websocket !{ ssl_fc }
 
 frontend https-in
     bind *:443 ssl crt /etc/ssl/private
-    # ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128:AES256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK
+    # ciphers AES128+EECDH:AES128+EDH
     reqadd X-Forwarded-Proto:\ https
     default_backend www_webmail
 
@@ -66,40 +73,63 @@ frontend https-in
     acl nagios       path_beg /nagios
     acl watch        path_beg /watch
     acl haraka       path_beg /haraka
+    acl haraka       path_beg /logs
     acl qmailadmin   path_beg /qmailadmin
     acl qmailadmin   path_beg /cgi-bin/qmailadmin
     acl sqwebmail    path_beg /sqwebmail
     acl sqwebmail    path_beg /cgi-bin/sqwebmail
     acl isoqlog      path_beg /isoqlog
     acl rspamd       path_beg /rspamd
+    acl roundcube    path_beg /roundcube
+    acl rainloop     path_beg /rainloop
+    acl squirrelmail path_beg /squirrelmail
+    acl nictool      path_beg /nictool
 
-    use_backend socket_smtp    if  is_websocket
-    use_backend www_monitor    if  munin
-    use_backend www_monitor    if  nagios
-    use_backend www_smtp       if  watch
-    use_backend www_vpopmail   if  qmailadmin
-    use_backend www_vpopmail   if  sqwebmail
-    use_backend www_vpopmail   if  isoqlog
-    use_backend www_smtp       if  haraka
-    use_backend www_rspamd     if  rspamd
+    use_backend websocket_haraka if  is_websocket
+    use_backend www_monitor      if  munin
+    use_backend www_monitor      if  nagios
+    use_backend www_haraka       if  watch
+    use_backend www_vpopmail     if  qmailadmin
+    use_backend www_sqwebmail    if  sqwebmail
+    use_backend www_vpopmail     if  isoqlog
+    use_backend www_haraka       if  haraka
+    use_backend www_rspamd       if  rspamd
+    use_backend www_roundcube    if  roundcube
+    use_backend www_rainloop     if  rainloop
+    use_backend www_squirrelmail if  squirrelmail
+    use_backend www_nictool      if  nictool
 
     default_backend www_webmail
 
 backend www_vpopmail
     server vpopmail $(get_jail_ip vpopmail):80
 
-backend www_smtp
-    server smtp $(get_jail_ip haraka):80
+backend www_sqwebmail
+    server sqwebmail $(get_jail_ip sqwebmail):80
+
+backend www_haraka
+    server haraka $(get_jail_ip haraka):80
     reqirep ^([^\ :]*)\ /haraka/(.*)    \1\ /\2
 
-backend socket_smtp
+backend websocket_haraka
     timeout queue 5s
     timeout server 86400s
     timeout connect 86400s
-    server smtp $(get_jail_ip haraka):80
+    server haraka $(get_jail_ip haraka):80
 
 backend www_webmail
     server webmail $(get_jail_ip webmail):80
+
+backend www_roundcube
+    server roundcube $(get_jail_ip roundcube):80
+    reqirep ^([^\ :]*)\ /roundcube/(.*)    \1\ /\2
+
+backend www_squirrelmail
+    server squirrelmail $(get_jail_ip squirrelmail):80
+
+backend www_rainloop
+    server rainloop $(get_jail_ip rainloop):80
+    reqirep ^([^\ :]*)\ /rainloop/(.*)    \1\ /\2
 
 backend www_monitor
     server monitor $(get_jail_ip monitor):80
@@ -107,6 +137,11 @@ backend www_monitor
 backend www_rspamd
     server monitor $(get_jail_ip rspamd):11334
     reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
+
+backend www_nictool
+    server monitor $(get_jail_ip nictool):80
+    reqirep ^([^\ :]*)\ /nictool/(.*)    \1\ /\2
+
 EO_HAPROXY_CONF
 
 	if ls /etc/ssl/private/*.pem; then
@@ -115,8 +150,17 @@ EO_HAPROXY_CONF
 	else
 		tell_status "concatenating server key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit
+			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit 1
 	fi
+
+    if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl" ]; then
+        mkdir -p "$ZFS_DATA_MNT/haproxy/ssl" || exit 1
+    fi
+
+    if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem" ]; then
+        tell_status "creating dhparam file for haproxy"
+        openssl dhparam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
+    fi
 }
 
 start_haproxy()
@@ -135,13 +179,13 @@ test_haproxy()
 {
 	tell_status "testing haproxy"
 	if [ ! -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
-		stage_exec sockstat -l -4 | grep 443 || exit
+		stage_listening 443
 		echo "it worked"
 		return
 	fi
 
 	echo "previous haproxy is running, ignoring errors"
-	stage_exec sockstat -l -4 | grep 443
+	sockstat -l -4 -6 -p 443 -j "$(jls -j stage jid)"
 }
 
 base_snapshot_exists || exit

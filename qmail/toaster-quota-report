@@ -1,0 +1,111 @@
+#!/usr/local/bin/perl
+# Nov 9, 2016
+# Author: Matt Simerson
+#   based on shell script by Clarence Mills (cmills@opensitesolutions.com), Dec 1 2008
+# Rewritten to:
+#   not pollute the daily logs with errors
+#   not use temp files for storage
+#   better format the reports
+#   require fewer settings
+#   work reliably with vpopmail user dir hashing
+
+use strict;
+use warnings;
+
+my $vpopdir     = '/usr/local/vpopmail';
+my $warn        = 90;
+my $admin       = 'postmaster@example.com';
+
+# Email users that are over quota to Administrator
+my $OVER = `date` . "
+========= QUOTA LIMIT ==============
+Quota  Usage  Name          Email
+------------------------------------\n";
+
+my $NONE = `date` . "
+============ NO QUOTA ==============
+Name          Email
+------------------------------------\n";
+
+foreach my $domain ( `$vpopdir/bin/vdominfo -n` ) {
+    chomp $domain;
+    next if $domain !~ /[a-z0-9]/;  # ignore blank lines
+    next if $domain =~ /\(alias/;
+    #warn "$domain\n";
+
+    foreach my $user ( `$vpopdir/bin/vuserinfo -n -D $domain` ) {
+        chomp $user;
+
+# Get quota/info for user
+        my $info    = `$vpopdir/bin/vuserinfo $user\@$domain`;
+        my ($dir)   = $info =~ m/dir:\s+(.*)/;
+        my ($name)  = $info =~ m/comment\/gecos:\s+(.*)/;
+        my ($usage) = $info =~ m/usage:\s+(.*)/; $usage =~ s/%//;
+        my ($unum)  = $info =~ m/quota:\s+(.*)/;
+           ($unum)  = split(/,/, $unum) if $unum =~ /,/;
+           $unum    =~ s/[a-zA-Z]//g;
+        my $cnum    = 0;
+           $cnum    = $unum / 1024 / 1024 if ( $unum && $unum > 0 );
+
+        #warn "\t$user\t$name\t$usage\t$unum\t$cnum\n";
+
+        if ( $usage eq 'NOQUOTA' ) {
+            $NONE .= sprintf("%-20s %-50s\n", $name, "$user\@$domain" );
+            next;
+        }
+
+        if ( $usage && $usage >= $warn ) {
+            $OVER .= sprintf("%5s %7s %-20s %-50s\n", $cnum, "$usage%", $name, "$user\@$domain" );
+
+            open( my $MAIL, '|-', '/usr/bin/mail -s "**** Warning **** Mail Quota Usage"'." $admin" ) or die "unable to pipe to mail\n";
+            print $MAIL get_message( $name, $cnum, $usage, "$user\@$domain", $dir);
+            close $MAIL;
+        }
+    }
+}
+
+# Only send mail to admin if there are users over quota
+if ( $OVER =~ /\@/ ) {
+    open( my $MAIL, '|-', '/usr/bin/mail -s "Users nearing Quota" ' . $admin ) or die "unable to pipe to mail\n";
+    print $MAIL $OVER;
+    if ( $NONE =~ /@/ ) {
+        print $MAIL $NONE;
+    }
+    close $MAIL;
+}
+
+# Ony mail NOQUOTA report on the 1st of each month
+my $day=`date | awk '{print \$3}'`;
+if ( $day == 1 && $NONE =~ /\@/ ) {
+    open( my $MAIL, '|-', '/usr/bin/mail -s "Users with No Quota" ' . $admin ) or die "unable to pipe to mail\n";
+    print $MAIL $NONE;
+    close $MAIL;
+} 
+
+sub get_message {
+    my ($name, $cnum, $usage, $email, $dir) = @_;
+
+    chdir "$dir/Maildir";
+    my $report = `du -d1 -t3000000 -h .`;
+    return <<EOT
+Dear $name,
+
+Your email box '$email' is currently at $usage% of your ${cnum}M limit.
+When your mailbox is full, you will no longer receive mail. Please clean
+out unnecessary messages in the following folders:
+
+  1. Trash
+  2. Spam
+  3. Sent
+
+Here is a summary of how much space each mail folder is consuming:
+
+$report
+
+If you need assistance please contact support\@example.com
+
+            My Great Company
+            Quota Reporting System
+EOT
+;
+};

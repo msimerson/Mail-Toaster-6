@@ -3,6 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/joomla \$path/data nullfs rw 0 0\";"
@@ -11,16 +12,12 @@ install_php()
 {
 	tell_status "installing PHP"
 	# curl so that Joomla updater works
-	stage_pkg_install php56 php56-curl php56-mysql
+	stage_pkg_install php70 php70-curl php70-mysql
 }
 
 install_nginx()
 {
-	stage_pkg_install nginx dialog4ports || exit
-
-	export BATCH=${BATCH:="1"}
-	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
-	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
+	stage_pkg_install nginx || exit
 }
 
 install_joomla()
@@ -143,8 +140,11 @@ start_joomla()
 test_joomla()
 {
 	tell_status "testing joomla"
-	stage_exec sockstat -l -4 | grep :80 || exit
-	stage_exec sockstat -l -4 | grep :9000 || exit
+	stage_listening 80
+	echo "httpd is listening"
+
+	stage_listening 9000
+	echo "php fpm is listening"
 	echo "it worked"
 }
 

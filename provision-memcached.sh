@@ -3,6 +3,7 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/memcached \$path/data nullfs rw 0 0\";"
@@ -25,7 +26,7 @@ start_memcached()
 test_memcached()
 {
 	tell_status "testing memcached"
-	stage_exec sockstat -l -4 | grep :11211 || exit
+	stage_listening 11211
 	echo "it worked"
 }
 

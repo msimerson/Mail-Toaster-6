@@ -5,6 +5,7 @@
 
 export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
+export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
@@ -13,7 +14,7 @@ install_qmail()
 	tell_status "setting up data fs for qmail control files"
 	mkdir -p "$STAGE_MNT/var/qmail" \
 		"$ZFS_DATA_MNT/vpopmail/qmail-control" \
-		"$ZFS_DATA_MNT/vpopmail/qmail-users"
+		"$ZFS_DATA_MNT/vpopmail/qmail-users" || exit
 
 	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
@@ -23,18 +24,9 @@ install_qmail()
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
-	tell_status "enabling qmail"
-	stage_exec /var/qmail/scripts/enable-qmail
-
-	local _alias="$STAGE_MNT/var/qmail/alias"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-root"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-postmaster"
-	echo "postmaster@$TOASTER_MAIL_DOMAIN" | tee "$_alias/.qmail-mailer-daemon"
-
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 '
-
 	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
 
@@ -44,15 +36,15 @@ install_maildrop()
 	stage_pkg_install maildrop
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" http://mail-toaster.com/install/mt6-mailfilter.txt
-	stage_exec chown 89:89 "$STAGE_MNT/etc/mailfilter"
-	stage_exec chmod 600 "$STAGE_MNT/etc/mailfilter"
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
-	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
-	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
-	stage_exec chown 89:89 "$STAGE_MNT/usr/local/etc/mailfilter"
-	stage_exec chmod 600 "$STAGE_MNT/usr/local/etc/mailfilter"
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit
+
+	tell_status "setting permissions on mailfilter files"
+	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
+	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
 }
 
 install_lighttpd()
@@ -91,10 +83,20 @@ install_qmailadmin()
 mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
 mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 '
-	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin
+	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 	stage_exec make -C /usr/ports/mail/qmailadmin install clean
 
 	install_lighttpd
+}
+
+mysql_error_warning()
+{
+	echo; echo "-----------------"
+	echo "WARNING: could not connect to MySQL. (Maybe it's password protected?)"
+	echo "If this is a new install, you will need to manually set up MySQL for"
+	echo "vpopmail use. "
+	echo "-----------------"; echo
+	sleep 5
 }
 
 install_vpopmail_mysql_grants()
@@ -109,7 +111,11 @@ install_vpopmail_mysql_grants()
 
 	if ! mysql_db_exists vpopmail; then
 		tell_status "creating vpopmail database"
-		echo "CREATE DATABASE vpopmail;" | jexec mysql /usr/local/bin/mysql || exit
+		echo "CREATE DATABASE vpopmail;" | jexec mysql /usr/local/bin/mysql || mysql_error_warning
+	fi
+
+	if ! mysql_db_exists vpopmail; then
+		return
 	fi
 
 	local _last; _last=$(grep -v ^# "$_vpe" | head -n1 | cut -f4 -d'|')
@@ -165,13 +171,38 @@ install_nrpe()
 	fi
 
 	tell_status "install nagios plugins (mailq)"
-	stage_pkg_install nrpe
+	stage_pkg_install nagios-plugins
+}
+
+install_qqtool()
+{
+	tell_status "installing qqtool"
+	fetch -o "$STAGE_MNT/usr/local/bin/qqtool" "$TOASTER_SRC_URL/qmail/qqtool.pl"
+	chmod 755 "$STAGE_MNT/usr/local/bin/qqtool"
+}
+
+install_quota_report()
+{
+	_qr="$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
+
+	tell_status "installing quota_report"
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
+	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report" || exit
+	chmod 755 "$_qr" || exit
+
+	sed -i \
+		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
+		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
+		"$_qr"
 }
 
 install_vpopmail()
 {
 	install_qmail
+	configure_qmail
 	install_maildrop
+	install_qqtool
+	install_quota_report
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
@@ -184,10 +215,21 @@ install_vpopmail()
 	install_nrpe
 }
 
+configure_qmail()
+{
+	tell_status "enabling qmail"
+	stage_exec /var/qmail/scripts/enable-qmail
+
+	local _alias="$STAGE_MNT/var/qmail/alias"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-root"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-postmaster"
+	echo "$TOASTER_ADMIN_EMAIL" | tee "$_alias/.qmail-mailer-daemon"
+}
+
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	fetch -o - http://mail-toaster.com/install/mt6-qmail-run.txt | stage_exec sh
+	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
@@ -204,7 +246,13 @@ test_vpopmail()
 {
 	echo "testing vpopmail"
 	sleep 1 # give the daemons a second to start listening
-	stage_exec sockstat -l -4 | grep :89 || exit
+	stage_listening 25
+	stage_listening 80
+	stage_listening 89
+	stage_listening 8998
+
+	stage_test_running lighttpd
+	#stage_test_running vpopmaild
 	echo "it worked"
 }
 

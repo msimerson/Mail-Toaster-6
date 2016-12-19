@@ -3,18 +3,14 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/nginx \$path/data nullfs rw 0 0\";"
 
 install_nginx()
 {
-	stage_pkg_install nginx dialog4ports || exit
-
-	tell_status "building nginx with HTTP_REALIP option"
-	export BATCH=${BATCH:="1"}
-	stage_make_conf www_nginx 'www_nginx_SET=HTTP_REALIP'
-	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
+	stage_pkg_install nginx || exit
 }
 
 configure_nginx()
@@ -50,7 +46,7 @@ start_nginx()
 test_nginx()
 {
 	tell_status "testing nginx"
-	stage_exec sockstat -l -4 | grep :80 || exit
+	stage_listening 80
 	echo "it worked"
 }
 

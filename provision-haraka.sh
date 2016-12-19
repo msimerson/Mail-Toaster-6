@@ -10,19 +10,6 @@ export JAIL_CONF_EXTRA="
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 
-haraka_github_updates() {
-	tell_status "updating files from GitHub repo"
-	local _ghi="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
-	local _ghu='https://raw.githubusercontent.com/haraka/Haraka/master'
-
-	# remove after Haraka v2.8.0 release
-	for f in plugins.js plugins/watch/index.js plugins/watch/package.json plugins/dkim_verify.js outbound.js
-	do
-		echo "fetching $f"
-		fetch -o "$_ghi/$f" "$_ghu/$f"
-	done
-}
-
 install_haraka()
 {
 	tell_status "installing node & npm"
@@ -32,12 +19,8 @@ install_haraka()
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git
 
-	#stage_exec npm install -g Haraka ws express || exit
-
-	# install modern-syslog from github until a npm release > 1.1.3 is published
-	stage_exec npm install -g strongloop/modern-syslog Haraka ws express || exit
-
-	#haraka_github_updates
+	stage_exec npm install -g Haraka ws express || exit
+	stage_exec bash -c "cd /data && npm install haraka-plugin-log-reader"
 }
 
 install_geoip_dbs()
@@ -49,7 +32,7 @@ install_geoip_dbs()
 
 	if ! grep -qs ^connect.geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"
-		sed -i .bak -e 's/^# connect.geoip/connect.geoip/' "$HARAKA_CONF/plugins"
+		sed -i .bak -e '/^# connect.geoip/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
@@ -100,7 +83,7 @@ config_haraka_syslog()
 {
 	if ! grep -qs ^log.syslog "$HARAKA_CONF/plugins"; then
 		tell_status "enable logging to syslog"
-		sed -i '' -e 's/# log.syslog$/log.syslog/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# log.syslog$/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
@@ -114,12 +97,12 @@ EO_DLF
 		fi
 	fi
 
-	# TODO: enable this after modern-syslog works with node v6
-# 	if ! grep  -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
-# 		# don't write to daemon_log_file if syslog write was successful
-# 		echo "[general]
-# always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
-# 	fi
+    # absense of haraka.log prevents log-reader from working
+#	if ! grep -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
+#		# don't write to daemon_log_file if syslog write was successful
+#		echo "[general]
+#always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
+#	fi
 }
 
 config_haraka_smtp_forward()
@@ -139,12 +122,12 @@ config_haraka_vpopmail()
 		echo "host=$(get_jail_ip vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
 	fi
 
-	if ! grep -qs ^auth_vpopmaild "$HARAKA_CONF/plugins"; then
+	if ! grep -qs ^auth/auth_vpopmaild "$HARAKA_CONF/plugins"; then
 		tell_status "enabling vpopmaild plugin"
-"$HARAKA_CONF/plugins"
+
 		# shellcheck disable=1004
 		sed -i '.bak' \
-		    -e '/^# auth\/auth_ldap$/a\
+			-e '/^# auth\/auth_ldap$/a\
 auth\/auth_vpopmaild
 ' "$HARAKA_CONF/plugins"
 	fi
@@ -159,10 +142,13 @@ host=$(get_jail_ip vpopmail)" | \
 		tee -a "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
 	fi
 
-	sed -i .bak \
-		-e 's/^#rcpt_to.qmail_deliverable/rcpt_to.qmail_deliverable/' \
-		-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
-		"$HARAKA_CONF/plugins"
+	if ! grep -qs ^rcpt_to.qmail_deliverable "$HARAKA_CONF/plugins"; then
+		tell_status "enabling rcpt_to.qmail_deliverable plugin"
+		sed -i .bak \
+			-e '/^#rcpt_to.qmail_deliverable/ s/#//' \
+			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
+			"$HARAKA_CONF/plugins"
+	fi
 }
 
 config_haraka_p0f()
@@ -171,7 +157,7 @@ config_haraka_p0f()
 
 	if ! grep -qs ^connect.p0f "$HARAKA_CONF/plugins"; then
 		tell_status "enable Haraka p0f plugin"
-		sed -i '' -e 's/^# connect.p0f/connect.p0f/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# connect.p0f/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 }
 
@@ -182,8 +168,10 @@ config_haraka_spamassassin()
 		return
 	fi
 
-	tell_status "enabling Haraka spamassassin plugin"
-	sed -i '' -e 's/^#spamassassin$/spamassassin/' "$HARAKA_CONF/plugins"
+	if ! grep -qs ^spamassasssin "$HARAKA_CONF/plugins"; then
+		tell_status "enabling Haraka spamassassin plugin"
+		sed -i '' -e '/^#spamassassin/ s/#//' "$HARAKA_CONF/plugins"
+	fi
 
 	if [ ! -f "$HARAKA_CONF/spamassassin.ini" ]; then
 		tell_status "configuring Haraka spamassassin plugin"
@@ -198,21 +186,28 @@ relay_reject_threshold=7
 
 config_haraka_avg()
 {
+	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
+
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
-		echo "AVG not installed, skipping"
+		echo "AVG data FS missing, not enabling"
 		return
 	fi
 
 	tell_status "configuring Haraka avg plugin"
-	mkdir -p "$STAGE_MNT/data/avg" || exit
-
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
 
 	if ! grep -qs ^host "$HARAKA_CONF/avg.ini"; then
 		echo "host = $(get_jail_ip avg)
-tmpdir=/data/avg
+tmpdir=/data/avg/spool
 " | tee -a "$HARAKA_CONF/avg.ini"
+	fi
+
+	if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
+		tell_status "update tmpdir in avg.ini"
+		sed -i .bak -e \
+			'/^tmpdir/ s/avg$/avg\/spool/g' \
+			"$HARAKA_CONF/avg.ini"
 	fi
 
 	if ! grep -q ^avg "$HARAKA_CONF/plugins"; then
@@ -233,7 +228,7 @@ config_haraka_clamav()
 
 	if ! grep -qs ^clamd "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka clamav plugin"
-		sed -i '' -e 's/^#clamd$/clamd/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^#clamd/ s/#//' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs ^clamd_socket "$HARAKA_CONF/clamd.ini"; then
@@ -258,7 +253,7 @@ Phishing=false
 config_haraka_tls() {
 	if ! grep -qs ^tls "$HARAKA_CONF/plugins"; then
 		tell_status "enable TLS encryption"
-		sed -i '' -e 's/^# tls$/tls/' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# tls$/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/tls_cert.pem" ]; then
@@ -275,7 +270,7 @@ config_haraka_dnsbl()
 		echo 'reject=false
 search=all
 enable_stats=false
-zones=b.barracudacentral.org, truncate.gbudb.net, psbl.surriel.com, bl.spamcop.net, dnsbl-1.uceprotect.net, zen.spamhaus.org, dnsbl.sorbs.net, dnsbl.justspam.org, bad.psky.me
+zones=b.barracudacentral.org, truncate.gbudb.net, psbl.surriel.com, bl.spamcop.net, dnsbl-1.uceprotect.net, zen.spamhaus.org, dnsbl.sorbs.net, dnsbl.justspam.org
 ' | tee -a "$HARAKA_CONF/dnsbl.ini"
 	fi
 }
@@ -313,12 +308,6 @@ config_haraka_watch()
 	if [ ! -f "$HARAKA_CONF/watch.ini" ]; then
 		echo '[wss]' > "$HARAKA_CONF/watch.ini"
 	fi
-
-	local _libdir="$STAGE_MNT/usr/local/lib/node_modules/Haraka/plugins/watch"
-	sed -i .bak \
-		-e '/^var rcpt_to_plugins/ s/in_host_list/qmail_deliverable/' \
-		-e "/^var data_plugins/ s/uribl/uribl', 'limit/; s/clamd/clamd', 'avg/" \
-		"$_libdir/html/client.js"
 }
 
 config_haraka_smtp_ini()
@@ -344,14 +333,14 @@ config_haraka_plugins()
 
 	# enable a bunch of plugins
 	sed -i .bak \
-		-e 's/^#process_title$/process_title/' \
-		-e 's/^#spf$/spf/' \
-		-e 's/^#bounce$/bounce/' \
-		-e 's/^#data.uribl$/data.uribl/' \
-		-e 's/^#attachment$/attachment/' \
-		-e 's/^#dkim_sign$/dkim_sign/' \
-		-e 's/^#karma$/karma/' \
-		-e 's/^# connect.fcrdns/connect.fcrdns/' \
+		-e '/^#process_title/ s/#//' \
+		-e '/^#spf$/ s/#//' \
+		-e '/^#bounce/ s/#//' \
+		-e '/^#data.uribl/ s/#//' \
+		-e '/^#attachment/ s/#//' \
+		-e '/^#dkim_sign/ s/#//' \
+		-e '/^#karma$/ s/#//' \
+		-e '/^# connect.fcrdns/ s/# //' \
 		"$HARAKA_CONF/plugins"
 }
 
@@ -462,6 +451,66 @@ config_haraka_http()
 	fi
 }
 
+config_haraka_haproxy()
+{
+	if [ ! -f "$HARAKA_CONF/haproxy_hosts" ]; then
+		tell_status "enable haproxy support"
+		get_jail_ip haraka | tee -a "$HARAKA_CONF/haproxy_hosts"
+	fi
+}
+
+config_haraka_helo()
+{
+	if [ ! -f "$HARAKA_CONF/helo.checks.ini" ]; then
+		tell_status "disabling HELO rejections"
+		
+        tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
+[reject]
+mismatch=false
+EO_HELO_INI
+	fi
+
+	if [ ! -f "helo.checks.regexps" ]; then
+		tell_status "rejecting brutefore AUTH signature"
+		echo "ylmf\-pc" | tee "$HARAKA_CONF/helo.checks.regexps"
+	fi
+}
+
+config_haraka_results()
+{
+	if [ -f "$HARAKA_CONF/results.ini" ]; then
+		return
+	fi
+
+	tell_status "cleaning up results"
+	tee "$HARAKA_CONF/results.ini" <<EO_RESULTS
+[connect.fcrdns]
+hide=ptr_names,ptr_name_to_ip,ptr_name_has_ips,ptr_multidomain,has_rdns
+
+[data.headers]
+order=fail,pass,msg
+
+[data.uribl]
+hide=skip
+
+[dnsbl]
+hide=pass
+
+[rcpt_to.qmail_deliverable]
+order=fail,pass,msg
+
+EO_RESULTS
+}
+
+config_haraka_log_rotation()
+{
+	tell_status "configuring haraka.log rotation"
+	mkdir -p "$STAGE_ETC/newsyslog.conf.d" || exit
+	tee -a "$STAGE_ETC/newsyslog.conf.d/haraka.log" <<EO_HARAKA
+/var/log/haraka.log			644  7	   *	@T00  JC
+EO_HARAKA
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -473,9 +522,18 @@ configure_haraka()
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
 	fi
 
+	if [ ! -f "$HARAKA_CONF/deny_includes_uuid" ]; then
+		echo '12' > "$HARAKA_CONF/deny_includes_uuid"
+	fi
+
+	if [ ! -f "$HARAKA_CONF/rate_limit.ini" ]; then
+		echo "redis_server = $(get_jail_ip redis)" > "$HARAKA_CONF/rate_limit.ini"
+	fi
+
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then
 		config_install_default plugins
 	fi
+
 	config_haraka_smtp_ini
 	config_haraka_plugins
 	config_haraka_limit
@@ -501,6 +559,10 @@ configure_haraka()
 	config_haraka_karma
 	config_haraka_redis
 	config_haraka_geoip
+	config_haraka_haproxy
+	config_haraka_helo
+	config_haraka_results
+	config_haraka_log_rotation
 
 	install_geoip_dbs
 }
@@ -527,7 +589,7 @@ test_haraka()
 	sleep 3
 
 	tell_status "testing Haraka"
-	stage_exec sockstat -l -4 | grep :25 || exit
+	stage_listening 25
 	echo "it worked"
 }
 

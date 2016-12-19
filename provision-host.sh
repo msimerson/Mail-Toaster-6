@@ -3,6 +3,9 @@
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+
 configure_ntpd()
 {
 	tell_status "enabling NTPd"
@@ -39,6 +42,71 @@ update_sendmail()
 	tell_status "disable sendmail network listening"
 	sysrc sendmail_enable=NO
 	service sendmail onestop
+}
+
+install_periodic_conf()
+{
+	if [ -f /etc/periodic.conf ]; then
+		return
+	fi
+
+	tell_status "installing /etc/periodic.conf"
+	tee -a /etc/periodic.conf <<EO_PERIODIC
+# older versions of FreeBSD bark b/c these are defined in
+# /etc/defaults/periodic.conf and do not exist. Hush.
+daily_local=""
+weekly_local=""
+monthly_local=""
+
+# in case /etc/aliases isn't set up properly
+daily_output="$TOASTER_ADMIN_EMAIL"
+weekly_output="$TOASTER_ADMIN_EMAIL"
+monthly_output="$TOASTER_ADMIN_EMAIL"
+
+security_show_success="NO"
+security_show_info="YES"
+security_status_chksetuid_enable="NO"
+security_status_neggrpperm_enable="NO"
+security_status_pkgaudit_enable="YES"
+security_status_tcpwrap_enable="YES"
+
+security_status_ipfwlimit_enable="NO"
+security_status_ipfwdenied_enable="NO"
+security_status_pfdenied_enable="NO"
+
+daily_accounting_enable="NO"
+daily_accounting_compress="YES"
+daily_clean_disks_enable="NO"
+daily_clean_disks_days=14
+daily_clean_disks_verbose="NO"
+daily_clean_hoststat_enable="NO"
+daily_clean_tmps_enable="YES"
+daily_clean_tmps_verbose="NO"
+daily_news_expire_enable="NO"
+daily_scrub_zfs_enable="YES"
+
+daily_show_success="NO"
+daily_show_info="NO"
+daily_show_badconfig="YES"
+
+daily_status_disks_enable="NO"
+daily_status_include_submit_mailq="NO"
+daily_status_mail_rejects_enable="YES"
+daily_status_mailq_enable="NO"
+daily_status_rwho_enable="NO"
+daily_submit_queuerun="NO"
+daily_status_smart_enable=YES
+daily_status_smart_devices="AUTO"
+
+weekly_show_success="NO"
+weekly_show_info="NO"
+weekly_show_badconfig="YES"
+weekly_whatis_enable="NO"
+
+monthly_show_success="NO"
+monthly_show_info="NO"
+monthly_show_badconfig="YES"
+EO_PERIODIC
 }
 
 constrain_sshd_to_host()
@@ -99,7 +167,7 @@ commonName_default = $TOASTER_HOSTNAME \
 
 	grep -q emailAddress_default /etc/ssl/openssl.cnf || \
 		sed -i -e "/^emailAddress_max.*/ a\ 
-emailAddress_default = postmaster@$TOASTER_HOSTNAME \
+emailAddress_default = $TOASTER_ADMIN_EMAIL \
 " /etc/ssl/openssl.cnf
 
 	if [ -f /etc/ssl/private/server.key ]; then
@@ -164,6 +232,9 @@ rdr proto tcp from any to <ext_ips> port { 25 465 587 } -> $(get_jail_ip haraka)
 # HTTP traffic to HAproxy
 rdr proto tcp from any to <ext_ips> port { 80 443 } -> $(get_jail_ip haproxy)
 
+# DHCP traffic
+rdr proto udp from any to any port { 67 68 } -> $(get_jail_ip dhcp)
+
 block in quick from <bruteforce>
 EO_PF_RULES
 
@@ -194,11 +265,18 @@ set_jail_start_order()
 	fi
 
 	tell_status "setting jail startup order"
-	sysrc jail_list="$JAIL_ORDERED_LIST"
+	sysrc jail_list="$JAIL_STARTUP_LIST"
 }
 
 rcd_jail_patch()
 {
+	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
+	if [ "$_fbsd_major" == "11" ]; then
+		tell_status "reverse jails when shutting down"
+		sysrc jail_reverse_stop=YES
+		return
+	fi
+
 	if grep -q _rev_jail_list /etc/rc.d/jail; then
 		echo "rc.d/jail is already patched"
 		return
@@ -275,7 +353,10 @@ update_freebsd() {
 
 plumb_jail_nic()
 {
-	if [ "$JAIL_NET_INTERFACE" != "lo1" ]; then return; fi
+	if [ "$JAIL_NET_INTERFACE" != "lo1" ]; then
+		tell_status "plumb_jail_nic: using $JAIL_NET_INTERFACE"
+		return;
+	fi
 
 	if ! grep cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface for jails"
@@ -316,19 +397,13 @@ configure_etc_hosts()
 
 	tell_status "adding /etc/hosts entries"
 	local _hosts
-	_hosts="
-$(get_jail_ip syslog)		syslog
-$(get_jail_ip base)		base
-$(get_jail_ip stage)		stage"
+
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip "$j")		$j"
+$(get_jail_ip $j)		$j"
 	done
-    _hosts="$_hosts
-$(get_jail_ip "minecraft")		minecraft
-$(get_jail_ip "joomla")		joomla
-"
+
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 
@@ -336,6 +411,7 @@ update_host() {
 	update_freebsd
 	configure_ntpd
 	update_sendmail
+	install_periodic_conf
 	constrain_sshd_to_host
 	constrain_syslogd_to_host
 	check_global_listeners
