@@ -322,6 +322,13 @@ monthly_show_badconfig="YES"
 EO_PERIODIC
 }
 
+install_vimrc()
+{
+
+    tell_status "installing a vimrc"
+    curl https://raw.githubusercontent.com/wklken/vim-for-server/master/vimrc > "$BASE_MNT/root/.vimrc"
+}
+
 install_base()
 {
 	tell_status "installing packages desired in every jail"
@@ -336,6 +343,7 @@ install_base()
 	install_ssmtp
 	disable_root_password
 	install_periodic_conf
+    install_vimrc
 	stage_exec pkg upgrade -y
 }
 
