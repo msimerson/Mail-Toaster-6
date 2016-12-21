@@ -200,6 +200,14 @@ alias ll="ls -alFG"
 EO_BASH_PROFILE
 }
 
+install_zsh()
+{
+	tell_status "installing zsh"
+	stage_pkg_install zsh || exit
+	stage_exec chpass -s /usr/local/bin/zsh
+
+}
+
 config_bourne_shell()
 {
 	tell_status "making bourne sh more comfy"
@@ -252,6 +260,32 @@ EO_CSH_SHELL
 	grep -q PS1 "$_cshrc"      || echo "$_cconf" | tee -a "$_cshrc"
 	grep -q PS1 /etc/csh.cshrc || echo "$_cconf" | tee -a /etc/csh.cshrc
 }
+
+config_zsh_shell()
+{
+	tell_status "makeing zsh more comfy with ZIM"
+
+    #fetch -o "$BASE_MNT/root/zim-master.zip" https://github.com/Eriner/zim/archive/master.zip
+    fetch -o "$BASE_MNT/root/zim.tar.gz" https://github.com/Eriner/zim/archive/master.zip
+
+    cd "$BASE_MNT/root" || exit
+    unzip zim-master.zip
+    rm -rf .zim .zimrc .zlogin .zshrc
+    mv -f zim-master .zim/
+ 	local _profile="$BASE_MNT/root/.zshrc"
+	#if [ -f "$_profile" ]; then
+	#	return
+	#fi
+stage_exec cp /root/.zim/templates/zimrc /root/.zimrc
+stage_exec cp /root/.zim/templates/zlogin /root/.zlogin
+stage_exec cp /root/.zim/templates/zshrc /root/.zshrc
+stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
+stage_exec zsh
+    #stage_exec zsh -c 'setopt EXTENDED_GLOB'
+    #stage_exec zsh -c 'setopt EXTENDED_GLOB  && for rcfile in "/root/.zprezto/runcoms/^README.md(.N); do ln -s "$rcfile" "root/.${rcfile:t}" done'
+
+}
+
 
 install_periodic_conf()
 {
@@ -331,7 +365,10 @@ install_base()
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash
-	fi
+    elif [ "$BOURNE_SHELL" = "zsh" ]; then
+		install_zsh
+	    config_zsh_shell
+    fi
 
 	install_ssmtp
 	disable_root_password
@@ -343,7 +380,7 @@ zfs_snapshot_exists "$BASE_SNAP" && exit 0
 jail -r stage 2>/dev/null
 create_base_filesystem
 install_freebsd
-freebsd_update
+#freebsd_update
 configure_base
 config_bourne_shell
 config_csh_shell
