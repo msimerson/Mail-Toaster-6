@@ -112,10 +112,16 @@ EO_NGINX_CONF
 
 install_default_ini()
 {
-	local _dini="$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini"
+	local _rlconfdir="$ZFS_DATA_MNT/rainloop/_data_/_default_"
+	local _dini="$_rlconfdir/domains/default.ini"
 	if [ -f "$_dini" ]; then
 		tell_status "preserving default.ini"
 		return
+	fi
+
+	if [ ! -d "$_rlconfdir/domains" ]; then
+		tell_status "creating default/domains dir"
+		mkdir -p "$_rlconfdir/domains" || exit
 	fi
 
 	tell_status "installing domains/default.ini"

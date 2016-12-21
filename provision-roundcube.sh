@@ -77,7 +77,7 @@ roundcube_init_db()
 	pkg install -y curl || exit
 	start_roundcube
 	curl -i -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/roundcube/installer/index.php?_step=3" || exit
+		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
 }
 
 install_roundcube()
@@ -214,7 +214,7 @@ EO_RC_ADD
 
 start_roundcube()
 {
-	tell_status "starting PHP"
+	tell_status "starting PHP FPM"
 	stage_sysrc php_fpm_enable=YES
 	stage_exec service php-fpm start || service php-fpm restart
 
