@@ -266,23 +266,17 @@ config_zsh_shell()
 	tell_status "makeing zsh more comfy with ZIM"
 
     #fetch -o "$BASE_MNT/root/zim-master.zip" https://github.com/Eriner/zim/archive/master.zip
-    fetch -o "$BASE_MNT/root/zim.tar.gz" https://github.com/Eriner/zim/archive/master.zip
+    fetch -o "$BASE_MNT/root/zim.tar.gz" https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz
 
     cd "$BASE_MNT/root" || exit
-    unzip zim-master.zip
+    tar -xzf zim.tar.gz
     rm -rf .zim .zimrc .zlogin .zshrc
-    mv -f zim-master .zim/
- 	local _profile="$BASE_MNT/root/.zshrc"
-	#if [ -f "$_profile" ]; then
-	#	return
-	#fi
-stage_exec cp /root/.zim/templates/zimrc /root/.zimrc
-stage_exec cp /root/.zim/templates/zlogin /root/.zlogin
-stage_exec cp /root/.zim/templates/zshrc /root/.zshrc
-stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
-stage_exec zsh
-    #stage_exec zsh -c 'setopt EXTENDED_GLOB'
-    #stage_exec zsh -c 'setopt EXTENDED_GLOB  && for rcfile in "/root/.zprezto/runcoms/^README.md(.N); do ln -s "$rcfile" "root/.${rcfile:t}" done'
+    mv -f zim .zim/
+    stage_exec cp /root/.zim/templates/zimrc /root/.zimrc
+    stage_exec cp /root/.zim/templates/zlogin /root/.zlogin
+    stage_exec cp /root/.zim/templates/zshrc /root/.zshrc
+    stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
+    sed -i .bak  's/zprompt_theme='\''steeef'\''/zprompt_theme='\''liquidprompt'\''/' "$BASE_MNT/root/.zimrc"
 
 }
 
@@ -356,6 +350,13 @@ monthly_show_badconfig="YES"
 EO_PERIODIC
 }
 
+install_vimrc()
+{
+
+    tell_status "installing a vimrc"
+    curl https://raw.githubusercontent.com/wklken/vim-for-server/master/vimrc > "$BASE_MNT/root/.vimrc"
+}
+
 install_base()
 {
 	tell_status "installing packages desired in every jail"
@@ -373,6 +374,7 @@ install_base()
 	install_ssmtp
 	disable_root_password
 	install_periodic_conf
+    install_vimrc
 	stage_exec pkg upgrade -y
 }
 
@@ -380,7 +382,7 @@ zfs_snapshot_exists "$BASE_SNAP" && exit 0
 jail -r stage 2>/dev/null
 create_base_filesystem
 install_freebsd
-#freebsd_update
+freebsd_update
 configure_base
 config_bourne_shell
 config_csh_shell
