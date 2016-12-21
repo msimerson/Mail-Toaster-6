@@ -263,20 +263,11 @@ EO_CSH_SHELL
 
 config_zsh_shell()
 {
-	tell_status "makeing zsh more comfy with ZIM"
+	tell_status "making zsh more comfy with ZIM"
 
-	#fetch -o "$BASE_MNT/root/zim-master.zip" https://github.com/Eriner/zim/archive/master.zip
-	fetch -o "$BASE_MNT/root/zim.tar.gz" https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz
-
-	cd "$BASE_MNT/root" || exit
-	tar -xzf zim.tar.gz
-	rm -rf .zim .zimrc .zlogin .zshrc
-	mv -f zim .zim/
-	stage_exec cp /root/.zim/templates/zimrc /root/.zimrc
-	stage_exec cp /root/.zim/templates/zlogin /root/.zlogin
-	stage_exec cp /root/.zim/templates/zshrc /root/.zshrc
+	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz \
+	| tar -C "$BASE_MNT/root/" -xf -  || echo "Zsh config failed!"
 	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
-	sed -i .bak  's/zprompt_theme='\''steeef'\''/zprompt_theme='\''liquidprompt'\''/' "$BASE_MNT/root/.zimrc"
 
 }
 
