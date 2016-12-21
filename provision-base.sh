@@ -188,15 +188,15 @@ install_bash()
 		return
 	fi
 
+	tell_status "adding .bash_profile for root@jail"
 	tee -a "$_profile" <<'EO_BASH_PROFILE'
 
 export HISTCONTROL=erasedups
 export HISTIGNORE="&:[bf]g:exit"
 shopt -s cdspell
 bind Space:magic-space
-alias h="history 25"
-alias ls="ls -FG"
-alias ll="ls -alFG"
+alias h="history 200"
+PS1="$(whoami)@$(hostname -s):\\w # "
 EO_BASH_PROFILE
 }
 
@@ -211,14 +211,17 @@ install_zsh()
 config_bourne_shell()
 {
 	tell_status "making bourne sh more comfy"
-	local _profile="$BASE_MNT/etc/profile"
 	local _bconf='
-	alias ls="ls -FG"
-	alias ll="ls -alFG"
-	PS1="$(whoami)@$(hostname -s):\\w # "
-	'
-	grep -q PS1 "$_profile" || echo "$_bconf" | tee -a "$_profile"
-	grep -q PS1 /etc/profile || echo "$_bconf" | tee -a /etc/profile
+alias ls="ls -FG"
+alias ll="ls -alFG"
+PS1="$(whoami)@$(hostname -s):\\w $ "
+'
+
+	tell_status "making bourne sh more comfy"
+	for p in /etc/profile "$BASE_MNT/etc/profile"
+	do
+		grep -q ^ll "$p" || echo "$_bconf" | tee -a "$p"
+	done
 }
 
 config_csh_shell()
