@@ -112,13 +112,14 @@ EO_NGINX_CONF
 
 install_default_ini()
 {
-	if [ -f "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" ]; then
-        tell_status "preserving default.ini"
-        return
-    fi
+	local _dini="$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini"
+	if [ -f "$_dini" ]; then
+		tell_status "preserving default.ini"
+		return
+	fi
 
 	tell_status "installing domains/default.ini"
-	tee -a "$ZFS_DATA_MNT/rainloop/_data_/_default_/domains/default.ini" <<EO_INI
+	tee -a "$_dini" <<EO_INI
 imap_host = "dovecot"
 imap_port = 143
 imap_secure = "None"
@@ -145,10 +146,10 @@ set_default_path()
 	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
 	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
 
-    function __get_custom_data_full_path()
-    {
-	    return '/data/'; // custom data folder path
-    }
+	function __get_custom_data_full_path()
+	{
+		return '/data/'; // custom data folder path
+	}
 EO_INCLUDE
 }
 
@@ -157,8 +158,8 @@ configure_rainloop()
 	# for persistent data storage
 	chown 80:80 "$ZFS_DATA_MNT/rainloop/"
 
-    set_default_path
-    install_default_ini
+	set_default_path
+	install_default_ini
 }
 
 start_rainloop()
