@@ -200,6 +200,14 @@ alias ll="ls -alFG"
 EO_BASH_PROFILE
 }
 
+install_zsh()
+{
+	tell_status "installing zsh"
+	stage_pkg_install zsh || exit
+	stage_exec chpass -s /usr/local/bin/zsh
+
+}
+
 config_bourne_shell()
 {
 	tell_status "making bourne sh more comfy"
@@ -252,6 +260,17 @@ EO_CSH_SHELL
 	grep -q PS1 "$_cshrc"      || echo "$_cconf" | tee -a "$_cshrc"
 	grep -q PS1 /etc/csh.cshrc || echo "$_cconf" | tee -a /etc/csh.cshrc
 }
+
+config_zsh_shell()
+{
+	tell_status "making zsh more comfy with ZIM"
+
+	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz \
+	| tar -C "$BASE_MNT/root/" -xf -  || echo "Zsh config failed!"
+	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
+
+}
+
 
 install_periodic_conf()
 {
@@ -325,7 +344,7 @@ EO_PERIODIC
 install_vimrc()
 {
 	tell_status "installing a jail-wide vimrc"
-    local _vimdir="$BASE_MNT/usr/local/lib/vim"
+	local _vimdir="$BASE_MNT/usr/local/lib/vim"
 	if [ ! -d "$_vimdir" ]; then
 		mkdir -p "$_vimdir" || exit
 	fi
@@ -589,6 +608,9 @@ install_base()
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash
+	elif [ "$BOURNE_SHELL" = "zsh" ]; then
+		install_zsh
+		config_zsh_shell
 	fi
 
 	install_ssmtp
