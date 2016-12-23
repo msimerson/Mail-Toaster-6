@@ -212,14 +212,15 @@ install_zsh()
 
 config_bourne_shell()
 {
-	tell_status "adding ll alias to /etc/profile"
 	if ! grep -q ^ll; then
+		tell_status "adding ll alias to /etc/profile"
 		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
 	fi
 
-	tell_status "customizing bourne shell prompt"
 	if ! grep -q ^PS1; then
+		tell_status "customizing bourne shell prompt"
 		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a "$BASE_MNT/etc/profile"
+		echo 'PS1="$(whoami)@$(hostname -s):\\w # "' | tee -a "$BASE_MNT/root/.profile"
 	fi
 }
 
