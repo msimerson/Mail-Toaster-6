@@ -175,6 +175,8 @@ configure_base()
 	configure_ssl_dirs
 	disable_cron_jobs
 	configure_syslog
+	config_bourne_shell
+	config_csh_shell
 }
 
 install_bash()
@@ -188,15 +190,15 @@ install_bash()
 		return
 	fi
 
+	tell_status "adding .bash_profile for root@jail"
 	tee -a "$_profile" <<'EO_BASH_PROFILE'
 
 export HISTCONTROL=erasedups
 export HISTIGNORE="&:[bf]g:exit"
 shopt -s cdspell
 bind Space:magic-space
-alias h="history 25"
-alias ls="ls -FG"
-alias ll="ls -alFG"
+alias h="history 200"
+PS1="$(whoami)@$(hostname -s):\\w # "
 EO_BASH_PROFILE
 }
 
@@ -210,15 +212,16 @@ install_zsh()
 
 config_bourne_shell()
 {
-	tell_status "making bourne sh more comfy"
-	local _profile="$BASE_MNT/etc/profile"
-	local _bconf='
-	alias ls="ls -FG"
-	alias ll="ls -alFG"
-	PS1="$(whoami)@$(hostname -s):\\w # "
-	'
-	grep -q PS1 "$_profile" || echo "$_bconf" | tee -a "$_profile"
-	grep -q PS1 /etc/profile || echo "$_bconf" | tee -a /etc/profile
+	if ! grep -q ^ll; then
+		tell_status "adding ll alias to /etc/profile"
+		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
+	fi
+
+	if ! grep -q ^PS1; then
+		tell_status "customizing bourne shell prompt"
+		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a "$BASE_MNT/etc/profile"
+		echo 'PS1="$(whoami)@$(hostname -s):\\w # "' | tee -a "$BASE_MNT/root/.profile"
+	fi
 }
 
 config_csh_shell()
@@ -228,7 +231,7 @@ alias h         history 25
 alias j         jobs -l
 alias la        ls -aF
 alias lf        ls -FA
-alias ll        ls -lAF
+alias ll        ls -lAFG
 
 setenv  EDITOR  vi
 setenv  PAGER   more
@@ -626,8 +629,6 @@ create_base_filesystem
 install_freebsd
 freebsd_update
 configure_base
-config_bourne_shell
-config_csh_shell
 start_staged_jail base "$BASE_MNT" || exit
 install_base
 jail -r stage

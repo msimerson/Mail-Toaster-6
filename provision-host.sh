@@ -407,6 +407,20 @@ $(get_jail_ip $j)		$j"
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 
+configure_bourne_shell()
+{
+	if ! grep -q ^ll /etc/profile; then
+		tell_status "adding ll alias to /etc/profile"
+		echo 'alias ll="ls -alFG"' | tee -a /etc/profile
+	fi
+
+	if ! grep -q ^PS1 /etc/profile; then
+		tell_status "customizing bourne shell prompt"
+		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a /etc/profile
+		echo 'PS1="$(whoami)@$(hostname -s):\\w # "' | tee -a /root/.profile
+	fi
+}
+
 update_host() {
 	update_freebsd
 	configure_ntpd
@@ -423,6 +437,7 @@ update_host() {
 	assign_syslog_ip
 	update_syslogd
 	configure_etc_hosts
+	configure_bourne_shell
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
 
