@@ -212,12 +212,12 @@ install_zsh()
 
 config_bourne_shell()
 {
-	if ! grep -q ^ll; then
+	if ! grep -q ^ll "$BASE_MNT/etc/profile"; then
 		tell_status "adding ll alias to /etc/profile"
 		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
 	fi
 
-	if ! grep -q ^PS1; then
+	if ! grep -q ^PS1 "$BASE_MNT/etc/profile"; then
 		tell_status "customizing bourne shell prompt"
 		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a "$BASE_MNT/etc/profile"
 		echo 'PS1="$(whoami)@$(hostname -s):\\w # "' | tee -a "$BASE_MNT/root/.profile"
@@ -226,7 +226,13 @@ config_bourne_shell()
 
 config_csh_shell()
 {
-	local _cconf='
+	_cshrc="$BASE_MNT/etc/csh.cshrc"
+	if grep -q prompt "$_cshrc"; then
+		return
+	fi
+
+	tell_status "configure C shell"
+	tee -a "$_cshrc" <<'EO_CSHRC'
 alias h         history 25
 alias j         jobs -l
 alias la        ls -aF
@@ -256,12 +262,7 @@ if ($?prompt) then
         endif
 
 endif
-'
-EO_CSH_SHELL
-
-	_cshrc="$BASE_MNT/etc/csh.cshrc"
-	grep -q PS1 "$_cshrc"      || echo "$_cconf" | tee -a "$_cshrc"
-	grep -q PS1 /etc/csh.cshrc || echo "$_cconf" | tee -a /etc/csh.cshrc
+EO_CSHRC
 }
 
 config_zsh_shell()
@@ -271,7 +272,6 @@ config_zsh_shell()
 	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz \
 	| tar -C "$BASE_MNT/root/" -xf -  || echo "Zsh config failed!"
 	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
-
 }
 
 
