@@ -407,6 +407,14 @@ $(get_jail_ip $j)		$j"
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 
+configure_bourne_shell()
+{
+	if ! grep -q ^ll "/etc/profile"; then
+		tell_status "adding ll alias to /etc/profile"
+		echo 'alias ll="ls -alFG"' | tee -a "/etc/profile"
+	fi
+}
+
 update_host() {
 	update_freebsd
 	configure_ntpd

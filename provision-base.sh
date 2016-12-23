@@ -175,6 +175,8 @@ configure_base()
 	configure_ssl_dirs
 	disable_cron_jobs
 	configure_syslog
+	config_bourne_shell
+	config_csh_shell
 }
 
 install_bash()
@@ -210,18 +212,15 @@ install_zsh()
 
 config_bourne_shell()
 {
-	tell_status "making bourne sh more comfy"
-	local _bconf='
-alias ls="ls -FG"
-alias ll="ls -alFG"
-PS1="$(whoami)@$(hostname -s):\\w $ "
-'
+	tell_status "adding ll alias to /etc/profile"
+	if ! grep -q ^ll; then
+		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
+	fi
 
-	tell_status "making bourne sh more comfy"
-	for p in /etc/profile "$BASE_MNT/etc/profile"
-	do
-		grep -q ^ll "$p" || echo "$_bconf" | tee -a "$p"
-	done
+	tell_status "customizing bourne shell prompt"
+	if ! grep -q ^PS1; then
+		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a "$BASE_MNT/etc/profile"
+	fi
 }
 
 config_csh_shell()
@@ -231,7 +230,7 @@ alias h         history 25
 alias j         jobs -l
 alias la        ls -aF
 alias lf        ls -FA
-alias ll        ls -lAF
+alias ll        ls -lAFG
 
 setenv  EDITOR  vi
 setenv  PAGER   more
@@ -629,8 +628,6 @@ create_base_filesystem
 install_freebsd
 freebsd_update
 configure_base
-config_bourne_shell
-config_csh_shell
 start_staged_jail base "$BASE_MNT" || exit
 install_base
 jail -r stage
