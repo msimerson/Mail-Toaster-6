@@ -40,6 +40,11 @@ haproxy_deploy() {
 		exit 2
 	fi
 
+	if [ ! -d /data/haproxy/ssl.d ]; then
+		_debug "no /data/haproxy/ssl.d dir"
+		return 0
+	fi
+
 	local _tmp="/tmp/${_cdomain}.pem"
 	cat $_ckey $_ccert $_cfullchain > $_tmp
 	if [ ! -s "$_tmp" ]; then
@@ -87,6 +92,11 @@ dovecot_deploy() {
 	if [ ! -f $_ccert ]; then
 		_err "missing certificate"
 		exit 2
+	fi
+
+	if [ ! -d /data/dovecot/etc/ssl ]; then
+		_debug "no /data/dovecot/etc/ssl dir"
+		return 0
 	fi
 
 	local _tmp_crt="/tmp/dovecot-cert-${_cdomain}.pem"
@@ -140,31 +150,36 @@ haraka_deploy() {
 		exit 2
 	fi
 
+	if [ ! -d /data/haraka/config ]; then
+		_debug "no /data/haraka/config dir"
+		return 0
+	fi
+
 	local _tmp="/tmp/${_cdomain}.pem"
 	cat $_ckey $_ccert $_cfullchain > $_tmp
-	if [ -s "$_tmp" ]; then
-		_debug "$_tmp created"
-		local _installed="/data/haraka/config/tls_cert.pem"
-		if diff -q $_tmp $_installed; then
-			_debug "cert is the same, skip deploy"
-			return 0
-		fi
-
-		cp $_tmp $_installed || return 1
-		cp $_ckey /data/haraka/config/tls_key.pem || return 1
-
-		if [ -s "$_installed" ]; then
-			rm $_tmp
-			_debug "restarting haraka"
-			service jail restart haraka
-			return 0
-		fi
-
-		_err "install to $_installed failed"
+	if [ ! -s "$_tmp" ]; then
+		_err "Unable to create $_tmp"
 		return 1
 	fi
 
-	_err "Unable to create $_tmp"
+	_debug "$_tmp created"
+	local _installed="/data/haraka/config/tls_cert.pem"
+	if diff -q $_tmp $_installed; then
+		_debug "cert is the same, skip deploy"
+		return 0
+	fi
+
+	cp $_tmp $_installed || return 1
+	cp $_ckey /data/haraka/config/tls_key.pem || return 1
+
+	if [ -s "$_installed" ]; then
+		rm $_tmp
+		_debug "restarting haraka"
+		service jail restart haraka
+		return 0
+	fi
+
+	_err "install to $_installed failed"
 	return 1
 }
 EO_LE_HARAKA
