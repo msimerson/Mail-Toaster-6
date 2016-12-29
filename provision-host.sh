@@ -165,7 +165,7 @@ configure_tls_certs()
 		local _state; _state=$(echo $_geo | cut -d',' -f5)
 		local _city;  _city=$(echo $_geo | cut -d',' -f6)
 		sed -i .bak \
-		    -e "/^commonName_max.*/ a\ 
+			-e "/^commonName_max.*/ a\ 
 commonName_default = $TOASTER_HOSTNAME" \
 			-e "/^emailAddress_max.*/ a\ 
 emailAddress_default = $TOASTER_ADMIN_EMAIL" \
@@ -284,7 +284,7 @@ jail_reverse_shutdown()
 		fi
 		tell_status "reverse jails when shutting down"
 		sysrc jail_reverse_stop=YES
-        return
+		return
 	fi
 
 	if grep -q _rev_jail_list /etc/rc.d/jail; then
