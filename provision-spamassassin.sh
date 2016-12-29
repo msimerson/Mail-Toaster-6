@@ -120,15 +120,6 @@ EO_RAZOR
 
 install_spamassassin()
 {
-	if grep -qs ^spamassassin /etc/jail.conf && ! grep -qs data/spamassassin /etc/jail.conf; then
-		tell_status "exploding"
-		echo "You MUST add this line to the spamassassin section in /etc/jail.conf to continue:"
-		echo
-		echo 'mount += "/data/spamassassin $path/data nullfs rw 0 0";'
-		echo
-		exit
-	fi
-
 	tell_status "install SpamAssassin optional dependencies"
 	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP p5-Net-CIDR-Lite p5-IO-Socket-INET6 || exit
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd || exit

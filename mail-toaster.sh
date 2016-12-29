@@ -316,6 +316,28 @@ cleanup_staged_fs()
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
+assure_data_volume_mount_is_declared()
+{
+	if ! grep -qs "^$1" /etc/jail.conf; then
+		# config for this jail hasn't been created yet. it will be created
+		# with the data FS automatically when provisioned.
+		return
+	fi
+
+	if grep -qs "data/$1" /etc/jail.conf; then
+		# data fs mountpoint already declared
+		return
+	fi
+
+	tell_status "roadblock: UPGRADE action required"
+	echo
+	echo "You MUST add this line to the $1 section in /etc/jail.conf to continue:"
+	echo
+	echo "\tmount += \"/data/$1 \$path/data nullfs rw 0 0\";"
+	echo
+	exit
+}
+
 create_staged_fs()
 {
 	cleanup_staged_fs "$1"
@@ -327,6 +349,8 @@ create_staged_fs()
 	stage_sysrc hostname="$1"
 	sed -i -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
+
+	assure_data_volume_mount_is_declared "$1"
 
 	tell_status "creating data volume"
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"

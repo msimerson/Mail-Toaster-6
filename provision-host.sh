@@ -160,15 +160,28 @@ configure_tls_certs()
 		chmod o-r "/etc/ssl/private"
 	fi
 
-	grep -q commonName_default /etc/ssl/openssl.cnf || \
-		sed -i -e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME \
-" /etc/ssl/openssl.cnf
-
-	grep -q emailAddress_default /etc/ssl/openssl.cnf || \
-		sed -i -e "/^emailAddress_max.*/ a\ 
+	local _ssl_cnf="/etc/ssl/openssl.cnf"
+	if ! grep -q commonName_default "$_ssl_cnf"; then
+		tell_status "updating openssl.cnf defaults"
+		local _geo;
+		_geo=$(fetch -o - https://freegeoip.net/csv)
+		local _cc=$(echo $_geo | cut -d',' -f2)
+		local _state=$(echo $_geo | cut -d',' -f5)
+		local _city=$(echo $_geo | cut -d',' -f6)
+		sed -i \
+		    -e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME
+" \
+			-e "/^emailAddress_max.*/ a\ 
 emailAddress_default = $TOASTER_ADMIN_EMAIL \
-" /etc/ssl/openssl.cnf
+" \
+			-e "/^localityName.*/ a\ 
+localityName_default = $_city \
+" \
+			-e "/^countryName_default/ s/AU/$_cc/" \
+			-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
+			"$_ssl_cnf"
+	fi
 
 	if [ -f /etc/ssl/private/server.key ]; then
 		tell_status "preserving existing TLS certificates"
