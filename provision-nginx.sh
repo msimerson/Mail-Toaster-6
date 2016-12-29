@@ -5,8 +5,7 @@
 
 export JAIL_START_EXTRA=""
 # shellcheck disable=2016
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/nginx \$path/data nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 install_nginx()
 {

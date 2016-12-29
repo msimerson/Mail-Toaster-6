@@ -280,11 +280,16 @@ add_jail_conf()
 		path = $ZFS_JAIL_MNT/${1};"
 	fi
 
+	if [ -z "$JAIL_CONF_EXTRA" ]; then
+		JAIL_CONF_EXTRA="mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
+	fi
+
 	tell_status "adding $1 to /etc/jail.conf"
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}${JAIL_CONF_EXTRA}
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}
+		${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
 }
@@ -395,7 +400,6 @@ start_staged_jail()
 		ip4.addr="$(get_jail_ip stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		allow.sysvipc=1 \
 		mount.devfs \
 		$JAIL_START_EXTRA \
 		|| exit
