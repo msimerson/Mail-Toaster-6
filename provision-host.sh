@@ -21,7 +21,7 @@ configure_ntpd()
 update_syslogd()
 {
 	if grep -q ^syslogd_flags /etc/rc.conf; then
-		echo "preserving syslogd_flags"
+		tell_status "preserving syslogd_flags"
 		return
 	fi
 
@@ -211,7 +211,7 @@ on all your IP addresses!"
 add_jail_nat()
 {
 	if grep -qs bruteforce /etc/pf.conf; then
-		echo "preserving pf.conf settings"
+		tell_status "preserving pf.conf settings"
 		return
 	fi
 
@@ -285,6 +285,7 @@ jail_reverse_shutdown()
 		fi
 		tell_status "reverse jails when shutting down"
 		sysrc jail_reverse_stop=YES
+        return
 	fi
 
 	if grep -q _rev_jail_list /etc/rc.d/jail; then
@@ -386,7 +387,7 @@ plumb_jail_nic()
 
 assign_syslog_ip()
 {
-	if ! grep ifconfig_lo1 /etc/rc.conf; then
+	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
 		tell_status "adding syslog IP to lo1"
 		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0" || exit
 	fi
@@ -440,14 +441,14 @@ update_host() {
 	update_sendmail
 	install_periodic_conf
 	constrain_sshd_to_host
+	plumb_jail_nic
+	assign_syslog_ip
+	update_syslogd
 	check_global_listeners
 	add_jail_nat
 	configure_tls_certs
 	enable_jails
 	install_jailmanage
-	plumb_jail_nic
-	assign_syslog_ip
-	update_syslogd
 	configure_etc_hosts
 	configure_bourne_shell
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
