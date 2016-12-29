@@ -160,11 +160,10 @@ configure_tls_certs()
 
 	if ! grep -q commonName_default /etc/ssl/openssl.cnf; then
 		tell_status "updating openssl.cnf defaults"
-		local _geo;
-		_geo=$(fetch -o - https://freegeoip.net/csv)
-		local _cc=$(echo $_geo | cut -d',' -f2)
-		local _state=$(echo $_geo | cut -d',' -f5)
-		local _city=$(echo $_geo | cut -d',' -f6)
+		local _geo;   _geo=$(fetch -o - https://freegeoip.net/csv)
+		local _cc;    _cc=$(echo $_geo | cut -d',' -f2)
+		local _state; _state=$(echo $_geo | cut -d',' -f5)
+		local _city;  _city=$(echo $_geo | cut -d',' -f6)
 		sed -i .bak \
 		    -e "/^commonName_max.*/ a\ 
 commonName_default = $TOASTER_HOSTNAME" \
