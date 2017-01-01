@@ -212,7 +212,7 @@ install_zsh()
 
 config_bourne_shell()
 {
-	if ! grep -q ^ll "$BASE_MNT/etc/profile"; then
+	if ! grep -q '^alias ll' "$BASE_MNT/etc/profile"; then
 		tell_status "adding ll alias to /etc/profile"
 		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
 	fi
