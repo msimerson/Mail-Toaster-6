@@ -105,10 +105,10 @@ test_tinydns()
 	echo "it worked."
 
 	tell_status "testing UDP DNS query"
-	drill    www.example.com @$(get_jail_ip stage) || exit
+	drill    www.example.com @"$(get_jail_ip stage)" || exit
 
 	tell_status "testing TCP DNS query"
-	drill -t www.example.com @$(get_jail_ip stage) || exit
+	drill -t www.example.com @"$(get_jail_ip stage)" || exit
 
 	tell_status "switching tinydns IP to deployment IP"
 	get_jail_ip tinydns | tee "$STAGE_MNT/var/service/tinydns/env/IP" "$STAGE_MNT/var/service/axfrdns/env/IP"
