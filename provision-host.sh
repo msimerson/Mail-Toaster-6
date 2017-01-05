@@ -132,7 +132,7 @@ constrain_sshd_to_host()
 
 	May I update $_sshd_conf?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || exit
+	dialog --yesno "$_confirm_msg" 13 70 || return
 
 	tell_status "Limiting SSHd to host IP address"
 
@@ -360,6 +360,14 @@ update_freebsd() {
 
 	tell_status "updating FreeBSD pkg collection"
 	pkg update || exit
+
+	if ! pkg info -e ca_root_nss; then
+		tell_status "install CA root certs, so https URLs work"
+		pkg install -y ca_root_nss
+	fi
+
+	tell_status "upgrading installed FreeBSD packages"
+	pkg upgrade
 
 	update_ports_tree
 }

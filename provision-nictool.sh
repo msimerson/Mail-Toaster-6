@@ -13,6 +13,11 @@ install_nt_prereqs()
 {
 	tell_status "installing NicTool prerequisites"
 	stage_pkg_install perl5 mysql56-client apache24 rsync
+
+	tell_status "installing tools for NicTool exports"
+	stage_pkg_install daemontools ucspi-tcp djbdns knot1
+	stage_sysrc svscan_enable=YES
+	mkdir -p "$STAGE_MNT/var/service"
 }
 
 install_nt_from_tarball()
