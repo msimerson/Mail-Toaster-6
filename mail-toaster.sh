@@ -61,7 +61,7 @@ export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
 export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail roundcube haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -555,7 +555,7 @@ stage_listening()
 stage_test_running()
 {
 	echo "checking for process $1 in staged jail"
-	pgrep -j stage $1 || exit
+	pgrep -j stage "$1" || exit
 }
 
 stage_mount_ports()
@@ -823,7 +823,7 @@ unprovision_files()
 
 unprovision()
 {
-	if [ "$1" == "last" ]; then
+	if [ "$1" = "last" ]; then
 		unprovision_last
 		return
 	fi
@@ -853,6 +853,24 @@ rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
 
 selfupdate()
 {
-	fetch $TOASTER_SRC_URL/mail-toaster.sh
+	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
+	# shellcheck disable=SC1091
 	. mail-toaster.sh
+}
+
+mt6-include()
+{
+	if [ ! -d include ]; then
+		mkdir include || exit
+	fi
+
+	fetch -m "$TOASTER_SRC_URL/include/$1.sh"
+
+	if [ ! -f "include/$1.sh" ]; then
+		echo "unable to download include/$1.sh"
+		exit
+	fi
+
+	# shellcheck source=include/$.sh disable=SC1091
+	. "include/$1.sh"
 }
