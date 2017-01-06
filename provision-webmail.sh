@@ -16,6 +16,7 @@ configure_nginx_server()
 
 	local _datadir="$ZFS_DATA_MNT/webmail"
 	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
+		tell_status "preserving /data/etc/nginx-server.conf"
 		return
 	fi
 
@@ -23,22 +24,22 @@ configure_nginx_server()
 	tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
 
 server {
-    listen       80;
-    server_name  webmail;
+	listen       80;
+	server_name  webmail;
 
-    set_real_ip_from haproxy;
-    real_ip_header X-Forwarded-For;
-    client_max_body_size 25m;
+	set_real_ip_from haproxy;
+	real_ip_header X-Forwarded-For;
+	client_max_body_size 25m;
 
-    location / {
-        root   /data/htdocs;
-        index  index.html index.htm;
-    }
+	location / {
+		root   /data/htdocs;
+		index  index.html index.htm;
+	}
 
-    error_page   500 502 503 504  /50x.html;
-    location = /50x.html {
-        root   /usr/local/www/nginx-dist;
-    }
+	error_page   500 502 503 504  /50x.html;
+	location = /50x.html {
+		root   /usr/local/www/nginx-dist;
+	}
 }
 
 EO_NGINX_SERVER
@@ -203,7 +204,7 @@ configure_webmail()
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
 		configure_lighttpd || exit
 	else
-		configure_nginx || exit
+		configure_nginx webmail || exit
 		configure_nginx_server
 	fi
 
@@ -215,10 +216,6 @@ configure_webmail()
 	if [ ! -f "$_htdocs/index.html" ]; then
 		install_index
 	fi
-
-	tell_status "installing mime.types"
-	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		tell_status "installing robots.txt"

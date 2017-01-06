@@ -8,15 +8,16 @@ install_php()
 
 	_ports="php$_version"
 	_modules="$2"
-	for p in $_modules
-	do
-		_ports="$_ports php$_version-$p"
-	done
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "including php mysql module"
-		_ports="$_ports php$_version-pdo_mysql"
+		_modules="$_modules pdo_mysql mysql"
 	fi
+
+	for m in $_modules
+	do
+		_ports="$_ports php$_version-$m"
+	done
 
 	# shellcheck disable=SC2086
 	stage_pkg_install $_ports

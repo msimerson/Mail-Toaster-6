@@ -59,29 +59,11 @@ EO_NGINX
 
 }
 
-configure_php()
-{
-	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
-
-	if [ -f "$ZFS_JAIL_MNT/joomla/usr/local/etc/php.ini" ]; then
-		tell_status "preserving php.ini"
-		cp "$ZFS_JAIL_MNT/joomla/usr/local/etc/php.ini" "$_php_ini"
-		return
-	fi
-
-	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
-	sed -i .bak \
-		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
-		-e '/^post_max_size/ s/8M/25M/' \
-		-e '/^upload_max_filesize/ s/2M/25M/' \
-		"$_php_ini"
-}
-
 configure_joomla()
 {
-	configure_nginx
+	configure_php joomla
+	configure_nginx joomla
 	configure_nginx_server
-	configure_php
 
 	_htdocs="$STAGE_MNT/usr/local/www/joomla3"
 

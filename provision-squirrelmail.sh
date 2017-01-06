@@ -10,6 +10,8 @@ export JAIL_CONF_EXTRA=""
 mt6-include 'php'
 mt6-include nginx
 
+SQ_DIR="$STAGE_MNT/usr/local/www/squirrelmail"
+
 install_squirrelmail_mysql()
 {
 	if [ "$SQUIRREL_SQL" != "1" ]; then return; fi
@@ -49,7 +51,7 @@ CREATE TABLE userprefs (
 
 	fi
 
-	tee -a "$_sq_dir/config_local.php" <<EO_SQUIRREL_SQL
+	tee -a "$SQ_DIR/config/config_local.php" <<EO_SQUIRREL_SQL
 \$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@$(get_jail_ip mysql)/squirrelmail';
 \$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@$(get_jail_ip mysql)/squirrelmail';
 EO_SQUIRREL_SQL
@@ -72,9 +74,76 @@ install_squirrelmail()
 	stage_pkg_install squirrelmail squirrelmail-sasql-plugin \
 		squirrelmail-quota_usage-plugin || exit
 
-	_sq_dir="$STAGE_MNT/usr/local/www/squirrelmail/config"
+	configure_squirrelmail_local
 
-	local _active_cfg; _active_cfg="$_sq_dir/config_local.php"
+	cp "$SQ_DIR/config/config_default.php" "$SQ_DIR/config/config.php"
+	cp "$SQ_DIR/plugins/sasql/sasql_conf.php.dist" \
+	   "$SQ_DIR/plugins/sasql/sasql_conf.php"
+	cp "$SQ_DIR/plugins/quota_usage/config.php.sample" \
+	   "$SQ_DIR/plugins/quota_usage/config.php"
+
+	mkdir -p "$STAGE_MNT/data/attach" "$STAGE_MNT/data/data"
+	cp "$SQ_DIR/data/default_pref" "$STAGE_MNT/data/data/"
+	chown -R www:www "$STAGE_MNT/data"
+	chmod 733 "$STAGE_MNT/data/attach"
+
+	install_squirrelmail_mysql
+}
+
+config_nginx_server()
+{
+	local _datadir="$ZFS_DATA_MNT/squirrelmail"
+	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
+		tell_status "preservering /data/etc/nginx-server"
+		return
+	fi
+
+	tell_status "saving /data/etc/nginx-server.conf"
+	tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
+
+server {
+	listen       80;
+	server_name  squirrelmail;
+
+	set_real_ip_from haproxy;
+	real_ip_header X-Forwarded-For;
+	client_max_body_size 25m;
+
+	location / {
+		root   /usr/local/www/squirrelmail;
+		index  index.php;
+	}
+
+	location /squirrelmail/ {
+		root /usr/local/www;
+		index  index.php;
+	}
+
+	error_page   500 502 503 504  /50x.html;
+	location = /50x.html {
+		root   /usr/local/www/nginx-dist;
+	}
+
+	location ~ \.php$ {
+		alias          /usr/local/www;
+		fastcgi_pass   127.0.0.1:9000;
+		fastcgi_index  index.php;
+		fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
+		include        /usr/local/www/nginx/fastcgi_params;
+	}
+}
+
+EO_NGINX_SERVER
+
+	sed -i .bak \
+		-e "s/haproxy/$(get_jail_ip haproxy)/" \
+		"$_datadir/etc/nginx-server.conf"
+}
+
+configure_squirrelmail_local()
+{
+	local _active_cfg; _active_cfg="$SQ_DIR/config/config_local.php"
+
 	if [ -f "$_active_cfg" ]; then
 		_sqpass=$(grep '//squirrelmail:' "$_active_cfg" | cut -f3 -d: | cut -f1 -d@)
 		echo "preserving existing squirrelmail mysql password: $_sqpass"
@@ -82,14 +151,9 @@ install_squirrelmail()
 		_sqpass=$(openssl rand -hex 18)
 	fi
 
-	cp "$_sq_dir/config_local.php.sample" "$_sq_dir/config_local.php"
-	cp "$_sq_dir/config_default.php" "$_sq_dir/config.php"
-	cp "$_sq_dir/../plugins/sasql/sasql_conf.php.dist" \
-	   "$_sq_dir/../plugins/sasql/sasql_conf.php"
-	cp "$_sq_dir/../plugins/quota_usage/config.php.sample" \
-	   "$_sq_dir/../plugins/quota_usage/config.php"
+	cp "$SQ_DIR/config/config_local.php.sample" "$SQ_DIR/config/config_local.php"
 
-	tee -a "$_sq_dir/config_local.php" <<EO_SQUIRREL
+	tee -a "$SQ_DIR/config/config_local.php" <<EO_SQUIRREL
 \$signout_page = 'https://$TOASTER_HOSTNAME/';
 \$domain = '$TOASTER_MAIL_DOMAIN';
 
@@ -98,7 +162,7 @@ install_squirrelmail()
 \$use_smtp_tls = true;
 // PHP 5.6 enables verify_peer by default, which is good but in this context,
 // unnecessary. Setting smtp_stream_options *should* disable that, but doesn't.
-// Leave squirrelmail disabled until squirrelmail gets this sorted out.
+// Leave verify_peer disabled until squirrelmail gets this sorted out.
 \$smtp_stream_options = [
     'ssl' => [
        'verify_peer'      => false,
@@ -120,63 +184,13 @@ install_squirrelmail()
 \$check_mail_mechanism = 'advanced';
 
 EO_SQUIRREL
-
-	mkdir -p "$STAGE_MNT/data/attach" "$STAGE_MNT/data/data"
-	cp "$_sq_dir/../data/default_pref" "$STAGE_MNT/data/data/"
-	chown -R www:www "$STAGE_MNT/data"
-	chmod 733 "$STAGE_MNT/data/attach"
-
-	install_squirrelmail_mysql
 }
 
 configure_squirrelmail()
 {
 	configure_php squirrelmail
 	config_nginx squirrelmail
-
-	local _datadir="$ZFS_DATA_MNT/squirrelmail"
-	if [ ! -f "$_datadir/etc/nginx-server.conf" ]; then
-		tell_status "saving /data/etc/nginx-server.conf"
-		tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
-
-server {
-    listen       80;
-    server_name  squirrelmail;
-
-    set_real_ip_from haproxy;
-    real_ip_header X-Forwarded-For;
-    client_max_body_size 25m;
-
-    location / {
-        root   /usr/local/www/squirrelmail;
-        index  index.php;
-    }
-
-    location /squirrelmail/ {
-        root /usr/local/www;
-        index  index.php;
-    }
-
-    error_page   500 502 503 504  /50x.html;
-    location = /50x.html {
-        root   /usr/local/www/nginx-dist;
-    }
-
-    location ~ \.php$ {
-        alias          /usr/local/www;
-        fastcgi_pass   127.0.0.1:9000;
-        fastcgi_index  index.php;
-        fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
-        include        /usr/local/www/nginx/fastcgi_params;
-    }
-}
-
-EO_NGINX_SERVER
-
-		sed -i .bak \
-			-e "s/haproxy/$(get_jail_ip haproxy)/" \
-			"$_datadir/etc/nginx-server.conf"
-	fi
+	config_nginx_server
 }
 
 start_squirrelmail()

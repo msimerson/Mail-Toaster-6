@@ -17,11 +17,8 @@ install_mediawiki()
 	stage_pkg_install mediawiki128 xcache
 }
 
-configure_mediawiki()
+configure_nginx_server()
 {
-	configure_php mediawiki
-	configure_nginx mediawiki
-
 	local _datadir="$ZFS_DATA_MNT/mediawiki"
 	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
 
@@ -105,6 +102,13 @@ EO_WIKI
 			-e "s/haproxy/$(get_jail_ip haproxy)/" \
 			"$_datadir/etc/nginx-server.conf"
 	fi
+}
+
+configure_mediawiki()
+{
+	configure_php mediawiki
+	configure_nginx mediawiki
+	configure_nginx_server
 
 	if [ -f "$ZFS_DATA_MNT/mediawiki/LocalSettings.php" ]; then
 		tell_status "installing LocalSettings.php"
