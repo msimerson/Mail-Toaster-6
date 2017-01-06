@@ -8,15 +8,16 @@ install_php()
 
 	_ports="php$_version"
 	_modules="$2"
-	for p in $_modules
-	do
-		_ports="$_ports php$_version-$p"
-	done
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "including php mysql module"
-		_ports="$_ports php$_version-pdo_mysql"
+		_modules="$_modules pdo_mysql mysql"
 	fi
+
+	for m in $_modules
+	do
+		_ports="$_ports php$_version-$m"
+	done
 
 	# shellcheck disable=SC2086
 	stage_pkg_install $_ports
@@ -26,7 +27,7 @@ configure_php_ini()
 {
 	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
 
-	if [ -z "$1" ]; then
+	if [ ! -z "$1" ]; then
 		if [ -f "$ZFS_JAIL_MNT/$1/usr/local/etc/php.ini" ]; then
 			tell_status "preserving php.ini"
 			cp "$ZFS_JAIL_MNT/$1/usr/local/etc/php.ini" "$_php_ini"
@@ -58,10 +59,10 @@ start_php_fpm()
 {
 	tell_status "starting PHP FPM"
 	stage_sysrc php_fpm_enable=YES
-	stage_exec service php-fpm start
+	stage_exec service php-fpm start || service php-fpm restart
 }
 
 test_php_fpm() {
 	tell_status "testing PHP FPM (FastCGI Process Manager)"
-	stage_listening 9000 || return 2
+	stage_listening 9000 || exit
 }

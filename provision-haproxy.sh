@@ -83,6 +83,8 @@ frontend https-in
     acl rainloop     path_beg /rainloop
     acl squirrelmail path_beg /squirrelmail
     acl nictool      path_beg /nictool
+    acl mediawiki    path_beg /wiki
+    acl mediawiki    path_beg /w/
 
     use_backend websocket_haraka if  is_websocket
     use_backend www_monitor      if  munin
@@ -97,6 +99,7 @@ frontend https-in
     use_backend www_rainloop     if  rainloop
     use_backend www_squirrelmail if  squirrelmail
     use_backend www_nictool      if  nictool
+    use_backend www_mediawiki    if  mediawiki
 
     default_backend www_webmail
 
@@ -140,6 +143,9 @@ backend www_rspamd
 backend www_nictool
     server monitor $(get_jail_ip nictool):80
     reqirep ^([^\ :]*)\ /nictool/(.*)    \1\ /\2
+
+backend www_mediawiki
+    server monitor $(get_jail_ip mediawiki):80
 
 EO_HAPROXY_CONF
 

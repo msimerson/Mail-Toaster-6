@@ -7,58 +7,59 @@ export JAIL_START_EXTRA=""
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA=""
 
-install_nginx()
-{
-	stage_pkg_install nginx || exit
+mt6-include nginx
 
+configure_nginx_server()
+{
 	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
 	mkdir -p "$_nginx_conf" || exit
 
-	tee "$_nginx_conf/mail-toaster.conf" <<EO_NGINX_MT6
-set_real_ip_from 172.16.15.12;
-real_ip_header X-Forwarded-For;
-client_max_body_size 25m;
+	local _datadir="$ZFS_DATA_MNT/webmail"
+	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
+		tell_status "preserving /data/etc/nginx-server.conf"
+		return
+	fi
 
-location / {
-   root   /data/htdocs;
-   index  index.html index.htm;
+	tell_status "saving /data/etc/nginx-server.conf"
+	tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
+
+server {
+	listen       80;
+	server_name  webmail;
+
+	set_real_ip_from haproxy;
+	real_ip_header X-Forwarded-For;
+	client_max_body_size 25m;
+
+	location / {
+		root   /data/htdocs;
+		index  index.html index.htm;
+	}
+
+	error_page   500 502 503 504  /50x.html;
+	location = /50x.html {
+		root   /usr/local/www/nginx-dist;
+	}
 }
 
-EO_NGINX_MT6
+EO_NGINX_SERVER
 
-	patch -d "$STAGE_MNT/usr/local/etc/nginx" <<'EO_NGINX_CONF'
---- nginx.conf-dist	2015-11-28 23:21:55.597113000 -0800
-+++ nginx.conf	2015-11-28 23:43:25.508039518 -0800
-@@ -34,16 +34,13 @@
- 
-     server {
-         listen       80;
--        server_name  localhost;
-+        server_name  webmail;
- 
-         #charset koi8-r;
- 
-         #access_log  logs/host.access.log  main;
- 
--        location / {
--            root   /usr/local/www/nginx;
--            index  index.html index.htm;
--        }
-+        include conf.d/mail-toaster.conf;
- 
-         #error_page  404              /404.html;
- 
-EO_NGINX_CONF
-
+	sed -i .bak \
+		-e "s/haproxy/$(get_jail_ip haproxy)/" \
+		"$_datadir/etc/nginx-server.conf"
 }
 
 install_lighttpd()
 {
 	tell_status "installing lighttpd"
 	stage_pkg_install lighttpd
+
 	mkdir -p "$STAGE_MNT/var/spool/lighttpd/sockets"
 	chown -R www "$STAGE_MNT/var/spool/lighttpd/sockets"
+}
 
+configure_lighttpd()
+{
 	local _lighttpd_dir="$STAGE_MNT/usr/local/etc/lighttpd"
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
@@ -200,6 +201,13 @@ EO_INDEX
 
 configure_webmail()
 {
+	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
+		configure_lighttpd || exit
+	else
+		configure_nginx webmail || exit
+		configure_nginx_server
+	fi
+
 	_htdocs="$ZFS_DATA_MNT/webmail/htdocs"
 	if [ ! -d "$_htdocs" ]; then
 	   mkdir -p "$_htdocs"
@@ -208,10 +216,6 @@ configure_webmail()
 	if [ ! -f "$_htdocs/index.html" ]; then
 		install_index
 	fi
-
-	tell_status "installing mime.types"
-	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		tell_status "installing robots.txt"
@@ -229,9 +233,7 @@ start_webmail()
 		stage_sysrc lighttpd_enable=YES
 		stage_exec service lighttpd start
 	else
-		tell_status "starting nginx"
-		stage_sysrc nginx_enable=YES
-		stage_exec service nginx start
+		start_nginx
 	fi
 }
 

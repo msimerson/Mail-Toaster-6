@@ -106,7 +106,7 @@ enable_control()
 		control-cert-file: "/data/control/unbound_control.pem"
 EO_CONTROL_CONF
 
-	sed -i \
+	sed -i .bak \
 		-e '/^DESTDIR=/ s/=.*$/=\/data\/control/' \
 		"$STAGE_MNT/usr/local/sbin/unbound-control-setup"
 
