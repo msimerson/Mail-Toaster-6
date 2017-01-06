@@ -85,6 +85,8 @@ frontend https-in
     acl nictool      path_beg /nictool
     acl mediawiki    path_beg /wiki
     acl mediawiki    path_beg /w/
+    acl smf          path_beg /forum
+    acl stage        path_beg /stage
 
     use_backend websocket_haraka if  is_websocket
     use_backend www_monitor      if  munin
@@ -100,6 +102,8 @@ frontend https-in
     use_backend www_squirrelmail if  squirrelmail
     use_backend www_nictool      if  nictool
     use_backend www_mediawiki    if  mediawiki
+    use_backend www_smf          if  smf
+    use_backend www_stage        if  stage
 
     default_backend www_webmail
 
@@ -146,6 +150,12 @@ backend www_nictool
 
 backend www_mediawiki
     server monitor $(get_jail_ip mediawiki):80
+
+backend www_smf
+    server monitor $(get_jail_ip smf):80
+
+backend www_stage
+    server monitor $(get_jail_ip stage):80
 
 EO_HAPROXY_CONF
 
