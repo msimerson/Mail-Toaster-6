@@ -7,28 +7,11 @@ export JAIL_START_EXTRA=""
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA=""
 
-install_php()
-{
-	tell_status "installing PHP"
-	stage_pkg_install php56
-
-	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
-	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
-	sed -i .bak \
-		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
-		-e '/^post_max_size/ s/8M/25M/' \
-		-e '/^upload_max_filesize/ s/2M/25M/' \
-		"$_php_ini"
-
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		tell_status "install php mysql module"
-		stage_pkg_install php56-pdo_mysql
-	fi
-}
+mt6-include php
 
 install_rainloop()
 {
-	install_php || exit
+	install_php 56 || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"
@@ -160,6 +143,8 @@ EO_INCLUDE
 
 configure_rainloop()
 {
+	configure_php rainloop
+
 	# for persistent data storage
 	chown 80:80 "$ZFS_DATA_MNT/rainloop/"
 
@@ -169,9 +154,7 @@ configure_rainloop()
 
 start_rainloop()
 {
-	tell_status "starting PHP"
-	stage_sysrc php_fpm_enable=YES
-	stage_exec service php-fpm start
+	start_php_fpm
 
 	tell_status "starting nginx"
 	stage_sysrc nginx_enable=YES
