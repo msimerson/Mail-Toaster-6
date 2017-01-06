@@ -7,21 +7,13 @@ export JAIL_START_EXTRA=""
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA=""
 
-install_php()
-{
-	tell_status "installing PHP"
-	# curl so that Joomla updater works
-	stage_pkg_install php70 php70-curl php70-mysql
-}
-
-install_nginx()
-{
-	stage_pkg_install nginx || exit
-}
+mt6-include 'php'
+mt6-include nginx
 
 install_joomla()
 {
-	install_php || exit
+	# curl so that Joomla updater works
+	install_php 70 "curl mysql" || exit
 
 	tell_status "installing Joomla 3"
 	stage_pkg_install joomla3
@@ -29,7 +21,7 @@ install_joomla()
 	install_nginx || exit
 }
 
-configure_nginx()
+configure_nginx_server()
 {
 	if [ -f "$ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" ]; then
 		tell_status "preserving nginx.conf"
@@ -42,47 +34,29 @@ configure_nginx()
 	mkdir -p "$_nginx_conf" || exit
 
 	tee "$_nginx_conf/joomla.conf" <<EO_NGINX
-set_real_ip_from $(get_jail_ip haproxy);
-real_ip_header X-Forwarded-For;
-client_max_body_size 25m;
+server {
+    listen       80;
+    server_name  joomla;
 
-location / {
-   root   /usr/local/www/joomla3;
-   index  index.php;
-}
+	set_real_ip_from $(get_jail_ip haproxy);
+	real_ip_header X-Forwarded-For;
+	client_max_body_size 25m;
 
-location ~  ^/(.+\.php)\$ {
-   fastcgi_pass   127.0.0.1:9000;
-   fastcgi_index  index.php;
-   fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
-   include        fastcgi_params;
+	location / {
+	   root   /usr/local/www/joomla3;
+	   index  index.php;
+	}
+
+	location ~  ^/(.+\.php)\$ {
+	   fastcgi_pass   127.0.0.1:9000;
+	   fastcgi_index  index.php;
+	   fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
+	   include        /usr/local/etc/nginx/fastcgi_params;
+	}
 }
 
 EO_NGINX
 
-	patch -d "$STAGE_MNT/usr/local/etc/nginx" <<'EO_NGINX_CONF'
---- nginx.conf-dist	2015-11-28 23:21:55.597113000 -0800
-+++ nginx.conf	2015-11-28 23:43:25.508039518 -0800
-@@ -34,16 +34,13 @@
- 
-     server {
-         listen       80;
--        server_name  localhost;
-+        server_name  joomla;
- 
-         #charset koi8-r;
- 
-         #access_log  logs/host.access.log  main;
- 
--        location / {
--            root   /usr/local/www/nginx;
--            index  index.html index.htm;
--        }
-+        include conf.d/joomla.conf;
- 
-         #error_page  404              /404.html;
- 
-EO_NGINX_CONF
 }
 
 configure_php()
@@ -106,6 +80,7 @@ configure_php()
 configure_joomla()
 {
 	configure_nginx
+	configure_nginx_server
 	configure_php
 
 	_htdocs="$STAGE_MNT/usr/local/www/joomla3"
@@ -127,23 +102,14 @@ EO_ROBOTS_TXT
 
 start_joomla()
 {
-	tell_status "starting PHP"
-	stage_sysrc php_fpm_enable=YES
-	stage_exec service php-fpm start
-
-	tell_status "starting nginx"
-	stage_sysrc nginx_enable=YES
-	stage_exec service nginx start
+	start_php_fpm
+	start_nginx
 }
 
 test_joomla()
 {
-	tell_status "testing joomla"
-	stage_listening 80
-	echo "httpd is listening"
-
-	stage_listening 9000
-	echo "php fpm is listening"
+	test_php_fpm
+	test_nginx
 	echo "it worked"
 }
 
