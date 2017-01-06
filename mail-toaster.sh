@@ -549,7 +549,7 @@ stage_exec()
 stage_listening()
 {
 	echo "checking for port $1 listener in staged jail"
-	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" || exit
+	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
 }
 
 stage_test_running()
