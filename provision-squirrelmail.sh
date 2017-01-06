@@ -90,7 +90,7 @@ install_squirrelmail()
 	install_squirrelmail_mysql
 }
 
-config_nginx_server()
+configure_nginx_server()
 {
 	local _datadir="$ZFS_DATA_MNT/squirrelmail"
 	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
@@ -189,8 +189,8 @@ EO_SQUIRREL
 configure_squirrelmail()
 {
 	configure_php squirrelmail
-	config_nginx squirrelmail
-	config_nginx_server
+	configure_nginx squirrelmail
+	configure_nginx_server
 }
 
 start_squirrelmail()

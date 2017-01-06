@@ -64,5 +64,5 @@ start_php_fpm()
 
 test_php_fpm() {
 	tell_status "testing PHP FPM (FastCGI Process Manager)"
-	stage_listening 9000 || return 2
+	stage_listening 9000 || exit
 }

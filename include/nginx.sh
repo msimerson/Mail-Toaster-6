@@ -80,5 +80,5 @@ start_nginx()
 
 test_nginx() {
 	tell_status "testing nginx"
-	stage_listening 80 || return 2
+	stage_listening 80 || exit
 }
