@@ -6,26 +6,7 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
-install_php()
-{
-	tell_status "installing PHP"
-	_ports="php70" 
-	for p in ctype curl filter gd iconv imap json mbstring mcrypt openssl pdo_mysql session soap xml xmlrpc zip zlib
-	do
-		_ports="$_ports php70-$p"
-	done
-
-	stage_pkg_install $_ports
-	stage_exec make -C /usr/ports/devel/ioncube build install clean
-
-	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
-	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
-	sed -i .bak \
-		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
-		-e '/^post_max_size/ s/8M/25M/' \
-		-e '/^upload_max_filesize/ s/2M/25M/' \
-		"$_php_ini"
-}
+mt6-include php
 
 install_nginx()
 {
@@ -52,7 +33,7 @@ install_nginx()
 
 install_whmcs()
 {
-	install_php
+	install_php 70 "ctype curl filter gd iconv imap json mbstring mcrypt openssl pdo_mysql session soap xml xmlrpc zip zlib"
 	install_nginx
 
 	stage_pkg_install sudo
@@ -60,7 +41,7 @@ install_whmcs()
 
 configure_whmcs()
 {
-	stage_sysrc php_fpm_enable=YES
+	configure_php
 	stage_sysrc nginx_enable=YES
 	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 
@@ -79,7 +60,7 @@ EO_CRONTAB
 
 start_whmcs()
 {
-	stage_exec service php-fpm start
+	php_fpm_start
 	stage_exec service nginx start
 }
 
@@ -88,8 +69,7 @@ test_whmcs()
 	tell_status "testing httpd"
 	stage_listening 80
 
-	tell_status "testing php-fpm"
-	stage_listening 9000
+	php_fpm_test
 	echo "it worked"
 }
 
