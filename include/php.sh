@@ -26,7 +26,7 @@ configure_php_ini()
 {
 	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
 
-	if [ -z "$1" ]; then
+	if [ ! -z "$1" ]; then
 		if [ -f "$ZFS_JAIL_MNT/$1/usr/local/etc/php.ini" ]; then
 			tell_status "preserving php.ini"
 			cp "$ZFS_JAIL_MNT/$1/usr/local/etc/php.ini" "$_php_ini"
