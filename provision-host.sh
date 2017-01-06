@@ -136,9 +136,9 @@ constrain_sshd_to_host()
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sed -i -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
+	sed -i .bak -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
 	if [ -n "$PUBLIC_IP6" ]; then
-		sed -i -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
+		sed -i .bak6 -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
 	fi
 
 	grep ^Listen /etc/ssh/sshd_config
