@@ -38,10 +38,16 @@ configure_nginx()
 	local _datadir="$ZFS_DATA_MNT/$1"
 	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
 
+	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
+
 	local _installed="$_datadir/etc/nginx.conf"
-	if [ ! -f "$_installed" ]; then
-		tell_status "saving /data/etc/nginx.conf"
-		tee "$_installed" <<EO_NGINX_CONF
+	if [ -f "$_installed" ]; then
+		tell_status "preserving /data/etc/nginx.conf"
+		return
+	fi
+
+	tell_status "saving /data/etc/nginx.conf"
+	tee "$_installed" <<EO_NGINX_CONF
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;
 
@@ -63,9 +69,6 @@ http {
 }
 
 EO_NGINX_CONF
-	fi
-
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 }
 
 start_nginx()
