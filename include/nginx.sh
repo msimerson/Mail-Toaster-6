@@ -65,10 +65,27 @@ http {
 
 	keepalive_timeout  65;
 
-	include         nginx-server.conf;
+	server {
+		listen       80;
+
+		set_real_ip_from haproxy;
+		real_ip_header X-Forwarded-For;
+		client_max_body_size 25m;
+
+		include      nginx-locations.conf;
+
+		error_page   500 502 503 504  /50x.html;
+		location = /50x.html {
+			root   /usr/local/www/nginx-dist;
+		}
+	}
 }
 
 EO_NGINX_CONF
+
+	sed -i .bak \
+		-e "s/haproxy/$(get_jail_ip haproxy)/" \
+		"$STAGE_MNT/data/etc/nginx.conf"
 }
 
 start_nginx()

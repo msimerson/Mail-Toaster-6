@@ -22,17 +22,15 @@ configure_nginx_server()
 	local _datadir="$ZFS_DATA_MNT/mediawiki"
 	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
 
-	if [ ! -f "$_datadir/etc/nginx-server.conf" ]; then
-		tell_status "saving /data/etc/nginx-server.conf"
-		tee "$_datadir/etc/nginx-server.conf" <<'EO_WIKI'
+	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
+		tell_status "preserving /data/etc/nginx-locations.conf"
+		return
+	fi
 
-server {
-	listen       80;
+	tell_status "saving /data/etc/nginx-locations.conf"
+	tee "$_datadir/etc/nginx-locations.conf" <<'EO_WIKI'
+
 	server_name  mediawiki;
-
-	set_real_ip_from haproxy;
-	real_ip_header X-Forwarded-For;
-	client_max_body_size 25m;
 
 	location = /wiki {
 	    rewrite ^/wiki$ /w/index.php?title=Main_Page;
@@ -90,18 +88,8 @@ server {
 	    try_files $uri $uri/ @rewrite;
 	}
 
-	error_page   500 502 503 504  /50x.html;
-	location = /50x.html {
-	    root   /usr/local/www/nginx-dist;
-	}
-}
-
 EO_WIKI
 
-		sed -i .bak \
-			-e "s/haproxy/$(get_jail_ip haproxy)/" \
-			"$_datadir/etc/nginx-server.conf"
-	fi
 }
 
 configure_mediawiki()

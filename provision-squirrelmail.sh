@@ -93,21 +93,16 @@ install_squirrelmail()
 configure_nginx_server()
 {
 	local _datadir="$ZFS_DATA_MNT/squirrelmail"
-	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
-		tell_status "preservering /data/etc/nginx-server"
+	local _conf="etc/nginx-locations.conf"
+	if [ -f "$_datadir/$_conf" ]; then
+		tell_status "preservering /data/$_conf"
 		return
 	fi
 
-	tell_status "saving /data/etc/nginx-server.conf"
-	tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
+	tell_status "saving /data/$_conf"
+	tee "$_datadir/$_conf" <<'EO_NGINX_SERVER'
 
-server {
-	listen       80;
 	server_name  squirrelmail;
-
-	set_real_ip_from haproxy;
-	real_ip_header X-Forwarded-For;
-	client_max_body_size 25m;
 
 	location / {
 		root   /usr/local/www/squirrelmail;
@@ -119,11 +114,6 @@ server {
 		index  index.php;
 	}
 
-	error_page   500 502 503 504  /50x.html;
-	location = /50x.html {
-		root   /usr/local/www/nginx-dist;
-	}
-
 	location ~ \.php$ {
 		alias          /usr/local/www;
 		fastcgi_pass   127.0.0.1:9000;
@@ -131,13 +121,9 @@ server {
 		fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
 		include        /usr/local/etc/nginx/fastcgi_params;
 	}
-}
 
 EO_NGINX_SERVER
 
-	sed -i .bak \
-		-e "s/haproxy/$(get_jail_ip haproxy)/" \
-		"$_datadir/etc/nginx-server.conf"
 }
 
 configure_squirrelmail_local()
