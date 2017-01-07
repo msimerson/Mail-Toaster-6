@@ -864,7 +864,7 @@ mt6-include()
 		mkdir include || exit
 	fi
 
-	fetch -m "$TOASTER_SRC_URL/include/$1.sh"
+	fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
 
 	if [ ! -f "include/$1.sh" ]; then
 		echo "unable to download include/$1.sh"
