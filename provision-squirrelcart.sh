@@ -51,14 +51,15 @@ install_squirrelcart()
 
 configure_nginx_server()
 {
-	tee "$STAGE_MNT/data/etc/nginx-server.conf" <<'EO_SMF_NGINX'
+	if [ -f "$STAGE_MNT/data/etc/nginx-locations.conf" ]; then
+		tell_status "preserving /data/etc/nginx-locations.conf"
+		return
+	fi
 
-	server {
-		listen       80;
+	tell_status "saving /data/etc/nginx-locations.conf"
+	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_SMF_NGINX'
 
-		set_real_ip_from haproxy;
-		real_ip_header X-Forwarded-For;
-		client_max_body_size 25m;
+		servername         squirrelcart;
 
 		location ~ ^/cart/(.+\.php)$ {
 			alias          /usr/local/www/squirrelcart;
@@ -74,16 +75,7 @@ configure_nginx_server()
 			try_files $uri $uri/ =404;
 		}
 
-		error_page   500 502 503 504  /50x.html;
-		location = /50x.html {
-			root   /usr/local/www/nginx-dist;
-		}
-	}
 EO_SMF_NGINX
-
-	sed -i .bak \
-		-e "s/haproxy/$(get_jail_ip haproxy)/" \
-		"$STAGE_MNT/data/etc/nginx-server.conf"
 }
 
 configure_squirrelcart()
