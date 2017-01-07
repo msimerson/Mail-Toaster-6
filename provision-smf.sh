@@ -36,7 +36,7 @@ configure_nginx_server()
 
 	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_SMF_NGINX'
 
-	servername         smf;
+	server_name         smf;
 
 	location ~ ^/forum/(.+\.php)$ {
 		alias          /usr/local/www/smf;
