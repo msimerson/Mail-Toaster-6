@@ -59,7 +59,7 @@ configure_nginx_server()
 	tell_status "saving /data/etc/nginx-locations.conf"
 	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_SMF_NGINX'
 
-		servername         squirrelcart;
+		server_name         squirrelcart;
 
 		location ~ ^/cart/(.+\.php)$ {
 			alias          /usr/local/www/squirrelcart;
