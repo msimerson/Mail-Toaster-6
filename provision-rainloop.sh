@@ -22,31 +22,20 @@ install_rainloop()
 configure_nginx_server()
 {
 	local _datadir="$ZFS_DATA_MNT/rainloop"
-	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
-		tell_status "preserving /data/etc/nginx-server.conf"
+	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
+		tell_status "preserving /data/etc/nginx-locations.conf"
 		return
 	fi
 
-	tell_status "saving /data/etc/nginx-server.conf"
-	tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
+	tell_status "saving /data/etc/nginx-locations.conf"
+	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
 
-server {
-	listen       80;
 	server_name  rainloop;
-
-	set_real_ip_from haproxy;
-	real_ip_header X-Forwarded-For;
-	client_max_body_size 25m;
 
 	location / {
 		root   /usr/local/www/rainloop;
 		index  index.php;
 		try_files $uri $uri/ /index.php?$query_string;
-	}
-
-	error_page   500 502 503 504  /50x.html;
-	location = /50x.html {
-		root   /usr/local/www/nginx-dist;
 	}
 
 	location ~ \.php$ {
@@ -67,13 +56,9 @@ server {
 	location ^~ /data {
 		deny all;
 	}
-}
 
 EO_NGINX_SERVER
 
-	sed -i .bak \
-		-e "s/haproxy/$(get_jail_ip haproxy)/" \
-		"$_datadir/etc/nginx-server.conf"
 }
 
 install_default_ini()

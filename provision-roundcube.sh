@@ -83,16 +83,10 @@ configure_nginx_server()
 		return
 	fi
 
-	tell_status "saving /data/etc/nginx-server.conf"
-	tee "$_datadir/etc/nginx-server.conf" <<'EO_NGINX_SERVER'
+	tell_status "saving /data/etc/nginx-locations.conf"
+	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_LOCALS'
 
-server {
-	listen       80;
 	server_name  roundcube;
-
-	set_real_ip_from haproxy;
-	real_ip_header X-Forwarded-For;
-	client_max_body_size 25m;
 
 	location / {
 		root   /usr/local/www/roundcube;
@@ -104,11 +98,6 @@ server {
 		index  index.php;
 	}
 
-	error_page   500 502 503 504  /50x.html;
-	location = /50x.html {
-		root   /usr/local/www/nginx-dist;
-	}
-
 	location ~ \.php$ {
 		root           /usr/local/www/roundcube;
 		fastcgi_pass   127.0.0.1:9000;
@@ -116,13 +105,9 @@ server {
 		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
 		include        /usr/local/etc/nginx/fastcgi_params;
 	}
-}
 
-EO_NGINX_SERVER
+EO_NGINX_LOCALS
 
-	sed -i .bak \
-		-e "s/haproxy/$(get_jail_ip haproxy)/" \
-		"$_datadir/etc/nginx-server.conf"
 }
 
 configure_roundcube()
