@@ -46,7 +46,9 @@ install_squirrelcart()
 	mv "$STAGE_MNT/tmp/$_verdir/upload" "$STAGE_MNT/usr/local/www/squirrelcart" || exit
 	ln -s /data/sc_images "$STAGE_MNT/usr/local/www/squirrelcart/sc_images"
 	install_nginx
-	install_php 56 "mysql session curl openssl gd"
+	install_php 56 "mysql session curl openssl gd json"
+
+	stage_pkg_install postfix
 }
 
 configure_nginx_server()
@@ -79,6 +81,19 @@ configure_nginx_server()
 EO_SMF_NGINX
 }
 
+configure_postfix()
+{
+	if [ -f "$ZFS_JAIL_MNT/squirrelcart/usr/local/etc/postfix/main.cf" ]; then
+		tell_status "preserving postfix/main.cf"
+		cp "$ZFS_JAIL_MNT/squirrelcart/usr/local/etc/postfix/main.cf" \
+			"$STAGE_MNT/usr/local/etc/postfix/main.cf"
+	else
+		tell_status "LOOK AT postfix/main.cf"
+		sleep 5
+	fi
+
+}
+
 configure_squirrelcart_cron()
 {
 	local _perdir="$STAGE_MNT/usr/local/etc/periodic/daily"
@@ -104,6 +119,7 @@ configure_squirrelcart()
 	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 
 	configure_squirrelcart_cron
+	configure_postfix
 
 	local _cf_rel="usr/local/www/squirrelcart/squirrelcart/config.php"
 	local _cf_prev="$ZFS_DATA_MNT/squirrelcart/$_cf_rel"
