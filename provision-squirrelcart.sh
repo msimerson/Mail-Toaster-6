@@ -61,44 +61,74 @@ configure_nginx_server()
 
 		server_name         squirrelcart;
 
-		location ~ ^/cart/(.+\.php)$ {
+		location /cart/ {
+			alias /usr/local/www/squirrelcart/;
+			index store.php index.php;
+			autoindex off;
+		}
+
+		location ~ ^/cart/(.+\.php)(/.*)?$ {
 			alias          /usr/local/www/squirrelcart;
 			fastcgi_pass   127.0.0.1:9000;
 			fastcgi_index  index.php;
 			fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
+			fastcgi_param  PATH_INFO $2;
 			include        /usr/local/etc/nginx/fastcgi_params;
-		}
-
-		location /cart/ {
-			alias /usr/local/www/squirrelcart/;
-			index index.php;
-			try_files $uri $uri/ =404;
 		}
 
 EO_SMF_NGINX
 }
 
+configure_squirrelcart_cron()
+{
+	local _perdir="$STAGE_MNT/usr/local/etc/periodic/daily"
+	if [ ! -d "$_perdir" ]; then
+		mkdir -p "$_perdir"
+	fi
+
+	tell_status "installing periodic cron task"
+	tee "$_perdir/squirrelcart" <<EO_SQ_CRON
+#!/bin/sh
+/usr/local/bin/php /usr/local/www/squirrelcart/squirrelcart/cron.php
+EO_SQ_CRON
+
+	chmod 755 "$_perdir"
+}
+
 configure_squirrelcart()
 {
 	configure_php squirrelcart
+
 	configure_nginx squirrelcart
 	configure_nginx_server
+	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 
-	local _cf="$STAGE_MNT/usr/local/www/squirrelcart/squirrelcart/config.php"
-	chown www:www "$_cf" || exit
-	sed -i .bak \
-		-e "/^\\\$sql_host /      s/= .*/= '172.16.15.4';/" \
-		-e "/^\\\$db /            s/= .*/= 'squirrelcart';/" \
-		-e "/^\\\$sql_username /  s/= .*/= 'squirrelcart';/" \
-		-e "/^\\\$sql_password /  s/= .*/= 'testing';/" \
-		-e "/^\\\$sc_data_path /  s/= .*/= '..\/..\/..\/..\/data\/sc_data';/" \
-		-e "/^\\\$site_www_root / s/= .*/= 'https:\/\/10.0.1.59\/cart';/" \
-		-e "/^\\\$site_secure_root / s/= .*/= 'https:\/\/10.0.1.59\/cart';/" \
-		-e "/^\\\$enc_key/        s/= .*/= '$(openssl rand -hex 18)';/" \
-		"$_cf" || exit
+	configure_squirrelcart_cron
+
+	local _cf_rel="usr/local/www/squirrelcart/squirrelcart/config.php"
+	local _cf_prev="$ZFS_DATA_MNT/squirrelcart/$_cf_rel"
+	local _cf_stage="$STAGE_MNT/$_cf_rel"
+
+	if [ -f "$_cf_prev" ]; then
+		tell_status "preserving config.php"
+		cp "$_cf_prev" "$_cf_stage" || exit
+	else
+		tell_status "customizing config.php"
+		sed -i .bak \
+			-e "/^\\\$sql_host /      s/= .*/= '172.16.15.4';/" \
+			-e "/^\\\$db /            s/= .*/= 'squirrelcart';/" \
+			-e "/^\\\$sql_username /  s/= .*/= 'squirrelcart';/" \
+			-e "/^\\\$sql_password /  s/= .*/= 'testing';/" \
+			-e "/^\\\$sc_data_path /  s/= .*/= '..\/..\/..\/..\/data\/sc_data';/" \
+			-e "/^\\\$site_www_root / s/= .*/= 'https:\/\/www.tnpi.net\/cart';/" \
+			-e "/^\\\$site_secure_root / s/= .*/= 'https:\/\/www.tnpi.net\/cart';/" \
+			-e "/^\\\$enc_key/        s/= .*/= '$(openssl rand -hex 18)';/" \
+			"$_cf_stage" || exit
+	fi
+
+	chown www:www "$_cf_stage" || exit
 
 	rm -r "$STAGE_MNT/usr/local/www/squirrelcart/sc_install" || exit
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 }
 
 start_squirrelcart()
