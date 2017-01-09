@@ -154,6 +154,9 @@ backend www_mediawiki
 backend www_smf
     server monitor $(get_jail_ip smf):80
 
+backend www_wordpress
+    server monitor $(get_jail_ip wordpress):80
+
 backend www_stage
     server monitor $(get_jail_ip stage):80
 
