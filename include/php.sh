@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# PHP-FPM can listen on a UNIX socket or a TCP port. Use 'tcp' if your web
+# server will load balance to a pool of PHP-FPM servers. Else use sockets
+# and avoid the TCP overhead.
+PHP_LISTEN_MODE=${PHP_LISTEN_MODE:="socket"}
+
 install_php()
 {
 	_version="$1"; if [ -z "$_version" ]; then _version="56"; fi
@@ -44,8 +49,23 @@ configure_php_ini()
 }
 
 configure_php_fpm() {
+
+	tell_status "enable syslog for PHP-FPM"
 	sed -i .bak \
-		-e '/;error_log/ s/= .*/syslog/' \
+		-e '/^;error_log/ s/^;//' \
+		-e '/^error_log/ s/= .*/= syslog/' \
+		"$STAGE_MNT/usr/local/etc/php-fpm.conf"
+
+	if [ "$PHP_LISTEN_MODE" = "tcp" ]; then
+		return
+	fi
+
+	tell_status "switch PHP-FPM from TCP to unix socket"
+	sed -i .bak \
+		-e "/^listen =/      s/= .*/= '\/tmp\/php-cgi.socket';/" \
+		-e '/^;listen.owner/ s/^;//' \
+		-e '/^;listen.group/ s/^;//' \
+		-e '/^;listen.mode/  s/^;//' \
 		"$STAGE_MNT/usr/local/etc/php-fpm.conf"
 }
 
@@ -67,5 +87,12 @@ test_php_fpm() {
 	stage_test_running php-fpm
 
 	tell_status "testing PHP FPM is listening"
-	stage_listening 9000
+	if [ "$PHP_LISTEN_MODE" = "tcp" ]; then
+		stage_listening 9000
+	else
+		if [ ! -S "$STAGE_MNT/tmp/php-cgi.socket" ]; then
+			echo "no PHP-FPM socket found!"
+			exit
+		fi
+	fi
 }

@@ -65,12 +65,17 @@ http {
 
 	keepalive_timeout  65;
 
+	set_real_ip_from haproxy;
+	real_ip_header X-Forwarded-For;
+	client_max_body_size 25m;
+
+	upstream php {
+		server unix:/tmp/php-cgi.socket;
+		#server 127.0.0.1:9000;
+	}
+
 	server {
 		listen       80;
-
-		set_real_ip_from haproxy;
-		real_ip_header X-Forwarded-For;
-		client_max_body_size 25m;
 
 		include      nginx-locations.conf;
 

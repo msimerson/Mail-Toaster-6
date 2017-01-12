@@ -38,11 +38,19 @@ configure_nginx_server()
 
 	server_name         smf;
 
-	location ~ ^/forum/(.+\.php)$ {
+	location /forum/images/custom_avatars/ {
+		alias /data/custom_avatars/;
+		index index.php;
+		expires max;
+		try_files $uri =404;
+	}
+
+	location ~ ^/forum/(.+\.php)(/.*)?$ {
 		alias          /usr/local/www/smf;
 		fastcgi_pass   127.0.0.1:9000;
 		fastcgi_index  index.php;
 		fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
+		fastcgi_param  PATH_INFO $2;
 		include        /usr/local/etc/nginx/fastcgi_params;
 	}
 
