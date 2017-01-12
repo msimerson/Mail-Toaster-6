@@ -165,6 +165,7 @@ configure_base()
 
 	configure_make_conf
 
+	# shellcheck disable=2016
 	sysrc -f "$BASE_MNT/etc/rc.conf" \
 		hostname=base \
 		cron_flags='$cron_flags -J 15' \
@@ -217,6 +218,7 @@ config_bourne_shell()
 		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
 	fi
 
+	# shellcheck disable=2016
 	if ! grep -q ^PS1 "$BASE_MNT/etc/profile"; then
 		tell_status "customizing bourne shell prompt"
 		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a "$BASE_MNT/etc/profile"
@@ -300,6 +302,7 @@ security_status_tcpwrap_enable="YES"
 daily_status_security_inline="NO"
 weekly_status_security_inline="NO"
 monthly_status_security_inline="NO"
+daily_status_security_pkgaudit_quiet="YES"
 
 # These are redundant within a jail
 security_status_chkmounts_enable="NO"
