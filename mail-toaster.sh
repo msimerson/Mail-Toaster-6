@@ -334,11 +334,12 @@ assure_data_volume_mount_is_declared()
 		return
 	fi
 
+        local _mp; _mp=$(data_mountpoint "$1" "\$path")
 	tell_status "roadblock: UPGRADE action required"
 	echo
 	echo "You MUST add this line to the $1 section in /etc/jail.conf to continue:"
 	echo
-	echo "	mount += \"/data/$1 \$path/data nullfs rw 0 0\";"
+	echo "	mount += \"/data/$1 $_mp nullfs rw 0 0\";"
 	echo
 	exit
 }
