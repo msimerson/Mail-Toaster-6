@@ -103,23 +103,23 @@ configure_nginx_server()
 	tee "$_datadir/$_conf" <<'EO_NGINX_SERVER'
 
 	server_name  squirrelmail;
-
-	location / {
-		root   /usr/local/www/squirrelmail;
-		index  index.php;
-	}
+	root   /usr/local/www/squirrelmail;
+	index  index.php;
 
 	location /squirrelmail/ {
-		root /usr/local/www;
-		index  index.php;
+		alias /usr/local/www/squirrelmail/;
 	}
 
 	location ~ \.php$ {
-		alias          /usr/local/www;
-		fastcgi_pass   127.0.0.1:9000;
+		include        /usr/local/etc/nginx/fastcgi_params;
 		fastcgi_index  index.php;
 		fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
-		include        /usr/local/etc/nginx/fastcgi_params;
+		fastcgi_pass   php;
+	}
+
+	location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
+		expires max;
+		log_not_found off;
 	}
 
 EO_NGINX_SERVER

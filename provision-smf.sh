@@ -47,11 +47,11 @@ configure_nginx_server()
 
 	location ~ ^/forum/(.+\.php)(/.*)?$ {
 		alias          /usr/local/www/smf;
-		fastcgi_pass   127.0.0.1:9000;
+		include        /usr/local/etc/nginx/fastcgi_params;
+		fastcgi_pass   php;
 		fastcgi_index  index.php;
 		fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
 		fastcgi_param  PATH_INFO $2;
-		include        /usr/local/etc/nginx/fastcgi_params;
 	}
 
 	location /forum/ {

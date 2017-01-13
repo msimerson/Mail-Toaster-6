@@ -48,10 +48,10 @@ server {
 	}
 
 	location ~  ^/(.+\.php)\$ {
-	   fastcgi_pass   127.0.0.1:9000;
+	   include        /usr/local/etc/nginx/fastcgi_params;
 	   fastcgi_index  index.php;
 	   fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
-	   include        /usr/local/etc/nginx/fastcgi_params;
+	   fastcgi_pass   php;
 	}
 }
 
