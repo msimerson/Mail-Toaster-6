@@ -352,7 +352,7 @@ update_freebsd() {
 
 	if grep -q '^Components src' /etc/freebsd-update.conf; then
 		tell_status "remove src from freebsd-update"
-		sed -i .bak -e '/^Components/ s/src .*/world kernel/' /etc/freebsd-update.conf
+		sed -i .bak -e '/^Components/ s/src //' /etc/freebsd-update.conf
 	fi
 
 	tell_status "updating FreeBSD with security patches"
