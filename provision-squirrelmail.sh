@@ -103,11 +103,11 @@ configure_nginx_server()
 	tee "$_datadir/$_conf" <<'EO_NGINX_SERVER'
 
 	server_name  squirrelmail;
-	root   /usr/local/www/squirrelmail;
+	root   /usr/local/www;
 	index  index.php;
 
-	location /squirrelmail/ {
-		alias /usr/local/www/squirrelmail/;
+	location / {
+		try_files $uri $uri/ /index.php?$args;
 	}
 
 	location ~ \.php$ {
