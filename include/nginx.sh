@@ -5,6 +5,8 @@ install_nginx()
 	tell_status "installing nginx"
 	stage_pkg_install nginx
 
+	install_nginx_newsyslog
+
 	if [ -z "$1" ]; then
 		tell_status "no jail name, skipping options checks"
 		return
@@ -26,6 +28,19 @@ install_nginx()
 	tell_status "installing nginx port with localized options"
 	stage_pkg_install GeoIP dialog4ports gettext
 	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
+}
+
+install_nginx_newsyslog()
+{
+	tell "enabling nginx log file rotation"
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx" <<EO_NG_NSL
+# rotate nightly (default)
+/var/log/nginx-*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+
+# rotate when file size reaches 1M
+#/var/log/nginx-*.log		root:wheel	644	 7     1024	 *   BCGX  /var/run/nginx.pid 30
+EO_NG_NSL
+
 }
 
 configure_nginx()

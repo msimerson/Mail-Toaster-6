@@ -26,6 +26,15 @@ install_php()
 
 	# shellcheck disable=SC2086
 	stage_pkg_install $_ports
+	install_php_newsyslog
+}
+
+install_php_newsyslog() {
+	tell "enabling PHP-FPM log file rotation"
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/php-fpm" <<EO_FPM_NSL
+# rotate the file after it reaches 1M
+/var/log/php-fpm.log 600 7	1024	*	BCX	/var/run/php-fpm.pid 30
+EO_FPM_NSL
 }
 
 configure_php_ini()

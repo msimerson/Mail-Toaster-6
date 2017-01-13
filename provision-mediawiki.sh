@@ -52,10 +52,10 @@ configure_nginx_server()
 
 	location ~ ^/w/(.+\.php)$ {
 	    alias  /usr/local/www/mediawiki/;
-	    fastcgi_pass   127.0.0.1:9000;
+	    include        /usr/local/etc/nginx/fastcgi_params;
 	    fastcgi_index  index.php;
 	    fastcgi_param  SCRIPT_FILENAME  $document_root$1;
-	    include        /usr/local/etc/nginx/fastcgi_params;
+	    fastcgi_pass   php;
 	}
 
 	location ^~ /(?:w|wiki)/maintenance/ {

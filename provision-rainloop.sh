@@ -43,10 +43,10 @@ configure_nginx_server()
 		try_files $uri $uri/ /index.php?$query_string;
 		fastcgi_split_path_info ^(.+\.php)(.*)$;
 		fastcgi_keep_conn on;
-		fastcgi_pass   127.0.0.1:9000;
+		include        /usr/local/etc/nginx/fastcgi_params;
 		fastcgi_index  index.php;
 		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-		include        /usr/local/etc/nginx/fastcgi_params;
+		fastcgi_pass   php;
 	}
 
 	location ~ /\.ht {

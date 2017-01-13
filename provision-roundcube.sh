@@ -87,23 +87,18 @@ configure_nginx_server()
 	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_LOCALS'
 
 	server_name  roundcube;
+	root   /usr/local/www/roundcube;
+	index  index.php;
 
-	location / {
-		root   /usr/local/www/roundcube;
-		index  index.php;
-	}
-
-	location /roundcube/ {
-		root /usr/local/www;
-		index  index.php;
+	location /roundcube {
+		alias /usr/local/www/roundcube;
 	}
 
 	location ~ \.php$ {
-		root           /usr/local/www/roundcube;
-		fastcgi_pass   127.0.0.1:9000;
+		include        /usr/local/etc/nginx/fastcgi_params;
 		fastcgi_index  index.php;
 		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-		include        /usr/local/etc/nginx/fastcgi_params;
+		fastcgi_pass   php;
 	}
 
 EO_NGINX_LOCALS

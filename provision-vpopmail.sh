@@ -53,6 +53,7 @@ install_lighttpd()
 	stage_pkg_install lighttpd
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+	# shellcheck disable=2016
 	sed -i .bak \
 		-e '/^server.use-ipv6/ s/enable/disable/' \
 		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
@@ -83,6 +84,16 @@ install_qmailadmin()
 mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
 mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 '
+
+	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" ]; then
+		if [ ! -d "$STAGE_MNT/var/db/ports/mail_qmailadmin" ]; then
+			mkdir -p "$STAGE_MNT/var/db/ports/mail_qmailadmin"
+		fi
+		tell_status "preserving port options"
+		cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" \
+			"$STAGE_MNT/var/db/ports/mail_qmailadmin/"
+	fi
+
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 	stage_exec make -C /usr/ports/mail/qmailadmin install clean
 
@@ -127,7 +138,7 @@ install_vpopmail_mysql_grants()
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
 	sed -i .bak \
-		-e "s/localhost/$(get_jail_ip mysql)/" \
+		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
@@ -143,6 +154,15 @@ install_vpopmail_mysql_grants()
 
 install_vpopmail_port()
 {
+	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" ]; then
+		if [ ! -d "$STAGE_MNT/var/db/ports/mail_vpopmail" ]; then
+			mkdir -p "$STAGE_MNT/var/db/ports/mail_vpopmail"
+		fi
+		tell_status "preserving port options"
+		cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" \
+			"$STAGE_MNT/var/db/ports/mail_vpopmail/"
+	fi
+
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing vpopmail mysql dependency"
 		stage_pkg_install mysql56-client
@@ -229,6 +249,7 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
+	stage_pkg_install p5-Package-Constants
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
