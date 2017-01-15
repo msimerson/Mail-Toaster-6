@@ -14,6 +14,7 @@ SQ_DIR="$STAGE_MNT/usr/local/www/squirrelmail"
 
 install_squirrelmail_mysql()
 {
+	if [ "$TOASTER_MYSQL" != "1" ]; then return; fi
 	if [ "$SQUIRREL_SQL" != "1" ]; then return; fi
 
 	if ! mysql_db_exists squirrelmail; then

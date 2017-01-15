@@ -129,7 +129,7 @@ echo "safe name: $SAFE_NAME"
 zfs_filesystem_exists()
 {
 	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1"; then
-		echo "$1 filesystem exists"
+		tell_status "$1 filesystem exists"
 		return 0
 	fi
 
@@ -150,6 +150,7 @@ zfs_create_fs() {
 
 	if zfs_filesystem_exists "$1"; then return; fi
 
+	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
@@ -358,7 +359,6 @@ create_staged_fs()
 
 	assure_data_volume_mount_is_declared "$1"
 
-	tell_status "creating data volume"
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT"
 
