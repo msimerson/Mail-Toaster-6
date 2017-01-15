@@ -28,7 +28,7 @@ configure_nginx_standalone()
 
 	server_name     wordpress;
 	index		index.php;
-	root		/usr/local/www/wordpress;
+	root		/usr/local/www;
 
 	location / {
 		# include "?$args" so non-default permalinks don't break
@@ -117,7 +117,7 @@ configure_wp_config()
 
 	if [ ! -d "$_local_content/uploads" ]; then
 		mkdir "$_local_content/uploads"
-		chown www:www /data/content/uploads
+		chown 80:80 $_local_content/uploads
 	fi
 
 	local _installed_config="$_wp_install/wp-config.php"
