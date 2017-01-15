@@ -261,7 +261,7 @@ install_jailmanage()
 
 	tell_status "installing jailmanage"
 	fetch -o /usr/local/sbin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
-	chmod 755 /usr/local/sbin/jailmanage || exit
+	chmod 755 /usr/local/sbin/jailmanage
 }
 
 set_jail_start_order()
