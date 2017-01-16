@@ -46,9 +46,11 @@ haproxy_deploy() {
 
 	_debug "$_tmp created"
 	local _installed="/data/haproxy/ssl.d/$_cdomain.pem"
-	if diff -q $_tmp $_installed; then
-		_debug "cert is the same, skip deploy"
-		return 0
+	if [ -f $_installed ]; then
+		if diff -q $_tmp $_installed; then
+			_debug "cert is the same, skip deploy"
+			return 0
+		fi
 	fi
 
 	_debug "cp $_tmp $_installed"
@@ -100,9 +102,11 @@ dovecot_deploy() {
 
 	_debug "$_tmp_crt created"
 	local _installed="/data/dovecot/etc/ssl/certs/dovecot.pem"
-	if diff -q $_tmp_crt $_installed; then
-		_debug "cert is the same, skip deploy"
-		return 0
+	if [ -f $_installed ]; then
+		if diff -q $_tmp_crt $_installed; then
+			_debug "cert is the same, skip deploy"
+			return 0
+		fi
 	fi
 
 	cp $_tmp_crt $_installed || return 1
@@ -156,9 +160,11 @@ haraka_deploy() {
 
 	_debug "$_tmp created"
 	local _installed="/data/haraka/config/tls_cert.pem"
-	if diff -q $_tmp $_installed; then
-		_debug "cert is the same, skip deploy"
-		return 0
+	if [ -f $_installed ]; then
+		if diff -q $_tmp $_installed; then
+			_debug "cert is the same, skip deploy"
+			return 0
+		fi
 	fi
 
 	cp $_tmp $_installed || return 1
