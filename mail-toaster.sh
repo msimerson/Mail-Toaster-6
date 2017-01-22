@@ -863,7 +863,7 @@ rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
 " /etc/pf.conf
 }
 
-selfupdate()
+mt6update()
 {
 	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
 	# shellcheck disable=SC1091
@@ -885,4 +885,31 @@ mt6-include()
 
 	# shellcheck source=include/$.sh disable=SC1091
 	. "include/$1.sh"
+}
+
+jail_rename()
+{
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        echo "$0 <existing jail name> <new jail name>"
+        exit
+    fi
+
+    echo "renaming $1 to $2"
+    service jail stop "$1"  || exit
+
+    for _f in data jails
+    do
+        zfs unmount "$ZFS_VOL/$_f/$1"
+        zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
+        zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
+        zfs mount "$ZFS_VOL/$_f/$2"
+    done
+
+    sed -i .bak \
+        -e "/^$1\s/ s/$1/$2/" \
+        /etc/jail.conf || exit
+
+    service jail start "$2"
+
+    echo "Don't forget to update your PF and/or Haproxy rules"
 }
