@@ -9,7 +9,7 @@ export JAIL_CONF_EXTRA=""
 install_rsnapshot()
 {
 	tell_status "installing rsnapshot"
-	stage_pkg_install rsnapshot || exit
+	stage_pkg_install rsnapshot coreutils || exit
 }
 
 configure_rsnapshot()
