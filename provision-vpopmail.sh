@@ -9,26 +9,6 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
-install_qmail()
-{
-	tell_status "setting up data fs for qmail control files"
-	mkdir -p "$STAGE_MNT/var/qmail" \
-		"$ZFS_DATA_MNT/vpopmail/qmail-control" \
-		"$ZFS_DATA_MNT/vpopmail/qmail-users" || exit
-
-	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
-	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
-
-	tell_status "installing qmail"
-	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
-	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
-	stage_pkg_install netqmail daemontools ucspi-tcp || exit
-
-	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
-mail_qmail_UNSET=RCDLINK
-'
-	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
-}
 
 install_maildrop()
 {
@@ -152,37 +132,6 @@ install_vpopmail_mysql_grants()
  		| jexec mysql /usr/local/bin/mysql || exit
 }
 
-install_vpopmail_port()
-{
-	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" ]; then
-		if [ ! -d "$STAGE_MNT/var/db/ports/mail_vpopmail" ]; then
-			mkdir -p "$STAGE_MNT/var/db/ports/mail_vpopmail"
-		fi
-		tell_status "preserving port options"
-		cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" \
-			"$STAGE_MNT/var/db/ports/mail_vpopmail/"
-	fi
-
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		tell_status "installing vpopmail mysql dependency"
-		stage_pkg_install mysql56-client
-		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
-		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
-	fi
-
-	tell_status "installing vpopmail port with custom options"
-	stage_make_conf mail_vpopmail_ "
-mail_vpopmail_SET=$VPOPMAIL_OPTIONS_SET
-mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
-"
-	stage_pkg_install gmake gettext dialog4ports fakeroot
-	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
-
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		install_vpopmail_mysql_grants
-	fi
-}
-
 install_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
@@ -231,6 +180,10 @@ install_vpopmail()
 	stage_pkg_install vpopmail || exit
 
 	install_vpopmail_port
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		install_vpopmail_mysql_grants
+	fi
+
 	install_qmailadmin
 	install_nrpe
 }
