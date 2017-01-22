@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/sqwebmail \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
+mt6-include vpopmail
+
 install_authdaemond()
 {
 	tell_status "building courier-authlib with vpopmail support"

@@ -15,6 +15,8 @@ install_mediawiki()
 	install_nginx
 
 	stage_pkg_install mediawiki128 xcache
+	mkdir -p "$STAGE_MNT/var/cache/mediawiki"
+	chown 80:80 "$STAGE_MNT/var/cache/mediawiki"
 }
 
 configure_nginx_server()

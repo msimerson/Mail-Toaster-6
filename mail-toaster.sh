@@ -863,7 +863,7 @@ rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
 " /etc/pf.conf
 }
 
-mt6update()
+mt6-update()
 {
 	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
 	# shellcheck disable=SC1091
