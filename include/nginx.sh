@@ -32,7 +32,7 @@ install_nginx()
 
 install_nginx_newsyslog()
 {
-	tell "enabling nginx log file rotation"
+	tell_status "enabling nginx log file rotation"
 	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx" <<EO_NG_NSL
 # rotate nightly (default)
 /var/log/nginx-*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
@@ -57,7 +57,7 @@ configure_nginx()
 
 	local _installed="$_datadir/etc/nginx.conf"
 	if [ -f "$_installed" ]; then
-		tell_status "preserving /data/etc/nginx.conf"
+		tell_status "preserving $_datadir/etc/nginx.conf"
 		return
 	fi
 

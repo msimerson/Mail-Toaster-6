@@ -52,17 +52,22 @@ CREATE TABLE userprefs (
 
 	fi
 
+	if [ -z "$sqpass" ]; then
+		echo "Oops, squirrelmail db password not set"
+		exit
+	fi
+
 	tee -a "$SQ_DIR/config/config_local.php" <<EO_SQUIRREL_SQL
-\$prefs_dsn = 'mysql://squirrelmail:${_sqpass}@$(get_jail_ip mysql)/squirrelmail';
-\$addrbook_dsn = 'mysql://squirrelmail:${_sqpass}@$(get_jail_ip mysql)/squirrelmail';
+\$prefs_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip mysql)/squirrelmail';
+\$addrbook_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip mysql)/squirrelmail';
 EO_SQUIRREL_SQL
 
 	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
 
-	echo "$_grant 'squirrelmail'@'$(get_jail_ip squirrelmail)' IDENTIFIED BY '${_sqpass}';" \
+	echo "$_grant 'squirrelmail'@'$(get_jail_ip squirrelmail)' IDENTIFIED BY '${sqpass}';" \
 		| jexec mysql /usr/local/bin/mysql || exit
 
-	echo "$_grant 'squirrelmail'@'$(get_jail_ip stage)' IDENTIFIED BY '${_sqpass}';" \
+	echo "$_grant 'squirrelmail'@'$(get_jail_ip stage)' IDENTIFIED BY '${sqpass}';" \
 		| jexec mysql /usr/local/bin/mysql || exit
 }
 
@@ -132,10 +137,14 @@ configure_squirrelmail_local()
 	local _active_cfg; _active_cfg="$SQ_DIR/config/config_local.php"
 
 	if [ -f "$_active_cfg" ]; then
-		_sqpass=$(grep '//squirrelmail:' "$_active_cfg" | cut -f3 -d: | cut -f1 -d@)
-		echo "preserving existing squirrelmail mysql password: $_sqpass"
+		sqpass=$(grep '//squirrelmail:' "$_active_cfg" | cut -f3 -d: | cut -f1 -d@)
+	fi
+
+	if [ ! -z "$sqpass" ]; then
+		tell_status "preserving squirrelmail mysql password: $sqpass"
 	else
-		_sqpass=$(openssl rand -hex 18)
+		sqpass=$(openssl rand -hex 18)
+		tell_status "generating squirremail mysql password: $sqpass"
 	fi
 
 	cp "$SQ_DIR/config/config_local.php.sample" "$SQ_DIR/config/config_local.php"
@@ -151,13 +160,13 @@ configure_squirrelmail_local()
 // unnecessary. Setting smtp_stream_options *should* disable that, but doesn't.
 // Leave verify_peer disabled until squirrelmail gets this sorted out.
 \$smtp_stream_options = [
-    'ssl' => [
-       'verify_peer'      => false,
-       'verify_peer_name' => false,
-       'verify_depth' => 3,
-       'cafile' => '/etc/ssl/cert.pem',
-       // 'allow_self_signed' => true,
-    ],
+	'ssl' => [
+		'verify_peer'      => false,
+		'verify_peer_name' => false,
+		'verify_depth' => 3,
+		'cafile' => '/etc/ssl/cert.pem',
+		// 'allow_self_signed' => true,
+	],
 ];
 \$smtp_auth_mech = 'login';
 

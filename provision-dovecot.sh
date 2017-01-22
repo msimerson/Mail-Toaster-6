@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
+mt6-include vpopmail
+
 install_dovecot()
 {
 	tell_status "installing dovecot v2 package"
@@ -16,42 +18,16 @@ install_dovecot()
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
 
+	install_qmail
 	install_vpopmail_port
 
 	tell_status "mounting shared vpopmail fs"
 	mount_data vpopmail
 
-	tell_status "linking to shared qmail control dirs"
-	stage_exec rm -rf /var/qmail/users || exit
-	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users || exit
-
-	stage_exec rm -rf /var/qmail/control || exit
-	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control || exit
-
 	tell_status "building dovecot with vpopmail support"
 	stage_pkg_install dialog4ports
 	export BATCH=${BATCH:="1"}
 	stage_exec make -C /usr/ports/mail/dovecot2 clean build deinstall install clean || exit
-}
-
-install_vpopmail_port()
-{
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		tell_status "installing vpopmail mysql dependency"
-		stage_pkg_install mysql56-client
-	fi
-
-	tell_status "copying vpopmail options from vpopmail jail"
-	grep ^mail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
-	mkdir -p "$STAGE_MNT/var/db/ports/mail_vpopmail" || exit
-	cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options" \
-		"$STAGE_MNT/var/db/ports/mail_vpopmail" || exit
-
-	tell_status "install vpopmail deps"
-	stage_pkg_install gmake gettext ucspi-tcp netqmail fakeroot
-
-	tell_status "installing vpopmail port with custom options"
-	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
 }
 
 configure_dovecot_local_conf() {
