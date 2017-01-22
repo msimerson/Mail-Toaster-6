@@ -79,7 +79,7 @@ install_p0f()
 	stage_exec service p0f start
 }
 
-config_haraka_syslog()
+configure_haraka_syslog()
 {
 	if ! grep -qs ^log.syslog "$HARAKA_CONF/plugins"; then
 		tell_status "enable logging to syslog"
@@ -105,7 +105,7 @@ EO_DLF
 #	fi
 }
 
-config_haraka_smtp_forward()
+configure_haraka_smtp_forward()
 {
 	if [ ! -f "$HARAKA_CONF/smtp_forward.ini" ]; then
 		tell_status "configure smtp forward to vpopmail jail"
@@ -115,7 +115,7 @@ port=25
 	fi
 }
 
-config_haraka_vpopmail()
+configure_haraka_vpopmail()
 {
 	if [ ! -f "$HARAKA_CONF/auth_vpopmaild.ini" ]; then
 		tell_status "config SMTP AUTH using vpopmaild"
@@ -133,7 +133,7 @@ auth\/auth_vpopmaild
 	fi
 }
 
-config_haraka_qmail_deliverable()
+configure_haraka_qmail_deliverable()
 {
 	if [ ! -f "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
@@ -151,7 +151,7 @@ host=$(get_jail_ip vpopmail)" | \
 	fi
 }
 
-config_haraka_p0f()
+configure_haraka_p0f()
 {
 	install_p0f
 
@@ -161,7 +161,7 @@ config_haraka_p0f()
 	fi
 }
 
-config_haraka_spamassassin()
+configure_haraka_spamassassin()
 {
 	if [ ! -d "$ZFS_JAIL_MNT/spamassassin" ]; then
 		tell_status "skipping spamassassin setup, no jail exists"
@@ -184,7 +184,7 @@ relay_reject_threshold=7
 	fi
 }
 
-config_haraka_avg()
+configure_haraka_avg()
 {
 	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
 
@@ -219,7 +219,7 @@ avg
 	fi
 }
 
-config_haraka_clamav()
+configure_haraka_clamav()
 {
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/clamav"; then
 		tell_status "WARNING: skipping clamav plugin, no clamav jail exists"
@@ -250,7 +250,7 @@ Phishing=false
 	fi
 }
 
-config_haraka_tls() {
+configure_haraka_tls() {
 	if ! grep -qs ^tls "$HARAKA_CONF/plugins"; then
 		tell_status "enable TLS encryption"
 		sed -i '' -e '/^# tls$/ s/# //' "$HARAKA_CONF/plugins"
@@ -263,7 +263,7 @@ config_haraka_tls() {
 	fi
 }
 
-config_haraka_dnsbl()
+configure_haraka_dnsbl()
 {
 	if ! grep -qs ^reject "$HARAKA_CONF/dnsbl.ini"; then
 		tell_status "configuring dnsbls"
@@ -275,7 +275,7 @@ zones=b.barracudacentral.org, truncate.gbudb.net, psbl.surriel.com, bl.spamcop.n
 	fi
 }
 
-config_haraka_rspamd()
+configure_haraka_rspamd()
 {
 	if [ ! -d "$ZFS_JAIL_MNT/rspamd" ]; then
 		tell_status "skipping rspamd, no jail exists"
@@ -298,7 +298,7 @@ rspamd
 	fi
 }
 
-config_haraka_watch()
+configure_haraka_watch()
 {
 	if ! grep -qs ^watch "$HARAKA_CONF/plugins"; then
 		tell_status "enabling watch plugin"
@@ -310,10 +310,10 @@ config_haraka_watch()
 	fi
 }
 
-config_haraka_smtp_ini()
+configure_haraka_smtp_ini()
 {
 	if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
-		config_install_default smtp.ini
+		configure_install_default smtp.ini
 	fi
 
 	sed -i .bak \
@@ -325,10 +325,10 @@ config_haraka_smtp_ini()
 		"$HARAKA_CONF/smtp.ini" || exit
 }
 
-config_haraka_plugins()
+configure_haraka_plugins()
 {
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then
-		config_install_default plugins
+		configure_install_default plugins
 	fi
 
 	# enable a bunch of plugins
@@ -344,14 +344,14 @@ config_haraka_plugins()
 		"$HARAKA_CONF/plugins"
 }
 
-config_install_default()
+configure_install_default()
 {
 	local _source="$STAGE_MNT/usr/local/lib/node_modules/Haraka/config"
 	echo "cp $_source/$1 $HARAKA_CONF/$1"
 	cp "$_source/$1" "$HARAKA_CONF/$1"
 }
 
-config_haraka_limit()
+configure_haraka_limit()
 {
 	if ! grep -qs ^limit "$HARAKA_CONF/plugins"; then
 		tell_status "enabling limit plugin"
@@ -361,7 +361,7 @@ config_haraka_limit()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/limit.ini" ]; then
-		config_install_default limit.ini
+		configure_install_default limit.ini
 		sed -i .bak \
 			-e 's/^; max/max/' \
 			-e 's/^; history/history/' \
@@ -371,7 +371,7 @@ config_haraka_limit()
 	fi
 }
 
-config_haraka_dkim()
+configure_haraka_dkim()
 {
 	if [ ! -f "$HARAKA_CONF/dkim_sign.ini" ]; then
 		tell_status "enabling dkim_sign plugin"
@@ -383,7 +383,7 @@ config_haraka_dkim()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/dkim/dkim_key_gen.sh" ]; then
-		config_install_default "dkim/dkim_key_gen.sh"
+		configure_install_default "dkim/dkim_key_gen.sh"
 	fi
 
 	if [ ! -d "$HARAKA_CONF/dkim/$TOASTER_MAIL_DOMAIN" ]; then
@@ -397,7 +397,7 @@ config_haraka_dkim()
 	fi
 }
 
-config_haraka_karma()
+configure_haraka_karma()
 {
 	if [ -f "$HARAKA_CONF/karma.ini" ]; then
 		return
@@ -415,7 +415,7 @@ plugins=send_email, access, helo.checks, data.headers, mail_from.is_resolvable, 
 
 }
 
-config_haraka_redis()
+configure_haraka_redis()
 {
 	if ! grep -qs ^redis "$HARAKA_CONF/plugins"; then
 		tell_status "enabling redis plugin"
@@ -433,7 +433,7 @@ EO_REDIS_CONF
 	fi
 }
 
-config_haraka_geoip() {
+configure_haraka_geoip() {
 	if ! grep -qs ^calc_distance "$HARAKA_CONF/connect.geoip.ini"; then
 		tell_status "enabling geoip distance"
 		echo "calc_distance=true
@@ -443,7 +443,7 @@ report_as=connect.asn
 	fi
 }
 
-config_haraka_http()
+configure_haraka_http()
 {
 	if [ ! -f "$HARAKA_CONF/http.ini" ]; then
 		tell_status "enable Haraka HTTP server"
@@ -451,7 +451,7 @@ config_haraka_http()
 	fi
 }
 
-config_haraka_haproxy()
+configure_haraka_haproxy()
 {
 	if [ ! -f "$HARAKA_CONF/haproxy_hosts" ]; then
 		tell_status "enable haproxy support"
@@ -459,11 +459,11 @@ config_haraka_haproxy()
 	fi
 }
 
-config_haraka_helo()
+configure_haraka_helo()
 {
 	if [ ! -f "$HARAKA_CONF/helo.checks.ini" ]; then
 		tell_status "disabling HELO rejections"
-		
+
         tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
 mismatch=false
@@ -476,7 +476,7 @@ EO_HELO_INI
 	fi
 }
 
-config_haraka_results()
+configure_haraka_results()
 {
 	if [ -f "$HARAKA_CONF/results.ini" ]; then
 		return
@@ -502,7 +502,7 @@ order=fail,pass,msg
 EO_RESULTS
 }
 
-config_haraka_log_rotation()
+configure_haraka_log_rotation()
 {
 	tell_status "configuring haraka.log rotation"
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d" || exit
@@ -531,38 +531,38 @@ configure_haraka()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then
-		config_install_default plugins
+		configure_install_default plugins
 	fi
 
-	config_haraka_smtp_ini
-	config_haraka_plugins
-	config_haraka_limit
-	config_haraka_syslog
-	config_haraka_vpopmail
-	config_haraka_smtp_forward
-	config_haraka_qmail_deliverable
-	config_haraka_dnsbl
+	configure_haraka_smtp_ini
+	configure_haraka_plugins
+	configure_haraka_limit
+	configure_haraka_syslog
+	configure_haraka_vpopmail
+	configure_haraka_smtp_forward
+	configure_haraka_qmail_deliverable
+	configure_haraka_dnsbl
 
 	if [ ! -f "$HARAKA_CONF/data.headers.ini" ]; then
 		echo "reject=no" | tee -a "$HARAKA_CONF/data.headers.ini"
 	fi
 
-	config_haraka_http
-	config_haraka_tls
-	config_haraka_dkim
-	config_haraka_p0f
-	config_haraka_spamassassin
-	config_haraka_rspamd
-	config_haraka_clamav
-	config_haraka_avg
-	config_haraka_watch
-	config_haraka_karma
-	config_haraka_redis
-	config_haraka_geoip
-	config_haraka_haproxy
-	config_haraka_helo
-	config_haraka_results
-	config_haraka_log_rotation
+	configure_haraka_http
+	configure_haraka_tls
+	configure_haraka_dkim
+	configure_haraka_p0f
+	configure_haraka_spamassassin
+	configure_haraka_rspamd
+	configure_haraka_clamav
+	configure_haraka_avg
+	configure_haraka_watch
+	configure_haraka_karma
+	configure_haraka_redis
+	configure_haraka_geoip
+	configure_haraka_haproxy
+	configure_haraka_helo
+	configure_haraka_results
+	configure_haraka_log_rotation
 
 	install_geoip_dbs
 }

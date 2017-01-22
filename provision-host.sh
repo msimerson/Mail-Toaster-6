@@ -6,6 +6,8 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+mt6-include shell
+
 configure_ntpd()
 {
 	if grep -q ^ntpd_enable /etc/rc.conf; then
@@ -22,6 +24,11 @@ update_syslogd()
 {
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
+		echo "CAUTION: double check syslogd_flags in /etc/rc.conf"
+		echo "existing:"
+		grep ^syslogd_flags /etc/rc.conf
+		echo "desired:"
+		echo "syslogd_flags=-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -cc"
 		return
 	fi
 
@@ -278,7 +285,7 @@ set_jail_start_order()
 jail_reverse_shutdown()
 {
 	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" == "11" ]; then
+	if [ "$_fbsd_major" = "11" ]; then
 		if grep -q jail_reverse_stop /etc/rc.conf; then
 			return
 		fi
@@ -422,24 +429,10 @@ configure_etc_hosts()
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip $j)		$j"
+$(get_jail_ip "$j")		$j"
 	done
 
 	echo "$_hosts" | tee -a "/etc/hosts"
-}
-
-configure_bourne_shell()
-{
-	if ! grep -q '^alias ll' /etc/profile; then
-		tell_status "adding ll alias to /etc/profile"
-		echo 'alias ll="ls -alFG"' | tee -a /etc/profile
-	fi
-
-	if ! grep -q ^PS1 /etc/profile; then
-		tell_status "customizing bourne shell prompt"
-		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a /etc/profile
-		echo 'PS1="$(whoami)@$(hostname -s):\\w # "' | tee -a /root/.profile
-	fi
 }
 
 update_host() {
@@ -457,7 +450,8 @@ update_host() {
 	enable_jails
 	install_jailmanage
 	configure_etc_hosts
-	configure_bourne_shell
+	configure_csh_shell ""
+	configure_bourne_shell ""
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
 
