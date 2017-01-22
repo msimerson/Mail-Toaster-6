@@ -12,15 +12,8 @@ install_haproxy()
 	stage_pkg_install haproxy || exit
 }
 
-configure_haproxy()
+configure_haproxy_dot_conf()
 {
-	stage_sysrc haproxy_config="/data/etc/haproxy.conf"
-
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc" ]; then
-		tell_status "creating /data/etc"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/etc" || exit
-	fi
-
 	local _data_cf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
 	if [ -f "$_data_cf" ]; then
 		tell_status "preserving $_data_cf"
@@ -170,15 +163,12 @@ backend www_stage
 	server monitor $(get_jail_ip stage):80
 
 EO_HAPROXY_CONF
+}
 
-	rm "$STAGE_MNT/usr/local/etc/haproxy.conf"
-	stage_exec ln -s /data/etc/haproxy.conf /usr/local/etc/haproxy.conf
-
-	if ls /etc/ssl/private/*.pem; then
-		tell_status "copying PEM files"
-		cp /etc/ssl/private/*.pem "$STAGE_MNT/etc/ssl/private/"
-	else
-		tell_status "concatenating server key and crt to PEM"
+configure_haproxy_tls()
+{
+	if [ ! -f "$STAGE_MNT/etc/ssl/private/server.pem" ]; then
+		tell_status "concatenating TLS key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
 			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit 1
 	fi
@@ -197,6 +187,24 @@ EO_HAPROXY_CONF
 		tell_status "creating dhparam file for haproxy"
 		openssl dhparam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
 	fi
+}
+
+configure_haproxy()
+{
+	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc" ]; then
+		tell_status "creating /data/etc"
+		mkdir -p "$ZFS_DATA_MNT/haproxy/etc" || exit
+	fi
+
+	configure_haproxy_dot_conf
+	stage_sysrc haproxy_config="/data/etc/haproxy.conf"
+
+	if [ -f "$STAGE_MNT/usr/local/etc/haproxy.conf" ]; then
+		rm "$STAGE_MNT/usr/local/etc/haproxy.conf"
+	fi
+	stage_exec ln -s /data/etc/haproxy.conf /usr/local/etc/haproxy.conf
+
+	configure_haproxy_tls
 }
 
 start_haproxy()
