@@ -6,6 +6,8 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+mt6-include shell
+
 create_base_filesystem()
 {
 	if [ -e "$BASE_MNT/dev/null" ];
@@ -56,7 +58,7 @@ install_ssmtp()
 	   "$BASE_MNT/usr/local/etc/ssmtp/revaliases" || exit
 
 	sed -e "/^root=/ s/postmaster/$TOASTER_ADMIN_EMAIL/" \
-		-e "/^mailhub=/ s/=mail/=vpopmail/" \
+		-e "/^mailhub=/ s/=mail/=haraka/" \
 		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
 		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \
 		> "$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
@@ -176,106 +178,9 @@ configure_base()
 	configure_ssl_dirs
 	disable_cron_jobs
 	configure_syslog
-	config_bourne_shell
-	config_csh_shell
+	configure_bourne_shell "$BASE_MNT"
+	configure_csh_shell "$BASE_MNT"
 }
-
-install_bash()
-{
-	tell_status "installing bash"
-	stage_pkg_install bash || exit
-	stage_exec chpass -s /usr/local/bin/bash
-
-	local _profile="$BASE_MNT/root/.bash_profile"
-	if [ -f "$_profile" ]; then
-		return
-	fi
-
-	tell_status "adding .bash_profile for root@jail"
-	tee -a "$_profile" <<'EO_BASH_PROFILE'
-
-export HISTCONTROL=erasedups
-export HISTIGNORE="&:[bf]g:exit"
-shopt -s cdspell
-bind Space:magic-space
-alias h="history 200"
-PS1="$(whoami)@$(hostname -s):\\w # "
-EO_BASH_PROFILE
-}
-
-install_zsh()
-{
-	tell_status "installing zsh"
-	stage_pkg_install zsh || exit
-	stage_exec chpass -s /usr/local/bin/zsh
-
-}
-
-config_bourne_shell()
-{
-	if ! grep -q '^alias ll' "$BASE_MNT/etc/profile"; then
-		tell_status "adding ll alias to /etc/profile"
-		echo 'alias ll="ls -alFG"' | tee -a "$BASE_MNT/etc/profile"
-	fi
-
-	# shellcheck disable=2016
-	if ! grep -q ^PS1 "$BASE_MNT/etc/profile"; then
-		tell_status "customizing bourne shell prompt"
-		echo 'PS1="$(whoami)@$(hostname -s):\\w $ "' | tee -a "$BASE_MNT/etc/profile"
-		echo 'PS1="$(whoami)@$(hostname -s):\\w # "' | tee -a "$BASE_MNT/root/.profile"
-	fi
-}
-
-config_csh_shell()
-{
-	_cshrc="$BASE_MNT/etc/csh.cshrc"
-	if grep -q prompt "$_cshrc"; then
-		return
-	fi
-
-	tell_status "configure C shell"
-	tee -a "$_cshrc" <<'EO_CSHRC'
-alias h         history 25
-alias j         jobs -l
-alias la        ls -aF
-alias lf        ls -FA
-alias ll        ls -lAFG
-
-setenv  EDITOR  vi
-setenv  PAGER   more
-setenv  BLOCKSIZE       K
-
-if ($?prompt) then
-        # An interactive shell -- set some stuff up
-        set prompt = "%N@%m:%~ %# "
-        set promptchars = "%#"
-
-        set filec
-        set history = 1000
-        set savehist = (1000 merge)
-        set autolist = ambiguous
-        # Use history to aid expansion
-        set autoexpand
-        set autorehash
-        if ( $?tcsh ) then
-                bindkey "^W" backward-delete-word
-                bindkey -k up history-search-backward
-                bindkey -k down history-search-forward
-        endif
-
-endif
-EO_CSHRC
-}
-
-config_zsh_shell()
-{
-	tell_status "making zsh more comfy with ZIM"
-
-	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz \
-	| tar -C "$BASE_MNT/root/" -xf -  || echo "Zsh config failed!"
-	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
-}
-
 
 install_periodic_conf()
 {
@@ -613,10 +518,10 @@ install_base()
 	stage_exec newaliases || exit
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
-		install_bash
+		install_bash "$BASE_MNT"
 	elif [ "$BOURNE_SHELL" = "zsh" ]; then
 		install_zsh
-		config_zsh_shell
+		configure_zsh_shell "$BASE_MNT"
 	fi
 
 	install_ssmtp
