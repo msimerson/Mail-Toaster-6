@@ -146,9 +146,20 @@ zfs_snapshot_exists()
 	fi
 }
 
+zfs_mountpoint_exists()
+{
+	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "$1\$"; then
+		echo "$1 mountpoint exists"
+		return 0
+	fi
+
+	return 1
+}
+
 zfs_create_fs() {
 
 	if zfs_filesystem_exists "$1"; then return; fi
+	if zfs_mountpoint_exists "$2"; then return; fi
 
 	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
