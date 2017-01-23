@@ -18,7 +18,9 @@ install_squirrelcart()
 	fi
 
 	# find and unzip the newest squirrelcart zip file
-	local _zipfile=$(ls -t -1 $ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip | head -n1)
+	local _zipfile
+	# shellcheck disable=2012
+	_zipfile=$(ls -t -1 "$ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip" | head -n1)
 	if [ ! -f "$_zipfile" ]; then
 		tell_status "place the latest squirrelcart zip file in $ZFS_DATA_MNT/squirrelcart"
 		exit
@@ -26,7 +28,9 @@ install_squirrelcart()
 	tell_status "found /data/$_zipfile, expanding..."
 	sh -c "cd $STAGE_MNT/tmp; unzip $_zipfile" || exit
 
-	local _verdir=$(ls -t -1 "$STAGE_MNT/tmp/" | grep squirrel | head -n1)
+	local _verdir
+	# shellcheck disable=2010
+	_verdir=$(ls -t -1 "$STAGE_MNT/tmp/" | grep squirrel | head -n1)
 	if [ ! -d "$STAGE_MNT/tmp/$_verdir" ]; then
 		tell_status "failed to find unzipped squirrelcart"
 		exit
