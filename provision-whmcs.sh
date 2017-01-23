@@ -4,22 +4,25 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_CONF_EXTRA="
+	mount += \"$ZFS_DATA_MNT/whmcs \$path/data nullfs rw 0 0\";
+	mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 
 mt6-include php
 mt6-include nginx
 
 install_whmcs()
 {
-	install_php 70 "ctype curl filter gd iconv imap json mbstring mcrypt openssl pdo_mysql session soap xml xmlrpc zip zlib"
+	install_php 70 "ctype curl filter gd iconv imap json mbstring mcrypt openssl session soap xml xmlrpc zip zlib"
 	install_nginx whmcs
 
 	stage_pkg_install sudo
+	stage_exec make -C /usr/ports/devel/ioncube clean build install clean
 }
 
 configure_whmcs()
 {
-	configure_php
+	configure_php whmcs
 	configure_nginx whmcs
 
 	mkdir -p "$STAGE_MNT/vendor/whmcs/whmcs"
@@ -34,14 +37,14 @@ EO_CRONTAB
 
 start_whmcs()
 {
-	php_fpm_start
+	start_php_fpm
 	start_nginx
 }
 
 test_whmcs()
 {
 	test_nginx
-	php_fpm_test
+	test_php_fpm
 	echo "it worked"
 }
 
