@@ -24,6 +24,10 @@ install_dovecot()
 	tell_status "mounting shared vpopmail fs"
 	mount_data vpopmail
 
+	if [ "$TLS_LIBRARY" = "libressl" ]; then
+		echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
+	fi
+
 	tell_status "building dovecot with vpopmail support"
 	stage_pkg_install dialog4ports
 	export BATCH=${BATCH:="1"}

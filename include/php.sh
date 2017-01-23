@@ -79,6 +79,7 @@ configure_php_fpm() {
 	if [ -f "$STAGE_MNT/usr/local/etc/php-fpm.d/www.conf" ]; then
 		_fpmconf="$STAGE_MNT/usr/local/etc/php-fpm.d/www.conf"
 	fi
+
 	sed -i .bak \
 		-e "/^listen =/      s/= .*/= '\/tmp\/php-cgi.socket';/" \
 		-e '/^;listen.owner/ s/^;//' \
