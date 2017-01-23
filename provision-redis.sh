@@ -48,7 +48,7 @@ test_redis()
 
 base_snapshot_exists || exit
 create_staged_fs redis
-start_staged_jail
+start_staged_jail redis
 install_redis
 configure_redis
 start_redis

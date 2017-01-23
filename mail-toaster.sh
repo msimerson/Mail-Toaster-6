@@ -384,6 +384,7 @@ stage_unmount_aux_data()
 	case $1 in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
+		whmcs )        unmount_data geoip ;;
 	esac
 }
 
@@ -391,6 +392,7 @@ stage_mount_aux_data() {
 	case $1 in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
+		whmcs )         mount_data geoip ;;
 	esac
 }
 

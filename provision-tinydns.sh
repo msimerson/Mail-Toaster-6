@@ -126,7 +126,7 @@ test_tinydns()
 
 base_snapshot_exists || exit
 create_staged_fs tinydns
-start_staged_jail
+start_staged_jail tinydns
 install_tinydns
 configure_tinydns
 configure_axfrdns

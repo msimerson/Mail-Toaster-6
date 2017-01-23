@@ -94,7 +94,7 @@ test_monitor()
 
 base_snapshot_exists || exit
 create_staged_fs monitor
-start_staged_jail
+start_staged_jail monitor
 install_monitor
 configure_monitor
 start_monitor

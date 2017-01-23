@@ -57,7 +57,7 @@ test_rsnapshot()
 
 base_snapshot_exists || exit
 create_staged_fs rsnapshot
-start_staged_jail
+start_staged_jail rsnapshot
 install_rsnapshot
 configure_rsnapshot
 start_rsnapshot

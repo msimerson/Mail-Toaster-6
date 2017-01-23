@@ -84,7 +84,7 @@ test_mysql()
 
 base_snapshot_exists || exit
 create_staged_fs mysql
-start_staged_jail
+start_staged_jail mysql
 install_db_server
 start_mysql
 configure_mysql

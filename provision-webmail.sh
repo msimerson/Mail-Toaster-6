@@ -230,7 +230,7 @@ test_webmail()
 
 base_snapshot_exists || exit
 create_staged_fs webmail
-start_staged_jail
+start_staged_jail webmail
 install_webmail
 configure_webmail
 start_webmail

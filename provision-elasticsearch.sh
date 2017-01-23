@@ -117,7 +117,7 @@ test_elasticsearch()
 
 base_snapshot_exists || exit
 create_staged_fs elasticsearch
-start_staged_jail
+start_staged_jail elasticsearch
 install_elasticsearch
 configure_elasticsearch
 configure_kibana

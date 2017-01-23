@@ -54,7 +54,7 @@ test_php()
 
 base_snapshot_exists || exit
 create_staged_fs php7
-start_staged_jail
+start_staged_jail php7
 install_php
 configure_php
 start_php

@@ -234,7 +234,7 @@ test_haproxy()
 
 base_snapshot_exists || exit
 create_staged_fs haproxy
-start_staged_jail
+start_staged_jail haproxy
 install_haproxy
 configure_haproxy
 start_haproxy

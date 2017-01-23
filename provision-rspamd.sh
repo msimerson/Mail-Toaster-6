@@ -67,7 +67,7 @@ test_rspamd()
 
 base_snapshot_exists || exit
 create_staged_fs rspamd
-start_staged_jail
+start_staged_jail rspamd
 install_rspamd
 configure_rspamd
 start_rspamd

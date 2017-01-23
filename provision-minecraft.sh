@@ -56,7 +56,7 @@ test_minecraft()
 
 base_snapshot_exists || exit
 create_staged_fs minecraft
-start_staged_jail
+start_staged_jail minecraft
 install_minecraft
 configure_minecraft
 start_minecraft

@@ -187,7 +187,7 @@ test_wordpress()
 
 base_snapshot_exists || exit
 create_staged_fs wordpress
-start_staged_jail
+start_staged_jail wordpress
 install_wordpress
 configure_wordpress
 start_wordpress

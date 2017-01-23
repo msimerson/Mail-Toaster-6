@@ -126,7 +126,7 @@ test_mediawiki()
 
 base_snapshot_exists || exit
 create_staged_fs mediawiki
-start_staged_jail
+start_staged_jail mediawiki
 install_mediawiki
 configure_mediawiki
 start_mediawiki

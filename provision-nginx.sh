@@ -51,7 +51,7 @@ test_nginx()
 
 base_snapshot_exists || exit
 create_staged_fs nginx
-start_staged_jail
+start_staged_jail nginx
 install_nginx
 configure_nginx
 start_nginx
