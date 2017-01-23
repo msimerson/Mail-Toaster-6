@@ -10,6 +10,15 @@ install_haproxy()
 {
 	tell_status "installing haproxy"
 	stage_pkg_install haproxy || exit
+
+	if [ "$TLS_LIBRARY" != "libressl" ]; then
+		return
+	fi
+
+	tell_status "compiling haproxy against libressl"
+	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
+	stage_pkg_install pcre gmake libressl
+	stage_exec make -C /usr/ports/net/haproxy build deinstall install clean
 }
 
 configure_haproxy_dot_conf()
@@ -234,7 +243,7 @@ test_haproxy()
 
 base_snapshot_exists || exit
 create_staged_fs haproxy
-start_staged_jail
+start_staged_jail haproxy
 install_haproxy
 configure_haproxy
 start_haproxy

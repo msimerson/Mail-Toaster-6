@@ -186,7 +186,7 @@ test_roundcube()
 
 base_snapshot_exists || exit
 create_staged_fs roundcube
-start_staged_jail
+start_staged_jail roundcube
 install_roundcube
 configure_roundcube
 start_roundcube

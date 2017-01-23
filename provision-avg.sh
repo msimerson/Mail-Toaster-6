@@ -85,7 +85,7 @@ test_avg()
 base_snapshot_exists || exit
 create_staged_fs avg
 stage_sysrc hostname=avg
-start_staged_jail
+start_staged_jail avg
 install_avg
 configure_avg
 start_avg

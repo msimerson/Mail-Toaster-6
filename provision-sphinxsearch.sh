@@ -31,7 +31,7 @@ start_sphinxsearch()
 
 base_snapshot_exists || exit
 create_staged_fs sphinxsearch
-start_staged_jail
+start_staged_jail sphinxsearch
 install_sphinxsearch
 start_sphinxsearch
 promote_staged_jail sphinxsearch

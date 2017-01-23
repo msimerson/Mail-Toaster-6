@@ -31,7 +31,7 @@ test_memcached()
 
 base_snapshot_exists || exit
 create_staged_fs memcached
-start_staged_jail
+start_staged_jail memcached
 install_memcached
 start_memcached
 test_memcached

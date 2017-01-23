@@ -16,7 +16,12 @@ install_php()
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "including php mysql module"
-		_modules="$_modules pdo_mysql mysql"
+		if [ "$_version" = "70" ]; then
+			# php 70 doesn't have a plain mysql driver
+			_modules="$_modules pdo_mysql"
+		else
+			_modules="$_modules pdo_mysql mysql"
+		fi
 	fi
 
 	for m in $_modules
@@ -25,12 +30,12 @@ install_php()
 	done
 
 	# shellcheck disable=SC2086
-	stage_pkg_install $_ports
+	stage_pkg_install $_ports || exit
 	install_php_newsyslog
 }
 
 install_php_newsyslog() {
-	tell "enabling PHP-FPM log file rotation"
+	tell_status "enabling PHP-FPM log file rotation"
 	tee "$STAGE_MNT/etc/newsyslog.conf.d/php-fpm" <<EO_FPM_NSL
 # rotate the file after it reaches 1M
 /var/log/php-fpm.log 600 7	1024	*	BCX	/var/run/php-fpm.pid 30
@@ -70,12 +75,17 @@ configure_php_fpm() {
 	fi
 
 	tell_status "switch PHP-FPM from TCP to unix socket"
+	local _fpmconf="$STAGE_MNT/usr/local/etc/php-fpm.conf"
+	if [ -f "$STAGE_MNT/usr/local/etc/php-fpm.d/www.conf" ]; then
+		_fpmconf="$STAGE_MNT/usr/local/etc/php-fpm.d/www.conf"
+	fi
+
 	sed -i .bak \
 		-e "/^listen =/      s/= .*/= '\/tmp\/php-cgi.socket';/" \
 		-e '/^;listen.owner/ s/^;//' \
 		-e '/^;listen.group/ s/^;//' \
 		-e '/^;listen.mode/  s/^;//' \
-		"$STAGE_MNT/usr/local/etc/php-fpm.conf"
+		"$_fpmconf"
 }
 
 configure_php()

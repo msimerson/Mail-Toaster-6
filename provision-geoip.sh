@@ -42,7 +42,7 @@ test_geoip()
 
 base_snapshot_exists || exit
 create_staged_fs geoip
-start_staged_jail
+start_staged_jail geoip
 install_geoip
 configure_geoip
 start_geoip

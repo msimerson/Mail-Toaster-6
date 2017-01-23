@@ -138,7 +138,7 @@ test_rainloop()
 
 base_snapshot_exists || exit
 create_staged_fs rainloop
-start_staged_jail
+start_staged_jail rainloop
 install_rainloop
 configure_rainloop
 start_rainloop

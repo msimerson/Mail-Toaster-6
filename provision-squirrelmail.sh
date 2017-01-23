@@ -205,7 +205,7 @@ test_squirrelmail()
 
 base_snapshot_exists || exit
 create_staged_fs squirrelmail
-start_staged_jail
+start_staged_jail squirrelmail
 install_squirrelmail
 configure_squirrelmail
 start_squirrelmail

@@ -166,7 +166,7 @@ test_squirrelcart()
 
 base_snapshot_exists || exit
 create_staged_fs squirrelcart
-start_staged_jail
+start_staged_jail squirrelcart
 install_squirrelcart
 configure_squirrelcart
 start_squirrelcart

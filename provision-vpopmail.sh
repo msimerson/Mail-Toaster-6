@@ -233,7 +233,7 @@ test_vpopmail()
 
 base_snapshot_exists || exit
 create_staged_fs vpopmail
-start_staged_jail
+start_staged_jail vpopmail
 install_vpopmail
 configure_vpopmail
 start_vpopmail

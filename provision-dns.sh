@@ -162,7 +162,7 @@ test_unbound()
 
 base_snapshot_exists || exit
 create_staged_fs dns
-start_staged_jail
+start_staged_jail dns
 install_unbound
 configure_unbound
 start_unbound

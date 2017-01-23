@@ -12,7 +12,7 @@ mt6-include nginx
 install_smf()
 {
 	install_nginx
-	install_php 56 "mysql session gd"
+	install_php 56 "mysql session gd zlib"
 
 	if [ ! -d "$STAGE_MNT/usr/local/www/smf" ]; then
 		mkdir -p "$STAGE_MNT/usr/local/www/smf" || exit
@@ -96,7 +96,7 @@ test_smf()
 
 base_snapshot_exists || exit
 create_staged_fs smf
-start_staged_jail
+start_staged_jail smf
 install_smf
 configure_smf
 start_smf

@@ -97,7 +97,7 @@ test_joomla()
 
 base_snapshot_exists || exit
 create_staged_fs joomla
-start_staged_jail
+start_staged_jail joomla
 install_joomla
 configure_joomla
 start_joomla
