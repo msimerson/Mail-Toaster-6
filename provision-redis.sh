@@ -41,6 +41,7 @@ start_redis()
 test_redis()
 {
 	echo "testing redis"
+	sleep 1
 	stage_listening 6379
 	echo "it worked"
 }
