@@ -8,6 +8,26 @@ export JAIL_CONF_EXTRA=""
 
 mt6-include shell
 
+configure_ntp()
+{
+	if [ "$TOASTER_NTP" = "ntimed" ]; then
+		configure_ntimed
+	else
+		configure_ntpd
+	fi
+}
+
+configure_ntimed()
+{
+	tell_status "installing and enabling Ntimed"
+	if grep -q ^ntpd_enable /etc/rc.conf; then
+		sysrc ntpd_enable=NO
+	fi
+	pkg install -y ntimed
+	sysrc ntimed_enable=YES
+	service ntimed start
+}
+
 configure_ntpd()
 {
 	if grep -q ^ntpd_enable /etc/rc.conf; then
@@ -437,7 +457,7 @@ $(get_jail_ip "$j")		$j"
 
 update_host() {
 	update_freebsd
-	configure_ntpd
+	configure_ntp
 	update_sendmail
 	install_periodic_conf
 	constrain_sshd_to_host
