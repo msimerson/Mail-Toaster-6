@@ -72,7 +72,7 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="1"}
-export TOASTER_NTP=${TOASTER_NTP:="ntimed"}
+export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
