@@ -5,8 +5,7 @@
 
 export JAIL_START_EXTRA=""
 # shellcheck disable=2016
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/nictool \$path/data nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 
@@ -14,6 +13,11 @@ install_nt_prereqs()
 {
 	tell_status "installing NicTool prerequisites"
 	stage_pkg_install perl5 mysql56-client apache24 rsync
+
+	tell_status "installing tools for NicTool exports"
+	stage_pkg_install daemontools ucspi-tcp djbdns knot1
+	stage_sysrc svscan_enable=YES
+	mkdir -p "$STAGE_MNT/var/service"
 }
 
 install_nt_from_tarball()
@@ -167,7 +171,7 @@ test_nictool()
 
 base_snapshot_exists || exit
 create_staged_fs nictool
-start_staged_jail
+start_staged_jail nictool
 install_nictool
 start_nictool
 test_nictool

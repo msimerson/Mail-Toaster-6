@@ -6,11 +6,6 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
-# shellcheck disable=2016
-#@TODO create a shared dir between nginx and php7
-#export JAIL_CONF_EXTRA="
-#		mount += \"$ZFS_DATA_MNT/php7 \$path/data nullfs rw 0 0\";"
-
 install_php()
 {
 	tell_status "installing PHP7"
@@ -59,7 +54,7 @@ test_php()
 
 base_snapshot_exists || exit
 create_staged_fs php7
-start_staged_jail
+start_staged_jail php7
 install_php
 configure_php
 start_php

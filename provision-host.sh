@@ -6,8 +6,34 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+mt6-include shell
+
+configure_ntp()
+{
+	if [ "$TOASTER_NTP" = "ntimed" ]; then
+		configure_ntimed
+	else
+		configure_ntpd
+	fi
+}
+
+configure_ntimed()
+{
+	tell_status "installing and enabling Ntimed"
+	if grep -q ^ntpd_enable /etc/rc.conf; then
+		sysrc ntpd_enable=NO
+	fi
+	pkg install -y ntimed
+	sysrc ntimed_enable=YES
+	service ntimed start
+}
+
 configure_ntpd()
 {
+	if grep -q ^ntpd_enable /etc/rc.conf; then
+		return
+	fi
+
 	tell_status "enabling NTPd"
 	sysrc ntpd_enable=YES || exit
 	sysrc ntpd_sync_on_start=YES
@@ -16,8 +42,14 @@ configure_ntpd()
 
 update_syslogd()
 {
-	if grep ^syslogd_flags /etc/rc.conf; then
-		echo "NOTICE: changing syslogd flags"
+	if grep -q ^syslogd_flags /etc/rc.conf; then
+		tell_status "preserving syslogd_flags"
+		echo "CAUTION: double check syslogd_flags in /etc/rc.conf"
+		echo "existing:"
+		grep ^syslogd_flags /etc/rc.conf
+		echo "desired:"
+		echo "syslogd_flags=-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -cc"
+		return
 	fi
 
 	tell_status "configuring syslog to accept messages from jails"
@@ -25,17 +57,10 @@ update_syslogd()
 	service syslogd restart
 }
 
-constrain_syslogd_to_host()
-{
-	tell_status "disabling syslog network listener"
-	sysrc syslogd_flags=-ss
-	service syslogd restart
-}
-
 update_sendmail()
 {
-	if grep ^sendmail_enable /etc/rc.conf; then
-		echo "preserving sendmail flags"
+	if grep -q ^sendmail_enable /etc/rc.conf; then
+		tell_status "preserving sendmail config"
 		return
 	fi
 
@@ -111,8 +136,8 @@ EO_PERIODIC
 
 constrain_sshd_to_host()
 {
-	if grep ^ListenAddress /etc/ssh/sshd_config; then
-		echo "preserving /etc/ssh/sshd_config ListenAddress"
+	if grep -q ^ListenAddress /etc/ssh/sshd_config; then
+		tell_status "preserving sshd_config ListenAddress"
 		return
 	fi
 
@@ -134,13 +159,13 @@ constrain_sshd_to_host()
 
 	May I update $_sshd_conf?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || exit
+	dialog --yesno "$_confirm_msg" 13 70 || return
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sed -i -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
+	sed -i .bak -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
 	if [ -n "$PUBLIC_IP6" ]; then
-		sed -i -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
+		sed -i .bak6 -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
 	fi
 
 	grep ^Listen /etc/ssh/sshd_config
@@ -150,7 +175,7 @@ constrain_sshd_to_host()
 
 configure_tls_certs()
 {
-	if [ -f /etc/ssl/private/server.key ]; then
+	if [ -s /etc/ssl/private/server.key ]; then
 		tell_status "TLS certificates already exist"
 		return
 	fi
@@ -160,15 +185,23 @@ configure_tls_certs()
 		chmod o-r "/etc/ssl/private"
 	fi
 
-	grep -q commonName_default /etc/ssl/openssl.cnf || \
-		sed -i -e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME \
-" /etc/ssl/openssl.cnf
-
-	grep -q emailAddress_default /etc/ssl/openssl.cnf || \
-		sed -i -e "/^emailAddress_max.*/ a\ 
-emailAddress_default = $TOASTER_ADMIN_EMAIL \
-" /etc/ssl/openssl.cnf
+	if ! grep -q commonName_default /etc/ssl/openssl.cnf; then
+		tell_status "updating openssl.cnf defaults"
+		local _geo;   _geo=$(fetch -o - https://freegeoip.net/csv)
+		local _cc;    _cc=$(echo "$_geo" | cut -d',' -f2)
+		local _state; _state=$(echo "$_geo" | cut -d',' -f5)
+		local _city;  _city=$(echo "$_geo" | cut -d',' -f6)
+		sed -i .bak \
+			-e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME" \
+			-e "/^emailAddress_max.*/ a\ 
+emailAddress_default = $TOASTER_ADMIN_EMAIL" \
+			-e "/^localityName.*/ a\ 
+localityName_default = $_city" \
+			-e "/^countryName_default/ s/AU/$_cc/" \
+			-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
+			/etc/ssl/openssl.cnf
+	fi
 
 	if [ -f /etc/ssl/private/server.key ]; then
 		tell_status "preserving existing TLS certificates"
@@ -204,7 +237,7 @@ on all your IP addresses!"
 add_jail_nat()
 {
 	if grep -qs bruteforce /etc/pf.conf; then
-		echo "preserving pf.conf settings"
+		tell_status "preserving pf.conf settings"
 		return
 	fi
 
@@ -251,16 +284,17 @@ EO_PF_RULES
 
 install_jailmanage()
 {
+	if [ -s /usr/local/sbin/jailmanage ]; then return; fi
+
 	tell_status "installing jailmanage"
-	pkg install -y ca_root_nss || exit
 	fetch -o /usr/local/sbin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
-	chmod 755 /usr/local/sbin/jailmanage || exit
+	chmod 755 /usr/local/sbin/jailmanage
 }
 
 set_jail_start_order()
 {
-	if grep ^jail_list /etc/rc.conf; then
-		echo "preserving existing jail order"
+	if grep -q ^jail_list /etc/rc.conf; then
+		tell_status "preserving jail order"
 		return
 	fi
 
@@ -268,10 +302,13 @@ set_jail_start_order()
 	sysrc jail_list="$JAIL_STARTUP_LIST"
 }
 
-rcd_jail_patch()
+jail_reverse_shutdown()
 {
 	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" == "11" ]; then
+	if [ "$_fbsd_major" = "11" ]; then
+		if grep -q jail_reverse_stop /etc/rc.conf; then
+			return
+		fi
 		tell_status "reverse jails when shutting down"
 		sysrc jail_reverse_stop=YES
 		return
@@ -316,7 +353,7 @@ EO_JAIL_RCD
 enable_jails()
 {
 	sysrc jail_enable=YES
-	rcd_jail_patch
+	jail_reverse_shutdown
 	set_jail_start_order
 
 	if grep -sq 'exec' /etc/jail.conf; then
@@ -339,14 +376,25 @@ update_ports_tree()
 }
 
 update_freebsd() {
-	tell_status "updating FreeBSD with security patches"
 
-	# remove 'src'
-	sed -i .bak -e 's/^Components src .*/Components world kernel/' /etc/freebsd-update.conf
+	if grep -q '^Components src' /etc/freebsd-update.conf; then
+		tell_status "remove src from freebsd-update"
+		sed -i .bak -e '/^Components/ s/src //' /etc/freebsd-update.conf
+	fi
+
+	tell_status "updating FreeBSD with security patches"
 	freebsd-update fetch install
 
 	tell_status "updating FreeBSD pkg collection"
 	pkg update || exit
+
+	if ! pkg info -e ca_root_nss; then
+		tell_status "install CA root certs, so https URLs work"
+		pkg install -y ca_root_nss
+	fi
+
+	tell_status "upgrading installed FreeBSD packages"
+	pkg upgrade
 
 	update_ports_tree
 }
@@ -358,22 +406,22 @@ plumb_jail_nic()
 		return;
 	fi
 
-	if ! grep cloned_interfaces /etc/rc.conf; then
-		tell_status "plumb lo1 interface for jails"
+	if ! grep -q cloned_interfaces /etc/rc.conf; then
+		tell_status "plumb lo1 interface at startup"
 		sysrc cloned_interfaces=lo1 || exit
 	fi
 
 	local _missing;
 	_missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
 	if [ -n "$_missing" ]; then
-		echo "creating interface lo1"
+		tell_status "plumb lo1 interface"
 		ifconfig lo1 create || exit
 	fi
 }
 
 assign_syslog_ip()
 {
-	if ! grep ifconfig_lo1 /etc/rc.conf; then
+	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
 		tell_status "adding syslog IP to lo1"
 		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0" || exit
 	fi
@@ -401,7 +449,7 @@ configure_etc_hosts()
 	for j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip $j)		$j"
+$(get_jail_ip "$j")		$j"
 	done
 
 	echo "$_hosts" | tee -a "/etc/hosts"
@@ -409,20 +457,21 @@ $(get_jail_ip $j)		$j"
 
 update_host() {
 	update_freebsd
-	configure_ntpd
+	configure_ntp
 	update_sendmail
 	install_periodic_conf
 	constrain_sshd_to_host
-	constrain_syslogd_to_host
+	plumb_jail_nic
+	assign_syslog_ip
+	update_syslogd
 	check_global_listeners
 	add_jail_nat
 	configure_tls_certs
 	enable_jails
 	install_jailmanage
-	plumb_jail_nic
-	assign_syslog_ip
-	update_syslogd
 	configure_etc_hosts
+	configure_csh_shell ""
+	configure_bourne_shell ""
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
 

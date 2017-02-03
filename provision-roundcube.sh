@@ -5,27 +5,10 @@
 
 export JAIL_START_EXTRA=""
 # shellcheck disable=2016
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/roundcube \$path/data nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
-install_php()
-{
-	tell_status "installing PHP"
-	stage_pkg_install php56 php56-fileinfo php56-mcrypt php56-exif php56-openssl
-
-	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
-	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
-	sed -i .bak \
-		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
-		-e '/^post_max_size/ s/8M/25M/' \
-		-e '/^upload_max_filesize/ s/2M/25M/' \
-		"$_php_ini"
-
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		tell_status "install php mysql module"
-		stage_pkg_install php56-mysql
-	fi
-}
+mt6-include 'php'
+mt6-include nginx
 
 install_roundcube_mysql()
 {
@@ -72,26 +55,78 @@ roundcube_init_db()
 {
 	tell_status "initializating roundcube db"
 	pkg install -y curl || exit
-	stage_exec service php-fpm restart
+	start_roundcube
 	curl -i -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/roundcube/installer/index.php?_step=3" || exit
+		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
 }
 
 install_roundcube()
 {
-	install_php || exit
+	local _php_modules="fileinfo mcrypt exif openssl"
+	if [ "$TOASTER_MYSQL" != "1" ]; then
+		tell_status "install php sqlite module"
+		_php_modules="$_php_modules pdo_sqlite"
+	fi
+
+	install_php 56 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
 	stage_pkg_install roundcube
+}
 
-	# for sqlite storage
-	mkdir -p "$STAGE_MNT/data"
-	chown 80:80 "$STAGE_MNT/data"
+configure_nginx_server()
+{
+	local _datadir="$ZFS_DATA_MNT/roundcube"
+	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
+		tell_status "preserving /data/etc/nginx-server.conf"
+		return
+	fi
 
-	local _rcc_conf="$STAGE_MNT/usr/local/www/roundcube/config/config.inc.php"
+	tell_status "saving /data/etc/nginx-locations.conf"
+	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_LOCALS'
+
+	server_name  roundcube;
+	root   /usr/local/www/roundcube;
+	index  index.php;
+
+	location /roundcube {
+		alias /usr/local/www/roundcube;
+	}
+
+	location ~ \.php$ {
+		include        /usr/local/etc/nginx/fastcgi_params;
+		fastcgi_index  index.php;
+		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+		fastcgi_pass   php;
+	}
+
+EO_NGINX_LOCALS
+
+}
+
+configure_roundcube()
+{
+	configure_php roundcube
+	configure_nginx roundcube
+	configure_nginx_server
+
+	tell_status "installing mime.types"
+	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
+		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
+
+	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
+	local _rcc_conf="$STAGE_MNT/$_local_path"
+	if [ -f "$ZFS_JAIL_MNT/roundcube.last/$_local_path" ]; then
+		tell_status "preserving $_rcc_conf"
+		cp "$$ZFS_JAIL_MNT/roundcube.last/$_local_path" "$_rcc_conf" || exit
+		return
+	fi
+
+	tell_status "installing default $_rcc_conf"
 	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
 
+	tell_status "customizing $_rcc_conf"
 	local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
 	sed -i .bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
@@ -120,113 +155,38 @@ EO_RC_ADD
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_roundcube_mysql
 	else
-		stage_pkg_install php56-pdo_sqlite
 		sed -i.bak \
 			-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/sqlite.db?mode=0646';/" \
 			"$_rcc_conf"
 
 		if [ ! -f "$ZFS_DATA_MNT/roundcube/sqlite.db" ]; then
+			mkdir -p "$STAGE_MNT/data"
+			chown 80:80 "$STAGE_MNT/data"
 			roundcube_init_db
 		fi
 	fi
 
 	sed -i.bak \
-		-e "s/enable_installer'] = true;/enable_installer'] = false;/" \
+		-e "/enable_installer/ s/true/false/" \
 		"$_rcc_conf"
-}
-
-install_nginx()
-{
-	stage_pkg_install nginx || exit
-
-	patch -d "$STAGE_MNT/usr/local/etc/nginx" <<'EO_NGINX_CONF'
---- nginx.conf-dist	2016-11-03 05:11:28.000000000 -0700
-+++ nginx.conf	2016-12-07 16:29:52.835309001 -0800
-@@ -41,17 +41,26 @@
- 
-     server {
-         listen       80;
--        server_name  localhost;
-+        server_name  roundcube;
- 
-         #charset koi8-r;
- 
-         #access_log  logs/host.access.log  main;
- 
-         location / {
--            root   /usr/local/www/nginx;
--            index  index.html index.htm;
-+            root   /usr/local/www/roundcube;
-+            index  index.php;
-         }
- 
-+        location /roundcube/ {
-+            root /usr/local/www;
-+            index  index.php;
-+        }
-+
-+        set_real_ip_from 172.16.15.12;
-+        real_ip_header X-Forwarded-For;
-+        client_max_body_size 25m;
-+
-         #error_page  404              /404.html;
- 
-         # redirect server error pages to the static page /50x.html
-@@ -69,13 +78,13 @@
- 
-         # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-         #
--        #location ~ \.php$ {
--        #    root           html;
--        #    fastcgi_pass   127.0.0.1:9000;
--        #    fastcgi_index  index.php;
--        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
--        #    include        fastcgi_params;
--        #}
-+        location ~ \.php$ {
-+            root           /usr/local/www/roundcube;
-+            fastcgi_pass   127.0.0.1:9000;
-+            fastcgi_index  index.php;
-+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-+            include        fastcgi_params;
-+        }
- 
-         # deny access to .htaccess files, if Apache's document root
-         # concurs with nginx's one
-EO_NGINX_CONF
-}
-
-configure_roundcube()
-{
-	tell_status "installing mime.types"
-	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
 }
 
 start_roundcube()
 {
-	tell_status "starting PHP"
-	stage_sysrc php_fpm_enable=YES
-	stage_exec service php-fpm start
-
-	tell_status "starting nginx"
-	stage_sysrc nginx_enable=YES
-	stage_exec service nginx start
+	start_php_fpm
+	start_nginx
 }
 
 test_roundcube()
 {
-	tell_status "testing roundcube httpd"
-	stage_listening 80
-
-	tell_status "testing roundcube php"
-	stage_listening 9000
+	test_php_fpm
+	test_nginx
 	echo "it worked"
 }
 
 base_snapshot_exists || exit
 create_staged_fs roundcube
-start_staged_jail
+start_staged_jail roundcube
 install_roundcube
 configure_roundcube
 start_roundcube

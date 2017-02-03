@@ -85,7 +85,7 @@ test_dspam()
 
 base_snapshot_exists || exit
 create_staged_fs dspam
-start_staged_jail
+start_staged_jail dspam
 install_dspam
 configure_dspam
 start_dspam

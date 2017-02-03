@@ -61,7 +61,7 @@ export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
 export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail roundcube haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached spinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -72,6 +72,7 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="1"}
+export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
@@ -129,7 +130,7 @@ echo "safe name: $SAFE_NAME"
 zfs_filesystem_exists()
 {
 	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1"; then
-		echo "$1 filesystem exists"
+		tell_status "$1 filesystem exists"
 		return 0
 	fi
 
@@ -146,10 +147,22 @@ zfs_snapshot_exists()
 	fi
 }
 
+zfs_mountpoint_exists()
+{
+	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "$1\$"; then
+		echo "$1 mountpoint exists"
+		return 0
+	fi
+
+	return 1
+}
+
 zfs_create_fs() {
 
 	if zfs_filesystem_exists "$1"; then return; fi
+	if zfs_mountpoint_exists "$2"; then return; fi
 
+	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
@@ -280,11 +293,16 @@ add_jail_conf()
 		path = $ZFS_JAIL_MNT/${1};"
 	fi
 
+	if [ -z "$JAIL_CONF_EXTRA" ]; then
+		JAIL_CONF_EXTRA="mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
+	fi
+
 	tell_status "adding $1 to /etc/jail.conf"
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}${JAIL_CONF_EXTRA}
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}
+		${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
 }
@@ -316,6 +334,29 @@ cleanup_staged_fs()
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
+assure_data_volume_mount_is_declared()
+{
+	if ! grep -qs "^$1" /etc/jail.conf; then
+		# config for this jail hasn't been created yet. it will be created
+		# with the data FS automatically when provisioned.
+		return
+	fi
+
+	if grep -qs "data/$1" /etc/jail.conf; then
+		# data fs mountpoint already declared
+		return
+	fi
+
+        local _mp; _mp=$(data_mountpoint "$1" "\$path")
+	tell_status "roadblock: UPGRADE action required"
+	echo
+	echo "You MUST add this line to the $1 section in /etc/jail.conf to continue:"
+	echo
+	echo "	mount += \"/data/$1 $_mp nullfs rw 0 0\";"
+	echo
+	exit
+}
+
 create_staged_fs()
 {
 	cleanup_staged_fs "$1"
@@ -328,7 +369,8 @@ create_staged_fs()
 	sed -i -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
-	tell_status "creating data volume"
+	assure_data_volume_mount_is_declared "$1"
+
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT"
 
@@ -342,6 +384,7 @@ stage_unmount_aux_data()
 	case $1 in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
+		whmcs )        unmount_data geoip ;;
 	esac
 }
 
@@ -349,6 +392,7 @@ stage_mount_aux_data() {
 	case $1 in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
+		whmcs )         mount_data geoip ;;
 	esac
 }
 
@@ -371,7 +415,6 @@ start_staged_jail()
 		ip4.addr="$(get_jail_ip stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		allow.sysvipc=1 \
 		mount.devfs \
 		$JAIL_START_EXTRA \
 		|| exit
@@ -521,13 +564,13 @@ stage_exec()
 stage_listening()
 {
 	echo "checking for port $1 listener in staged jail"
-	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" || exit
+	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
 }
 
 stage_test_running()
 {
 	echo "checking for process $1 in staged jail"
-	pgrep -j stage $1 || exit
+	pgrep -j stage "$1" || exit
 }
 
 stage_mount_ports()
@@ -795,7 +838,7 @@ unprovision_files()
 
 unprovision()
 {
-	if [ "$1" == "last" ]; then
+	if [ "$1" = "last" ]; then
 		unprovision_last
 		return
 	fi
@@ -823,8 +866,53 @@ rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
 " /etc/pf.conf
 }
 
-selfupdate()
+mt6-update()
 {
-	fetch $TOASTER_SRC_URL/mail-toaster.sh
+	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
+	# shellcheck disable=SC1091
 	. mail-toaster.sh
+}
+
+mt6-include()
+{
+	if [ ! -d include ]; then
+		mkdir include || exit
+	fi
+
+	fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
+
+	if [ ! -f "include/$1.sh" ]; then
+		echo "unable to download include/$1.sh"
+		exit
+	fi
+
+	# shellcheck source=include/$.sh disable=SC1091
+	. "include/$1.sh"
+}
+
+jail_rename()
+{
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        echo "$0 <existing jail name> <new jail name>"
+        exit
+    fi
+
+    echo "renaming $1 to $2"
+    service jail stop "$1"  || exit
+
+    for _f in data jails
+    do
+        zfs unmount "$ZFS_VOL/$_f/$1"
+        zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
+        zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
+        zfs mount "$ZFS_VOL/$_f/$2"
+    done
+
+    sed -i .bak \
+        -e "/^$1\s/ s/$1/$2/" \
+        /etc/jail.conf || exit
+
+    service jail start "$2"
+
+    echo "Don't forget to update your PF and/or Haproxy rules"
 }

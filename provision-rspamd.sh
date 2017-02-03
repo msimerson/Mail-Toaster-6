@@ -47,7 +47,7 @@ configure_rspamd()
   	configure_dmarc
 	# configure admin password?
 
-	sed -i -e '/^filters/ s/spf/spf,dmarc/' "$_etc/rspamd/options.inc"
+	sed -i .bak -e '/^filters/ s/spf/spf,dmarc/' "$_etc/rspamd/options.inc"
 	echo "done"
 }
 
@@ -67,7 +67,7 @@ test_rspamd()
 
 base_snapshot_exists || exit
 create_staged_fs rspamd
-start_staged_jail
+start_staged_jail rspamd
 install_rspamd
 configure_rspamd
 start_rspamd

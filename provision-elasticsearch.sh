@@ -87,10 +87,15 @@ start_elasticsearch()
 {
 	tell_status "starting Elasticsearch"
 	stage_sysrc elasticsearch_enable=YES
+	stage_sysrc elasticsearch_config=/data/etc
+	stage_sysrc elasticsearch_min_mem=4g
+	stage_sysrc elasticsearch_max_mem=4g
+	stage_sysrc elasticsearch_heap_newsize=4g
 	stage_exec service elasticsearch start
 
 	tell_status "starting Kibana"
 	stage_sysrc kibana_enable=YES
+	stage_sysrc kibana_config="/data/etc/kibana.yml"
 	stage_exec service kibana start
 }
 
@@ -117,7 +122,7 @@ test_elasticsearch()
 
 base_snapshot_exists || exit
 create_staged_fs elasticsearch
-start_staged_jail
+start_staged_jail elasticsearch
 install_elasticsearch
 configure_elasticsearch
 configure_kibana
