@@ -265,7 +265,7 @@ config_zsh_shell()
 {
 	tell_status "making zsh more comfy with ZIM"
 
-	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/zsh_shell/contrib/zim.tar.gz \
+	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/master/contrib/zim.tar.gz  \
 	| tar -C "$BASE_MNT/root/" -xf -  || echo "Zsh config failed!"
 	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
 
