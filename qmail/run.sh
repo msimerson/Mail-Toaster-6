@@ -11,7 +11,7 @@ install_qmail_smtp_run()
 		echo -n "Re"
 	fi
 
-    echo "installing $RUN"
+	echo "installing $RUN"
 	mkdir -p $SUP/qmail-smtpd/log/main
 #tee $RUN <<'EO_SMTP_RUN'
 	cat <<'EO_SMTP_RUN' > $RUN
@@ -62,7 +62,7 @@ install_qmail_send_run()
 		echo -n "Re"
 	fi
 
-    echo "installing $RUN"
+	echo "installing $RUN"
 	mkdir -p $SUP/qmail-send/log/main
 	#tee $RUN <<'EO_SEND_RUN'
 	cat <<'EO_SEND_RUN' > $RUN
@@ -272,14 +272,14 @@ ${JAIL_NET_PREFIX}.9:allow,RELAYCLIENT=""
 EO_VPOPMAIL_ETC
 
 	/usr/local/bin/qmailctl cdb
-    if [ -f "$ETC/tcp.smtp.cdb" ]; then
-        if [ -f "$SUP/qmail-smtpd/run" ]; then
-            echo "adding tcp.smtp.cdb to qmail-smtpd/run"
-            sed -i .bak \
-                -e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' \
-                "$SUP/qmail-smtpd/run"
-        fi
-    fi
+	if [ -f "$ETC/tcp.smtp.cdb" ]; then
+		if [ -f "$SUP/qmail-smtpd/run" ]; then
+			echo "adding tcp.smtp.cdb to qmail-smtpd/run"
+			sed -i .bak \
+				-e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' \
+				"$SUP/qmail-smtpd/run"
+		fi
+	fi
 }
 
 install_symlinks()
@@ -380,8 +380,10 @@ EO_DELIVERABLED_RUN
 		make -C /usr/ports/www/p5-HTTP-Daemon deinstall install clean
 	fi
 
+	pkg install -y p5-Package-Constants
+
 	echo "installing Qmail::Deliverable"
-    pkg install -y p5-HTTP-Daemon p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-CPANPLUS
+	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-CPANPLUS
 	perl -MCPANPLUS -e 'install Qmail::Deliverable'
 }
 

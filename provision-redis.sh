@@ -4,8 +4,7 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/redis \$path/data nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 install_redis()
 {
@@ -42,13 +41,14 @@ start_redis()
 test_redis()
 {
 	echo "testing redis"
+	sleep 1
 	stage_listening 6379
 	echo "it worked"
 }
 
 base_snapshot_exists || exit
 create_staged_fs redis
-start_staged_jail
+start_staged_jail redis
 install_redis
 configure_redis
 start_redis

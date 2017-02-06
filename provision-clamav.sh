@@ -186,7 +186,7 @@ test_clamav()
 
 base_snapshot_exists || exit
 create_staged_fs clamav
-start_staged_jail
+start_staged_jail clamav
 install_clamav
 configure_clamav
 start_clamav

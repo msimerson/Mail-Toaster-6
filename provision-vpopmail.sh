@@ -9,26 +9,7 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
-install_qmail()
-{
-	tell_status "setting up data fs for qmail control files"
-	mkdir -p "$STAGE_MNT/var/qmail" \
-		"$ZFS_DATA_MNT/vpopmail/qmail-control" \
-		"$ZFS_DATA_MNT/vpopmail/qmail-users" || exit
-
-	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
-	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
-
-	tell_status "installing qmail"
-	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
-	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
-	stage_pkg_install netqmail daemontools ucspi-tcp || exit
-
-	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
-mail_qmail_UNSET=RCDLINK
-'
-	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
-}
+mt6-include vpopmail
 
 install_maildrop()
 {
@@ -53,6 +34,7 @@ install_lighttpd()
 	stage_pkg_install lighttpd
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+	# shellcheck disable=2016
 	sed -i .bak \
 		-e '/^server.use-ipv6/ s/enable/disable/' \
 		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
@@ -83,6 +65,16 @@ install_qmailadmin()
 mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
 mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 '
+
+	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" ]; then
+		if [ ! -d "$STAGE_MNT/var/db/ports/mail_qmailadmin" ]; then
+			mkdir -p "$STAGE_MNT/var/db/ports/mail_qmailadmin"
+		fi
+		tell_status "preserving port options"
+		cp "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" \
+			"$STAGE_MNT/var/db/ports/mail_qmailadmin/"
+	fi
+
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 	stage_exec make -C /usr/ports/mail/qmailadmin install clean
 
@@ -127,7 +119,7 @@ install_vpopmail_mysql_grants()
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
 	sed -i .bak \
-		-e "s/localhost/$(get_jail_ip mysql)/" \
+		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
@@ -139,28 +131,6 @@ install_vpopmail_mysql_grants()
 	local _stage_ip; _stage_ip=$(get_jail_ip)
 	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_stage_ip}' IDENTIFIED BY '${_vpass}';" \
  		| jexec mysql /usr/local/bin/mysql || exit
-}
-
-install_vpopmail_port()
-{
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		tell_status "installing vpopmail mysql dependency"
-		stage_pkg_install mysql56-client
-		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
-		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
-	fi
-
-	tell_status "installing vpopmail port with custom options"
-	stage_make_conf mail_vpopmail_ "
-mail_vpopmail_SET=$VPOPMAIL_OPTIONS_SET
-mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
-"
-	stage_pkg_install gmake gettext dialog4ports fakeroot
-	stage_exec make -C /usr/ports/mail/vpopmail deinstall install clean
-
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		install_vpopmail_mysql_grants
-	fi
 }
 
 install_nrpe()
@@ -190,7 +160,7 @@ install_quota_report()
 	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report" || exit
 	chmod 755 "$_qr" || exit
 
-	sed -i \
+	sed -i .bak \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
 		"$_qr"
@@ -211,6 +181,10 @@ install_vpopmail()
 	stage_pkg_install vpopmail || exit
 
 	install_vpopmail_port
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		install_vpopmail_mysql_grants
+	fi
+
 	install_qmailadmin
 	install_nrpe
 }
@@ -229,6 +203,7 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
+	stage_pkg_install p5-Package-Constants
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
 	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
@@ -258,7 +233,7 @@ test_vpopmail()
 
 base_snapshot_exists || exit
 create_staged_fs vpopmail
-start_staged_jail
+start_staged_jail vpopmail
 install_vpopmail
 configure_vpopmail
 start_vpopmail

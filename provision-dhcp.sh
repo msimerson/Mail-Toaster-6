@@ -90,7 +90,7 @@ test_dhcpd()
 
 base_snapshot_exists || exit
 create_staged_fs dhcp
-start_staged_jail
+start_staged_jail dhcp
 install_dhcpd
 configure_dhcpd
 start_dhcpd

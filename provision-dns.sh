@@ -4,8 +4,7 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/dns \$path/data nullfs rw 0 0\";";
+export JAIL_CONF_EXTRA=""
 
 install_unbound()
 {
@@ -107,7 +106,7 @@ enable_control()
 		control-cert-file: "/data/control/unbound_control.pem"
 EO_CONTROL_CONF
 
-	sed -i \
+	sed -i .bak \
 		-e '/^DESTDIR=/ s/=.*$/=\/data\/control/' \
 		"$STAGE_MNT/usr/local/sbin/unbound-control-setup"
 
@@ -163,7 +162,7 @@ test_unbound()
 
 base_snapshot_exists || exit
 create_staged_fs dns
-start_staged_jail
+start_staged_jail dns
 install_unbound
 configure_unbound
 start_unbound
