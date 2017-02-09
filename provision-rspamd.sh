@@ -12,6 +12,22 @@ install_rspamd()
 	stage_pkg_install rspamd || exit
 }
 
+configure_redis()
+{
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/redis"; then
+		return
+	fi
+
+	tell_status "add Redis address, for default Lua modules backend"
+    tee -a "$_etc/rspamd/rspamd.conf" <<  EO_REDIS
+    redis {
+        servers = "$(get_jail_ip redis):6379";
+        db    = "5";
+    }
+EO_REDIS
+
+}
+
 configure_dmarc()
 {
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/redis"; then
@@ -19,9 +35,58 @@ configure_dmarc()
 	fi
 
 	tell_status "add Redis address, for DMARC stats"
-	echo "dmarc {
-	servers = \"$(get_jail_ip redis):6379\";
-}"  | tee -a "$_etc/rspamd/rspamd.conf"
+	tee -a "$_etc/rspamd/rspamd.conf" <<EO_DMARC
+	dmarc {
+		# Enables storing reporting information to redis
+		reporting = true;
+		actions = {
+			quarantine = "add_header";
+	        reject = "reject";
+		}
+}
+EO_DMARC
+
+}
+
+configure_stats()
+{
+	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/redis"; then
+		return
+	fi
+
+	tell_status "add Redis address, for Bayes stats"
+	tee "$_etc/rspamd/statistic.conf"  << EO_RSPAMD_STAT
+classifier "bayes" {    
+    tokenizer {
+    name = "osb";
+    }
+
+    backend = "redis";
+    servers = "$(get_jail_ip redis):6379";
+    min_tokens = 11;
+    min_learns = 200;
+
+    #write_servers = "localhost:6379"; # If needed another servers for learning
+    #password = "xxx"; # Optional password
+    database = "6"; # Optional database id
+
+    cache {
+    	type = "redis";
+    }
+
+    statfile {
+    	symbol = "BAYES_SPAM";
+	spam = true;
+    }
+    statfile {
+            symbol = "BAYES_HAM";
+            spam = false;
+    }
+    #per_user = true;
+    autolearn = [-5, 5];    
+}
+EO_RSPAMD_STAT
+
 }
 
 configure_logging()
@@ -44,10 +109,11 @@ configure_rspamd()
 	local _etc="$STAGE_MNT/usr/local/etc"
 
   	configure_logging
-  	configure_dmarc
-	# configure admin password?
+  	configure_redis
+	configure_dmarc
+	configure_stats
 
-	sed -i .bak -e '/^filters/ s/spf/spf,dmarc/' "$_etc/rspamd/options.inc"
+	# configure admin password?
 	echo "done"
 }
 
