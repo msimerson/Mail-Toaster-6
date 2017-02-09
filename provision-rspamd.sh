@@ -83,7 +83,7 @@ classifier "bayes" {
             spam = false;
     }
     #per_user = true;
-    autolearn = true;    
+    autolearn = [-5, 5];    
 }
 EO_RSPAMD_STAT
 
