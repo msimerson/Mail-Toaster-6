@@ -19,10 +19,13 @@ configure_redis()
 	fi
 
 	tell_status "add Redis address, for default Lua modules backend"
-	echo "redis {
-	servers = \"$(get_jail_ip redis):6379\";
-	db    = \"5\";
-}"  | tee -a "$_etc/rspamd/rspamd.conf"
+    tee -a "$_etc/rspamd/rspamd.conf" <<  EO_REDIS
+    redis {
+        servers = "$(get_jail_ip redis):6379";
+        db    = "5";
+    }
+EO_REDIS
+
 }
 
 configure_dmarc()
@@ -32,14 +35,17 @@ configure_dmarc()
 	fi
 
 	tell_status "add Redis address, for DMARC stats"
-	echo "dmarc {
-	# Enables storing reporting information to redis
-     	reporting = true;
-  	actions = {
-        	quarantine = "add_header";
+	tee -a "$_etc/rspamd/rspamd.conf" <<EO_DMARC
+	dmarc {
+		# Enables storing reporting information to redis
+		reporting = true;
+		actions = {
+			quarantine = "add_header";
 	        reject = "reject";
-	}
-}"  | tee -a "$_etc/rspamd/rspamd.conf"
+		}
+}
+EO_DMARC
+
 }
 
 configure_stats()
