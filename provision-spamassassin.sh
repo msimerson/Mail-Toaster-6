@@ -231,7 +231,13 @@ start_spamassassin()
 {
 	tell_status "starting up spamd"
 	stage_sysrc spamd_enable=YES
-	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd -A 127.0.0.0/8 -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK --listen=0.0.0.0 --min-spare=3 --max-spare=6 --max-conn-per-child=25"
+
+	SPAMD_ALLOW="-A 127.0.0.0/8"
+	if ! echo "$JAIL_NET_PREFIX" | grep -q ^127; then
+		SPAMD_ALLOW="$SPAMD_ALLOW -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK"
+	fi
+
+	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=0.0.0.0 --min-spare=3 --max-spare=6 --max-conn-per-child=25"
 	stage_exec service sa-spamd start
 }
 
