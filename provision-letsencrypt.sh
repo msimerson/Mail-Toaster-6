@@ -215,6 +215,19 @@ install_deploy_scripts()
 	install_deploy_mailtoaster
 }
 
+update_haproxy_ssld()
+{
+	if ! grep -q 'ssl crt /etc'; then
+		# already updated
+		return
+	fi
+
+	tell_status "switching haproxy TLS cert dir to /data/ssl.d"
+	sed -i .bak \
+		-e 's!ssl crt /etc.*!ssl crt /data/ssl.d!' \
+		"$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+}
+
 configure_letsencrypt()
 {
 	install_deploy_scripts
@@ -224,6 +237,7 @@ configure_letsencrypt()
 	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
 	local _acme="/root/.acme.sh/acme.sh"
 	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
+		update_haproxy_ssld
 		$_acme --deploy -d "$TOASTER_HOSTNAME" --deploy-hook mailtoaster
 	fi
 }

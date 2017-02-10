@@ -72,7 +72,8 @@ frontend http-in
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
-	redirect scheme https code 301 if !is_websocket !{ ssl_fc }
+	acl letsencrypt  path_beg -i /.well-known
+	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	acl munin        path_beg /munin
 	acl nagios       path_beg /nagios
@@ -114,7 +115,7 @@ frontend http-in
 	use_backend www_stage        if  stage
 
 	# for Let's Encrypt SSL/TLS certificates
-	use_backend www_webmail      if { path_beg -i /.well-known }
+	use_backend www_webmail      if  letsencrypt
 
 	default_backend www_webmail
 
