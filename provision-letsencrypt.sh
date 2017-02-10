@@ -217,7 +217,8 @@ install_deploy_scripts()
 
 update_haproxy_ssld()
 {
-	if ! grep -q 'ssl crt /etc'; then
+	local _haconf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+	if ! grep -q 'ssl crt /etc' "$_haconf"; then
 		# already updated
 		return
 	fi
@@ -225,7 +226,7 @@ update_haproxy_ssld()
 	tell_status "switching haproxy TLS cert dir to /data/ssl.d"
 	sed -i .bak \
 		-e 's!ssl crt /etc.*!ssl crt /data/ssl.d!' \
-		"$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+		"$_haconf"
 }
 
 configure_letsencrypt()
