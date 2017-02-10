@@ -43,20 +43,21 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 
 install_qmail()
 {
-	if [ ! -d "$STAGE_MNT/var/qmail" ]; then
-		tell_status "creating /var/qmail"
-		mkdir -p "$STAGE_MNT/var/qmail" || exit
-	fi
-
-	tell_status "setting up data fs for qmail control files"
-	mkdir -p "$ZFS_DATA_MNT/vpopmail/qmail-control" \
-			 "$ZFS_DATA_MNT/vpopmail/qmail-users" || exit
+	tell_status "installing qmail"
+	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
 	for _cdir in control users
 	do
-		if [ -d "$STAGE_MNT/var/qmail/$_cdir" ]; then
-			tell_status "rm -rf $STAGE_MNT/var/qmail/$_cdir"
-			rm -r "$STAGE_MNT/var/qmail/$_cdir" || exit
+		local _vmdir="$ZFS_DATA_MNT/vpopmail/qmail-${_cdir}"
+		if [ ! -d "$_vmdir" ]; then
+			tell_status "creating $_vmdir"
+			mkdir -p "$_vmdir" || exit
+		fi
+
+		local _qmdir="$STAGE_MNT/var/qmail/$_cdir"
+		if [ -d "$_qmdir" ]; then
+			tell_status "rm -rf $_qmdir"
+			rm -r "$_qmdir" || exit
 		fi
 	done
 
@@ -64,10 +65,8 @@ install_qmail()
 	stage_exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
 
-	tell_status "installing qmail"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
-	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
