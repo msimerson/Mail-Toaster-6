@@ -354,9 +354,9 @@ configure_install_default()
 configure_haraka_limit()
 {
 	if ! grep -qs ^limit "$HARAKA_CONF/plugins"; then
-		tell_status "enabling limit plugin"
+		tell_status "adding limit plugin"
 		sed -i .bak \
-			-e 's/^max_unrecognized_commands/limit/' \
+			-e 's/^max_unrecognized_commands/# limit/' \
 			"$HARAKA_CONF/plugins"
 	fi
 
@@ -365,7 +365,6 @@ configure_haraka_limit()
 		sed -i .bak \
 			-e 's/^; max/max/' \
 			-e 's/^; history/history/' \
-			-e 's/^; backend=ram/backend=redis/' \
 			-e 's/^; discon/discon/' \
 			"$HARAKA_CONF/limit.ini"
 	fi
