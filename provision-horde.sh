@@ -417,7 +417,6 @@ install_default_horde_conf()
 
 	local _local_config_horde="$ZFS_JAIL_MNT/horde/usr/local/www/horde/config/conf.php"
 	local _horde_install="$ZFS_JAIL_MNT/horde/usr/local/www/horde"
-	local _horde_stage="$STAGE_MNT/usr/local/www/horde"
 
 
 	if [ -f "$_local_config_horde" ]; then
