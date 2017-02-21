@@ -31,7 +31,7 @@ configure_haproxy_dot_conf()
 
 	tell_status "configuring MT6 default haproxy"
 	tee "$_data_cf" <<EO_HAPROXY_CONF
-global
+	global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
 	nbproc      1
@@ -39,7 +39,7 @@ global
 	ssl-dh-param-file /data/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
 
-defaults
+	defaults
 	mode        http
 	balance     roundrobin
 	option      forwardfor   # set X-Forwarded-For
@@ -50,18 +50,18 @@ defaults
 	timeout     connect 5s
 	timeout     server 30s
 	timeout     client 30s
-#   timeout     client 86400s
+	#   timeout     client 86400s
 	timeout     tunnel 1h
 
-#listen stats *:9000
-#    mode http
-#    balance
-#    stats uri /haproxy_stats
-#    stats realm HAProxy\ Statistics
-#    stats auth admin:password
-#    stats admin if TRUE
+	#listen stats *:9000
+	#    mode http
+	#    balance
+	#    stats uri /haproxy_stats
+	#    stats realm HAProxy\ Statistics
+	#    stats auth admin:password
+	#    stats admin if TRUE
 
-frontend http-in
+	frontend http-in
 	bind *:80
 	bind *:443 ssl crt /etc/ssl/private
 	# ciphers AES128+EECDH:AES128+EDH
@@ -95,6 +95,7 @@ frontend http-in
 	acl smf          path_beg /forum
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
+	acl horde	 path_beg /horde
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -113,64 +114,68 @@ frontend http-in
 	use_backend www_smf          if  smf
 	use_backend www_wordpress    if  wordpress
 	use_backend www_stage        if  stage
+	use_backend www_horde        if horde
 
 	# for Let's Encrypt SSL/TLS certificates
 	use_backend www_webmail      if  letsencrypt
 
 	default_backend www_webmail
 
-backend www_vpopmail
+	backend www_vpopmail
 	server vpopmail $(get_jail_ip vpopmail):80
 
-backend www_sqwebmail
+	backend www_sqwebmail
 	server sqwebmail $(get_jail_ip sqwebmail):80
 
-backend www_haraka
+	backend www_haraka
 	server haraka $(get_jail_ip haraka):80
 	reqirep ^([^\ :]*)\ /haraka/(.*)    \1\ /\2
 
-backend websocket_haraka
+	backend websocket_haraka
 	timeout queue 5s
 	timeout server 86400s
 	timeout connect 86400s
 	server haraka $(get_jail_ip haraka):80
 
-backend www_webmail
+	backend www_webmail
 	server webmail $(get_jail_ip webmail):80
 
-backend www_roundcube
+	backend www_roundcube
 	server roundcube $(get_jail_ip roundcube):80
 	reqirep ^([^\ :]*)\ /roundcube/(.*)    \1\ /\2
 
-backend www_squirrelmail
+	backend www_squirrelmail
 	server squirrelmail $(get_jail_ip squirrelmail):80
 
-backend www_rainloop
+	backend www_rainloop
 	server rainloop $(get_jail_ip rainloop):80
 	reqirep ^([^\ :]*)\ /rainloop/(.*)    \1\ /\2
 
-backend www_monitor
+	backend www_monitor
 	server monitor $(get_jail_ip monitor):80
 
-backend www_rspamd
+	backend www_rspamd
 	server monitor $(get_jail_ip rspamd):11334
 	reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
 
-backend www_nictool
+	backend www_nictool
 	server monitor $(get_jail_ip nictool):80
 	reqirep ^([^\ :]*)\ /nictool/(.*)    \1\ /\2
 
-backend www_mediawiki
+	backend www_mediawiki
 	server monitor $(get_jail_ip mediawiki):80
 
-backend www_smf
+	backend www_smf
 	server monitor $(get_jail_ip smf):80
 
-backend www_wordpress
+	backend www_wordpress
 	server monitor $(get_jail_ip wordpress):80
 
-backend www_stage
+	backend www_stage
 	server monitor $(get_jail_ip stage):80
+
+	backend www_horde
+	server monitor $(get_jail_ip horde):80
 
 EO_HAPROXY_CONF
 }
