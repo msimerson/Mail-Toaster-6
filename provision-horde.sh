@@ -231,11 +231,11 @@ install_horde_mysql()
 	\$conf['activesync']['enabled'] = false;
 	/* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 
-	EO_HORDE_CONF
+EO_HORDE_CONF
 
 	tee  -a "$_horde_dir/prefs.php" << 'EO_HORDE_PREFS'
 	$_prefs['initial_application']['value'] = 'imp';
-	EO_HORDE_PREFS
+EO_HORDE_PREFS
 
 
 
@@ -291,7 +291,7 @@ configure_horde_imp()
 	$conf['tasklist']['use_tasklist'] = true;
 	$conf['notepad']['use_notepad'] = true;
 	/* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
-	EO_HORDE_IMP_CONF
+EO_HORDE_IMP_CONF
 
 	local _horde_imp_backend="$STAGE_MNT/usr/local/www/horde/imp/config/backends.local.php"
 	cp "$STAGE_MNT/usr/local/www/horde/imp/config/backends.php" $_horde_imp_backend
@@ -315,7 +315,7 @@ configure_horde_ingo()
 	$conf['spam']['char'] = '*';
 	$conf['spam']['compare'] = 'string';
 	/* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
-	EO_INGO_CONF
+EO_INGO_CONF
 
 	tee "$_horde_ingo/hooks.php" << 'EO_INGO_HOOKS'
 	<?php
@@ -345,7 +345,7 @@ configure_horde_ingo()
 			);
 		}
 	}
-	EO_INGO_HOOKS
+EO_INGO_HOOKS
 
 
 	tee "$_horde_ingo/backends.local.php" << EO_INGO_BACKEND
@@ -407,7 +407,7 @@ configure_horde_ingo()
 	/* Custom SQL Example */
 	\$backends['customsql']['disabled'] = true;
 	?>
-	EO_INGO_BACKEND
+EO_INGO_BACKEND
 
 
 }
