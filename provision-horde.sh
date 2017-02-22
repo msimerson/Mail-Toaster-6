@@ -39,7 +39,7 @@ enable_ftp_server_ingo()
 	stage_sysrc ftpd_enable=YES
 	stage_exec pw groupadd -n vchkpw -g 89
 	stage_exec pw useradd -n vpopmail -s /bin/sh -d /usr/local/vpopmail -u 89 -g 89 -m -h-
-	stage_exec chpass -p $(openssl passwd -1 vpopmail) vpopmail
+	stage_exec chpass -p "$(openssl passwd -1 vpopmail)" vpopmail
 }
 
 configure_nginx_server()
