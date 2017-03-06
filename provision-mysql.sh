@@ -50,6 +50,7 @@ configure_mysql()
 		tee -a "$_my_cnf" <<EO_MY_CNF
 [mysqld]
 innodb_doublewrite = off
+innodb_file_per_table = 1
 EO_MY_CNF
 	fi
 
