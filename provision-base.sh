@@ -60,7 +60,7 @@ install_ssmtp()
 	sed -e "/^root=/ s/postmaster/$TOASTER_ADMIN_EMAIL/" \
 		-e "/^mailhub=/ s/=mail/=haraka/" \
 		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
-		-i '/^#FromLineOverride=YES/ s/#//' \
+		-e '/^#FromLineOverride=YES/ s/#//' \
 		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \
 		> "$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
