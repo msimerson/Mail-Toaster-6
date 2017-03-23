@@ -64,6 +64,10 @@ service auth {
   unix_listener auth-master {
     mode = 0600
   }
+#  unix_listener /var/spool/postfix/private/auth {
+#    # SASL for Postfix smtp-auth
+#    mode = 0666
+#  }
 }
 
 passdb {
