@@ -17,7 +17,7 @@ install_haraka()
 	#stage_exec make -C /usr/ports/www/npm install clean
 
 	tell_status "installing Haraka"
-	stage_exec pkg install -y git
+	stage_exec pkg install -y git-lite
 
 	stage_exec npm install -g Haraka ws express || exit
 	stage_exec bash -c "cd /data && npm install haraka-plugin-log-reader"
@@ -466,6 +466,7 @@ configure_haraka_helo()
         tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
 mismatch=false
+valid_hostname=false
 EO_HELO_INI
 	fi
 
