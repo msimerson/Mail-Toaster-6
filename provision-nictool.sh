@@ -11,13 +11,27 @@ export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 
 install_nt_prereqs()
 {
-	tell_status "installing NicTool prerequisites"
+	tell_status "installing NicTool app prerequisites"
 	stage_pkg_install perl5 mysql56-client apache24 rsync
 
 	tell_status "installing tools for NicTool exports"
 	stage_pkg_install daemontools ucspi-tcp djbdns knot1
+
+	tell_status "setting up svscan"
 	stage_sysrc svscan_enable=YES
 	mkdir -p "$STAGE_MNT/var/service"
+}
+
+install_nt_from_git()
+{
+	stage_pkg_install git-lite || exit
+	cd "$STAGE_MNT/usr/local" || exit
+	stage_exec git clone https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
+	stage_exec sh -c 'cd /usr/local/nictool/server && git checkout travis-more-testing'
+	stage_pkg_install p5-App-Cpanminus
+	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
+	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
+	exit
 }
 
 install_nt_from_tarball()
@@ -67,7 +81,7 @@ install_nictool_server() {
 	if [ ! -f "$_ntsconf" ]; then
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
-		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' $_ntsconf
+		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
 		echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'$(get_jail_ip nictool)' IDENTIFIED BY 'lootcin205';" \
 			| jexec mysql /usr/local/bin/mysql || exit
 	fi
@@ -136,16 +150,18 @@ install_nictool_db()
 	tell_status "creating nictool mysql db"
 	echo "CREATE DATABASE nictool;" | jexec mysql /usr/local/bin/mysql || exit
 	for f in $STAGE_MNT/usr/local/nictool/server/sql/*.sql; do
-		echo $f
-        # shellcheck disable=SC2002
-		cat $f | jexec mysql /usr/local/bin/mysql nictool
+		tell_status "creating nictool table $f"
+		# shellcheck disable=SC2002
+		cat "$f" | jexec mysql /usr/local/bin/mysql nictool
+		sleep 1;
 	done
 }
 
 install_nictool()
 {
 	install_nt_prereqs
-	install_nt_from_tarball
+	# install_nt_from_tarball
+	install_nt_from_git
 	install_nictool_server
 	install_nictool_client
 	install_apache_setup
