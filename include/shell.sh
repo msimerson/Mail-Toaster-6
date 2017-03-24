@@ -8,7 +8,7 @@ install_bash()
 
     local _profile="$1/root/.bash_profile"
     if [ -f "$_profile" ]; then
-        tell_status "preseving $_profile"
+        tell_status "preserving $_profile"
         return
     fi
 
@@ -69,7 +69,7 @@ configure_csh_shell()
 {
     _cshrc="$1/etc/csh.cshrc"
     if grep -q prompt "$_cshrc"; then
-        tell_status "preseving $_cshrc"
+        tell_status "preserving $_cshrc"
         return
     fi
 
