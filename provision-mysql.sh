@@ -39,7 +39,7 @@ configure_mysql()
 		cp "$ZFS_JAIL_MNT/mysql/etc/my.cnf" "$STAGE_MNT/etc/my.cnf"
 	fi
 
-	local _dbdir="$ZFS_DATA_MNT/mysql/var/db/mysql"
+	local _dbdir="$ZFS_DATA_MNT/mysql"
 	if [ ! -d "$_dbdir" ]; then
 		mkdir -p "$_dbdir" || exit
 	fi
@@ -49,7 +49,7 @@ configure_mysql()
 		tell_status "installing $_my_cnf"
 		tee -a "$_my_cnf" <<EO_MY_CNF
 [mysqld]
-innodb_doublewrite = off
+#innodb_doublewrite = off
 innodb_file_per_table = 1
 EO_MY_CNF
 	fi
