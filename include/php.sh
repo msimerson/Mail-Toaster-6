@@ -54,12 +54,23 @@ configure_php_ini()
 		fi
 	fi
 
+	tell_status "getting the timezone"
+	TZ=`md5 -q /etc/localtime`
+	TIMEZONE=`find /usr/share/zoneinfo -type f | xargs md5 -r | grep  $TZ | awk '{print $2}' |cut -c21- `
+
+	if [ -z "$TIMEZONE" ]; then
+		TIMEZONE="America\/Los_Angeles"
+	fi
+
+	tell_status "Setting TIMEZONE to :  $TIMEZONE "
+
 	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
 	sed -i .bak \
-		-e 's/^;date.timezone =/date.timezone = America\/Los_Angeles/' \
+		-e "s|^;date.timezone =|date.timezone = $TIMEZONE|" \
 		-e '/^post_max_size/ s/8M/25M/' \
 		-e '/^upload_max_filesize/ s/2M/25M/' \
 		"$_php_ini"
+
 }
 
 configure_php_fpm() {
