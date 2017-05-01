@@ -58,6 +58,10 @@ configure_php_ini()
 	TZ=`md5 -q /etc/localtime`
 	TIMEZONE=`find /usr/share/zoneinfo -type f | xargs md5 -r | grep  $TZ | awk '{print $2}' |cut -c21- `
 
+	if [ -z "$TIMEZONE" ]; then
+		TIMEZONE="America\/Los_Angeles"
+	fi
+
 	tell_status "Setting TIMEZONE to :  $TIMEZONE "
 
 	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
