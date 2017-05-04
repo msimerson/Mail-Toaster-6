@@ -454,7 +454,7 @@ configure_haraka_haproxy()
 {
 	if [ ! -f "$HARAKA_CONF/haproxy_hosts" ]; then
 		tell_status "enable haproxy support"
-		get_jail_ip haraka | tee -a "$HARAKA_CONF/haproxy_hosts"
+		get_jail_ip haproxy | tee -a "$HARAKA_CONF/haproxy_hosts"
 	fi
 }
 
