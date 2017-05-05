@@ -217,6 +217,8 @@ configure_dovecot()
 	configure_vsz_limit
 	configure_tls_certs
 	configure_tls_dh
+
+	mkdir -p "$STAGE_MNT/var/spool/postfix/private"
 }
 
 start_dovecot()
