@@ -59,10 +59,15 @@ configure_lighttpd()
 	tee "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
 server.modules += ( "mod_alias" )
 
-alias.url = ( "/cgi-bin/"        => "/usr/local/www/cgi-bin/",
-           )
+alias.url = (
+		"/cgi-bin/"        => "/usr/local/www/cgi-bin/",
+	)
 
-server.modules += ( "mod_cgi" )
+server.modules += (
+		"mod_cgi",
+		"mod_fastcgi",
+		"mod_extforward",
+	)
 
 $HTTP["url"] =~ "^/awstats/" {
    cgi.assign = ( "" => "/usr/bin/perl" )
@@ -70,8 +75,10 @@ $HTTP["url"] =~ "^/awstats/" {
 $HTTP["url"] =~ "^/cgi-bin" {
    cgi.assign = ( "" => "" )
 }
+extforward.forwarder = (
+		"172.16.15.12" => "trust",
+	)
 
-server.modules += ( "mod_fastcgi" )
 EO_LIGHTTPD_MT6
 }
 
