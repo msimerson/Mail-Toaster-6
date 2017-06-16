@@ -61,7 +61,7 @@ export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
 export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail roundcube haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -93,8 +93,8 @@ echo "email domain: $TOASTER_MAIL_DOMAIN"
 if ps -o args= -p "$$" | grep csh; then usage; fi
 echo "shell: $SHELL"
 
-# very little below here should need customizing. If so, consider opening
-# an Issue or PR at https://github.com/msimerson/Mail-Toaster-6
+# little below here should need customizing. If so, consider opening
+# an issue or PR at https://github.com/msimerson/Mail-Toaster-6
 export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
@@ -104,8 +104,8 @@ FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
 FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-10.3-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-10.3-RELEASE@p7
+# host OS version, ex: base-11.0-RELEASE and the snapshot name will be the OS
+# patch level, ex: base-11.0-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -337,8 +337,8 @@ cleanup_staged_fs()
 assure_data_volume_mount_is_declared()
 {
 	if ! grep -qs "^$1" /etc/jail.conf; then
-		# config for this jail hasn't been created yet. it will be created
-		# with the data FS automatically when provisioned.
+		# config for this jail hasn't been created. It's created
+		# when the data FS is provisioned.
 		return
 	fi
 
@@ -347,7 +347,7 @@ assure_data_volume_mount_is_declared()
 		return
 	fi
 
-        local _mp; _mp=$(data_mountpoint "$1" "\$path")
+	local _mp; _mp=$(data_mountpoint "$1" "\$path")
 	tell_status "roadblock: UPGRADE action required"
 	echo
 	echo "You MUST add this line to the $1 section in /etc/jail.conf to continue:"
@@ -730,13 +730,14 @@ mysql_db_exists()
 {
 	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
 	result=$(echo "$_query" | jexec mysql mysql -s -N)
+
 	if [ -z "$result" ]; then
 		echo "$1 db does not exist"
 		return 1
-	else
-		echo "$1 db exists"
-		return 0
 	fi
+
+	echo "$1 db exists"
+	return 0
 }
 
 fetch_and_exec()
