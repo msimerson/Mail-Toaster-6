@@ -14,12 +14,12 @@ install_clamav_unofficial()
 	eXtremeSHOK maintains the ClamAV UNOFFICIAL project at
 		https://github.com/extremeshok/clamav-unofficial-sigs
 
-	The project is a set of scripts that download and keep updated
+	ClamAV UNOFFICIAL is a set of scripts that download and update
 	a collection of unofficial ClamAV signatures that significantly
 	increase ClamAV's virus detection rate. However, they also
 	increase the False Positive hits.
 
-	Unofficial DBs are best used with Haraka's karma plugin (scoring)
+	Unofficial DBs are best used with scoring plugins (like karma)
 	and with the clamav plugin configured with [reject]virus=false.
 
 	Do you want to install ClamAV UNOFFICIAL?"

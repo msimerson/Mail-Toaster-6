@@ -10,14 +10,12 @@ mt6-include shell
 
 create_base_filesystem()
 {
-	if [ -e "$BASE_MNT/dev/null" ];
-	then
+	if [ -e "$BASE_MNT/dev/null" ]; then
 		echo "unmounting $BASE_MNT/dev"
 		umount "$BASE_MNT/dev" || exit
 	fi
 
-	if zfs_filesystem_exists "$BASE_VOL";
-	then
+	if zfs_filesystem_exists "$BASE_VOL"; then
 		echo "$BASE_VOL already exists"
 		return
 	fi
