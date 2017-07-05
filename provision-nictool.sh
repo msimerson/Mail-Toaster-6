@@ -30,7 +30,7 @@ install_nt_from_git()
 	stage_exec sh -c 'cd /usr/local/nictool/server && git checkout travis-more-testing'
 	stage_pkg_install p5-App-Cpanminus
 	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
-	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
+	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpanm -n .'
 	exit
 }
 
