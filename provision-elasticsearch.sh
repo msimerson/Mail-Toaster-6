@@ -14,10 +14,10 @@ export JAIL_CONF_EXTRA="
 install_elasticsearch()
 {
 	tell_status "installing Elasticsearch"
-	stage_pkg_install elasticsearch2
+	stage_pkg_install elasticsearch5 elasticsearch5-x-pack
 
-	tell_status "installing kopf plugin"
-	stage_exec /usr/local/lib/elasticsearch/bin/plugin install lmenezes/elasticsearch-kopf
+	#tell_status "installing kopf plugin"
+	#stage_exec /usr/local/lib/elasticsearch/bin/plugin install lmenezes/elasticsearch-kopf
 
 	if [ ! -d "$ZFS_DATA_MNT/elasticsearch/etc" ]; then
 		tell_status "creating $ZFS_DATA_MNT/elasticsearch/etc"
@@ -42,7 +42,7 @@ install_elasticsearch()
 	fi
 
 	tell_status "installing kibana"
-	stage_pkg_install kibana45
+	stage_pkg_install kibana50 kibana50-x-pack
 }
 
 configure_elasticsearch()
@@ -57,7 +57,15 @@ configure_elasticsearch()
 	local _conf="$STAGE_MNT/usr/local/etc/elasticsearch/elasticsearch.yml"
 	cp "$_conf" "$_data_conf"
 	chown 965 "$_data_conf"
-	cp "$STAGE_MNT/usr/local/etc/elasticsearch/logging.yml" "$ZFS_DATA_MNT/elasticsearch/etc/"
+
+	# for ES < 5
+#	if [ ! -f "$ZFS_DATA_MNT/elasticsearch/etc/logging.yml" ]; then
+#		cp "$STAGE_MNT/usr/local/etc/elasticsearch/logging.yml" "$ZFS_DATA_MNT/elasticsearch/etc/"
+#	fi
+
+	if [ ! -f "$ZFS_DATA_MNT/elasticsearch/etc/log4j2.properties" ]; then
+		cp "$STAGE_MNT/usr/local/etc/elasticsearch/log4j2.properties" "$ZFS_DATA_MNT/elasticsearch/etc/"
+	fi
 
 	sed -i .bak \
 		-e '/^path.data: / s/var/data/' \
