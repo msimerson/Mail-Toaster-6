@@ -377,7 +377,7 @@ EO_DELIVERABLED_RUN
 	if [ ! "$(pkg query %n -F p5-HTTP-Daemon)" ]; then
 		echo "Installing HTTP::Daemon"
 		pkg install -y p5-HTTP-Daemon
-		make -C /usr/ports/www/p5-HTTP-Daemon deinstall install clean
+		make -C /usr/ports/www/p5-HTTP-Daemon build deinstall install clean
 	fi
 
 	pkg install -y p5-Package-Constants
