@@ -142,7 +142,7 @@ constrain_sshd_to_host()
 	fi
 
 	tell_status "checking sshd listening scope"
-	if ! sockstat -L | egrep '\*:22 '; then
+	if ! sockstat -L | grep -E '\*:22 '; then
 		return
 	fi
 
@@ -227,7 +227,7 @@ check_global_listeners()
 {
 	tell_status "checking for host listeners on all IPs"
 
-	if sockstat -L -4 | egrep '\*:[0-9]' | grep -v 123; then
+	if sockstat -L -4 | grep -E '\*:[0-9]' | grep -v 123; then
 		echo "oops!, you should not having anything listening
 on all your IP addresses!"
 		exit 2
