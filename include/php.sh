@@ -15,13 +15,8 @@ install_php()
 	_modules="$2"
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
-		tell_status "including php mysql module"
-		if [ "$_version" = "70" ]; then
-			# php 70 doesn't have a plain mysql driver
-			_modules="$_modules pdo_mysql"
-		else
-			_modules="$_modules pdo_mysql mysql"
-		fi
+		tell_status "including php mysqli & PDO_mysql modules"
+		_modules="$_modules pdo_mysql mysqli"
 	fi
 
 	for m in $_modules
@@ -55,8 +50,8 @@ configure_php_ini()
 	fi
 
 	tell_status "getting the timezone"
-	TZ=`md5 -q /etc/localtime`
-	TIMEZONE=`find /usr/share/zoneinfo -type f | xargs md5 -r | grep  $TZ | awk '{print $2}' |cut -c21- `
+	TZ=$(md5 -q /etc/localtime)
+	TIMEZONE=$(find /usr/share/zoneinfo -type f | xargs md5 -r | grep "$TZ" | awk '{print $2}' |cut -c21-)
 
 	if [ -z "$TIMEZONE" ]; then
 		TIMEZONE="America\/Los_Angeles"
