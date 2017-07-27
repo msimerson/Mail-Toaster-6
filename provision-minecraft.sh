@@ -18,7 +18,7 @@ install_minecraft()
 	stage_make_conf games_minecraft-server 'games_minecraft-server_SET=DAEMON
 games_minecraft-server_UNSET=STANDALONE'
 	# export BATCH=${BATCH:="1"}
-	stage_exec make -C /usr/ports/games/minecraft-server install clean
+	stage_port_install games/minecraft-server || exit
 }
 
 configure_minecraft()

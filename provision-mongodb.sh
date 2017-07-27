@@ -13,8 +13,8 @@ install_mongodb()
 	#stage_pkg_install mongodb34 || exit
 
 	tell_status "install mongodb 3.4"
-	stage_pkg_install dialog4ports python scons boost-libs snappy pcre cyrus-sasl || exit
-	stage_exec make -C /usr/ports/databases/mongodb34 clean build install clean
+	stage_pkg_install dialog4ports python scons boost-libs snappy pcre cyrus-sasl || exit 1
+	stage_port_install databases/mongodb34 || exit 1
 }
 
 configure_mongodb()

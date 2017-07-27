@@ -17,7 +17,7 @@ install_whmcs()
 	install_nginx whmcs
 
 	stage_pkg_install sudo
-	stage_exec make -C /usr/ports/devel/ioncube clean build install clean
+	stage_port_install devel/ioncube || exit
 }
 
 configure_whmcs()

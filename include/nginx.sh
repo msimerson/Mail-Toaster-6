@@ -32,7 +32,7 @@ install_nginx()
 	else
 		echo 'DEFAULT_VERSIONS+=ssl=openssl' >> "$STAGE_MNT/etc/make.conf"
 	fi
-	stage_exec make -C /usr/ports/www/nginx build deinstall install clean
+	stage_port_install www/nginx || exit 1
 }
 
 install_nginx_newsyslog()

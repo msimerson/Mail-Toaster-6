@@ -30,8 +30,9 @@ install_dovecot()
 
 	tell_status "building dovecot with vpopmail support"
 	stage_pkg_install dialog4ports
+
 	export BATCH=${BATCH:="1"}
-	stage_exec make -C /usr/ports/mail/dovecot2 clean build deinstall install clean || exit
+	stage_port_install mail/dovecot2 || exit 1
 }
 
 configure_dovecot_local_conf() {

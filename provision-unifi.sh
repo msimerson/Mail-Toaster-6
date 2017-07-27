@@ -15,7 +15,7 @@ install_unifi()
 	stage_pkg_install mongodb openjdk8 gmake || exit
 
 	tell_status "installing Unifi"
-	stage_exec make -C /usr/ports/net-mgmt/unifi5 clean build install clean
+	stage_port_install net-mgmt/unifi5 || exit
 
 	tell_status "Enable UniFi 5"
 	stage_sysrc unifi_enable=YES

@@ -60,11 +60,11 @@ install_spamassassin_port()
 mail_spamassassin_UNSET=SSL PGSQL GNUPG GNUPG2"
 
 	if [ ! -d "$STAGE_MNT/usr/ports/mail/spamassassin" ]; then
-		echo "ports aren't mounted!" && exit
+		echo "ports aren't mounted!" && exit 1
 	fi
 
 	#export BATCH=1  # if set, GPG key importing will fail
-	stage_exec make -C /usr/ports/mail/spamassassin deinstall install clean || exit
+	stage_port_install mail/spamassassin || exit 1
 }
 
 install_spamassassin_nrpe()
