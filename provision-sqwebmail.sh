@@ -17,7 +17,11 @@ install_authdaemond()
 security_courier-authlib_SET=AUTH_VCHKPW
 "
 	export BATCH=${BATCH:="1"}
-	stage_exec make -C /usr/ports/security/courier-authlib deinstall install clean || exit
+
+	# sunset after 2017-08 (when courier-unicode 2.0 is installed by pkg)
+	stage_port_install devel/courier-unicode || exit
+
+	stage_port_install security/courier-authlib || exit
 }
 
 install_sqwebmail_src()
@@ -28,7 +32,7 @@ mail_sqwebmail_SET=AUTH_VCHKPW
 mail_sqwebmail_UNSET=SENTRENAME
 "
 	export BATCH=${BATCH:="1"}
-	stage_exec make -C /usr/ports/mail/sqwebmail deinstall install clean || exit
+	stage_port_install mail/sqwebmail || exit
 }
 
 install_sqwebmail()

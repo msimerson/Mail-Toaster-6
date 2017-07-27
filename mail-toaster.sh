@@ -537,6 +537,12 @@ stage_pkg_install()
 	pkg -j "$SAFE_NAME" install -y "$@"
 }
 
+stage_port_install()
+{
+	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
+	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean
+}
+
 stage_sysrc()
 {
 	# don't use -j as this is oft called when jail is not running

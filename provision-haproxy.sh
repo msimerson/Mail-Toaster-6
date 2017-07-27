@@ -8,17 +8,21 @@ export JAIL_CONF_EXTRA=""
 
 install_haproxy()
 {
-	tell_status "installing haproxy"
-	stage_pkg_install haproxy || exit
-
 	if [ "$TLS_LIBRARY" != "libressl" ]; then
+		install_haproxy_libressl || exit 1
 		return
 	fi
 
+	tell_status "installing haproxy"
+	stage_pkg_install haproxy || exit 1
+}
+
+install_haproxy_libressl()
+{
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
-	stage_pkg_install pcre gmake libressl
-	stage_exec make -C /usr/ports/net/haproxy build deinstall install clean
+	stage_pkg_install pcre gmake libressl || exit 1
+	stage_port_install net/haproxy || exit 1
 }
 
 configure_haproxy_dot_conf()

@@ -21,9 +21,8 @@ install_tinydns()
 dns_djbdns_SET=IP6
 sysutils_ucspi-tcp_SET=IPV6
 EO_MAKE_CONF
-	stage_exec make -C /usr/ports/sysutils/ucspi-tcp build deinstall install clean
-	stage_exec pkg delete -y djbdns
-	stage_exec make -C /usr/ports/dns/djbdns build deinstall install clean
+	stage_port_install sysutils/ucspi-tcp || exit
+	stage_port_install dns/djbdns || exit
 }
 
 configure_tinydns()

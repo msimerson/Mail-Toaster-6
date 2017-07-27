@@ -14,7 +14,7 @@ install_haraka()
 {
 	tell_status "installing node & npm"
 	stage_pkg_install node npm gmake || exit
-	#stage_exec make -C /usr/ports/www/npm install clean
+	#stage_port_install www/npm
 
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git-lite
