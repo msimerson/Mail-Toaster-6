@@ -297,9 +297,6 @@ set_jail_start_order()
 		tell_status "preserving jail order"
 		return
 	fi
-
-	tell_status "setting jail startup order"
-	sysrc jail_list="$JAIL_STARTUP_LIST"
 }
 
 jail_reverse_shutdown()
