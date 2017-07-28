@@ -13,7 +13,7 @@ mt6-include nginx
 
 install_whmcs()
 {
-	install_php 70 "ctype curl filter gd iconv imap json mbstring mcrypt openssl session soap xml xmlrpc zip zlib"
+	install_php 70 "ctype curl filter gd hash iconv imap json mbstring mcrypt openssl session soap xml xmlrpc zip zlib"
 	install_nginx whmcs
 
 	stage_pkg_install sudo
