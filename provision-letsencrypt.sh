@@ -240,6 +240,9 @@ configure_letsencrypt()
 	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
 		update_haproxy_ssld
 		$_acme --deploy -d "$TOASTER_HOSTNAME" --deploy-hook mailtoaster
+	else
+		tell_status "TLS Certificate Issue failed"
+		exit 1
 	fi
 }
 

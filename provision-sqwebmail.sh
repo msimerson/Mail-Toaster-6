@@ -46,7 +46,7 @@ install_sqwebmail()
 	install_vpopmail_port
 
 	tell_status "installing sqwebmail"
-	stage_pkg_install sqwebmail courier-authlib lighttpd maildrop || exit
+	stage_pkg_install sqwebmail courier-authlib lighttpd maildrop gnupg || exit
 
 	install_authdaemond
 	install_sqwebmail_src

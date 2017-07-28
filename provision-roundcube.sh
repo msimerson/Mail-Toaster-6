@@ -119,7 +119,7 @@ configure_roundcube()
 	local _rcc_conf="$STAGE_MNT/$_local_path"
 	if [ -f "$ZFS_JAIL_MNT/roundcube.last/$_local_path" ]; then
 		tell_status "preserving $_rcc_conf"
-		cp "$$ZFS_JAIL_MNT/roundcube.last/$_local_path" "$_rcc_conf" || exit
+		cp "$ZFS_JAIL_MNT/roundcube.last/$_local_path" "$_rcc_conf" || exit
 		return
 	fi
 
