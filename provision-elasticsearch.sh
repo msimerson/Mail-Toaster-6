@@ -42,7 +42,7 @@ install_elasticsearch()
 	fi
 
 	tell_status "installing kibana"
-	stage_pkg_install kibana50 kibana50-x-pack
+	stage_pkg_install kibana5 kibana5-x-pack
 }
 
 configure_elasticsearch()
