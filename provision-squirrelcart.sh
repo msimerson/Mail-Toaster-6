@@ -75,7 +75,7 @@ configure_nginx_server()
 
 		location ~ ^/cart/(.+\.php)(/.*)?$ {
 			alias          /usr/local/www/squirrelcart;
-			fastcgi_pass   127.0.0.1:9000;
+			fastcgi_pass   php;
 			fastcgi_index  index.php;
 			fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
 			fastcgi_param  PATH_INFO $2;
