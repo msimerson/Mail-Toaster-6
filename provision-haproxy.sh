@@ -68,6 +68,7 @@ configure_haproxy_dot_conf()
 	frontend http-in
 	bind *:80
 	bind *:443 ssl crt /etc/ssl/private
+	#bind *:443 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -76,7 +77,7 @@ configure_haproxy_dot_conf()
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
-	acl letsencrypt  path_beg -i /.well-known
+	acl letsencrypt  path_beg -i /.well-known/acme-challenge
 	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	acl munin        path_beg /munin
@@ -99,7 +100,7 @@ configure_haproxy_dot_conf()
 	acl smf          path_beg /forum
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
-	acl horde	 path_beg /horde
+	acl horde        path_beg /horde
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -118,7 +119,7 @@ configure_haproxy_dot_conf()
 	use_backend www_smf          if  smf
 	use_backend www_wordpress    if  wordpress
 	use_backend www_stage        if  stage
-	use_backend www_horde        if horde
+	use_backend www_horde        if  horde
 
 	# for Let's Encrypt SSL/TLS certificates
 	use_backend www_webmail      if  letsencrypt

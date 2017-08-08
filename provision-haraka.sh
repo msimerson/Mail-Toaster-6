@@ -81,9 +81,9 @@ install_p0f()
 
 configure_haraka_syslog()
 {
-	if ! grep -qs ^log.syslog "$HARAKA_CONF/plugins"; then
+	if ! grep -qs ^syslog "$HARAKA_CONF/plugins"; then
 		tell_status "enable logging to syslog"
-		sed -i '' -e '/^# log.syslog$/ s/# //' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# syslog$/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
@@ -97,12 +97,25 @@ EO_DLF
 		fi
 	fi
 
-    # absense of haraka.log prevents log-reader from working
-#	if ! grep -qs always_ok "$HARAKA_CONF/log.syslog.ini"; then
-#		# don't write to daemon_log_file if syslog write was successful
-#		echo "[general]
-#always_ok=true" | tee -a "$HARAKA_CONF/log.syslog.ini"
-#	fi
+	tee "$HARAKA_CONF/log.reader.ini" <<EO_LRC
+[log]
+file=/var/log/maillog
+EO_LRC
+
+	# absense of mailogs in jail prevents log-reader from working
+	if ! grep -qs always_ok "$HARAKA_CONF/syslog.ini"; then
+		# don't write to daemon_log_file if syslog write was successful
+		echo "[general]
+always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
+	fi
+
+	# send Haraka logs to haraka's /var/log so log-reader can access them
+	tee "$STAGE_MNT/etc/syslog.conf" <<EO_SYSLOG
+mail.info					/var/log/maillog
+#*.*			@syslog
+EO_SYSLOG
+
+	touch "$STAGE_MNT/var/log/maillog"
 }
 
 configure_haraka_smtp_forward()

@@ -181,7 +181,7 @@ EO_LE_HARAKA
 install_deploy_mailtoaster()
 {
 	# shellcheck disable=SC2154
-	tee "$_deploy/mailtoaster" <<'EO_LE_HAPROXY'
+	tee "$_deploy/mailtoaster" <<'EO_LE_MT'
 #!/usr/local/bin/bash
 
 #domain keyfile certfile cafile fullchain
@@ -201,7 +201,7 @@ mailtoaster_deploy() {
 
 	return 0
 }
-EO_LE_HAPROXY
+EO_LE_MT
 }
 
 install_deploy_scripts()
