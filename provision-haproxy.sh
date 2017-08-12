@@ -185,6 +185,66 @@ configure_haproxy_dot_conf()
 EO_HAPROXY_CONF
 }
 
+install_ocsp_stapler()
+{
+	if [ -f "$1" ]; then return; fi
+
+	tee "$1" <<'EO_OCSP'
+#!/bin/sh -e
+
+# http://www.jinnko.org/2015/03/ocsp-stapling-with-haproxy.html
+
+# Get an OSCP response from the certificates OCSP issuer for use
+# with HAProxy, then reload HAProxy if there have been updates.
+
+OPENSSL=/usr/bin/openssl
+
+# Path to certificates
+PEMSDIR=/data/ssl.d
+
+# Path to log output to
+LOGDIR=/var/log/haproxy
+
+# Create the log path if it doesn't already exist
+[ -d ${LOGDIR} ] || mkdir ${LOGDIR}
+UPDATED=0
+
+cd ${PEMSDIR}
+for pem in *.pem; do
+    echo "= $(date)" >> ${LOGDIR}/${pem}.log
+
+    # Get the OCSP URL from the certificate
+    ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in $pem)
+
+    # Extract the hostname from the OCSP URL
+    ocsp_host=$(echo $ocsp_url | cut -d/ -f3)
+
+    # Only process the certificate if we have a .issuer file
+    if [ -r ${pem}.issuer ]; then
+
+        # Request the OCSP response from the issuer and store it
+        $OPENSSL ocsp \
+            -issuer ${pem}.issuer \
+            -cert ${pem} \
+            -url ${ocsp_url} \
+            -header Host ${ocsp_host} \
+            -respout ${pem}.ocsp >> ${LOGDIR}/${pem}.log 2>&1
+    fi
+    UPDATED=$(( $UPDATED + 1 ))
+done
+
+if [ $UPDATED -gt 0 ]; then
+    echo "= $(date) - Updated $UPDATED OCSP responses" >> ${LOGDIR}/${pem}.log
+    service haproxy reload > ${LOGDIR}/service-reload.log 2>&1
+else
+    echo "= $(date) - No updates" >> ${LOGDIR}/${pem}.log
+fi
+
+EO_OCSP
+
+	chmod 755 "$1"
+}
+
 configure_haproxy_tls()
 {
 	if [ ! -f "$STAGE_MNT/etc/ssl/private/server.pem" ]; then
@@ -207,6 +267,11 @@ configure_haproxy_tls()
 		tell_status "creating dhparam file for haproxy"
 		openssl dhparam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
 	fi
+
+	if [ ! -d "$STAGE_MNT/usr/local/etc/periodic/daily" ]; then
+		mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
+	fi
+	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"
 }
 
 configure_haproxy()
