@@ -70,8 +70,8 @@ install_gitlab_runner()
 	tell_status "installing GitLab Runner!"
 	stage_exec pw group add -n gitlab-runner -m
 	stage_exec pw user add -n gitlab-runner -g gitlab-runner -s /usr/local/bin/bash
-	#stage_exec mkdir /home/gitlab-runner
-	#stage_exec chown gitlab-runner:gitlab-runner /home/gitlab-runner
+	stage_exec mkdir /home/gitlab-runner
+	stage_exec chown gitlab-runner:gitlab-runner /home/gitlab-runner
 	stage_exec fetch -m -o /usr/local/bin/gitlab-runner https://gitlab-ci-multi-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-ci-multi-runner-freebsd-amd64
 	stage_exec chmod +x /usr/local/bin/gitlab-runner
 	stage_exec touch /var/log/gitlab_runner.log && chown gitlab-runner:gitlab-runner /var/log/gitlab_runner.log
