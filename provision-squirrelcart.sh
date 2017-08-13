@@ -49,10 +49,10 @@ install_squirrelcart()
 
 	mv "$STAGE_MNT/tmp/$_verdir/upload" "$STAGE_MNT/usr/local/www/squirrelcart" || exit
 	ln -s /data/sc_images "$STAGE_MNT/usr/local/www/squirrelcart/sc_images"
-	install_nginx
-	install_php 56 "mysql session curl openssl gd json"
+	install_nginx || exit
+	install_php 56 "mysqli session curl openssl gd json soap xml" || exit
 
-	stage_pkg_install postfix
+	stage_pkg_install postfix || exit
 }
 
 configure_nginx_server()
@@ -75,7 +75,7 @@ configure_nginx_server()
 
 		location ~ ^/cart/(.+\.php)(/.*)?$ {
 			alias          /usr/local/www/squirrelcart;
-			fastcgi_pass   127.0.0.1:9000;
+			fastcgi_pass   php;
 			fastcgi_index  index.php;
 			fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
 			fastcgi_param  PATH_INFO $2;

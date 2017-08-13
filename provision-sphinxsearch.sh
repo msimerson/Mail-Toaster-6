@@ -17,7 +17,7 @@ install_sphinxsearch()
 	tell_status "Compiling Sphinx search"
 
 	export BATCH=${BATCH:="1"}
-	stage_exec make -C /usr/ports/textproc/sphinxsearch  deinstall install clean || exit
+	stage_port_install textproc/sphinxsearch || exit
 }
 
 start_sphinxsearch()

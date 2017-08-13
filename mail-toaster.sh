@@ -23,7 +23,6 @@ export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
-export JAIL_STARTUP_LIST="dns mysql vpopmail dovecot webmail haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
@@ -60,7 +59,6 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_STARTUP_LIST=${JAIL_STARTUP_LIST:="dns mysql vpopmail dovecot webmail roundcube haproxy clamav avg redis rspamd geoip spamassassin haraka monitor"}
 export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
@@ -506,6 +504,17 @@ seed_pkg_audit()
 	fi
 }
 
+enable_jail()
+{
+	if sysrc -e jail_list | grep -q "$1"; then
+		#echo "jail $1 already enabled at startup"
+		return
+	fi
+
+	tell_status "enabling jail $1 at startup"
+	sysrc jail_list+=" $1"
+}
+
 promote_staged_jail()
 {
 	seed_pkg_audit
@@ -527,7 +536,8 @@ promote_staged_jail()
 	add_jail_conf "$1"
 
 	tell_status "service jail start $1"
-	service jail start "$1" || exit
+	service jail start "$1" || exit 1
+	enable_jail "$1"
 	proclaim_success "$1"
 }
 
@@ -535,6 +545,14 @@ stage_pkg_install()
 {
 	echo "pkg -j $SAFE_NAME install -y $*"
 	pkg -j "$SAFE_NAME" install -y "$@"
+}
+
+stage_port_install()
+{
+	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
+	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
+
+	tell_status "port $1 installed"
 }
 
 stage_sysrc()

@@ -13,11 +13,11 @@ mt6-include nginx
 
 install_whmcs()
 {
-	install_php 70 "ctype curl filter gd iconv imap json mbstring mcrypt openssl session soap xml xmlrpc zip zlib"
+	install_php 70 "ctype curl filter gd hash iconv imap json mbstring mcrypt openssl session soap xml xmlrpc zip zlib"
 	install_nginx whmcs
 
 	stage_pkg_install sudo
-	stage_exec make -C /usr/ports/devel/ioncube clean build install clean
+	stage_port_install devel/ioncube || exit
 }
 
 configure_whmcs()

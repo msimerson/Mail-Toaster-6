@@ -181,7 +181,7 @@ EO_LE_HARAKA
 install_deploy_mailtoaster()
 {
 	# shellcheck disable=SC2154
-	tee "$_deploy/mailtoaster" <<'EO_LE_HAPROXY'
+	tee "$_deploy/mailtoaster" <<'EO_LE_MT'
 #!/usr/local/bin/bash
 
 #domain keyfile certfile cafile fullchain
@@ -201,7 +201,7 @@ mailtoaster_deploy() {
 
 	return 0
 }
-EO_LE_HAPROXY
+EO_LE_MT
 }
 
 install_deploy_scripts()
@@ -240,6 +240,9 @@ configure_letsencrypt()
 	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
 		update_haproxy_ssld
 		$_acme --deploy -d "$TOASTER_HOSTNAME" --deploy-hook mailtoaster
+	else
+		tell_status "TLS Certificate Issue failed"
+		exit 1
 	fi
 }
 

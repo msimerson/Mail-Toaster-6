@@ -8,17 +8,21 @@ export JAIL_CONF_EXTRA=""
 
 install_haproxy()
 {
-	tell_status "installing haproxy"
-	stage_pkg_install haproxy || exit
-
 	if [ "$TLS_LIBRARY" != "libressl" ]; then
+		install_haproxy_libressl || exit 1
 		return
 	fi
 
+	tell_status "installing haproxy"
+	stage_pkg_install haproxy || exit 1
+}
+
+install_haproxy_libressl()
+{
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
-	stage_pkg_install pcre gmake libressl
-	stage_exec make -C /usr/ports/net/haproxy build deinstall install clean
+	stage_pkg_install pcre gmake libressl || exit 1
+	stage_port_install net/haproxy || exit 1
 }
 
 configure_haproxy_dot_conf()
@@ -64,6 +68,7 @@ configure_haproxy_dot_conf()
 	frontend http-in
 	bind *:80
 	bind *:443 ssl crt /etc/ssl/private
+	#bind *:443 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -72,7 +77,7 @@ configure_haproxy_dot_conf()
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
-	acl letsencrypt  path_beg -i /.well-known
+	acl letsencrypt  path_beg -i /.well-known/acme-challenge
 	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	acl munin        path_beg /munin
@@ -95,7 +100,7 @@ configure_haproxy_dot_conf()
 	acl smf          path_beg /forum
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
-	acl horde	 path_beg /horde
+	acl horde        path_beg /horde
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -114,7 +119,7 @@ configure_haproxy_dot_conf()
 	use_backend www_smf          if  smf
 	use_backend www_wordpress    if  wordpress
 	use_backend www_stage        if  stage
-	use_backend www_horde        if horde
+	use_backend www_horde        if  horde
 
 	# for Let's Encrypt SSL/TLS certificates
 	use_backend www_webmail      if  letsencrypt

@@ -76,7 +76,7 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 	fi
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
-	stage_exec make -C /usr/ports/mail/qmailadmin install clean
+	stage_port_install mail/qmailadmin || exit
 
 	install_lighttpd
 }
