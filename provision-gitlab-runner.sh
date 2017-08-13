@@ -51,8 +51,7 @@ gitlab_runner_stop()
     fi
 }
 
-gitlab_runner_status()
-{
+gitlab_runner_status() {
     if [ ! -f ${pidfile} ] || kill -0 `cat ${pidfile}`; then
         echo "Service ${name} is not running."
     else
@@ -76,7 +75,7 @@ install_gitlab_runner()
 	stage_exec fetch -m -o /usr/local/bin/gitlab-runner https://gitlab-ci-multi-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-ci-multi-runner-freebsd-amd64
 	stage_exec chmod +x /usr/local/bin/gitlab-runner
 	stage_exec touch /var/log/gitlab_runner.log && chown gitlab-runner:gitlab-runner /var/log/gitlab_runner.log
-    install_glr_rcd
+	install_glr_rcd
 }
 
 configure_gitlab_runner()
