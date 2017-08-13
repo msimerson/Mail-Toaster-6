@@ -1,6 +1,6 @@
 
 before_script:
-# - apt-get update -qq && apt-get install -y -qq sqlite3 libsqlite3-dev nodejs
+    - pkg update && pkg install -y ca_root_nss
 
 jailip:
-  script: "test/get_jail_ip.sh"
+    script: "test/get_jail_ip.sh"
