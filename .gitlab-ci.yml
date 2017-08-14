@@ -1,9 +1,49 @@
 image: auchida/freebsd:latest
 
 before_script:
-    - pkg update && pkg install -y ca_root_nss
+  - sudo pkg update && sudo pkg install -y ca_root_nss
+  - sh test/get_jail_ip.sh
+  - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
+  - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
 
-jailip:
-  script: "test/get_jail_ip.sh"
-  tags: 
+toaster:
+  script:
+    - sh provision-host.sh
+    - sh provision-base.sh
+    - sh provision-dns.sh
+    - sh provision-mysql.sh
+    - sh provision-redis.sh
+    - sh provision-clamav.sh
+    - sh provision-rspamd.sh
+    - sh provision-vpopmail.sh
+    - sh provision-dovecot.sh
+    - sh provision-geoip.sh
+    - sh provision-haproxy.sh
+    - sh provision-webmail.sh
+    - sh provision-roundcube.sh
+    - sh provision-rainloop.sh
+    - sh provision-squirrelmail.sh
+    - sh provision-spamassassin.sh
+  tags:
     - freebsd
+    - ssh
+
+harka:
+  script:
+    - sh provision-haraka.sh
+  tags:
+    - freebsd
+    - ssh
+
+
+# Test Runner Setup Instructions
+# 1. Create a new FreeBSD VM, 3GB RAM, 15GB+ Disk
+#    (no distributions, Auto ZFS partitioning)
+# 2. install ~/.ssh/authorized_keys & /root/.ssh/authorized_keys
+# 3. sed -i'' 's/^#PermitRoot.*/PermitRootLogin without-password/'
+# 4. pkg update && pkg install -y sudo git-lite open-vm-tools-nox11 vim-lite bash
+# N. chpass -s bash $USER && chpass -s bash root
+# 5. freebsd-update fetch install
+# 6. portsnap fetch extract
+# N. service sendmail stop; sysrc sendmail_enable=NONE
+# 7. halt -p && take a snapshot
