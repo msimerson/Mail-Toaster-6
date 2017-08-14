@@ -68,6 +68,8 @@ EOGLRC
 install_gitlab_runner()
 {
 	tell_status "installing GitLab Runner!"
+	#stage_pkg_install gitlab-runner
+
 	stage_exec pw group add -n gitlab-runner -m
 	stage_exec pw user add -n gitlab-runner -g gitlab-runner -s /usr/local/bin/bash
 	stage_exec mkdir /home/gitlab-runner
