@@ -7,3 +7,4 @@ jailip:
   script: sh test/get_jail_ip.sh
   tags: 
     - freebsd
+    - docker
