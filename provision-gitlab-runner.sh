@@ -1,91 +1,62 @@
-!/bin/sh
+#!/bin/sh
 
 # shellcheck disable=1091
 . mail-toaster.sh || exit
 
 # https://wiki.freebsd.org/Docker
 # https://docs.gitlab.com/runner/install/freebsd.html
-install_glr_rcd()
+
+install_gitlab_runner_pkg()
 {
-	if [ ! -d "$STAGE_MNT//usr/local/etc/rc.d" ]; then
-		mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
-	fi
-
-	tee "$STAGE_MNT//usr/local/etc/rc.d/gitlab_runner" << 'EOGLRC'
-#!/bin/sh
-# PROVIDE: gitlab_runner
-# REQUIRE: DAEMON NETWORKING
-# BEFORE:
-# KEYWORD:
-
-. /etc/rc.subr
-
-name="gitlab_runner"
-rcvar="gitlab_runner_enable"
-
-load_rc_config $name
-
-user="gitlab-runner"
-user_home="/home/gitlab-runner"
-command="/usr/local/bin/gitlab-runner run"
-pidfile="/var/run/${name}.pid"
-
-start_cmd="gitlab_runner_start"
-stop_cmd="gitlab_runner_stop"
-status_cmd="gitlab_runner_status"
-
-gitlab_runner_start()
-{
-    export USER=${user}
-    export HOME=${user_home}
-    if checkyesno ${rcvar}; then
-        cd ${user_home}
-        /usr/sbin/daemon -u ${user} -p ${pidfile} ${command} > /var/log/gitlab_runner.log 2>&1
-    fi
+	tell_status "installing GitLab Runner package"
+	stage_pkg_install gitlab-runner
 }
 
-gitlab_runner_stop()
+install_gitlab_runner_port()
 {
-    if [ -f ${pidfile} ]; then
-        kill `cat ${pidfile}`
-    fi
+	tell_status "installing GitLab Runner port"
+	stage_pkg_install dialog4ports go
+	stage_port_install devel/gitlab-runner || exit
 }
 
-gitlab_runner_status() {
-    if [ ! -f ${pidfile} ] || kill -0 `cat ${pidfile}`; then
-        echo "Service ${name} is not running."
-    else
-        echo "${name} appears to be running."
-    fi
-}
-
-run_rc_command $1
-EOGLRC
-
-    chmod +x "$STAGE_MNT/usr/local/etc/rc.d/gitlab_runner"
+install_gitlab_runner_latest()
+{
+	tell_status "installing GitLab Runner Latest"
+	stage_exec fetch -m -o /usr/local/bin/gitlab-runner https://gitlab-ci-multi-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-ci-multi-runner-freebsd-amd64
+	stage_exec chmod +x /usr/local/bin/gitlab-runner
 }
 
 install_gitlab_runner()
 {
-	tell_status "installing GitLab Runner!"
-	stage_pkg_install gitlab-runner
-
-    stage_pkg_install dialog4ports go
-
+	tell_status "setting up gitlab-runner user"
 	stage_exec pw group add -n gitlab-runner -m
 	stage_exec pw user add -n gitlab-runner -g gitlab-runner -s /usr/local/bin/bash
 	stage_exec mkdir /home/gitlab-runner
 	stage_exec chown gitlab-runner:gitlab-runner /home/gitlab-runner
-	stage_exec fetch -m -o /usr/local/bin/gitlab-runner https://gitlab-ci-multi-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-ci-multi-runner-freebsd-amd64
-	stage_exec chmod +x /usr/local/bin/gitlab-runner
-	stage_exec touch /var/log/gitlab_runner.log && chown gitlab-runner:gitlab-runner /var/log/gitlab_runner.log
-	install_glr_rcd
+	touch "$STAGE_MNT/var/log/gitlab_runner.log"
+	stage_exec chown gitlab-runner:gitlab-runner /var/log/gitlab_runner.log
+
+	install_gitlab_runner_pkg
+	# Version:      1.11.1
+	# Git revision: 08a9e6f
+	# Git branch:   9-0-stable
+
+	install_gitlab_runner_port
+	# Version:      9.3.0
+	# Git revision: 3df822b
+	# Git branch:   9-3-stable
+
+	# install_gitlab_runner_latest
+	# Version:      9.4.2
+	# Git revision: 6d06f2e
+	# Git branch:   9-4-stable
 }
 
 configure_gitlab_runner()
 {
 	tell_status "configuring GitLab Runner!"
-	stage_sysrc "gitlab_runner_enable=YES"
+	stage_sysrc gitlab_runner_enable=YES
+	stage_sysrc gitlab_runner_dir=/home/gitlab-runner
 }
 
 start_gitlab_runner()
