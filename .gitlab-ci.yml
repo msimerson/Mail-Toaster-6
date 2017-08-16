@@ -1,9 +1,0 @@
-image: auchida/freebsd:latest
-
-before_script:
-    - pkg update && pkg install -y ca_root_nss
-
-jailip:
-  script: "test/get_jail_ip.sh"
-  tags: 
-    - freebsd
