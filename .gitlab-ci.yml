@@ -2,12 +2,12 @@ image: auchida/freebsd:latest
 
 before_script:
   - sudo pkg update && sudo pkg install -y ca_root_nss
+  - sh test/get_jail_ip.sh
+  - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
+  - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
 
 toaster:
   script:
-    - sh test/get_jail_ip.sh
-    - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
-    - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
     - sh provision-host.sh
     - sh provision-base.sh
     - sh provision-dns.sh
@@ -18,13 +18,19 @@ toaster:
     - sh provision-vpopmail.sh
     - sh provision-dovecot.sh
     - sh provision-geoip.sh
-    - sh provision-haraka.sh
     - sh provision-haproxy.sh
     - sh provision-webmail.sh
     - sh provision-roundcube.sh
     - sh provision-rainloop.sh
     - sh provision-squirrelmail.sh
     - sh provision-spamassassin.sh
+  tags:
+    - freebsd
+    - ssh
+
+harka:
+  script:
+    - sh provision-haraka.sh
   tags:
     - freebsd
     - ssh
