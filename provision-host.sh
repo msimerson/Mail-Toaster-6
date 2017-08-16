@@ -252,6 +252,10 @@ check_global_listeners()
 on all your IP addresses!"
 		if [ -t 0 ]; then exit 2; fi
 
+		if [ -t 0 ]; then
+			exit 2
+		fi
+
 		echo "Not interactive, continuing anyway."
 		return
 	fi
@@ -403,7 +407,7 @@ update_ports_tree()
 
 update_freebsd()
 {
-	if [ -n "$PS1" ]; then
+	if [ !  -t 0 ]; then
 		echo "Not interactive, it's up to you to keep FreeBSD up to date!"
 		return
 	fi

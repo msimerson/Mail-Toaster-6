@@ -58,24 +58,23 @@ webmail:
     - freebsd
     - ssh
 
-spamassassin:
-  stage: extras
-  script:
-    - sh provision-spamassassin.sh
-  tags:
-    - freebsd
-    - ssh
-
-avg:
+extras:
   stage: extras
   script:
     - sh provision-avg.sh
+    - sh provision-spamassassin.sh
+    - sh provision-sqwebmail.sh
   tags:
     - freebsd
     - ssh
+  allow_failure: true
+
 
 # Test Runner Setup Instructions
-# 1. Create a new FreeBSD VM, 3GB RAM, 15GB+ Disk
+# 1. Install GitLab Runner: https://docs.gitlab.com/runner/
+# N. Register a runner with the SSH executor and identify_file
+#    https://docs.gitlab.com/runner/executors/ssh.html
+# 1. Create a new FreeBSD VM, 4GB RAM, 10GB+ Disk
 #    (no distributions, Auto ZFS partitioning)
 # 2. install ~/.ssh/authorized_keys & /root/.ssh/authorized_keys
 # 3. sed -i'' 's/^#PermitRoot.*/PermitRootLogin without-password/'

@@ -23,7 +23,7 @@ EO_SOCKET
 install_postgresl()
 {
 	tell_status "installing PostgresQL server 9.5!"
-	# /etc/sysctl.conf: security.jail.sysvipc_allowed=1 
+	# /etc/sysctl.conf: security.jail.sysvipc_allowed=1
 	# jail.conf: allow.sysvipc=1
 
 	if ! grep -q ^postgres "$STAGE/etc/login.conf"; then

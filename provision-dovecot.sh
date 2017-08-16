@@ -211,9 +211,10 @@ configure_tls_certs()
 
 	tell_status "installing dovecot TLS certificates"
 	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
-	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	# sunset after Dovecot 2.3 released
+	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	# /sunset
 	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem" || exit
-
 }
 
 configure_dovecot()
