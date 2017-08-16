@@ -6,35 +6,73 @@ before_script:
   - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
   - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
 
-toaster:
+stages:
+  - mailservices
+  - mailstore
+  - mta
+  - webmail
+  - extras
+
+mailservices:
+  stage: mailservices
   script:
     - sh provision-host.sh
     - sh provision-base.sh
     - sh provision-dns.sh
     - sh provision-mysql.sh
     - sh provision-redis.sh
-    - sh provision-clamav.sh
-    - sh provision-rspamd.sh
-    - sh provision-vpopmail.sh
-    - sh provision-dovecot.sh
-    - sh provision-geoip.sh
-    - sh provision-haproxy.sh
-    - sh provision-webmail.sh
-    - sh provision-roundcube.sh
-    - sh provision-rainloop.sh
-    - sh provision-squirrelmail.sh
-    - sh provision-spamassassin.sh
   tags:
     - freebsd
     - ssh
 
-harka:
+mailstore:
+  stage: mailstore
   script:
+    - sh provision-vpopmail.sh
+    - sh provision-dovecot.sh
+  tags:
+    - freebsd
+    - ssh
+
+mta:
+  stage: mta
+  script:
+    - sh provision-vpopmail.sh
+    - sh provision-clamav.sh
+    - sh provision-rspamd.sh
+    - sh provision-geoip.sh
     - sh provision-haraka.sh
   tags:
     - freebsd
     - ssh
 
+webmail:
+  stage: webmail
+  script:
+    - sh provision-haproxy.sh
+    - sh provision-webmail.sh
+    - sh provision-roundcube.sh
+    - sh provision-rainloop.sh
+    - sh provision-squirrelmail.sh
+  tags:
+    - freebsd
+    - ssh
+
+spamassassin:
+  stage: extras
+  script:
+    - sh provision-spamassassin.sh
+  tags:
+    - freebsd
+    - ssh
+
+avg:
+  stage: extras
+  script:
+    - sh provision-avg.sh
+  tags:
+    - freebsd
+    - ssh
 
 # Test Runner Setup Instructions
 # 1. Create a new FreeBSD VM, 3GB RAM, 15GB+ Disk
