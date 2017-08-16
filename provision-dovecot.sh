@@ -13,10 +13,11 @@ mt6-include vpopmail
 install_dovecot()
 {
 	tell_status "installing dovecot v2 package"
-	stage_pkg_install dovecot2 || exit
+	stage_pkg_install dovecot2 || stage_pkg_install dovecot || exit
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
+	stage_make_conf dovecot_SET 'mail_dovecot_SET=VPOPMAIL LIBWRAP EXAMPLES'
 
 	install_qmail
 	install_vpopmail_port
@@ -32,7 +33,7 @@ install_dovecot()
 	stage_pkg_install dialog4ports
 
 	export BATCH=${BATCH:="1"}
-	stage_port_install mail/dovecot2 || exit 1
+	stage_port_install mail/dovecot || exit 1
 }
 
 configure_dovecot_local_conf() {
