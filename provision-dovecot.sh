@@ -108,7 +108,7 @@ ssl_dh_parameters_length = 2048
 # /sunset
 
 # dovecot 2.3 will support a ssl_dh file
-#ssl_dh = </etc/ssl/dhparams.pem
+#ssl_dh = </etc/ssl/dhparam.pem
 
 # recommended settings for high security (mid-2017)
 ssl_prefer_server_ciphers = yes
@@ -211,6 +211,7 @@ configure_tls_certs()
 
 	tell_status "installing dovecot TLS certificates"
 	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
 	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem" || exit
 
 }

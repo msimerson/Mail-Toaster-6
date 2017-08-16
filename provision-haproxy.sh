@@ -40,7 +40,7 @@ configure_haproxy_dot_conf()
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
 	nbproc      1
 	ssl-default-bind-options no-sslv3 no-tls-tickets
-	ssl-dh-param-file /data/ssl/dhparam.pem
+	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
 
 	defaults
@@ -261,11 +261,6 @@ configure_haproxy_tls()
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl.d" ]; then
 		tell_status "creating /data/ssl.d"
 		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d" || exit 1
-	fi
-
-	if [ ! -f "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem" ]; then
-		tell_status "creating dhparam file for haproxy"
-		openssl dhparam 2048 -out "$ZFS_DATA_MNT/haproxy/ssl/dhparam.pem"
 	fi
 
 	if [ ! -d "$STAGE_MNT/usr/local/etc/periodic/daily" ]; then

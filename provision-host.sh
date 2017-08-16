@@ -234,7 +234,7 @@ localityName_default = $_city" \
 
 configure_dhparams()
 {
-	local DHP="/etc/ssl/dhparams.pem"
+	local DHP="/etc/ssl/dhparam.pem"
 	if [ -f "$DHP" ]; then
 		return
 	fi

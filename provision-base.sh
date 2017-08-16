@@ -141,12 +141,12 @@ configure_ssl_dirs()
 
 configure_tls_dhparams()
 {
-	if [ -f "$BASE_MNT/etc/ssl/dhparams.pem" ]; then
+	if [ -f "$BASE_MNT/etc/ssl/dhparam.pem" ]; then
 		return
 	fi
 
-	tell_status "installing dhparams.pem"
-	cp /etc/ssl/dhparams.pem "$BASE_MNT/etc/ssl/dhparams.pem"
+	tell_status "installing dhparam.pem"
+	cp /etc/ssl/dhparam.pem "$BASE_MNT/etc/ssl/dhparam.pem" || exit
 }
 
 configure_make_conf() {
