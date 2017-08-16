@@ -186,8 +186,8 @@ configure_tls_certs()
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 	if grep -qs dovecot.pem "$_localconf"; then
 		sed -i .bak \
-			-e "/^ssl_cert/ s/dovecot.pem/${TOASTER_MAIL_DOMAIN}/" \
-			-e "/^ssl_key/ s/dovecot.pem/${TOASTER_MAIL_DOMAIN}/" \
+			-e "/^ssl_cert/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
+			-e "/^ssl_key/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
 			"$_localconf"
 	fi
 
