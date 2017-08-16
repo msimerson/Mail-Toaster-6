@@ -15,6 +15,9 @@ hostprep:
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
     - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
     - sh provision-host.sh
+  tags:
+    - freebsd
+    - ssh
 
 vmware:
   stage: test
