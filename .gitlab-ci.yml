@@ -3,7 +3,6 @@ image: auchida/freebsd:latest
 before_script:
   - sudo pkg update && sudo pkg install -y ca_root_nss
 
-
 test:
   script:
     - sh test/get_jail_ip.sh
@@ -31,7 +30,12 @@ test:
     - ssh
 
 
-# pkg install -y hs-ShellCheck
-# sed -i'' 'm/^bind Sp/ s/^b/#b/' /root/.bash_profile
-# pkg install -y git-lite
-# /root/.ssh/authorized_keys
+# Test Runner Setup Instructions
+# 1. Create a new FreeBSD VM, 4GB RAM, 15GB+ Disk
+# 2. sed -i'' 'm/^bind Sp/ s/^b/#b/' /root/.bash_profile
+# 3. pkg update && pkg install -y git-lite open-vm-tools-nox11
+# 4. install ~/.ssh/authorized_keys & /root/.ssh/authorized_keys
+# 5. sed -i'' 's/^#PermitRoot.*/PermitRootLogin without-password/'
+# 6. freebsd-update fetch install
+# 7. portsnap fetch extract
+# 8. halt -p now && take a snapshot
