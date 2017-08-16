@@ -101,10 +101,13 @@ ssl_key = </data/etc/ssl/private/dovecot.pem
 #  ssl_key = </data/etc/ssl/private/mail.example.com.pem
 #}
 
+# sunset when dovecot 2.3 is in ports/pkg
 # dovecot 2.2 generates dhparams on-the-fly
 ssl_dh_parameters_length = 2048
+# /sunset
+
 # dovecot 2.3 will support a ssl_dh file
-#ssl_dh = </data/etc/ssl/dhparams.pem
+#ssl_dh = </etc/ssl/dhparams.pem
 
 # recommended settings for high security (mid-2017)
 ssl_prefer_server_ciphers = yes
@@ -211,20 +214,6 @@ configure_tls_certs()
 
 }
 
-configure_tls_dh()
-{
-	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
-	local _dhparams="$_ssldir/dhparams.pem"
-
-	if [ -f "$_dhparams" ]; then
-		tell_status "$_dhparams exists"
-		return
-	fi
-
-	tell_status "generating a 2048 bit Diffie-Hellman params file"
-	openssl dhparam -out "$_dhparams" 2048 || exit
-}
-
 configure_dovecot()
 {
 	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
@@ -240,7 +229,6 @@ configure_dovecot()
 	configure_system_auth
 	configure_vsz_limit
 	configure_tls_certs
-	configure_tls_dh
 
 	mkdir -p "$STAGE_MNT/var/spool/postfix/private"
 }
