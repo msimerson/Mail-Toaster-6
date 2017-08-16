@@ -3,7 +3,7 @@ image: auchida/freebsd:latest
 before_script:
   - sudo pkg update && sudo pkg install -y ca_root_nss
 
-test:
+testing:
   script:
     - sh test/get_jail_ip.sh
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
@@ -35,7 +35,7 @@ test:
 #    (no distributions, Auto ZFS partitioning)
 # 2. install ~/.ssh/authorized_keys & /root/.ssh/authorized_keys
 # 3. sed -i'' 's/^#PermitRoot.*/PermitRootLogin without-password/'
-# 4. pkg update && pkg install -y sudo git-lite open-vm-tools-nox11 vim-lite
+# 4. pkg update && pkg install -y sudo git-lite open-vm-tools-nox11 vim-lite bash
 # 5. freebsd-update fetch install
 # 6. portsnap fetch extract
 # N. service sendmail stop; sysrc sendmail_enable=NONE
