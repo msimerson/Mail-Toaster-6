@@ -28,7 +28,8 @@ install_gitlab_runner_latest()
 
 install_docker_freebsd()
 {
-	# argggg, never mind. Using Docker doesn't work at all because
+	# argggg, never mind. After getting FreeBSD up and running inside
+	# a Docker, I realize that Docker work work for my purposes because
 	# there's no ZFS pools mounted inside the docker
 	pkg install docker-freebsd
 	zfs create -o mountpoint=/usr/docker zroot/docker

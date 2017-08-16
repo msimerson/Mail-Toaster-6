@@ -5,9 +5,11 @@ create_default_config()
 	local _HOSTNAME;
 	local _EMAIL_DOMAIN;
 
-	echo "editing prefs"
-#	_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
-#	_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+	if [ -t 0 ]; then
+		echo "editing prefs"
+		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
+		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+	fi
 
 	# for Travis CI (Linux) where dialog doesn't exist
 	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
