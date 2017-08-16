@@ -25,6 +25,11 @@ create_base_filesystem()
 
 freebsd_update()
 {
+	if [ ! -t 0 ]; then
+		echo "No tty, can't update FreeBSD with freebsd-update"
+		return
+	fi
+
 	tell_status "apply FreeBSD security updates to base jail"
 	sed -i .bak -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
