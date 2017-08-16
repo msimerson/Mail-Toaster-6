@@ -10,7 +10,7 @@ vmware:
     - freebsd
     - ssh
 
-jailip:
-  script: sh test/get_jail_ip.sh
-  tags:
-    - shell
+# jailip:
+#   script: sh test/get_jail_ip.sh
+#   tags:
+#     - shell
