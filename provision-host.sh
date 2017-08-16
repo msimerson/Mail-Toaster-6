@@ -179,7 +179,7 @@ configure_tls_certs()
 	local CRTFILE=/etc/ssl/certs/server.crt
 
 	if [ -s "$KEYFILE" ] && [ -s "$CRTFILE" ]; then
-		tell_status "TLS certificates already exist"
+		tell_status "TLS certificate exists"
 		return
 	fi
 
@@ -401,8 +401,8 @@ update_ports_tree()
 	fi
 }
 
-update_freebsd() {
-
+update_freebsd()
+{
 	if [ ! -t 0 ]; then
 		echo "Not interactive, it's on you to keep FreeBSD updated!"
 		return
