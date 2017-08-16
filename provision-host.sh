@@ -179,7 +179,7 @@ configure_tls_certs()
 	local CRTFILE=/etc/ssl/certs/server.crt
 
 	if [ -s "$KEYFILE" ] && [ -s "$CRTFILE" ]; then
-		tell_status "TLS certificates already exist"
+		tell_status "TLS certificate exists"
 		return
 	fi
 
