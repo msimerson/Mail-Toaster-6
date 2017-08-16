@@ -19,7 +19,6 @@ get_mt6_data()
 	   local-data: \"stage        A $(get_jail_ip stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\""
 
-	local _octet=${JAIL_NET_START:=1}
 	for _j in $JAIL_ORDERED_LIST
 	do
 		echo "
@@ -64,6 +63,7 @@ tweak_unbound_conf()
 {
 	tell_status "configuring unbound.conf"
 	# control.conf for the munin stats plugin
+	# shellcheck disable=1004
 	sed -i .bak \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
@@ -121,7 +121,7 @@ configure_unbound()
 	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf" || exit
 	if [ -f 'unbound.conf.local' ]; then
 		tell_status "moving unbound.conf.local to data volume"
-		mv unbound.conf.local $ZFS_DATA_MNT/dns/ || exit
+		mv unbound.conf.local "$ZFS_DATA_MNT/dns/" || exit
 	fi
 
 	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
@@ -171,7 +171,7 @@ promote_staged_jail dns
 
 if ! grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf;
 then
-	# shellcheck disable=2039,2094
 	echo "switching host resolver to $(get_jail_ip dns)"
+	# shellcheck disable=2039,2094
 	echo -e "nameserver $(get_jail_ip dns)\n$(cat /etc/resolv.conf)" > /etc/resolv.conf
 fi
