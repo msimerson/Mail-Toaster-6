@@ -1,11 +1,11 @@
-#image: auchida/freebsd:latest
+image: auchida/freebsd:latest
 
 before_script:
   - sudo pkg update && sudo pkg install -y ca_root_nss
 
 
 stages:
-  - lint
+  # - lint
   - build
   - test
 
@@ -13,7 +13,7 @@ hostprep:
   stage: build
   script:
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
-    - echo "export TOASTER_MAIL_DOMAIN="`hostname`" >> mail-toaster.conf
+    - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
     - sh provision-host.sh
 
 vmware:
