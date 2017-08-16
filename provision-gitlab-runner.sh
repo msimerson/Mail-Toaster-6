@@ -26,6 +26,21 @@ install_gitlab_runner_latest()
 	stage_exec chmod +x /usr/local/bin/gitlab-runner
 }
 
+install_docker_freebsd()
+{
+	# argggg, never mind. Using Docker doesn't work at all because
+	# there's no ZFS pools mounted inside the docker
+	pkg install docker-freebsd
+	zfs create -o mountpoint=/usr/docker zroot/docker
+	pw groupadd docker
+	pw usermod gitlab-runner -G docker
+	#proc                /proc           procfs  rw,noauto       0       0
+	#mount /proc
+	#docker run -it auchida/freebsd /bin/sh
+	sysrc docker_enable=YES
+	service docker start
+}
+
 install_gitlab_runner()
 {
 	tell_status "setting up gitlab-runner user"
