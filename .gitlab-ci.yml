@@ -1,10 +1,16 @@
 #image: auchida/freebsd:latest
 
 before_script:
-    - sudo pkg update && sudo pkg install -y ca_root_nss
+  #- sudo pkg update && sudo pkg install -y ca_root_nss
 
+
+vmware:
+  script: sh test/get_jail_ip.sh
+  tags:
+    - freebsd
+    - ssh
 
 jailip:
   script: sh test/get_jail_ip.sh
-  tags: 
-    - freebsd
+  tags:
+    - shell
