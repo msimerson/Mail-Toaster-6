@@ -3,7 +3,7 @@ image: auchida/freebsd:latest
 before_script:
   - sudo pkg update && sudo pkg install -y ca_root_nss
 
-testing:
+toaster:
   script:
     - sh test/get_jail_ip.sh
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
