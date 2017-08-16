@@ -4,25 +4,16 @@ before_script:
   - sudo pkg update && sudo pkg install -y ca_root_nss
 
 
-stages:
-  # - lint
-  - build
-  - test
-
 hostprep:
-  stage: build
   script:
+    - sh test/get_jail_ip.sh
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
     - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
     - sh provision-host.sh
     - sh provision-base.sh
-  tags:
-    - freebsd
-    - ssh
-
-vmware:
-  stage: test
-  script: sh test/get_jail_ip.sh
+    - sh provision-dns.sh
+    - sh provision-mysql.sh
+    - sh provision-redis.sh
   tags:
     - freebsd
     - ssh
@@ -31,7 +22,6 @@ vmware:
 #   script: sh test/get_jail_ip.sh
 #   tags:
 #     - shell
-
 
 # sed -i'' 'm/^bind Sp/ s/^b/#b/' /root/.bash_profile
 # pkg install -y git-lite
