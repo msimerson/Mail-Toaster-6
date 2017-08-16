@@ -401,7 +401,12 @@ update_ports_tree()
 	fi
 }
 
-update_freebsd() {
+update_freebsd()
+{
+	if [ -n "$PS1" ]; then
+		echo "Not interactive, it's up to you to keep FreeBSD up to date!"
+		return
+	fi
 
 	if [ ! -t 0 ]; then
 		echo "Not interactive, it's on you to keep FreeBSD updated!"
