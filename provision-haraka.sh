@@ -13,7 +13,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install node npm gmake || exit
+	stage_pkg_install node6 npm3 gmake || exit
 	#stage_port_install www/npm
 
 	tell_status "installing Haraka"
@@ -269,10 +269,21 @@ configure_haraka_tls() {
 		sed -i '' -e '/^# tls$/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
-	if [ ! -f "$HARAKA_CONF/tls_cert.pem" ]; then
+	if [ -d "$HARAKA_CONF/tls" ]; then
+		local _installed="$HARAKA_CONF/tls/${TOASTER_MAIL_DOMAIN}.pem"
+	else
+		local _installed="$HARAKA_CONF/tls_cert.pem"
+	fi
+
+	if [ ! -f "$_installed" ]; then
 		tell_status "installing TLS certificate"
-		cp /etc/ssl/certs/server.crt "$HARAKA_CONF/tls_cert.pem"
-		cp /etc/ssl/private/server.key "$HARAKA_CONF/tls_key.pem"
+		if [ -d "$HARAKA_CONF/tls" ]; then
+			cat /etc/ssl/private/server.key > "$_installed"
+			cat /etc/ssl/certs/server.crt >> "$_installed"
+		else
+			cp /etc/ssl/certs/server.crt "$_installed"
+			cp /etc/ssl/private/server.key "$HARAKA_CONF/tls_key.pem"
+		fi
 	fi
 }
 

@@ -139,6 +139,16 @@ configure_ssl_dirs()
 	chmod o-r "$BASE_MNT/etc/ssl/private"
 }
 
+configure_tls_dhparams()
+{
+	if [ -f "$BASE_MNT/etc/ssl/dhparam.pem" ]; then
+		return
+	fi
+
+	tell_status "installing dhparam.pem"
+	cp /etc/ssl/dhparam.pem "$BASE_MNT/etc/ssl/dhparam.pem" || exit
+}
+
 configure_make_conf() {
 	local _make="$BASE_MNT/etc/make.conf"
 	if grep -qs WRKDIRPREFIX "$_make"; then
@@ -175,6 +185,7 @@ configure_base()
 		update_motd=NO
 
 	configure_ssl_dirs
+	configure_tls_dhparams
 	disable_cron_jobs
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"

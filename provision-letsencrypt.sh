@@ -17,6 +17,35 @@ install_deploy_haproxy()
 	tee "$_deploy/haproxy" <<'EO_LE_HAPROXY'
 #!/bin/sh
 
+has_differences() {
+
+	if [ ! -f "$2" ]; then
+		_debug "non-existent, deploying: $2"
+		return 0
+	fi
+
+	if diff -q "$1" "$2"; then
+		_debug "file contents identical, skip deploy of $2"
+		return 1
+	fi
+
+	_debug "file has changes, deploying"
+	return 0
+}
+
+install_file() {
+	_debug "cp $1 $2"
+	cp "$1" "$2" || return 1
+
+	if [ ! -s "$2" ]; then
+		_err "install to $2 failed"
+		return 1
+	fi
+
+	_debug "installed as $2"
+	return 0
+}
+
 #returns 0 means success, otherwise error.
 
 #domain keyfile certfile cafile fullchain
@@ -29,7 +58,7 @@ haproxy_deploy() {
 
 	if [ ! -f $_ccert ]; then
 		_err "missing certificate"
-		exit 2
+		return 2
 	fi
 
 	if [ ! -d /data/haproxy/ssl.d ]; then
@@ -38,7 +67,7 @@ haproxy_deploy() {
 	fi
 
 	local _tmp="/tmp/${_cdomain}.pem"
-	cat $_ckey $_ccert $_cfullchain > $_tmp
+	cat $_ckey $_cfullchain > $_tmp
 	if [ ! -s "$_tmp" ]; then
 		_err "Unable to create $_tmp"
 		return 1
@@ -46,19 +75,11 @@ haproxy_deploy() {
 
 	_debug "$_tmp created"
 	local _installed="/data/haproxy/ssl.d/$_cdomain.pem"
-	if diff -q $_tmp $_installed; then
-		_debug "cert is the same, skip deploy"
-		return 0
-	fi
+	has_differences "$_tmp" "$_installed" || return 0
+	install_file "$_tmp" "$_installed" || return 1
+	install_file "$_cca" "${_installed}.issuer"
 
-	_debug "cp $_tmp $_installed"
-	cp $_tmp $_installed || return 1
-	if [ ! -s "$_installed" ]; then
-		_err "install to $_installed failed"
-		return 1
-	fi
-
-	rm $_tmp
+	rm "$_tmp"
 	_debug "restarting haproxy"
 	jexec haproxy service haproxy restart
 	return 0
@@ -73,6 +94,45 @@ install_deploy_dovecot()
 	tee "$_deploy/dovecot" <<'EO_LE_DOVECOT'
 #!/bin/sh
 
+assure_file() {
+
+	if [ ! -s "$1" ]; then
+		_err "File doesn't exist: $1"
+		return 1
+	fi
+
+	_debug "file exists: $1"
+	return 0
+}
+
+has_differences() {
+
+	if [ ! -f "$2" ]; then
+		_debug "non-existent, deploying: $2"
+		return 0
+	fi
+
+	if diff -q "$1" "$2"; then
+		_debug "file contents identical, skip deploy of $2"
+		return 1
+	fi
+
+	_debug "file has changes, deploying"
+	return 0
+}
+
+install_file() {
+	cp "$1" "$2" || return 1
+
+	if [ ! -s "$2" ]; then
+		_err "install to $2 failed"
+		return 1
+	fi
+
+	_debug "installed as $2"
+	return 0
+}
+
 #domain keyfile certfile cafile fullchain
 dovecot_deploy() {
 	_cdomain="$1"
@@ -81,38 +141,23 @@ dovecot_deploy() {
 	_cca="$4"
 	_cfullchain="$5"
 
-	if [ ! -f $_ccert ]; then
-		_err "missing certificate"
-		exit 2
-	fi
+	assure_file "$_ccert" || return 2
 
-	if [ ! -d /data/dovecot/etc/ssl ]; then
-		_debug "no /data/dovecot/etc/ssl dir"
+	_ssl_dir="/data/dovecot/etc/ssl"
+	if [ ! -d "$_ssl_dir" ]; then
+		_debug "no TLS/SSL dir: $_ssl_dir"
 		return 0
 	fi
 
-	local _tmp_crt="/tmp/dovecot-cert-${_cdomain}.pem"
-	cat $_ccert $_cfullchain > $_tmp_crt
-	if [ ! -s "$_tmp_crt" ]; then
-		_err "Unable to create $_tmp_crt"
-		return 1
-	fi
+	assure_file "$_cfullchain" || return 1;
 
-	_debug "$_tmp_crt created"
-	local _installed="/data/dovecot/etc/ssl/certs/dovecot.pem"
-	if diff -q $_tmp_crt $_installed; then
-		_debug "cert is the same, skip deploy"
-		return 0
-	fi
+	local _crt_installed="$_ssl_dir/certs/${_cdomain}.pem"
+	local _key_installed="$_ssl_dir/private/${_cdomain}.pem"
 
-	cp $_tmp_crt $_installed || return 1
-	cp $_ckey /data/dovecot/etc/ssl/private/dovecot.pem || return 1
-	if [ ! -s "$_installed" ]; then
-		_err "install to $_installed failed"
-		return 1
-	fi
+	has_differences "$_cfullchain" "$_crt_installed" || return 0
+	install_file "$_cfullchain" "$_crt_installed" || return 1
+	install_file "$_ckey"    "$_key_installed" || return 1
 
-	rm $_tmp_crt
 	_debug "restarting dovecot"
 	jexec dovecot service dovecot restart
 	return 0
@@ -127,6 +172,45 @@ install_deploy_haraka()
 	tee "$_deploy/haraka" <<'EO_LE_HARAKA'
 #!/bin/sh
 
+assure_file() {
+
+	if [ ! -s "$1" ]; then
+		_err "File doesn't exist: $1"
+		return 1
+	fi
+
+	_debug "file exists: $1"
+	return 0
+}
+
+has_differences() {
+
+	if [ ! -f "$2" ]; then
+		_debug "non-existent, deploying: $2"
+		return 0
+	fi
+
+	if diff -q "$1" "$2"; then
+		_debug "file contents identical, skip deploy of $2"
+		return 1
+	fi
+
+	_debug "file has changes, deploying"
+	return 0
+}
+
+install_file() {
+	cp "$1" "$2" || return 1
+
+	if [ ! -s "$2" ]; then
+		_err "install to $2 failed"
+		return 1
+	fi
+
+	_debug "installed as $2"
+	return 0
+}
+
 #returns 0 means success, otherwise error.
 
 #domain keyfile certfile cafile fullchain
@@ -137,36 +221,27 @@ haraka_deploy() {
 	_cca="$4"
 	_cfullchain="$5"
 
-	if [ ! -f $_ccert ]; then
-		_err "missing certificate"
-		exit 2
-	fi
+	assure_file "$_ccert" || return 2
+	_h_conf="/data/haraka/config"
 
-	if [ ! -d /data/haraka/config ]; then
-		_debug "no /data/haraka/config dir"
+	if [ ! -d "$_h_conf" ]; then
+		_debug "missing config dir: $_h_conf"
 		return 0
 	fi
 
-	local _tmp="/tmp/${_cdomain}.pem"
-	cat $_ckey $_ccert $_cfullchain > $_tmp
-	if [ ! -s "$_tmp" ]; then
-		_err "Unable to create $_tmp"
-		return 1
-	fi
+	if [ -d "$_h_conf/tls" ]; then
+		local _tmp="/tmp/${_cdomain}.pem"
+		cat $_ckey $_cfullchain > $_tmp
+		assure_file "$_tmp" || return 1
 
-	_debug "$_tmp created"
-	local _installed="/data/haraka/config/tls_cert.pem"
-	if diff -q $_tmp $_installed; then
-		_debug "cert is the same, skip deploy"
-		return 0
-	fi
-
-	cp $_tmp $_installed || return 1
-	cp $_ckey /data/haraka/config/tls_key.pem || return 1
-
-	if [ ! -s "$_installed" ]; then
-		_err "install to $_installed failed"
-		return 1
+		local _installed="$_h_conf/tls/${_cdomain}.pem"
+		has_differences "$_tmp" "$_installed" || return 0
+		install_file "$_tmp" "$_installed" || return 1
+	else
+		local _installed="$_h_conf/tls_cert.pem"
+		has_differences "$_cfullchain" "$_installed" || return 0
+		install_file "$_cfullchain" "$_installed" || return 1
+		install_file "$_ckey" "$_h_conf/tls_key.pem" || return 1
 	fi
 
 	rm $_tmp

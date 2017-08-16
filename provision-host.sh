@@ -151,7 +151,7 @@ constrain_sshd_to_host()
 	local _sshd_conf="/etc/ssh/sshd_config"
 
 	local _confirm_msg="
-	To not interfere with the jails, sshd must be constrained to
+	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
 	Your public IPs are detected as $PUBLIC_IP4
@@ -175,7 +175,10 @@ constrain_sshd_to_host()
 
 configure_tls_certs()
 {
-	if [ -s /etc/ssl/private/server.key ]; then
+	local KEYFILE=/etc/ssl/private/server.key
+	local CRTFILE=/etc/ssl/certs/server.crt
+
+	if [ -s "$KEYFILE" ] && [ -s "$CRTFILE" ]; then
 		tell_status "TLS certificates already exist"
 		return
 	fi
@@ -187,7 +190,7 @@ configure_tls_certs()
 
 	if ! grep -q commonName_default /etc/ssl/openssl.cnf; then
 		tell_status "updating openssl.cnf defaults"
-		local _geo;   _geo=$(fetch -o - https://freegeoip.net/csv)
+		local _geo;   _geo=$(fetch -4 -o - https://freegeoip.net/csv)
 		local _cc;    _cc=$(echo "$_geo" | cut -d',' -f2)
 		local _state; _state=$(echo "$_geo" | cut -d',' -f5)
 		local _city;  _city=$(echo "$_geo" | cut -d',' -f6)
@@ -203,8 +206,8 @@ localityName_default = $_city" \
 			/etc/ssl/openssl.cnf
 	fi
 
-	if [ -f /etc/ssl/private/server.key ]; then
-		tell_status "preserving existing TLS certificates"
+	if [ -s "$KEYFILE" ] && [ -s "$CRTFILE" ]; then
+		tell_status "preserving existing TLS certificate"
 		return
 	fi
 
@@ -213,14 +216,31 @@ localityName_default = $_city" \
 	echo "  saves having to do it multiple times later."
 	tell_status "Generating self-signed SSL certificates"
 
-	openssl req -x509 -nodes -days 2190 \
-		-newkey rsa:2048 \
-		-keyout /etc/ssl/private/server.key \
-		-out /etc/ssl/certs/server.crt
+	if [ -t 0 ]; then
+		# prompt user for values
+		openssl req -x509 -nodes -days 2190 -newkey rsa:2048 \
+			-keyout "$KEYFILE" -out "$CRTFILE"
+	else
+		local SUBJ="/C=$_cc/ST=$_state/L=$_city/O=Mail Toaster/CN=$TOASTER_HOSTNAME"
+		echo "subject: $SUBJ"
+		openssl req -x509 -nodes -days 2190 -newkey rsa:2048 \
+			-keyout "$KEYFILE" -out "$CRTFILE" -subj "$SUBJ"
+	fi
 
 	if [ ! -f /etc/ssl/private/server.key ]; then
 		fatal_err "no TLS key was generated!"
 	fi
+}
+
+configure_dhparams()
+{
+	local DHP="/etc/ssl/dhparam.pem"
+	if [ -f "$DHP" ]; then
+		return
+	fi
+
+	tell_status "Generating a 2048 bit dhparams file"
+	openssl dhparam -out "$DHP" 2048 || exit
 }
 
 check_global_listeners()
@@ -230,7 +250,10 @@ check_global_listeners()
 	if sockstat -L -4 | grep -E '\*:[0-9]' | grep -v 123; then
 		echo "oops!, you should not having anything listening
 on all your IP addresses!"
-		exit 2
+		if [ -t 0 ]; then exit 2; fi
+
+		echo "Not interactive, continuing anyway."
+		return
 	fi
 }
 
@@ -363,6 +386,12 @@ enable_jails()
 update_ports_tree()
 {
 	tell_status "updating FreeBSD ports tree"
+
+	if [ ! -t 0 ]; then
+		echo "Not interactive, it's on you to update the ports tree!"
+		return
+	fi
+
 	portsnap fetch || exit
 
 	if [ -d /usr/ports/mail/vpopmail ]; then
@@ -373,6 +402,11 @@ update_ports_tree()
 }
 
 update_freebsd() {
+
+	if [ ! -t 0 ]; then
+		echo "Not interactive, it's on you to keep FreeBSD updated!"
+		return
+	fi
 
 	if grep -q '^Components src' /etc/freebsd-update.conf; then
 		tell_status "remove src from freebsd-update"
@@ -464,6 +498,7 @@ update_host() {
 	check_global_listeners
 	add_jail_nat
 	configure_tls_certs
+	configure_dhparams
 	enable_jails
 	install_jailmanage
 	configure_etc_hosts

@@ -13,10 +13,11 @@ mt6-include vpopmail
 install_dovecot()
 {
 	tell_status "installing dovecot v2 package"
-	stage_pkg_install dovecot2 || exit
+	stage_pkg_install dovecot2 || stage_pkg_install dovecot || exit
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
+	stage_make_conf dovecot_SET 'mail_dovecot_SET=VPOPMAIL LIBWRAP EXAMPLES'
 
 	install_qmail
 	install_vpopmail_port
@@ -32,7 +33,7 @@ install_dovecot()
 	stage_pkg_install dialog4ports
 
 	export BATCH=${BATCH:="1"}
-	stage_port_install mail/dovecot2 || exit 1
+	stage_port_install mail/dovecot || exit 1
 }
 
 configure_dovecot_local_conf() {
@@ -91,11 +92,28 @@ protocol pop3 {
   pop3_uidl_format = %08Xu%08Xv
 }
 
+# default TLS certificate (no SNI)
 ssl_cert = </data/etc/ssl/certs/dovecot.pem
 ssl_key = </data/etc/ssl/private/dovecot.pem
-ssl_prefer_server_ciphers = yes
+
+# example TLS SNI (see https://wiki.dovecot.org/SSL/DovecotConfiguration)
+#local_name mail.example.com {
+#  ssl_cert = </data/etc/ssl/certs/mail.example.com.pem
+#  ssl_key = </data/etc/ssl/private/mail.example.com.pem
+#}
+
+# sunset when dovecot 2.3 is in ports/pkg
+# dovecot 2.2 generates dhparams on-the-fly
 ssl_dh_parameters_length = 2048
-ssl_cipher_list = ALL:!LOW:!SSLv2:!EXP:!aNull:!eNull::!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
+# /sunset
+
+# dovecot 2.3 will support a ssl_dh file
+#ssl_dh = </etc/ssl/dhparam.pem
+
+# recommended settings for high security (mid-2017)
+ssl_prefer_server_ciphers = yes
+ssl_cipher_list = AES128+EECDH:AES128+EDH
+ssl_protocols = !SSLv2 !SSLv3
 
 login_access_sockets = tcpwrap
 
@@ -166,6 +184,14 @@ configure_tls_certs()
 			"$_sslconf"
 	fi
 
+	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	if grep -qs dovecot.pem "$_localconf"; then
+		sed -i .bak \
+			-e "/^ssl_cert/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
+			-e "/^ssl_key/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
+			"$_localconf"
+	fi
+
 	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
 	if [ ! -d "$_ssldir/certs" ]; then
 		mkdir -p "$_ssldir/certs" || exit
@@ -177,29 +203,17 @@ configure_tls_certs()
 		chmod 644 "$_ssldir/private" || exit
 	fi
 
-	if [ -f "$_ssldir/certs/dovecot.pem" ]; then
+	local _installed_crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	if [ -f "$_installed_crt" ]; then
 		tell_status "dovecot TLS certificates already installed"
 		return
 	fi
 
 	tell_status "installing dovecot TLS certificates"
-	cp /etc/ssl/certs/server.crt "$_ssldir/certs/dovecot.pem" || exit
-	cp /etc/ssl/private/server.key "$_ssldir/private/dovecot.pem" || exit
-}
+	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem" || exit
 
-configure_tls_dh()
-{
-	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
-	local _dhparams="$_ssldir/private/dhparams.pem"
-
-	if [ -f "$_dhparams" ]; then
-		tell_status "$_dhparams exists"
-		return
-	fi
-
-	tell_status "generating a 2048 bit Diffie-Hellman params file"
-	openssl dhparam -out "$_dhparams" 2048 || exit
-	cat "$_dhparams" >> "$_ssldir/certs/dovecot.pem" || exit
 }
 
 configure_dovecot()
@@ -217,7 +231,6 @@ configure_dovecot()
 	configure_system_auth
 	configure_vsz_limit
 	configure_tls_certs
-	configure_tls_dh
 
 	mkdir -p "$STAGE_MNT/var/spool/postfix/private"
 }

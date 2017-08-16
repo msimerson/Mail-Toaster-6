@@ -1,3 +1,5 @@
+#!/bin/sh
+
 . mail-toaster.sh || . ../mail-toaster.sh
 
 IP=$(get_jail_ip mysql)
