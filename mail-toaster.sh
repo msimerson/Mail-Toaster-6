@@ -937,3 +937,16 @@ jail_rename()
 
     echo "Don't forget to update your PF and/or Haproxy rules"
 }
+
+configure_pkg_latest()
+{
+	local REPODIR="$1/usr/local/etc/pkg/repos"
+	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
+
+	mkdir -p "$REPODIR"
+	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
+FreeBSD: {
+  url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest"
+}
+EO_PKG
+}

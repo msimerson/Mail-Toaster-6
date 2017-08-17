@@ -527,6 +527,8 @@ EO_VIMRC
 
 install_base()
 {
+	configure_pkg_latest "$BASE_MNT"
+
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install pkg vim-lite ca_root_nss || exit
 

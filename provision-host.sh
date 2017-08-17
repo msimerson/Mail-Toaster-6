@@ -488,6 +488,7 @@ $(get_jail_ip "$j")		$j"
 
 update_host() {
 	update_freebsd
+	configure_pkg_latest ""
 	configure_ntp
 	update_sendmail
 	install_periodic_conf
