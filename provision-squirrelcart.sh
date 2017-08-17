@@ -135,7 +135,7 @@ configure_squirrelcart()
 	else
 		tell_status "customizing config.php"
 		sed -i .bak \
-			-e "/^\\\$sql_host /      s/= .*/= '172.16.15.4';/" \
+			-e "/^\\\$sql_host /      s/= .*/= '$(get_jail_ip mysql)';/" \
 			-e "/^\\\$db /            s/= .*/= 'squirrelcart';/" \
 			-e "/^\\\$sql_username /  s/= .*/= 'squirrelcart';/" \
 			-e "/^\\\$sql_password /  s/= .*/= 'testing';/" \

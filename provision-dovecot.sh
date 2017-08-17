@@ -244,6 +244,42 @@ start_dovecot()
 	stage_exec service dovecot start || exit
 }
 
+test_imap()
+{
+	stage_pkg_install empty
+
+	REMOTE_IP=$(get_jail_ip dovecot)
+	POST_USER="postmaster@$(hostname)"
+	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
+	rm -f in out
+
+	#empty -v -f -i in -o out openssl s_client -quiet -crlf -connect $REMOTE_IP:993
+	empty -v -f -i in -o out telnet "$REMOTE_IP" 143
+	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS\n"
+	empty -v -w -i out -o in "Logged in"         ". LIST \"\" \"*\"\n"
+	empty -v -w -i out -o in "List completed"    ". SELECT INBOX\n"
+	empty -v -w -i out -o in "Select completed"  ". FETCH 1 BODY\n"
+	empty -v -w -i out -o in "OK Fetch completed" ". logout\n"
+	echo "Logout completed"
+}
+
+test_pop3()
+{
+	stage_pkg_install empty
+
+	REMOTE_IP=$(get_jail_ip dovecot)
+	POST_USER="postmaster@$(hostname)"
+	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
+	rm -f in out
+
+	#empty -v -f -i in -o out openssl s_client -quiet -crlf -connect $REMOTE_IP:995
+	empty -v -f -i in -o out telnet "$REMOTE_IP" 110
+	empty -v -w -i out -o in "\+OK." "user $POST_USER\n"
+	empty -v -w -i out -o in "\+OK" "pass $POST_PASS\n"
+	empty -v -w -i out -o in "OK Logged in" "list\n"
+	empty -v -w -i out -o in "." "quit\n"
+}
+
 test_dovecot()
 {
 	tell_status "testing dovecot"

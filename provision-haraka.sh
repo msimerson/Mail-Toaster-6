@@ -538,14 +538,14 @@ EO_HARAKA
 configure_haraka_access()
 {
 	local ACCESS="$HARAKA_CONF/connect.rdns_access.whitelist"
-	if grep -qs 172.16.15.254 "$ACCESS"; then
+	if grep -qs "$(get_jail_ip stage)" "$ACCESS"; then
 		return
 	fi
 
 	tell_status "whitelisting the staging IP"
 	tee -a "$ACCESS" <<EO_WL
-172.16.15.11
-172.16.15.254
+$(get_jail_ip monitor)
+$(get_jail_ip stage)
 EO_WL
 }
 
