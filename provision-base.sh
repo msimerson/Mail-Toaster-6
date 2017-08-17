@@ -189,6 +189,7 @@ configure_base()
 		sendmail_enable=NONE \
 		update_motd=NO
 
+	configure_pkg_latest "$BASE_MNT"
 	configure_ssl_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
@@ -527,8 +528,6 @@ EO_VIMRC
 
 install_base()
 {
-	configure_pkg_latest "$BASE_MNT"
-
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install pkg vim-lite ca_root_nss || exit
 
