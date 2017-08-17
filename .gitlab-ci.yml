@@ -40,7 +40,6 @@ mailstore:
 mta:
   stage: mta
   script:
-    - sh provision-vpopmail.sh
     - sh provision-clamav.sh
     - sh provision-rspamd.sh
     - sh provision-geoip.sh
