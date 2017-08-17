@@ -535,6 +535,20 @@ configure_haraka_log_rotation()
 EO_HARAKA
 }
 
+configure_haraka_access()
+{
+	local ACCESS="$HARAKA_CONF/connect.rdns_access.whitelist"
+	if grep -qs "$(get_jail_ip stage)" "$ACCESS"; then
+		return
+	fi
+
+	tell_status "whitelisting the staging IP"
+	tee -a "$ACCESS" <<EO_WL
+$(get_jail_ip monitor)
+$(get_jail_ip stage)
+EO_WL
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -587,6 +601,7 @@ configure_haraka()
 	configure_haraka_helo
 	configure_haraka_results
 	configure_haraka_log_rotation
+	configure_haraka_access
 
 	install_geoip_dbs
 }

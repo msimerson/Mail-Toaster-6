@@ -1,2 +1,92 @@
-jailip:
-  script: "test/get_jail_ip.sh"
+image: auchida/freebsd:latest
+
+# Instructions for creating your own test runner:
+# https://github.com/msimerson/Mail-Toaster-6/wiki/Develop-CI-Testing/
+
+# these get run before/after EVERY script / stage
+# before_script:
+# after_script
+
+stages:
+  - host_setup
+  - mailservices
+  - mailstore
+  - mta
+  - webmail
+  - extras
+  - test
+
+host_setup:
+  stage: host_setup
+  script:
+    - sh test/get_jail_ip.sh
+    - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
+    - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
+    - pkg update && pkg install -y ca_root_nss
+    - sh provision-host.sh
+    - sh provision-base.sh
+  tags:
+    - freebsd
+    - ssh
+
+mailservices:
+  stage: mailservices
+  script:
+    - sh provision-dns.sh
+    - sh provision-mysql.sh
+    - sh provision-redis.sh
+  tags:
+    - freebsd
+    - ssh
+
+mailstore:
+  stage: mailstore
+  script:
+    - sh provision-vpopmail.sh
+    - sh provision-dovecot.sh
+  tags:
+    - freebsd
+    - ssh
+
+mta:
+  stage: mta
+  script:
+    - sh provision-clamav.sh
+    - sh provision-rspamd.sh
+    - sh provision-geoip.sh
+    - sh provision-haraka.sh
+  tags:
+    - freebsd
+    - ssh
+
+webmail:
+  stage: webmail
+  script:
+    - sh provision-haproxy.sh
+    - sh provision-webmail.sh
+    - sh provision-roundcube.sh
+    - sh provision-rainloop.sh
+    - sh provision-squirrelmail.sh
+  tags:
+    - freebsd
+    - ssh
+
+extras:
+  stage: extras
+  script:
+    - sh provision-avg.sh
+    - sh provision-spamassassin.sh
+    - sh provision-sqwebmail.sh
+  tags:
+    - freebsd
+    - ssh
+  allow_failure: true
+
+test:
+  stage: test
+  script:
+    - sh provision-monitor.sh
+  tags:
+    - freebsd
+    - ssh
+  allow_failure: true

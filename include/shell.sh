@@ -34,7 +34,6 @@ export HISTCONTROL=ignoredups:erasedups
 export HISTIGNORE="&:[bf]g:exit"
 shopt -s histappend
 shopt -s cdspell
-bind Space:magic-space
 alias h="history 200"
 alias ll="ls -alFG"
 PS1="$(whoami)@$(hostname -s):\\w # "

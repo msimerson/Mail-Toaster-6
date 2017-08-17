@@ -48,7 +48,11 @@ install_avg()
 	tell_status "installing avg"
 	tar -C "$STAGE_MNT/tmp" -xzf avg2013ffb-r3115-a6155.i386.tar.gz || exit
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d" || exit
-	stage_exec /tmp/avg2013ffb-r3115-a6155.i386/install.sh
+	if [ -t 0 ]; then
+		stage_exec /tmp/avg2013ffb-r3115-a6155.i386/install.sh
+	else
+		stage_exec /tmp/avg2013ffb-r3115-a6155.i386/install.sh -y
+	fi
 }
 
 configure_avg()

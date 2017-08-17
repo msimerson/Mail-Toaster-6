@@ -76,7 +76,7 @@ $HTTP["url"] =~ "^/cgi-bin" {
    cgi.assign = ( "" => "" )
 }
 extforward.forwarder = (
-		"172.16.15.12" => "trust",
+		"$(get_jail_ip haproxy)" => "trust",
 	)
 
 EO_LIGHTTPD_MT6

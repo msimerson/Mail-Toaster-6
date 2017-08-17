@@ -12,8 +12,8 @@ mt6-include vpopmail
 
 install_dovecot()
 {
-	tell_status "installing dovecot v2 package"
-	stage_pkg_install dovecot2 || stage_pkg_install dovecot || exit
+	tell_status "installing dovecot package"
+	stage_pkg_install dovecot || exit
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
@@ -211,9 +211,10 @@ configure_tls_certs()
 
 	tell_status "installing dovecot TLS certificates"
 	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
-	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	# sunset after Dovecot 2.3 released
+	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	# /sunset
 	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem" || exit
-
 }
 
 configure_dovecot()
@@ -241,6 +242,42 @@ start_dovecot()
 	stage_sysrc dovecot_enable=YES
 	stage_sysrc dovecot_config="/data/etc/dovecot.conf"
 	stage_exec service dovecot start || exit
+}
+
+test_imap()
+{
+	stage_pkg_install empty
+
+	REMOTE_IP=$(get_jail_ip dovecot)
+	POST_USER="postmaster@$(hostname)"
+	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
+	rm -f in out
+
+	#empty -v -f -i in -o out openssl s_client -quiet -crlf -connect $REMOTE_IP:993
+	empty -v -f -i in -o out telnet "$REMOTE_IP" 143
+	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS\n"
+	empty -v -w -i out -o in "Logged in"         ". LIST \"\" \"*\"\n"
+	empty -v -w -i out -o in "List completed"    ". SELECT INBOX\n"
+	empty -v -w -i out -o in "Select completed"  ". FETCH 1 BODY\n"
+	empty -v -w -i out -o in "OK Fetch completed" ". logout\n"
+	echo "Logout completed"
+}
+
+test_pop3()
+{
+	stage_pkg_install empty
+
+	REMOTE_IP=$(get_jail_ip dovecot)
+	POST_USER="postmaster@$(hostname)"
+	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
+	rm -f in out
+
+	#empty -v -f -i in -o out openssl s_client -quiet -crlf -connect $REMOTE_IP:995
+	empty -v -f -i in -o out telnet "$REMOTE_IP" 110
+	empty -v -w -i out -o in "\+OK." "user $POST_USER\n"
+	empty -v -w -i out -o in "\+OK" "pass $POST_PASS\n"
+	empty -v -w -i out -o in "OK Logged in" "list\n"
+	empty -v -w -i out -o in "." "quit\n"
 }
 
 test_dovecot()

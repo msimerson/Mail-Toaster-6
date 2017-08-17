@@ -34,7 +34,11 @@ install_munin()
 
 configure_munin()
 {
-	rm -r "$STAGE_MNT/usr/local/etc/munin"
+	if [ -d "$STAGE_MNT/data/etc/munin" ]; then
+		rm -r "$STAGE_MNT/usr/local/etc/munin"
+	else
+		mv "$STAGE_MNT/usr/local/etc/munin" "$STAGE_MNT/data/etc/"
+	fi
 	stage_exec ln -s /data/etc/munin /usr/local/etc/munin
 
 	stage_sysrc munin_node_enable=YES

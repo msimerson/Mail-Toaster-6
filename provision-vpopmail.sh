@@ -133,7 +133,7 @@ install_vpopmail_mysql_grants()
  		| jexec mysql /usr/local/bin/mysql || exit
 }
 
-install_nrpe()
+install_vpop_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
 		echo "TOASTER_NRPE unset, skipping nrpe plugin"
@@ -186,7 +186,7 @@ install_vpopmail()
 	fi
 
 	install_qmailadmin
-	install_nrpe
+	install_vpop_nrpe
 }
 
 configure_qmail()
