@@ -3,24 +3,34 @@ image: auchida/freebsd:latest
 # Instructions for creating your own test runner:
 # https://github.com/msimerson/Mail-Toaster-6/wiki/Develop-CI-Testing/
 
-before_script:
-  - sudo pkg update && sudo pkg install -y ca_root_nss
-  - sh test/get_jail_ip.sh
-  - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
-  - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
+# these get run before/after EVERY script / stage
+# before_script:
+# after_script
 
 stages:
+  - host_setup
   - mailservices
   - mailstore
   - mta
   - webmail
   - extras
 
+host_setup:
+  stage: host_setup
+  script:
+    - sh test/get_jail_ip.sh
+    - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
+    - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
+    - pkg update && pkg install -y ca_root_nss
+    - sh provision-host.sh
+    - sh provision-base.sh
+  tags:
+    - freebsd
+    - ssh
+
 mailservices:
   stage: mailservices
   script:
-    - sh provision-host.sh
-    - sh provision-base.sh
     - sh provision-dns.sh
     - sh provision-mysql.sh
     - sh provision-redis.sh
