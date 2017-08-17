@@ -13,7 +13,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install node npm gmake || exit
+	stage_pkg_install node6 npm3 gmake || exit
 	#stage_port_install www/npm
 
 	tell_status "installing Haraka"

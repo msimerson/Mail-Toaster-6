@@ -944,7 +944,7 @@ configure_pkg_latest()
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
 	mkdir -p "$REPODIR"
-	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
+	tee "$REPODIR/FreeBSD.conf" <<'EO_PKG'
 FreeBSD: {
   url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest"
 }
