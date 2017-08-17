@@ -436,13 +436,13 @@ rename_staged_to_ready()
 	local _zfs_rename="zfs rename $ZFS_JAIL_VOL/stage $_new_vol"
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ "$_tries" -gt 25 ]; then
+		if [ "$_tries" -gt 15 ]; then
 			echo "trying to force rename"
 			_zfs_rename="zfs rename -f $ZFS_JAIL_VOL/stage $_new_vol"
 		fi
 		echo "waiting for ZFS filesystem to quiet ($_tries)"
 		_tries=$((_tries + 1))
-		sleep 5
+		sleep 4
 	done
 }
 
@@ -465,7 +465,7 @@ rename_active_to_last()
 		fi
 		echo "waiting for ZFS filesystem to quiet ($_tries)"
 		_tries=$((_tries + 1))
-		sleep 5
+		sleep 4
 	done
 }
 
