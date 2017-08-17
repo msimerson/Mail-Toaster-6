@@ -14,6 +14,7 @@ stages:
   - mta
   - webmail
   - extras
+  - test
 
 host_setup:
   stage: host_setup
@@ -76,6 +77,15 @@ extras:
     - sh provision-avg.sh
     - sh provision-spamassassin.sh
     - sh provision-sqwebmail.sh
+  tags:
+    - freebsd
+    - ssh
+  allow_failure: true
+
+test:
+  stage: test
+  script:
+    - sh provision-monitor.sh
   tags:
     - freebsd
     - ssh
