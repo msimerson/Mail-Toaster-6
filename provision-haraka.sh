@@ -270,20 +270,29 @@ configure_haraka_tls() {
 	fi
 
 	if [ -d "$HARAKA_CONF/tls" ]; then
-		local _installed="$HARAKA_CONF/tls/${TOASTER_MAIL_DOMAIN}.pem"
+		local _installed="$HARAKA_CONF/tls/${TOASTER_HOSTNAME}.pem"
 	else
 		local _installed="$HARAKA_CONF/tls_cert.pem"
 	fi
 
-	if [ ! -f "$_installed" ]; then
-		tell_status "installing TLS certificate"
-		if [ -d "$HARAKA_CONF/tls" ]; then
-			cat /etc/ssl/private/server.key > "$_installed"
-			cat /etc/ssl/certs/server.crt >> "$_installed"
-		else
-			cp /etc/ssl/certs/server.crt "$_installed"
-			cp /etc/ssl/private/server.key "$HARAKA_CONF/tls_key.pem"
-		fi
+	if [ -f "$_installed" ]; then
+		return
+	fi
+
+	if [ ! -f /etc/ssl/private/server.key ]; then
+		return
+	fi
+	if [ ! -f /etc/ssl/certs/server.crt ]; then
+		return
+	fi
+
+	tell_status "installing TLS certificate"
+	if [ -d "$HARAKA_CONF/tls" ]; then
+		cat /etc/ssl/private/server.key > "$_installed"
+		cat /etc/ssl/certs/server.crt >> "$_installed"
+	else
+		cp /etc/ssl/certs/server.crt "$_installed"
+		cp /etc/ssl/private/server.key "$HARAKA_CONF/tls_key.pem"
 	fi
 }
 
@@ -487,7 +496,7 @@ configure_haraka_helo()
 	if [ ! -f "$HARAKA_CONF/helo.checks.ini" ]; then
 		tell_status "disabling HELO rejections"
 
-        tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
+		tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
 mismatch=false
 valid_hostname=false
