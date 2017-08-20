@@ -496,7 +496,6 @@ update_host() {
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
-	check_global_listeners
 	add_jail_nat
 	configure_tls_certs
 	configure_dhparams
@@ -505,6 +504,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
+	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
 
