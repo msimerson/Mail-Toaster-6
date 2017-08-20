@@ -24,8 +24,12 @@ games_minecraft-server_UNSET=STANDALONE'
 configure_minecraft()
 {
 	tell_status "configuring minecraft"
-	mkdir "$ZFS_DATA_MNT/minecraft/etc"
-	mkdir "$ZFS_DATA_MNT/minecraft/db"
+	if [ ! -d "$ZFS_DATA_MNT/minecraft/etc" ]; then
+		mkdir "$ZFS_DATA_MNT/minecraft/etc"
+	fi
+	if [ ! -d "$ZFS_DATA_MNT/minecraft/db" ]; then
+		mkdir "$ZFS_DATA_MNT/minecraft/db"
+	fi
 
 	# stage_exec /usr/local/bin/minecraft-server
 	stage_exec service minecraft onestart

@@ -943,6 +943,7 @@ configure_pkg_latest()
 	local REPODIR="$1/usr/local/etc/pkg/repos"
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
+	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
 	tee "$REPODIR/FreeBSD.conf" <<'EO_PKG'
 FreeBSD: {
