@@ -584,7 +584,30 @@ stage_exec()
 stage_listening()
 {
 	echo "checking for port $1 listener in staged jail"
-	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
+	if [ -z "$2" ]; then
+		sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
+		return
+	fi
+
+	local _tries=0
+	local _listening=""
+	local _sleep="$3"
+	if [ -z "$_sleep" ]; then _sleep=1; fi
+
+	until [ -n "$_listening" ]; do
+		_tries=$((_tries + 1))
+
+		if [ "$_tries" -gt "$2" ]; then
+			echo "port $1 is NOT listening"
+			exit
+		fi
+		echo "checking for port $1 listener in staged jail"
+		_listening=$(sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO)
+		sleep "$_sleep"
+	done
+
+	echo
+	echo "Success! Port $1 is listening in staging jail"
 }
 
 stage_test_running()
@@ -665,7 +688,7 @@ mount_data()
 		mkdir -p "$_data_mp" || exit
 	fi
 
-	if mount -t nullfs | grep "$_data_mp"; then
+	if mount -t nullfs | grep -q "$_data_mp"; then
 		echo "$_data_mp already mounted!"
 		return
 	fi
