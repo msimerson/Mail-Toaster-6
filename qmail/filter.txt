@@ -7,7 +7,7 @@ TIMESTAMP=`date "+%b %d %H:%M:%S"`
 ##
 #  title:  mailfilter-site
 #  author: Matt Simerson
-#  version 3.1
+#  version 3.2
 #
 #  Usage: Install this file in /etc/mailfilter.
 #
@@ -121,9 +121,9 @@ if( $RETURNCODE == 0)
         MAILDIRQUOTA=`/usr/bin/head -n1 $VHOME/Maildir/maildirsize`
 }
 
-# if the user does not have a Spam folder, create it.
+# if the user does not have a Junk folder, create it.
 
-`test -d $VHOME/Maildir/.Spam`
+`test -d $VHOME/Maildir/.Junk`
 if( $RETURNCODE == 1 )
 {
 
@@ -141,8 +141,8 @@ if( $RETURNCODE == 1 )
     }
     else
     {
-        log "   creating $VHOME/Maildir/.Spam "
-        `$MAILDIRMAKE -f Spam $VHOME/Maildir`
+        log "   creating $VHOME/Maildir/.Junk "
+        `$MAILDIRMAKE -f Junk $VHOME/Maildir`
     }
 }
 
@@ -176,10 +176,10 @@ if ( /X-Spam-Status: Yes/:h)
             EXITCODE=0
             exit
         }
-        log "   SPAM: score $MATCH2: delivering to $VHOME/Maildir/.Spam"
+        log "   SPAM: score $MATCH2: delivering to $VHOME/Maildir/.Junk"
         log "=== END ===  $EXT@$HOST success"
         exception {
-            to "$VHOME/Maildir/.Spam"
+            to "$VHOME/Maildir/.Junk"
         }
     }
     else
