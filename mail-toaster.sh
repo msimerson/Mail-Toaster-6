@@ -25,7 +25,7 @@ export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
-export JAIL_NET6="fd7a:e5cd:1fc1:c221:0000:0000:0000"
+export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
@@ -62,7 +62,6 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_NET6="fd7a:e5cd:1fc1:c221:dead:beef:cafe"
 export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
@@ -81,15 +80,31 @@ if [ "$TOASTER_MYSQL" = "1" ]; then
 fi
 
 usage() {
+	if [ -n "$1" ]; then echo; echo "ERROR: missing required $1"; echo; fi
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 	exit
 }
-if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage; fi
+if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage TOASTER_HOSTNAME; fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
-if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage; fi
+if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage TOASTER_MAIL_DOMAIN; fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"
+
+dec_to_hex() { printf '%04x\n' "$1"; }
+
+get_random_ip6net()
+{
+	# shellcheck disable=2039
+	echo "fd7a:e5cd:1fc1:$(dec_to_hex $(( RANDOM ))):dead:beef:cafe"
+}
+
+if [ -z "$JAIL_NET6" ]; then
+	JAIL_NET6=$(get_random_ip6net)
+	echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
+	export JAIL_NET6
+fi
+echo "IPv6 jail network: $JAIL_NET6"
 
 # shellcheck disable=2009
 if ps -o args= -p "$$" | grep csh; then usage; fi
@@ -259,11 +274,6 @@ get_jail_ip()
 
 	# return error code if _incr unset
 	return 2
-}
-
-dec_to_hex()
-{
-	printf '%04x\n' "$1"
 }
 
 get_jail_ip6()
