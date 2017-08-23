@@ -383,10 +383,14 @@ configure_install_default()
 	local _source="$_haraka/config"
 
 	if [ ! -f "$_source/$1" ]; then
-		_source="$_haraka/node_modules/haraka-plugin-$1/config"
+		local _pname="${1%.*}"
+		_source="$_haraka/node_modules/haraka-plugin-$_pname/config"
 		if [ ! -f "$_source/$1" ]; then
-			echo "unable to find default $1"
-			exit
+			echo "unable to find default $1 in "
+			echo "    $_haraka/config"
+			echo " or "
+			echo "    $_source"
+			exit 1
 		fi
 	fi
 
