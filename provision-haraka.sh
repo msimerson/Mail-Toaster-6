@@ -379,7 +379,17 @@ configure_haraka_plugins()
 
 configure_install_default()
 {
-	local _source="$STAGE_MNT/usr/local/lib/node_modules/Haraka/config"
+	local _haraka="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
+	local _source="$_haraka/config"
+
+	if [ ! -f "$_source/$1" ]; then
+		_source="$_haraka/node_modules/haraka-plugin-$1/config"
+		if [ ! -f "$_source/$1" ]; then
+			echo "unable to find default $1"
+			exit
+		fi
+	fi
+
 	echo "cp $_source/$1 $HARAKA_CONF/$1"
 	cp "$_source/$1" "$HARAKA_CONF/$1"
 }
