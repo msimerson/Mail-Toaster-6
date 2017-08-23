@@ -25,6 +25,7 @@ export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
+export JAIL_NET6="fd7a:e5cd:1fc1:c221:0000:0000:0000"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
@@ -61,6 +62,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
+export JAIL_NET6="fd7a:e5cd:1fc1:c221:dead:beef:cafe"
 export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
@@ -250,6 +252,41 @@ get_jail_ip()
 	do
 		if [ "$1" = "$j" ]; then
 			echo "$JAIL_NET_PREFIX.$_octet"
+			return
+		fi
+		_octet=$((_octet + 1))
+	done
+
+	# return error code if _incr unset
+	return 2
+}
+
+dec_to_hex()
+{
+	printf '%04x\n' "$1"
+}
+
+get_jail_ip6()
+{
+	local _start=${JAIL_NET_START:=1}
+
+	case "$1" in
+		syslog) echo "$JAIL_NET6:$(dec_to_hex "$_start")";       return;;
+		base)   echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"; return;;
+		stage)  echo "$JAIL_NET6:$(dec_to_hex 254)";             return;;
+	esac
+
+	if echo "$1" | grep -q ^base; then
+		echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"
+		return
+	fi
+
+	local _octet="$_start"
+
+	for j in $JAIL_ORDERED_LIST
+	do
+		if [ "$1" = "$j" ]; then
+			echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
 			return
 		fi
 		_octet=$((_octet + 1))
