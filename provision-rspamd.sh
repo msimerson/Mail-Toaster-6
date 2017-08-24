@@ -56,9 +56,9 @@ configure_stats()
 
 	tell_status "add Redis address, for Bayes stats"
 	tee "$_etc/rspamd/statistic.conf"  << EO_RSPAMD_STAT
-classifier "bayes" {    
+classifier "bayes" {
     tokenizer {
-    name = "osb";
+        name = "osb";
     }
 
     backend = "redis";
@@ -76,14 +76,14 @@ classifier "bayes" {
 
     statfile {
     	symbol = "BAYES_SPAM";
-	spam = true;
+        spam = true;
     }
     statfile {
-            symbol = "BAYES_HAM";
-            spam = false;
+        symbol = "BAYES_HAM";
+        spam = false;
     }
     #per_user = true;
-    autolearn = [-5, 5];    
+    autolearn = [-5, 5];
 }
 EO_RSPAMD_STAT
 

@@ -349,7 +349,8 @@ add_jail_conf()
 	fi
 
 	if [ -z "$JAIL_CONF_EXTRA" ]; then
-		JAIL_CONF_EXTRA="mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
+		JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
 	fi
 
 	tell_status "adding $1 to /etc/jail.conf"
@@ -357,8 +358,7 @@ add_jail_conf()
 
 $1	{
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}
-		${JAIL_CONF_EXTRA}
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
 }
