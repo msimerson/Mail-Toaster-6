@@ -287,15 +287,15 @@ http_ports  = "{ 80 443 }"
 mta_ports   = "{ 25 465 587 }"
 mua_ports   = "{ 110 143 993 995 }"
 
-dovecot_lo4 = \"{ $(get_jail_ip  dovecot) }\"
-haraka_lo4  = \"{ $(get_jail_ip  haraka) }\"
-haproxy_lo4 = \"{ $(get_jail_ip  haproxy) }\"
-dhcp_lo4    = \"{ $(get_jail_ip  dhcp) }\"
+dovecot_lo4 = "{ $(get_jail_ip  dovecot) }"
+haraka_lo4  = "{ $(get_jail_ip  haraka)  }"
+haproxy_lo4 = "{ $(get_jail_ip  haproxy) }"
+dhcp_lo4    = "{ $(get_jail_ip  dhcp)    }"
 
-dovecot_lo6 = \"{ $(get_jail_ip6 dovecot) }\"
-haraka_lo6  = \"{ $(get_jail_ip6 haraka) }\"
-haproxy_lo6 = \"{ $(get_jail_ip6 haproxy) }\"
-dhcp_lo6    = \"{ $(get_jail_ip6 dhcp) }\"
+dovecot_lo6 = "{ $(get_jail_ip6 dovecot) }"
+haraka_lo6  = "{ $(get_jail_ip6 haraka)  }"
+haproxy_lo6 = "{ $(get_jail_ip6 haproxy) }"
+dhcp_lo6    = "{ $(get_jail_ip6 dhcp)    }"
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
@@ -306,7 +306,7 @@ rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
 
 # SMTP traffic to the Haraka jail
-rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo
+rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$mta_ports -> \$haraka_lo6
 
 # HTTP traffic to HAproxy

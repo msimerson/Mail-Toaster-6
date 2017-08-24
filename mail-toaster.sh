@@ -1,5 +1,15 @@
 #!/bin/sh
 
+dec_to_hex() { printf '%04x\n' "$1"; }
+
+get_random_ip6net()
+{
+	# shellcheck disable=2039
+	local RAND16
+	RAND16=$(od -t uI -N 2 /dev/urandom | awk '{print $2}')
+	echo "fd7a:e5cd:1fc1:$(dec_to_hex "$RAND16"):dead:beef:cafe"
+}
+
 create_default_config()
 {
 	local _HOSTNAME;
@@ -90,14 +100,6 @@ echo "toaster host: $TOASTER_HOSTNAME"
 
 if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage TOASTER_MAIL_DOMAIN; fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"
-
-dec_to_hex() { printf '%04x\n' "$1"; }
-
-get_random_ip6net()
-{
-	# shellcheck disable=2039
-	echo "fd7a:e5cd:1fc1:$(dec_to_hex $(( RANDOM ))):dead:beef:cafe"
-}
 
 if [ -z "$JAIL_NET6" ]; then
 	JAIL_NET6=$(get_random_ip6net)
@@ -810,9 +812,9 @@ get_public_ip()
 	export PUBLIC_IP4
 
 	if [ "$1" = 'ipv6' ]; then
-		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep -v fe80 | awk '{print $2}' | head -n1)
+		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
 	else
-		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | awk '{print $2}' | head -n1)
+		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
 	fi
 }
 
