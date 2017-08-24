@@ -16,14 +16,16 @@ get_mt6_data()
 {
 	echo "
 
-	   local-data: \"stage        A $(get_jail_ip stage)\"
+	   local-data: \"stage		A $(get_jail_ip stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\""
 
 	for _j in $JAIL_ORDERED_LIST
 	do
 		echo "
-	   local-data: \"$_j       A $(get_jail_ip $_j)\"
-	   local-data: \"$(get_reverse_ip $_j) PTR $_j\""
+	   local-data: \"$_j		A $(get_jail_ip "$_j")\"
+	   local-data: \"$(get_reverse_ip "$_j") PTR $_j\"
+	   local-data: \"$_j		AAAA $(get_jail_ip6 "$_j")\"
+	   local-data: \"$(get_reverse_ip6 "$_j") PTR $_j\""
 	done
 }
 
@@ -37,6 +39,7 @@ install_access_conf()
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
+	   access-control: $JAIL_NET::/64
 
 EO_UNBOUND_ACCESS
 	else
