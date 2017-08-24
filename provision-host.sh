@@ -260,8 +260,14 @@ on all your IP addresses!"
 add_jail_nat()
 {
 	if grep -qs bruteforce /etc/pf.conf; then
-		tell_status "preserving pf.conf settings"
-		return
+		# this is an upgrade / reinstall
+		if grep -qs _ext_ip6 /etc/pf.conf; then
+			tell_status "preserving pf.conf settings"
+			return
+		fi
+		# MT6 without IPv6 rules
+		tell_status "Backing up /etc/pf.conf"
+		cp /etc/pf.conf "/etc/pf.conf-$(date +%Y.%m.%d)" || exit
 	fi
 
 	get_public_ip
@@ -270,29 +276,51 @@ add_jail_nat()
 	if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
 	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
 
-	tell_status "enabling NAT for jails"
-	tee -a /etc/pf.conf <<EO_PF_RULES
+	tell_status "enabling NAT for jails (/etc/pf.conf)"
+	tee /etc/pf.conf <<EO_PF_RULES
 ext_if="$PUBLIC_NIC"
-table <ext_ips> { $PUBLIC_IP4 $PUBLIC_IP6 }
-table <bruteforce>  persist
+table <ext_ip4> { $PUBLIC_IP4 }
+table <ext_ip6> { $PUBLIC_IP6 }
+table <bruteforce> persist
+
+http_ports  = "{ 80 443 }"
+mta_ports   = "{ 25 465 587 }"
+mua_ports   = "{ 110 143 993 995 }"
+
+dovecot_lo4 = \"{ $(get_jail_ip  dovecot) }\"
+haraka_lo4  = \"{ $(get_jail_ip  haraka) }\"
+haproxy_lo4 = \"{ $(get_jail_ip  haproxy) }\"
+dhcp_lo4    = \"{ $(get_jail_ip  dhcp) }\"
+
+dovecot_lo6 = \"{ $(get_jail_ip6 dovecot) }\"
+haraka_lo6  = \"{ $(get_jail_ip6 haraka) }\"
+haproxy_lo6 = \"{ $(get_jail_ip6 haproxy) }\"
+dhcp_lo6    = \"{ $(get_jail_ip6 dhcp) }\"
 
 # default route to the internet for jails
-nat on \$ext_if from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
+nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
+nat on \$ext_if inet6 from $JAIL_NET6:0/64 to any -> (\$ext_if)
 
 # POP3 & IMAP traffic to dovecot jail
-rdr proto tcp from any to <ext_ips> port { 110 143 993 995 } -> $(get_jail_ip dovecot)
+rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
+rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
 
 # SMTP traffic to the Haraka jail
-rdr proto tcp from any to <ext_ips> port { 25 465 587 } -> $(get_jail_ip haraka)
+rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo
+rdr inet6 proto tcp from any to <ext_ip6> port \$mta_ports -> \$haraka_lo6
 
 # HTTP traffic to HAproxy
-rdr proto tcp from any to <ext_ips> port { 80 443 } -> $(get_jail_ip haproxy)
+rdr inet  proto tcp from any to <ext_ip4> port \$http_ports -> \$haproxy_lo4
+rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
 
 # DHCP traffic
-rdr proto udp from any to any port { 67 68 } -> $(get_jail_ip dhcp)
+rdr inet  proto udp from any to any port { 67 68 } -> \$dhcp_lo4
+rdr inet6 proto udp from any to any port { 67 68 } -> \$dhcp_lo6
 
 block in quick from <bruteforce>
 EO_PF_RULES
+
+	echo; echo "/etc/pf.conf has been installed"; echo
 
 	_pf_loaded=$(kldstat -m pf | grep pf)
 	if [ -n "$_pf_loaded" ]; then
