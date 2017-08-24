@@ -810,9 +810,9 @@ get_public_ip()
 	export PUBLIC_IP4
 
 	if [ "$1" = 'ipv6' ]; then
-		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" | grep 'inet6' | grep -v fe80 | awk '{print $2}' | head -n1)
+		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep -v fe80 | awk '{print $2}' | head -n1)
 	else
-		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" | grep 'inet ' | awk '{print $2}' | head -n1)
+		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | awk '{print $2}' | head -n1)
 	fi
 }
 
