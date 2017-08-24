@@ -72,6 +72,18 @@ service auth {
 #  }
 }
 
+# disable unencrypted and insecure port 110 and 143
+service pop3-login {
+  inet_listener pop3 {
+    port = 0
+  }
+}
+service imap-login {
+  inet_listener imap {
+    port = 0
+  }
+}
+
 passdb {
   driver = vpopmail
 }
