@@ -39,7 +39,7 @@ install_access_conf()
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
-	   access-control: $JAIL_NET::/64
+	   access-control: $JAIL_NET6::/64 allow
 
 EO_UNBOUND_ACCESS
 	else

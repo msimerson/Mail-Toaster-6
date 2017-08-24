@@ -321,6 +321,12 @@ get_reverse_ip()
 	echo "$_rev_ip.in-addr.arpa"
 }
 
+get_reverse_ip6()
+{
+	_rev_ip=$(get_jail_ip6 "$1" | sed -e 's/://g' | rev | sed -e 's/./&./g')
+	echo "${_rev_ip}ip6.arpa"
+}
+
 add_jail_conf()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1");
@@ -350,7 +356,8 @@ add_jail_conf()
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}
 		${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
@@ -419,6 +426,7 @@ create_staged_fs()
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	assure_data_volume_mount_is_declared "$1"
+	assure_ip6_addr_is_declared "$1"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT"
@@ -871,32 +879,37 @@ unprovision_last()
 	done
 }
 
+unprovision_filesystem()
+{
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.ready"; then
+		tell_status "destroying $ZFS_JAIL_VOL/$1.ready"
+		zfs destroy "$ZFS_JAIL_VOL/$1.ready"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.last"; then
+		tell_status "destroying $ZFS_JAIL_VOL/$1.last"
+		zfs destroy "$ZFS_JAIL_VOL/$1.last"
+	fi
+
+	if [ -e "$ZFS_JAIL_VOL/$1/dev/null" ]; then
+		umount -t devfs "$ZFS_JAIL_VOL/$1/dev"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
+		tell_status "destroying $ZFS_DATA_MNT/$1"
+		zfs destroy "$ZFS_DATA_VOL/$1"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1"; then
+		tell_status "destroying $ZFS_JAIL_VOL/$1"
+		zfs destroy "$ZFS_JAIL_VOL/$1"
+	fi
+}
+
 unprovision_filesystems()
 {
 	for _j in $JAIL_ORDERED_LIST; do
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.ready"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j.ready"
-			zfs destroy "$ZFS_JAIL_VOL/$_j.ready"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
-			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
-		fi
-
-		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
-			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
-			tell_status "destroying $ZFS_DATA_MNT/$_j"
-			zfs destroy "$ZFS_DATA_VOL/$_j"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j"
-			zfs destroy "$ZFS_JAIL_VOL/$_j"
-		fi
+		unprovision_filesystem "$_j"
 	done
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL"; then
@@ -931,8 +944,15 @@ unprovision_files()
 
 unprovision()
 {
-	if [ "$1" = "last" ]; then
-		unprovision_last
+	if [ -n "$1" ]; then
+
+		if [ "$1" = "last" ]; then
+			unprovision_last
+			return
+		fi
+
+		service jail stop "$1"
+		unprovision_filesystem "$1"
 		return
 	fi
 
@@ -953,9 +973,11 @@ unprovision()
 
 add_pf_portmap()
 {
-	sed -i .bak -e "/^block / a\
+	sed -i .bak
+		-e "/^block / a\
 # map port $1 traffic to $2
-rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
+rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")
+rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")
 " /etc/pf.conf
 }
 
@@ -1022,4 +1044,23 @@ FreeBSD: {
   url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest"
 }
 EO_PKG
+}
+
+assure_ip6_addr_is_declared()
+{
+	if ! grep -qs "^$1" /etc/jail.conf; then
+		# config for this jail hasn't been created yet
+		return
+	fi
+
+	if awk "/^$1/,/}/" /etc/jail.conf | grep -q ip6; then
+		echo "ip6.addr is already declared in $1"
+		return
+	fi
+
+	tell_status "adding ip6.addr to $1 section in /etc/jail.conf"
+	sed -i .bak \
+		-e "/^$1/,/ip4/ s/ip4.*;/&\\
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
+		/etc/jail.conf || exit
 }
