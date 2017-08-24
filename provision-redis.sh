@@ -25,6 +25,7 @@ configure_redis()
 		-e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' \
 		-e 's/^# syslog-enabled no/syslog-enabled yes/' \
 		-e 's/^logfile .*/logfile \/data\/log\/redis.log/' \
+		-e 's/^bind.*/#&/' \
 		"$STAGE_MNT/usr/local/etc/redis.conf"
 
 	echo '/data/log/redis.log   redis:redis 644  7  *  @T00   JC   /var/run/redis/redis.pid' \
