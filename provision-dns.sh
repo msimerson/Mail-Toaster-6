@@ -172,9 +172,14 @@ start_unbound
 test_unbound
 promote_staged_jail dns
 
+if [ ! -f /etc/resolv.conf.orig ]; then
+	cp /etc/resolv.conf /etc/resolv.conf.orig
+fi
+
 if ! grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf;
 then
 	echo "switching host resolver to $(get_jail_ip dns)"
-	# shellcheck disable=2039,2094
-	echo -e "nameserver $(get_jail_ip dns)\n$(cat /etc/resolv.conf)" > /etc/resolv.conf
+	echo "nameserver $(get_jail_ip dns)" > /etc/resolv.conf
+	echo "nameserver $(get_jail_ip6 dns)" >> /etc/resolv.conf
+	cat /etc/resolv.conf.orig >> /etc/resolv.conf
 fi
