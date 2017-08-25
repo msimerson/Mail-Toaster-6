@@ -19,13 +19,24 @@ configure_redis()
 	fi
 
 	tell_status "add Redis address, for default Lua modules backend"
-    tee -a "$_etc/rspamd/rspamd.conf" <<  EO_REDIS
-    redis {
-        servers = "$(get_jail_ip redis):6379";
-        db    = "5";
-    }
+	tee -a "$_etc/rspamd/rspamd.conf" <<  EO_REDIS
+	redis {
+		servers = "$(get_jail_ip redis):6379";
+		db    = "5";
+	}
 EO_REDIS
 
+}
+
+configure_dcc() {
+	if [ ! -d "$STAGE_MNT/usr/local/etc/rspamd/local.d" ]; then
+		mkdir "$STAGE_MNT/usr/local/etc/rspamd/local.d"
+	fi
+
+	tee "$STAGE_MNT/usr/local/etc/rspamd/local.d/dcc.conf" <<EO_DCC
+	host = $(get_jail_ip dcc);
+	port = 1025;
+EO_DCC
 }
 
 configure_dmarc()
@@ -41,7 +52,7 @@ configure_dmarc()
 		reporting = true;
 		actions = {
 			quarantine = "add_header";
-	        reject = "reject";
+			reject = "reject";
 		}
 }
 EO_DMARC
@@ -57,33 +68,33 @@ configure_stats()
 	tell_status "add Redis address, for Bayes stats"
 	tee "$_etc/rspamd/statistic.conf"  << EO_RSPAMD_STAT
 classifier "bayes" {
-    tokenizer {
-        name = "osb";
-    }
+	tokenizer {
+		name = "osb";
+	}
 
-    backend = "redis";
-    servers = "$(get_jail_ip redis):6379";
-    min_tokens = 11;
-    min_learns = 200;
+	backend = "redis";
+	servers = "$(get_jail_ip redis):6379";
+	min_tokens = 11;
+	min_learns = 200;
 
-    #write_servers = "localhost:6379"; # If needed another servers for learning
-    #password = "xxx"; # Optional password
-    database = "6"; # Optional database id
+	#write_servers = "localhost:6379"; # If needed another servers for learning
+	#password = "xxx"; # Optional password
+	database = "6"; # Optional database id
 
-    cache {
-    	type = "redis";
-    }
+	cache {
+		type = "redis";
+	}
 
-    statfile {
-    	symbol = "BAYES_SPAM";
-        spam = true;
-    }
-    statfile {
-        symbol = "BAYES_HAM";
-        spam = false;
-    }
-    #per_user = true;
-    autolearn = [-5, 5];
+	statfile {
+		symbol = "BAYES_SPAM";
+		spam = true;
+	}
+	statfile {
+		symbol = "BAYES_HAM";
+		spam = false;
+	}
+	#per_user = true;
+	autolearn = [-5, 5];
 }
 EO_RSPAMD_STAT
 
@@ -112,6 +123,7 @@ configure_rspamd()
   	configure_redis
 	configure_dmarc
 	configure_stats
+	configure_dcc
 
 	# configure admin password?
 	echo "done"

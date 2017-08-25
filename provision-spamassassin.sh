@@ -6,18 +6,6 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
-install_dcc_cleanup()
-{
-	tell_status "adding DCC cleanup periodic task"
-	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
-	mkdir -p "$_periodic"
-	cat <<EO_DCC > $_periodic/daily/501.dccd
-#!/bin/sh
-/usr/local/dcc/libexec/cron-dccd
-EO_DCC
-	chmod 755 "$_periodic/daily/501.dccd"
-}
-
 install_sa_update()
 {
 	tell_status "adding sa-update periodic task"
@@ -49,7 +37,7 @@ install_sought_rules() {
 install_spamassassin_port()
 {
 	tell_status "install SpamAssassin from ports (w/opts)"
-	stage_pkg_install dialog4ports p5-Encode-Detect || exit
+	stage_pkg_install dialog4ports p5-Encode-Detect p5-Test-NoWarnings || exit
 
 	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY GNUPG_NONE"
 	if [ "$TOASTER_MYSQL" = "1" ]; then
@@ -193,8 +181,21 @@ loadplugin Mail::SpamAssassin::Plugin::PDFInfo
 EO_LOCAL_PRE
 	fi
 
+	local _should_install=""
 	if [ ! -f "$_sa_etc/local.cf" ]; then
-		tell_status "installing local.cf"
+		_should_install="yes"
+	fi
+
+	if [ -z "$_should_install" ]; then
+		if diff -q "$_sa_etc/local.cf" "$_sa_etc/local.cf.sample"; then
+			echo "they're different"
+		else
+			_should_install="yes"
+		fi
+	fi
+
+	if [ "$_should_install" = "yes" ]; then
+		tell_status "updating local.cf"
 		tee -a "$_sa_etc/local.cf" <<EO_LOCAL_CONF
 report_safe 			0
 trusted_networks $JAIL_NET_PREFIX.
@@ -202,6 +203,7 @@ trusted_networks $JAIL_NET_PREFIX.
 skip_rbl_checks         0
 use_razor2              1
 use_dcc                 1
+dcc_dccifd_path 		$(get_jail_ip dcc):1025
 
 ok_languages            en
 ok_locales              en
@@ -218,7 +220,6 @@ EO_LOCAL_CONF
 
 	install_sought_rules
 	install_sa_update
-	install_dcc_cleanup
 	configure_spamassassin_redis_bayes
 	configure_geoip
 
