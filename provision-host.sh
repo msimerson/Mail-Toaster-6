@@ -278,6 +278,8 @@ add_jail_nat()
 
 	tell_status "enabling NAT for jails (/etc/pf.conf)"
 	tee /etc/pf.conf <<EO_PF_RULES
+## Macros
+
 ext_if="$PUBLIC_NIC"
 table <ext_ip4> { $PUBLIC_IP4 }
 table <ext_ip6> { $PUBLIC_IP6 }
@@ -290,12 +292,12 @@ mua_ports   = "{ 110 143 993 995 }"
 dovecot_lo4 = "{ $(get_jail_ip  dovecot) }"
 haraka_lo4  = "{ $(get_jail_ip  haraka)  }"
 haproxy_lo4 = "{ $(get_jail_ip  haproxy) }"
-dhcp_lo4    = "{ $(get_jail_ip  dhcp)    }"
 
 dovecot_lo6 = "{ $(get_jail_ip6 dovecot) }"
 haraka_lo6  = "{ $(get_jail_ip6 haraka)  }"
 haproxy_lo6 = "{ $(get_jail_ip6 haproxy) }"
-dhcp_lo6    = "{ $(get_jail_ip6 dhcp)    }"
+
+## Translation rules
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
@@ -313,9 +315,7 @@ rdr inet6 proto tcp from any to <ext_ip6> port \$mta_ports -> \$haraka_lo6
 rdr inet  proto tcp from any to <ext_ip4> port \$http_ports -> \$haproxy_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
 
-# DHCP traffic
-rdr inet  proto udp from any to any port { 67 68 } -> \$dhcp_lo4
-rdr inet6 proto udp from any to any port { 67 68 } -> \$dhcp_lo6
+## Filtering rules
 
 block in quick from <bruteforce>
 EO_PF_RULES

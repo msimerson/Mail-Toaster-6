@@ -29,6 +29,8 @@ configure_dhcpd()
 	stage_sysrc dhcpd_rootdir="/data/db"	# directory to run in
 	echo "configured"
 
+	add_pf_portmap "67 68" dhcp
+
 	if [ ! -d "$ZFS_DATA_MNT/dhcp/etc" ]; then
 		mkdir -p "$ZFS_DATA_MNT/dhcp/etc" || exit
 	fi

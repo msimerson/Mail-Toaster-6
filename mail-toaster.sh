@@ -974,12 +974,21 @@ unprovision()
 
 add_pf_portmap()
 {
-	sed -i .bak
-		-e "/^block / a\
-# map port $1 traffic to $2
-rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")
-rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")
-" /etc/pf.conf
+	if grep -q "$2" /etc/pf.conf; then
+		echo "NOTICE: PF rules for $2 exist, skipping"
+		return
+	fi
+
+	tell_status "adding redirection rules for $2"
+	sed -i .bak \
+		-e "/^## Filtering rules/ c\\
+rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")\\
+rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
+\\
+## Filtering rules" \
+		/etc/pf.conf || exit
+
+	pfctl -f /etc/pf.conf || exit
 }
 
 mt6-update()
