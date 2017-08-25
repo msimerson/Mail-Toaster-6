@@ -470,6 +470,7 @@ start_staged_jail()
 		path="$_path" \
 		interface="$JAIL_NET_INTERFACE" \
 		ip4.addr="$(get_jail_ip stage)" \
+		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		mount.devfs \
@@ -658,7 +659,7 @@ stage_listening()
 			echo "port $1 is NOT listening"
 			exit
 		fi
-		echo "checking for port $1 listener in staged jail"
+		echo "	checking port $1"
 		_listening=$(sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO)
 		sleep "$_sleep"
 	done
