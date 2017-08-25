@@ -318,7 +318,7 @@ configure_haraka_rspamd()
 	if ! grep -qs ^host "$HARAKA_CONF/rspamd.ini"; then
 		tell_status "configure Haraka rspamd plugin"
 		echo "host = $(get_jail_ip rspamd)
-always_add_headers = true
+add_headers = always
 " | tee -a "$HARAKA_CONF/rspamd.ini" || exit
 	fi
 
@@ -647,12 +647,8 @@ start_haraka()
 
 test_haraka()
 {
-	tell_status "waiting for Haraka to start listeners"
-	sleep 3
-
 	tell_status "testing Haraka"
-	stage_listening 25
-	echo "it worked"
+	stage_listening 25 5 2
 }
 
 preinstall_checks() {
