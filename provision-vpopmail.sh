@@ -124,13 +124,11 @@ install_vpopmail_mysql_grants()
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
 
-	local _vpopmail_ip; _vpopmail_ip=$(get_jail_ip vpopmail)
-	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_vpopmail_ip}' IDENTIFIED BY '${_vpass}';" \
- 		| jexec mysql /usr/local/bin/mysql || exit
-
-	local _stage_ip; _stage_ip=$(get_jail_ip)
-	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_stage_ip}' IDENTIFIED BY '${_vpass}';" \
- 		| jexec mysql /usr/local/bin/mysql || exit
+	for _ip in $(get_jail_ip vpopmail) $(get_jail_ip stage) $(get_jail_ip6 vpopmail) $(get_jail_ip6 stage);
+	do
+		echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
+			| jexec mysql /usr/local/bin/mysql || exit
+	done
 }
 
 install_vpop_nrpe()
