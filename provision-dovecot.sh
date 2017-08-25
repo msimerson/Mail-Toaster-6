@@ -59,7 +59,7 @@ last_valid_uid = 89
 mail_privileged_group = 89
 login_greeting = Mail Toaster (Dovecot) ready.
 mail_plugins = $mail_plugins quota
-protocols = imap pop3
+protocols = imap pop3 lmtp
 service auth {
   unix_listener auth-client {
     mode = 0660
@@ -82,6 +82,15 @@ service pop3-login {
 service imap-login {
   inet_listener imap {
     port = 0
+  }
+}
+service lmtp {
+  user = vpopmail
+  inet_listener lmtp {
+    port = 24
+  }
+  unix_listener lmtp {
+    #mode = 0666
   }
 }
 
@@ -230,6 +239,32 @@ configure_tls_certs()
 	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem" || exit
 }
 
+configure_postfix_with_sasl()
+{
+	# ignore this, it doesn't exist. Yet. Maybe not ever. It's one way to
+	# configure a MSA with dovecot auth.
+	stage_pkg_install postfix || exit
+
+	stage_exec postconf -e 'relayhost = haraka'
+	stage_exec postconf -e 'smtpd_sasl_type = dovecot'
+	stage_exec postconf -e 'smtpd_sasl_path = private/auth'
+	stage_exec postconf -e 'smtpd_sasl_auth_enable = yes'
+	stage_exec postconf -e 'smtpd_recipient_restrictions = permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination'
+	stage_exec postconf -e "smtpd_tls_cert_file = /data/etc/ssl/certs/$TOASTER_HOSTNAME.pem"
+	stage_exec postconf -e "smtpd_tls_key_file = /data/etc/ssl/private/$TOASTER_HOSTNAME.pem"
+	stage_exec postconf -e 'smtp_tls_security_level = may'
+
+	for _s in 512 1024 2048; do
+		openssl dhparam -out /tmp/dh$_s.tmp $_s || exit
+		chmod 644 /tmp/dh${_s}.tmp || exit
+		mv /tmp/dh${_s}.tmp "$STAGE_MNT/usr/local/etc/postfix/dh${_s}.pem" || exit
+		stage_exec postconf -e "smtpd_tls_dh${_s}_param_file = \${config_directory}/dh${_s}.pem" || exit
+	done
+
+	stage_sysrc postfix_enable="YES"
+	stage_exec service postfix start
+}
+
 configure_dovecot()
 {
 	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
@@ -259,34 +294,41 @@ start_dovecot()
 
 test_imap()
 {
-	stage_pkg_install empty
+	pkg install -y empty
 
-	REMOTE_IP=$(get_jail_ip dovecot)
-	POST_USER="postmaster@$(hostname)"
+	POST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
 	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
 	rm -f in out
 
-	#empty -v -f -i in -o out openssl s_client -quiet -crlf -connect $REMOTE_IP:993
-	empty -v -f -i in -o out telnet "$REMOTE_IP" 143
+	echo "testing IMAP AUTH as $POST_USER"
+
+	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 143
+	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):993"
 	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS\n"
 	empty -v -w -i out -o in "Logged in"         ". LIST \"\" \"*\"\n"
 	empty -v -w -i out -o in "List completed"    ". SELECT INBOX\n"
-	empty -v -w -i out -o in "Select completed"  ". FETCH 1 BODY\n"
-	empty -v -w -i out -o in "OK Fetch completed" ". logout\n"
+	# shellcheck disable=SC2050
+	if [ "has" = "some messages" ]; then
+		empty -v -w -i out -o in "Select completed"  ". FETCH 1 BODY\n"
+		empty -v -w -i out -o in "OK Fetch completed" ". logout\n"
+	else
+		empty -v -w -i out -o in "Select completed" ". logout\n"
+	fi
 	echo "Logout completed"
 }
 
 test_pop3()
 {
-	stage_pkg_install empty
+	pkg install -y empty
 
-	REMOTE_IP=$(get_jail_ip dovecot)
-	POST_USER="postmaster@$(hostname)"
+	POST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
 	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
 	rm -f in out
 
-	#empty -v -f -i in -o out openssl s_client -quiet -crlf -connect $REMOTE_IP:995
-	empty -v -f -i in -o out telnet "$REMOTE_IP" 110
+	echo "testing POP3 AUTH as $POST_USER"
+
+	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 110
+	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):995"
 	empty -v -w -i out -o in "\+OK." "user $POST_USER\n"
 	empty -v -w -i out -o in "\+OK" "pass $POST_PASS\n"
 	empty -v -w -i out -o in "OK Logged in" "list\n"
@@ -296,7 +338,10 @@ test_pop3()
 test_dovecot()
 {
 	tell_status "testing dovecot"
-	stage_listening 143
+	stage_listening 993 3
+	stage_listening 995 3
+	test_imap
+	test_pop3
 	echo "it worked"
 }
 
