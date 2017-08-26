@@ -266,8 +266,11 @@ add_jail_nat()
 			return
 		fi
 		# MT6 without IPv6 rules
-		tell_status "Backing up /etc/pf.conf"
-		cp /etc/pf.conf "/etc/pf.conf-$(date +%Y.%m.%d)" || exit
+		if [ ! -f "/etc/pf.conf-$(date +%Y.%m.%d)" ]; then
+			# only back up once per day
+			tell_status "Backing up /etc/pf.conf"
+			cp /etc/pf.conf "/etc/pf.conf-$(date +%Y.%m.%d)" || exit
+		fi
 	fi
 
 	get_public_ip
