@@ -12,21 +12,25 @@ get_random_ip6net()
 
 create_default_config()
 {
-	local _HOSTNAME;
-	local _EMAIL_DOMAIN;
+	local _HOSTNAME
+	local _EMAIL_DOMAIN
+	local _ORGNAME
 
 	if [ -t 0 ]; then
 		echo "editing prefs"
 		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
 		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+		_ORGNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_ORG_NAME --inputbox "the name of your organization" 8 70 "Email Inc")
 	fi
 
 	# for Travis CI (Linux) where dialog doesn't exist
 	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
 	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
+	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
 	echo "creating mail-toaster.conf with defaults"
 	tee mail-toaster.conf <<EO_MT_CONF
+export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
 export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"

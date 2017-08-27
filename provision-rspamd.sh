@@ -6,6 +6,8 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+RSPAMD_ETC="$STAGE_MNT/usr/local/etc/rspamd"
+
 install_rspamd()
 {
 	tell_status "installing rspamd"
@@ -19,24 +21,28 @@ configure_redis()
 	fi
 
 	tell_status "add Redis address, for default Lua modules backend"
-	tee -a "$_etc/rspamd/rspamd.conf" <<  EO_REDIS
-	redis {
-		servers = "$(get_jail_ip redis):6379";
-		db    = "5";
-	}
+	tee "$RSPAMD_ETC/local.d/rspamd.conf" <<EO_REDIS
+	servers = "$(get_jail_ip redis):6379";
+	db    = "5";
 EO_REDIS
-
 }
 
 configure_dcc() {
-	if [ ! -d "$STAGE_MNT/usr/local/etc/rspamd/local.d" ]; then
-		mkdir "$STAGE_MNT/usr/local/etc/rspamd/local.d"
-	fi
-
-	tee "$STAGE_MNT/usr/local/etc/rspamd/local.d/dcc.conf" <<EO_DCC
+	tell_status "enabling DCC"
+	tee "$RSPAMD_ETC/local.d/dcc.conf" <<EO_DCC
 	host = $(get_jail_ip dcc);
 	port = 1025;
+	timeout = 5s;
 EO_DCC
+}
+
+configure_phishing()
+{
+	tell_status "enabling phish detection"
+	tee "$RSPAMD_ETC/local.d/phishing.conf" <<EO_PHISH
+	openphish_enabled = true;
+	phishtank_enabled = true;
+EO_PHISH
 }
 
 configure_dmarc()
@@ -46,17 +52,30 @@ configure_dmarc()
 	fi
 
 	tell_status "add Redis address, for DMARC stats"
-	tee -a "$_etc/rspamd/rspamd.conf" <<EO_DMARC
-	dmarc {
-		# Enables storing reporting information to redis
-		reporting = true;
-		actions = {
-			quarantine = "add_header";
-			reject = "reject";
-		}
-}
-EO_DMARC
+	tee -a "$RSPAMD_ETC/local.d/dmarc.conf" <<EO_DMARC
 
+	# Enables storing reporting information to redis
+	reporting = true;
+	actions = {
+		quarantine = "add_header";
+		reject = "reject";
+	}
+	send_reports = true;
+	report_settings {
+		org_name = "$TOASTER_ORG_NAME";
+		domain = "$TOASTER_MAIL_DOMAIN";
+		email = "$TOASTER_ADMIN_EMAIL";
+		# uncomment this when the reports are working
+		override_address = "$TOASTER_ADMIN_EMAIL";
+	}
+	smtp = "$(get_jail_ip haraka)";
+EO_DMARC
+}
+
+configure_enable()
+{
+	tell_status "enabling $1"
+	echo 'enabled = true;' > "$RSPAMD_ETC/local.d/$1.conf"
 }
 
 configure_stats()
@@ -66,66 +85,94 @@ configure_stats()
 	fi
 
 	tell_status "add Redis address, for Bayes stats"
-	tee "$_etc/rspamd/statistic.conf"  << EO_RSPAMD_STAT
-classifier "bayes" {
-	tokenizer {
-		name = "osb";
-	}
+	tee "$RSPAMD_ETC/override.d/statistic.conf"  << EO_RSPAMD_STAT
+	classifier "bayes" {
 
-	backend = "redis";
-	servers = "$(get_jail_ip redis):6379";
-	min_tokens = 11;
-	min_learns = 200;
+		tokenizer {
+			name = "osb";
+		}
 
-	#write_servers = "localhost:6379"; # If needed another servers for learning
-	#password = "xxx"; # Optional password
-	database = "6"; # Optional database id
+		backend = "redis";
+		servers = "$(get_jail_ip redis):6379";
+		database = "6";
 
-	cache {
-		type = "redis";
-	}
+		min_tokens = 11;
+		min_learns = 200;
 
-	statfile {
-		symbol = "BAYES_SPAM";
-		spam = true;
+		cache {
+			type = "redis";
+		}
+
+		statfile {
+			symbol = "BAYES_SPAM";
+			spam = true;
+		}
+		statfile {
+			symbol = "BAYES_HAM";
+			spam = false;
+		}
+		#per_user = true;
+		autolearn = [-5, 5];
 	}
-	statfile {
-		symbol = "BAYES_HAM";
-		spam = false;
-	}
-	#per_user = true;
-	autolearn = [-5, 5];
-}
 EO_RSPAMD_STAT
-
 }
 
 configure_logging()
 {
 	tell_status "configuring syslog logging"
-	sed -i .bak \
-		-e 's/type = "file"/type = "syslog"/' \
-		-e 's/filename = ".*/facility = "LOG_MAIL";/' \
-		"$_etc/rspamd/rspamd.conf"
+	tee "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
+type = "syslog";
+facility = "LOG_MAIL";
+EO_SYSLOG
+}
 
-#	mkdir -p "$_etc/newsyslog.conf.d/"
-#	echo '/var/log/rspamd/rspamd.log   nobody:nobody   644  7  *  @T00  JC  /var/run/rspamd/rspamd.pid  30' \
-#  		> "$_etc/newsyslog.conf.d/rspamd"
+configure_surbl()
+{
+	tee "$RSPAMD_ETC/local.d/surbl.conf" <<EO_SURBL
+redirector_hosts_map = "/usr/local/etc/rspamd/redirectors.inc";
+EO_SURBL
+}
 
+configure_worker()
+{
+	tee "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
+	bind_socket = "*v6:11333";
+	count = 4;
+EO_WORKER
+}
+
+configure_controller()
+{
+	tee "$RSPAMD_ETC/local.d/worker-controller.inc" <<EO_CONTROLLER
+password = "$(openssl rand -base64 15)";
+secure_ip = $(get_jail_ip dovecot);
+secure_ip = $(get_jail_ip6 dovecot);
+EO_CONTROLLER
 }
 
 configure_rspamd()
 {
 	tell_status "configuring rspamd"
-	local _etc="$STAGE_MNT/usr/local/etc"
+
+	for _d in "local.d" "override.d"; do
+		if [ ! -d "$RSPAMD_ETC/${_d}" ]; then
+			mkdir "$RSPAMD_ETC/${_d}"
+		fi
+	done
 
   	configure_logging
   	configure_redis
 	configure_dmarc
 	configure_stats
 	configure_dcc
+	configure_enable mxcheck
+	configure_phishing
+	configure_enable url_reputation
+	configure_enable url_tags
+	configure_surbl
+	configure_worker
+	configure_controller
 
-	# configure admin password?
 	echo "done"
 }
 
@@ -139,6 +186,7 @@ start_rspamd()
 test_rspamd()
 {
 	tell_status "testing rspamd"
+	stage_exec /usr/local/bin/rspamadm configtest
 	stage_listening 11334
 	echo "it worked"
 }
