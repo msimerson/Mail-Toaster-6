@@ -20,7 +20,9 @@ install_haraka()
 	stage_exec pkg install -y git-lite
 
 	stage_exec npm install -g Haraka ws express || exit
-	stage_exec bash -c "cd /data && npm install haraka-plugin-log-reader"
+	for _p in log-reader qmail-deliverable dcc; do
+		stage_exec bash -c "cd /data && npm install haraka-plugin-$_p"
+	done
 }
 
 install_geoip_dbs()
@@ -572,6 +574,16 @@ $(get_jail_ip stage)
 EO_WL
 }
 
+configure_haraka_dcc()
+{
+	tell_status "configuring DCC"
+	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
+[dccifd]
+host=$(get_jail_ip dcc)
+port=1025
+EO_DCC
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -625,6 +637,7 @@ configure_haraka()
 	configure_haraka_results
 	configure_haraka_log_rotation
 	configure_haraka_access
+	configure_haraka_dcc
 
 	install_geoip_dbs
 }

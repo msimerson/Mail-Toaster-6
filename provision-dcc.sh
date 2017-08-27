@@ -14,6 +14,7 @@ install_dcc_cleanup()
 	cat <<EO_DCC > $_periodic/daily/501.dccd
 #!/bin/sh
 /usr/local/dcc/libexec/cron-dccd
+/usr/bin/find /usr/local/dcc/log/ -not -newermt '1 days ago' -delete
 EO_DCC
 	chmod 755 "$_periodic/daily/501.dccd"
 }
