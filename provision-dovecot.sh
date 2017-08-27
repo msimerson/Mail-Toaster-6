@@ -265,21 +265,133 @@ configure_postfix_with_sasl()
 	stage_exec service postfix start
 }
 
+configure_sieve_report_ham()
+{
+	if [ -x "$SIEVE_DIR/report-ham.sieve" ]; then
+		return
+	fi
+
+	tee "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM'
+require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
+
+if environment :matches "imap.mailbox" "*" {
+  set "mailbox" "${1}";
+}
+
+if string "${mailbox}" "Trash" {
+  stop;
+}
+
+if environment :matches "imap.user" "*" {
+  set "username" "${1}";
+}
+
+pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
+pipe :copy "learn-ham-sa.sh" [ "${username}" ];
+EO_REPORT_HAM
+
+	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-ham.sieve"
+}
+
+configure_sieve_report_spam()
+{
+	if [ -x "$SIEVE_DIR/report-spam.sieve" ]; then
+		return
+	fi
+
+	tee "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM'
+# https://wiki2.dovecot.org/Pigeonhole/Sieve
+require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
+
+if environment :matches "imap.user" "*" {
+  set "username" "${1}";
+}
+
+pipe :copy "learn-spam-rspamd.sh" [ "${username}" ];
+pipe :copy "learn-spam-sa.sh" [ "${username}" ];
+EO_REPORT_SPAM
+
+	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-spam.sieve"
+}
+
+configure_sieve_learn_rspamd()
+{
+	if ! grep ^jail_list /etc/rc.conf | grep -q rspamd; then
+		echo "skip rspamd learning: it is not enabled"
+		return
+	fi
+
+	tell_status "adding learn-ham-rspamd.sh"
+	tee "$SIEVE_DIR/learn-ham-rspamd.sh" <<EO_RSPAM_LEARN_HAM
+exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
+EO_RSPAM_LEARN_HAM
+	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh"
+
+	tell_status "adding learn-spam-rspamd.sh"
+	tee "$SIEVE_DIR/learn-spam-rspamd.sh" <<EO_RSPAM_LEARN_SPAM
+exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
+EO_RSPAM_LEARN_SPAM
+	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh"
+}
+
+configure_sieve_learn_spamassassin()
+{
+	if ! grep ^jail_list /etc/rc.conf | grep -q spamassassin; then
+		echo "skip spamassassin learning: it is not enabled"
+		return
+	fi
+
+	if [ ! -x "$ZFS_DATA_MNT/dovecot/bin/spamc" ]; then
+		tell_status "copying spamc into /data/bin"
+		cp "$ZFS_JAIL_MNT/spamassassin/usr/local/bin/spamc" \
+			"$ZFS_DATA_MNT/dovecot/bin/spamc"
+	fi
+
+	tell_status "creating learn-ham-sa.sh"
+	tee "$SIEVE_DIR/learn-ham-sa.sh" <<EO_RSPAM_LEARN_HAM
+exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=ham -u \${1}
+EO_RSPAM_LEARN_HAM
+	chmod +x "$SIEVE_DIR/learn-ham-sa.sh"
+
+	tell_status "creating learn-spam-sa.sh"
+	tee "$SIEVE_DIR/learn-spam-sa.sh" <<EO_RSPAM_LEARN_SPAM
+exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=spam -u \${1}
+EO_RSPAM_LEARN_SPAM
+	chmod +x "$SIEVE_DIR/learn-spam-sa.sh"
+}
+
+configure_sieve()
+{
+	SIEVE_DIR="$STAGE_MNT/usr/local/lib/dovecot/sieve"
+	if [ ! -d "$SIEVE_DIR" ]; then
+		mkdir "$SIEVE_DIR" || exit
+	fi
+
+	configure_sieve_report_ham
+	configure_sieve_report_spam
+
+	configure_sieve_learn_rspamd
+	configure_sieve_learn_spamassassin
+}
+
 configure_dovecot()
 {
-	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
+	for _d in etc bin; do
+		local _dcdir="$ZFS_DATA_MNT/dovecot/${_d}"
 
-	if [ ! -d "$_dcdir" ]; then
-		tell_status "creating $_dcdir"
-		echo "mkdir $_dcdir"
-		mkdir "$_dcdir" || exit
-	fi
+		if [ ! -d "$_dcdir" ]; then
+			tell_status "creating $_dcdir"
+			echo "mkdir $_dcdir"
+			mkdir "$_dcdir" || exit
+		fi
+	done
 
 	configure_dovecot_local_conf
 	configure_example_config
 	configure_system_auth
 	configure_vsz_limit
 	configure_tls_certs
+	configure_sieve
 
 	mkdir -p "$STAGE_MNT/var/spool/postfix/private"
 }
