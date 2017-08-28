@@ -203,6 +203,7 @@ emailAddress_default = $TOASTER_ADMIN_EMAIL" \
 localityName_default = $_city" \
 			-e "/^countryName_default/ s/AU/$_cc/" \
 			-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
+			-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \
 			/etc/ssl/openssl.cnf
 	fi
 
