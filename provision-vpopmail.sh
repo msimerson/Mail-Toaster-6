@@ -124,10 +124,12 @@ install_vpopmail_mysql_grants()
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
 
-	for _ip in $(get_jail_ip vpopmail) $(get_jail_ip stage) $(get_jail_ip6 vpopmail) $(get_jail_ip6 stage);
-	do
-		echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+	for _jail in vpopmail stage dovecot; do
+		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		do
+			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
+				| jexec mysql /usr/local/bin/mysql || exit
+		done
 	done
 }
 
@@ -219,10 +221,10 @@ test_vpopmail()
 {
 	echo "testing vpopmail"
 	sleep 1 # give the daemons a second to start listening
-	stage_listening 25
-	stage_listening 80
-	stage_listening 89
-	stage_listening 8998
+	stage_listening 25 2
+	stage_listening 80 1
+	stage_listening 89 1
+	stage_listening 8998 2
 
 	stage_test_running lighttpd
 	#stage_test_running vpopmaild

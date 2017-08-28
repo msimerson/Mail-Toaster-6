@@ -150,16 +150,17 @@ auth\/auth_vpopmaild
 
 configure_haraka_qmail_deliverable()
 {
-	if [ ! -f "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini" ]; then
+	if [ ! -f "$HARAKA_CONF/qmail-deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
 host=$(get_jail_ip vpopmail)" | \
-		tee -a "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
+			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
-	if ! grep -qs ^rcpt_to.qmail_deliverable "$HARAKA_CONF/plugins"; then
-		tell_status "enabling rcpt_to.qmail_deliverable plugin"
+	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
+		tell_status "enabling qmail-deliverable plugin"
 		sed -i .bak \
+			-e '/^#qmail-deliverable/ s/#//' \
 			-e '/^#rcpt_to.qmail_deliverable/ s/#//' \
 			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
 			"$HARAKA_CONF/plugins"
@@ -352,7 +353,7 @@ configure_haraka_smtp_ini()
 	fi
 
 	sed -i .bak \
-		-e 's/^;listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' \
+		-e 's/^;listen=\[.*$/listen=[::0]:25,[::0]:465,[::0]:587/' \
 		-e 's/^;nodes=cpus/nodes=2/' \
 		-e 's/^;daemonize=true/daemonize=true/' \
 		-e 's/^;daemon_pid_file/daemon_pid_file/' \
@@ -495,7 +496,7 @@ configure_haraka_http()
 {
 	if [ ! -f "$HARAKA_CONF/http.ini" ]; then
 		tell_status "enable Haraka HTTP server"
-		echo "listen=0.0.0.0:80" | tee -a "$HARAKA_CONF/http.ini"
+		echo "listen=[::0]:80" | tee -a "$HARAKA_CONF/http.ini"
 	fi
 }
 
