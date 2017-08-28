@@ -62,7 +62,7 @@ cleanstart() {
     start
 }
 
-if [ "$1" = "cleanstart" ]; then
+if [ "$1" = "cleanstart" ] || [ "$1" = "freshstart" ]; then
     cleanstart
 else
     echo "$0 cleanstart"
