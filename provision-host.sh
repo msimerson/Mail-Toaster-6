@@ -286,19 +286,24 @@ add_jail_nat()
 ext_if="$PUBLIC_NIC"
 table <ext_ip4> { $PUBLIC_IP4 }
 table <ext_ip6> { $PUBLIC_IP6 }
+
+# to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
+table <allow_insecure> { }
+
 table <bruteforce> persist
 
-http_ports  = "{ 80 443 }"
-mta_ports   = "{ 25 465 587 }"
-mua_ports   = "{ 110 143 993 995 }"
+http_ports   = "{ 80 443 }"
+mta_ports    = "{ 25 465 587 }"
+mua_insecure = "{ 110 143 }"
+mua_ports    = "{ 993 995 }"
 
-dovecot_lo4 = "{ $(get_jail_ip  dovecot) }"
-haraka_lo4  = "{ $(get_jail_ip  haraka)  }"
-haproxy_lo4 = "{ $(get_jail_ip  haproxy) }"
+dovecot_lo4  = "{ $(get_jail_ip  dovecot) }"
+haraka_lo4   = "{ $(get_jail_ip  haraka)  }"
+haproxy_lo4  = "{ $(get_jail_ip  haproxy) }"
 
-dovecot_lo6 = "{ $(get_jail_ip6 dovecot) }"
-haraka_lo6  = "{ $(get_jail_ip6 haraka)  }"
-haproxy_lo6 = "{ $(get_jail_ip6 haproxy) }"
+dovecot_lo6  = "{ $(get_jail_ip6 dovecot) }"
+haraka_lo6   = "{ $(get_jail_ip6 haraka)  }"
+haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 
 ## Translation rules
 
@@ -306,9 +311,13 @@ haproxy_lo6 = "{ $(get_jail_ip6 haproxy) }"
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
 nat on \$ext_if inet6 from $JAIL_NET6:0/64 to any -> (\$ext_if)
 
-# POP3 & IMAP traffic to dovecot jail
+# Secured POP3 & IMAP traffic to dovecot jail
 rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
+
+# POP3 & IMAP from insecure IPs
+rdr inet  proto tcp from <allow_insecure> to <ext_ip4> port \$mua_insecure -> \$dovecot_lo4
+rdr inet6 proto tcp from <allow_insecure> any to <ext_ip6> port \$mua_insecure -> \$dovecot_lo6
 
 # SMTP traffic to the Haraka jail
 rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo4
