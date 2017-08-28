@@ -53,6 +53,7 @@ mta:
   stage: mta
   script:
     - sh provision-clamav.sh
+    - sh provision-dcc.sh
     - sh provision-rspamd.sh
     - sh provision-geoip.sh
     - sh provision-haraka.sh
