@@ -318,7 +318,7 @@ rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
 
 # POP3 & IMAP from insecure IPs
 rdr inet  proto tcp from <allow_insecure> to <ext_ip4> port \$mua_insecure -> \$dovecot_lo4
-rdr inet6 proto tcp from <allow_insecure> any to <ext_ip6> port \$mua_insecure -> \$dovecot_lo6
+rdr inet6 proto tcp from <allow_insecure> to <ext_ip6> port \$mua_insecure -> \$dovecot_lo6
 
 # SMTP traffic to the Haraka jail
 rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo4
