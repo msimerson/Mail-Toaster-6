@@ -13,7 +13,7 @@ mt6-include vpopmail
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot || exit
+	stage_pkg_install dovecot dovecot-pigeonhole || exit
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
@@ -96,11 +96,15 @@ verbose_proctitle = yes
 protocol imap {
   imap_client_workarounds = delay-newmail  tb-extra-mailbox-sep
   mail_max_userip_connections = 45
-  mail_plugins = $mail_plugins imap_quota
+  mail_plugins = $mail_plugins imap_quota imap_sieve
 }
 protocol pop3 {
   pop3_client_workarounds = outlook-no-nuls oe-ns-eoh
   pop3_uidl_format = %08Xu%08Xv
+}
+protocol lmtp {
+  mail_fsync = optimized
+  mail_plugins = $mail_plugins sieve
 }
 
 # default TLS certificate (no SNI)
@@ -135,6 +139,45 @@ service tcpwrap {
     group = $default_login_user
   }
   user = root
+}
+plugin {
+  quota = maildir:User quota
+  quota_rule = *:storage=1G
+  quota_rule2 = Trash:storage=+10%%
+  quota_rule3 = Spam:storage=+20%%
+
+  sieve_plugins = sieve_imapsieve sieve_extprograms
+
+  # From elsewhere to Junk, train as Spam
+  imapsieve_mailbox1_name = Junk
+  imapsieve_mailbox1_causes = COPY
+  imapsieve_mailbox1_after  = file:/usr/local/lib/dovecot/sieve/report-spam.sieve
+
+  # From elsewhere to Spam, train as Spam
+  imapsieve_mailbox2_name = Spam
+  imapsieve_mailbox2_causes = COPY
+  imapsieve_mailbox2_after  = file:/usr/local/lib/dovecot/sieve/report-spam.sieve
+
+  # From Junk to elsewhere, train as Ham
+  imapsieve_mailbox3_name = *
+  imapsieve_mailbox3_from = Junk
+  imapsieve_mailbox3_causes = COPY
+  imapsieve_mailbox3_after  = file:/usr/local/lib/dovecot/sieve/report-ham.sieve
+
+  # From Spam to elsewhere, train as Ham
+  imapsieve_mailbox4_name = *
+  imapsieve_mailbox4_from = Spam
+  imapsieve_mailbox4_causes = COPY
+  imapsieve_mailbox4_after  = file:/usr/local/lib/dovecot/sieve/report-ham.sieve
+
+  # From elsewhere to Archive, train as Ham
+  imapsieve_mailbox5_name = Archive
+  imapsieve_mailbox5_causes = COPY
+  imapsieve_mailbox5_after  = file:/usr/local/lib/dovecot/sieve/report-ham.sieve
+
+  sieve_pipe_bin_dir = /usr/local/lib/dovecot/sieve
+
+  sieve_global_extensions = +vnd.dovecot.pipe
 }
 EO_DOVECOT_LOCAL
 
@@ -279,7 +322,7 @@ pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
 pipe :copy "learn-ham-sa.sh" [ "${username}" ];
 EO_REPORT_HAM
 
-	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-ham.sieve"
+	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-ham.sieve" || exit
 }
 
 configure_sieve_report_spam()
@@ -300,7 +343,7 @@ pipe :copy "learn-spam-rspamd.sh" [ "${username}" ];
 pipe :copy "learn-spam-sa.sh" [ "${username}" ];
 EO_REPORT_SPAM
 
-	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-spam.sieve"
+	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-spam.sieve" || exit
 }
 
 configure_sieve_learn_rspamd()
