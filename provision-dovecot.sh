@@ -297,6 +297,11 @@ configure_postfix_with_sasl()
 	stage_exec service postfix start
 }
 
+compile_sieve()
+{
+	stage_exec /usr/local/bin/sievec -c /data/etc/dovecot.conf "/usr/local/lib/dovecot/sieve/$1" || exit
+}
+
 configure_sieve_report_ham()
 {
 	if [ -x "$SIEVE_DIR/report-ham.sieve" ]; then
@@ -322,7 +327,7 @@ pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
 pipe :copy "learn-ham-sa.sh" [ "${username}" ];
 EO_REPORT_HAM
 
-	stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-ham.sieve || exit
+	compile_sieve report-ham.sieve
 }
 
 configure_sieve_report_spam()
@@ -342,7 +347,7 @@ if environment :matches "imap.user" "*" {
 pipe :copy "learn-spam-sa.sh" [ "${username}" ];
 EO_REPORT_SPAM
 
-	stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-spam.sieve || exit
+	compile_sieve report-spam.sieve
 }
 
 configure_sieve_learn_rspamd()
@@ -363,7 +368,7 @@ EO_RSPAM_LEARN_HAM
 		tee -a "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM_RSPAMD'
 pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
 EO_REPORT_HAM_RSPAMD
-		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-ham.sieve || exit
+		compile_sieve report-ham.sieve
 	fi
 
 	tell_status "adding learn-spam-rspamd.sh"
@@ -377,7 +382,7 @@ EO_RSPAM_LEARN_SPAM
 		tee -a "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM_RSPAMD'
 pipe :copy "learn-spam-rspamd.sh" [ "${username}" ];
 EO_REPORT_SPAM_RSPAMD
-		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-spam.sieve || exit
+		compile_sieve report-spam.sieve
 	fi
 }
 
@@ -405,7 +410,7 @@ EO_RSPAM_LEARN_HAM
 		tee -a "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM_SA'
 pipe :copy "learn-ham-sa.sh" [ "${username}" ];
 EO_REPORT_HAM_SA
-		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-ham.sieve || exit
+		compile_sieve report-ham.sieve
 	fi
 
 	tell_status "creating learn-spam-sa.sh"
@@ -419,7 +424,7 @@ EO_RSPAM_LEARN_SPAM
 		tee -a "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM_SA'
 pipe :copy "learn-spam-sa.sh" [ "${username}" ];
 EO_REPORT_SPAM_SA
-		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-spam.sieve || exit
+		compile_sieve report-spam.sieve
 	fi
 }
 
