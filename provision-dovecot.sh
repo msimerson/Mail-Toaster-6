@@ -322,7 +322,7 @@ pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
 pipe :copy "learn-ham-sa.sh" [ "${username}" ];
 EO_REPORT_HAM
 
-	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-ham.sieve" || exit
+	stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-ham.sieve || exit
 }
 
 configure_sieve_report_spam()
@@ -339,11 +339,10 @@ if environment :matches "imap.user" "*" {
   set "username" "${1}";
 }
 
-pipe :copy "learn-spam-rspamd.sh" [ "${username}" ];
 pipe :copy "learn-spam-sa.sh" [ "${username}" ];
 EO_REPORT_SPAM
 
-	"$STAGE_MNT/usr/local/bin/sievec" "$SIEVE_DIR/report-spam.sieve" || exit
+	stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-spam.sieve || exit
 }
 
 configure_sieve_learn_rspamd()
@@ -357,13 +356,29 @@ configure_sieve_learn_rspamd()
 	tee "$SIEVE_DIR/learn-ham-rspamd.sh" <<EO_RSPAM_LEARN_HAM
 exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
 EO_RSPAM_LEARN_HAM
-	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh"
+	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh" || exit
+
+	if ! grep rspamd "$SIEVE_DIR/report-ham.sieve"; then
+		tell_status "enabling rspamd learning in report-ham.sieve"
+		tee -a "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM_RSPAMD'
+pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
+EO_REPORT_HAM_RSPAMD
+		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-ham.sieve || exit
+	fi
 
 	tell_status "adding learn-spam-rspamd.sh"
 	tee "$SIEVE_DIR/learn-spam-rspamd.sh" <<EO_RSPAM_LEARN_SPAM
 exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
 EO_RSPAM_LEARN_SPAM
-	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh"
+	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh" || exit
+
+	if ! grep rspamd "$SIEVE_DIR/report-spam.sieve"; then
+		tell_status "enabling rspamd learning in report-spam.sieve"
+		tee -a "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM_RSPAMD'
+pipe :copy "learn-spam-rspamd.sh" [ "${username}" ];
+EO_REPORT_SPAM_RSPAMD
+		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-spam.sieve || exit
+	fi
 }
 
 configure_sieve_learn_spamassassin()
@@ -376,20 +391,36 @@ configure_sieve_learn_spamassassin()
 	if [ ! -x "$ZFS_DATA_MNT/dovecot/bin/spamc" ]; then
 		tell_status "copying spamc into /data/bin"
 		cp "$ZFS_JAIL_MNT/spamassassin/usr/local/bin/spamc" \
-			"$ZFS_DATA_MNT/dovecot/bin/spamc"
+			"$ZFS_DATA_MNT/dovecot/bin/spamc" || exit
 	fi
 
 	tell_status "creating learn-ham-sa.sh"
 	tee "$SIEVE_DIR/learn-ham-sa.sh" <<EO_RSPAM_LEARN_HAM
 exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=ham -u \${1}
 EO_RSPAM_LEARN_HAM
-	chmod +x "$SIEVE_DIR/learn-ham-sa.sh"
+	chmod +x "$SIEVE_DIR/learn-ham-sa.sh" || exit
+
+	if ! grep learn-ham-sa "$SIEVE_DIR/report-ham.sieve"; then
+		tell_status "enabling spamassassin learning in report-ham.sieve"
+		tee -a "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM_SA'
+pipe :copy "learn-ham-sa.sh" [ "${username}" ];
+EO_REPORT_HAM_SA
+		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-ham.sieve || exit
+	fi
 
 	tell_status "creating learn-spam-sa.sh"
 	tee "$SIEVE_DIR/learn-spam-sa.sh" <<EO_RSPAM_LEARN_SPAM
 exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=spam -u \${1}
 EO_RSPAM_LEARN_SPAM
-	chmod +x "$SIEVE_DIR/learn-spam-sa.sh"
+	chmod +x "$SIEVE_DIR/learn-spam-sa.sh" || exit
+
+	if ! grep learn-spam-sa "$SIEVE_DIR/report-spam.sieve"; then
+		tell_status "enabling spamassassin learning in report-spam.sieve"
+		tee -a "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM_SA'
+pipe :copy "learn-spam-sa.sh" [ "${username}" ];
+EO_REPORT_SPAM_SA
+		stage_exec /usr/local/bin/sievec /usr/local/lib/dovecot/sieve/report-spam.sieve || exit
+	fi
 }
 
 configure_sieve()
