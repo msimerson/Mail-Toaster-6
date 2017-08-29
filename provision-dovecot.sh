@@ -179,6 +179,16 @@ plugin {
 
   sieve_global_extensions = +vnd.dovecot.pipe
 }
+
+namespace inbox {
+  mailbox Spam {
+    auto = no
+    special_use = \Junk
+  }
+  mailbox Archive {
+    special_use = \Archive
+  }
+}
 EO_DOVECOT_LOCAL
 
 }
