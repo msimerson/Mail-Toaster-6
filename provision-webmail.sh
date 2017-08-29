@@ -50,8 +50,6 @@ configure_lighttpd()
 
 	# shellcheck disable=2016
 	sed -i .bak \
-		-e 's/server.use-ipv6 = "enable"/server.use-ipv6 = "disable"/' \
-		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
 		-e 's/^#include_shell "cat/include_shell "cat/' \
 		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
 		"$_lighttpd_conf"

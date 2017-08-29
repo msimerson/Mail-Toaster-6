@@ -34,11 +34,6 @@ install_lighttpd()
 	stage_pkg_install lighttpd
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	# shellcheck disable=2016
-	sed -i .bak \
-		-e '/^server.use-ipv6/ s/enable/disable/' \
-		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
-		"$_conf"
 	cat <<EO_LIGHTTPD >> "$_conf"
 
 server.modules += ( "mod_alias" )
@@ -124,7 +119,7 @@ install_vpopmail_mysql_grants()
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
 
-	for _jail in vpopmail stage dovecot; do
+	for _jail in vpopmail stage dovecot sqwebmail; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
