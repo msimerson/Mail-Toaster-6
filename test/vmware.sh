@@ -63,6 +63,7 @@ cleanstart() {
 }
 
 vm_setup() {
+    # install, no options, Auto ZFS, 8gb swap, sshd & powerd
     #!/bin/sh
     pkg install -y vim-lite sudo open-vm-tools-nox11 git-lite
     chpass -s sh root
@@ -71,12 +72,12 @@ vm_setup() {
     sed -i '' -e '/^#PermitRootLogin/ s/#//; s/no/without-password/' /etc/ssh/sshd_config
     service sshd restart
 
-    for d in usr/src usr/home var/audit var/crash var/mail var/tmp; do
+    for d in usr/src var/audit var/crash var/mail var/tmp; do
         zfs destroy "zroot/${d}"
         mkdir "/${d}"
     done
 
-    pw useradd -m matt
+    echo "All set, install your SSH keys, shut down & snapshot!"
 }
 
 if [ "$1" = "cleanstart" ] || [ "$1" = "freshstart" ]; then
