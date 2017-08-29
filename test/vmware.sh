@@ -62,6 +62,20 @@ cleanstart() {
     start
 }
 
+vm_setup() {
+    #!/bin/sh
+    pkg install -y vim-lite sudo open-vm-tools-nox11
+    sed -i '' -e '/^#PermitRootLogin/ s/#//; s/no/without-password/' /etc/ssh/sshd_config
+    service sshd restart
+
+    for d in usr/src usr/home var/audit var/crash var/mail var/tmp; do
+        zfs destroy "zroot/${d}"
+        mkdir "/${d}"
+    done
+
+    pw useradd -m matt
+}
+
 if [ "$1" = "cleanstart" ] || [ "$1" = "freshstart" ]; then
     cleanstart
 else
