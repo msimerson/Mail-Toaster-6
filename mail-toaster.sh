@@ -46,7 +46,7 @@ export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="0"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
-export SQUIRREL_SQL="1"
+export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
 
