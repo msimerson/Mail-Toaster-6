@@ -4,7 +4,8 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_CONF_EXTRA="
+	mount += \"$ZFS_DATA_MNT/spamassassin \$path/data nullfs rw 0 0\";"
 
 install_sa_update()
 {
@@ -237,8 +238,9 @@ start_spamassassin()
 	if ! echo "$JAIL_NET_PREFIX" | grep -q ^127; then
 		SPAMD_ALLOW="$SPAMD_ALLOW -A $JAIL_NET_PREFIX.0$JAIL_NET_MASK"
 	fi
+	SPAMD_ALLOW="$SPAMD_ALLOW -A $JAIL_NET6::/64"
 
-	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=0.0.0.0 --min-spare=3 --max-spare=6 --max-conn-per-child=25"
+	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=* --min-spare=3 --max-spare=6 --max-conn-per-child=25 --allow-tell"
 	stage_exec service sa-spamd start
 }
 
