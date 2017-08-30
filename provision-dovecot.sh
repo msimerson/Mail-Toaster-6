@@ -59,7 +59,7 @@ last_valid_uid = 89
 mail_privileged_group = 89
 login_greeting = Mail Toaster (Dovecot) ready.
 mail_plugins = $mail_plugins quota
-protocols = imap pop3 lmtp
+protocols = imap pop3 lmtp sieve
 service auth {
   unix_listener auth-client {
     mode = 0660
@@ -139,6 +139,11 @@ service tcpwrap {
     group = $default_login_user
   }
   user = root
+}
+service managesieve-login {
+  inet_listener sieve {
+    port = 4190
+  }
 }
 plugin {
   quota = maildir:User quota
