@@ -67,9 +67,7 @@ configure_lighttpd()
 	# shellcheck disable=2016
 	sed -i .bak \
 		-e '/^var.server_root/ s/data/data-dist/' \
-		-e '/^server.use-ipv6/ s/enable/disable/' \
 		-e '/^server.document-root/ s/data/data-dist/' \
-		-e '/^$SERVER/ s/$SER/#$SER/' \
 		"$_lighttpd"
 
 	tee -a "$_lighttpd" <<EO_LIGHTTPD

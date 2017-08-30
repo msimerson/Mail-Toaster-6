@@ -1,22 +1,36 @@
 #!/bin/sh
 
+dec_to_hex() { printf '%04x\n' "$1"; }
+
+get_random_ip6net()
+{
+	# shellcheck disable=2039
+	local RAND16
+	RAND16=$(od -t uI -N 2 /dev/urandom | awk '{print $2}')
+	echo "fd7a:e5cd:1fc1:$(dec_to_hex "$RAND16"):dead:beef:cafe"
+}
+
 create_default_config()
 {
-	local _HOSTNAME;
-	local _EMAIL_DOMAIN;
+	local _HOSTNAME
+	local _EMAIL_DOMAIN
+	local _ORGNAME
 
 	if [ -t 0 ]; then
 		echo "editing prefs"
 		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
 		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
+		_ORGNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_ORG_NAME --inputbox "the name of your organization" 8 70 "Email Inc")
 	fi
 
 	# for Travis CI (Linux) where dialog doesn't exist
 	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
 	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
+	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
 	echo "creating mail-toaster.conf with defaults"
 	tee mail-toaster.conf <<EO_MT_CONF
+export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
 export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
@@ -25,6 +39,7 @@ export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
+export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
@@ -61,7 +76,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -79,15 +94,23 @@ if [ "$TOASTER_MYSQL" = "1" ]; then
 fi
 
 usage() {
+	if [ -n "$1" ]; then echo; echo "ERROR: missing required $1"; echo; fi
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 	exit
 }
-if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage; fi
+if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage TOASTER_HOSTNAME; fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
-if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage; fi
+if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage TOASTER_MAIL_DOMAIN; fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"
+
+if [ -z "$JAIL_NET6" ]; then
+	JAIL_NET6=$(get_random_ip6net)
+	echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
+	export JAIL_NET6
+fi
+echo "IPv6 jail network: $JAIL_NET6"
 
 # shellcheck disable=2009
 if ps -o args= -p "$$" | grep csh; then usage; fi
@@ -259,6 +282,36 @@ get_jail_ip()
 	return 2
 }
 
+get_jail_ip6()
+{
+	local _start=${JAIL_NET_START:=1}
+
+	case "$1" in
+		syslog) echo "$JAIL_NET6:$(dec_to_hex "$_start")";       return;;
+		base)   echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"; return;;
+		stage)  echo "$JAIL_NET6:$(dec_to_hex 254)";             return;;
+	esac
+
+	if echo "$1" | grep -q ^base; then
+		echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"
+		return
+	fi
+
+	local _octet="$_start"
+
+	for j in $JAIL_ORDERED_LIST
+	do
+		if [ "$1" = "$j" ]; then
+			echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
+			return
+		fi
+		_octet=$((_octet + 1))
+	done
+
+	# return error code if _incr unset
+	return 2
+}
+
 get_reverse_ip()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
@@ -270,6 +323,12 @@ get_reverse_ip()
 	local _rev_ip
 	_rev_ip=$(echo "$_jail_ip" | awk '{split($1,a,".");printf("%s.%s.%s.%s",a[4],a[3],a[2],a[1])}')
 	echo "$_rev_ip.in-addr.arpa"
+}
+
+get_reverse_ip6()
+{
+	_rev_ip=$(get_jail_ip6 "$1" | sed -e 's/://g' | rev | sed -e 's/./&./g')
+	echo "${_rev_ip}ip6.arpa"
 }
 
 add_jail_conf()
@@ -294,15 +353,16 @@ add_jail_conf()
 	fi
 
 	if [ -z "$JAIL_CONF_EXTRA" ]; then
-		JAIL_CONF_EXTRA="mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
+		JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
 	fi
 
 	tell_status "adding $1 to /etc/jail.conf"
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};${_path}
-		${JAIL_CONF_EXTRA}
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
 }
@@ -370,6 +430,7 @@ create_staged_fs()
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	assure_data_volume_mount_is_declared "$1"
+	assure_ip6_addr_is_declared "$1"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT"
@@ -413,6 +474,7 @@ start_staged_jail()
 		path="$_path" \
 		interface="$JAIL_NET_INTERFACE" \
 		ip4.addr="$(get_jail_ip stage)" \
+		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		mount.devfs \
@@ -436,13 +498,13 @@ rename_staged_to_ready()
 	local _zfs_rename="zfs rename $ZFS_JAIL_VOL/stage $_new_vol"
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ "$_tries" -gt 15 ]; then
+		if [ "$_tries" -gt 10 ]; then
 			echo "trying to force rename"
 			_zfs_rename="zfs rename -f $ZFS_JAIL_VOL/stage $_new_vol"
 		fi
 		echo "waiting for ZFS filesystem to quiet ($_tries)"
 		_tries=$((_tries + 1))
-		sleep 4
+		sleep 3
 	done
 }
 
@@ -584,7 +646,30 @@ stage_exec()
 stage_listening()
 {
 	echo "checking for port $1 listener in staged jail"
-	sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
+	if [ -z "$2" ]; then
+		sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
+		return
+	fi
+
+	local _tries=0
+	local _listening=""
+	local _sleep="$3"
+	if [ -z "$_sleep" ]; then _sleep=1; fi
+
+	until [ -n "$_listening" ]; do
+		_tries=$((_tries + 1))
+
+		if [ "$_tries" -gt "$2" ]; then
+			echo "port $1 is NOT listening"
+			exit
+		fi
+		echo "	checking port $1"
+		_listening=$(sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO)
+		sleep "$_sleep"
+	done
+
+	echo
+	echo "Success! Port $1 is listening in staging jail"
 }
 
 stage_test_running()
@@ -665,7 +750,7 @@ mount_data()
 		mkdir -p "$_data_mp" || exit
 	fi
 
-	if mount -t nullfs | grep "$_data_mp"; then
+	if mount -t nullfs | grep -q "$_data_mp"; then
 		echo "$_data_mp already mounted!"
 		return
 	fi
@@ -740,9 +825,9 @@ get_public_ip()
 	export PUBLIC_IP4
 
 	if [ "$1" = 'ipv6' ]; then
-		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" | grep 'inet6' | grep -v fe80 | awk '{print $2}' | head -n1)
+		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
 	else
-		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" | grep 'inet ' | awk '{print $2}' | head -n1)
+		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
 	fi
 }
 
@@ -799,32 +884,37 @@ unprovision_last()
 	done
 }
 
+unprovision_filesystem()
+{
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.ready"; then
+		tell_status "destroying $ZFS_JAIL_VOL/$1.ready"
+		zfs destroy "$ZFS_JAIL_VOL/$1.ready"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.last"; then
+		tell_status "destroying $ZFS_JAIL_VOL/$1.last"
+		zfs destroy "$ZFS_JAIL_VOL/$1.last"
+	fi
+
+	if [ -e "$ZFS_JAIL_VOL/$1/dev/null" ]; then
+		umount -t devfs "$ZFS_JAIL_VOL/$1/dev"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
+		tell_status "destroying $ZFS_DATA_MNT/$1"
+		zfs destroy "$ZFS_DATA_VOL/$1"
+	fi
+
+	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1"; then
+		tell_status "destroying $ZFS_JAIL_VOL/$1"
+		zfs destroy "$ZFS_JAIL_VOL/$1"
+	fi
+}
+
 unprovision_filesystems()
 {
 	for _j in $JAIL_ORDERED_LIST; do
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.ready"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j.ready"
-			zfs destroy "$ZFS_JAIL_VOL/$_j.ready"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
-			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
-		fi
-
-		if [ -e "$ZFS_JAIL_VOL/$_j/dev/null" ]; then
-			umount -t devfs "$ZFS_JAIL_VOL/$_j/dev"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_DATA_VOL/$_j"; then
-			tell_status "destroying $ZFS_DATA_MNT/$_j"
-			zfs destroy "$ZFS_DATA_VOL/$_j"
-		fi
-
-		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j"; then
-			tell_status "destroying $ZFS_JAIL_VOL/$_j"
-			zfs destroy "$ZFS_JAIL_VOL/$_j"
-		fi
+		unprovision_filesystem "$_j"
 	done
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL"; then
@@ -859,8 +949,15 @@ unprovision_files()
 
 unprovision()
 {
-	if [ "$1" = "last" ]; then
-		unprovision_last
+	if [ -n "$1" ]; then
+
+		if [ "$1" = "last" ]; then
+			unprovision_last
+			return
+		fi
+
+		service jail stop "$1"
+		unprovision_filesystem "$1"
 		return
 	fi
 
@@ -881,10 +978,21 @@ unprovision()
 
 add_pf_portmap()
 {
-	sed -i .bak -e "/^block / a\
-# map port $1 traffic to $2
-rdr proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip "$2") \
-" /etc/pf.conf
+	if grep -q "$2" /etc/pf.conf; then
+		echo "NOTICE: PF rules for $2 exist, skipping"
+		return
+	fi
+
+	tell_status "adding redirection rules for $2"
+	sed -i .bak \
+		-e "/^## Filtering rules/ c\\
+rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")\\
+rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
+\\
+## Filtering rules" \
+		/etc/pf.conf || exit
+
+	pfctl -f /etc/pf.conf || exit
 }
 
 mt6-update()
@@ -950,4 +1058,23 @@ FreeBSD: {
   url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest"
 }
 EO_PKG
+}
+
+assure_ip6_addr_is_declared()
+{
+	if ! grep -qs "^$1" /etc/jail.conf; then
+		# config for this jail hasn't been created yet
+		return
+	fi
+
+	if awk "/^$1/,/}/" /etc/jail.conf | grep -q ip6; then
+		echo "ip6.addr is already declared in $1"
+		return
+	fi
+
+	tell_status "adding ip6.addr to $1 section in /etc/jail.conf"
+	sed -i .bak \
+		-e "/^$1/,/ip4/ s/ip4.*;/&\\
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
+		/etc/jail.conf || exit
 }

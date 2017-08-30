@@ -20,7 +20,9 @@ install_haraka()
 	stage_exec pkg install -y git-lite
 
 	stage_exec npm install -g Haraka ws express || exit
-	stage_exec bash -c "cd /data && npm install haraka-plugin-log-reader"
+	for _p in log-reader qmail-deliverable dcc; do
+		stage_exec bash -c "cd /data && npm install haraka-plugin-$_p"
+	done
 }
 
 install_geoip_dbs()
@@ -148,17 +150,18 @@ auth\/auth_vpopmaild
 
 configure_haraka_qmail_deliverable()
 {
-	if [ ! -f "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini" ]; then
+	if [ ! -f "$HARAKA_CONF/qmail-deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
 host=$(get_jail_ip vpopmail)" | \
-		tee -a "$HARAKA_CONF/rcpt_to.qmail_deliverable.ini"
+			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
-	if ! grep -qs ^rcpt_to.qmail_deliverable "$HARAKA_CONF/plugins"; then
-		tell_status "enabling rcpt_to.qmail_deliverable plugin"
+	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
+		tell_status "enabling qmail-deliverable plugin"
 		sed -i .bak \
-			-e '/^#rcpt_to.qmail_deliverable/ s/#//' \
+			-e '/^#qmail-deliverable/ s/#//' \
+			-e '/^#rcpt_to.qmail_deliverable/ s/#.*/qmail-deliverable/' \
 			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
 			"$HARAKA_CONF/plugins"
 	fi
@@ -318,7 +321,7 @@ configure_haraka_rspamd()
 	if ! grep -qs ^host "$HARAKA_CONF/rspamd.ini"; then
 		tell_status "configure Haraka rspamd plugin"
 		echo "host = $(get_jail_ip rspamd)
-always_add_headers = true
+add_headers = always
 " | tee -a "$HARAKA_CONF/rspamd.ini" || exit
 	fi
 
@@ -350,7 +353,7 @@ configure_haraka_smtp_ini()
 	fi
 
 	sed -i .bak \
-		-e 's/^;listen=\[.*$/listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587/' \
+		-e 's/^;listen=\[.*$/listen=[::0]:25,[::0]:465,[::0]:587/' \
 		-e 's/^;nodes=cpus/nodes=2/' \
 		-e 's/^;daemonize=true/daemonize=true/' \
 		-e 's/^;daemon_pid_file/daemon_pid_file/' \
@@ -379,7 +382,21 @@ configure_haraka_plugins()
 
 configure_install_default()
 {
-	local _source="$STAGE_MNT/usr/local/lib/node_modules/Haraka/config"
+	local _haraka="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
+	local _source="$_haraka/config"
+
+	if [ ! -f "$_source/$1" ]; then
+		local _pname="${1%.*}"
+		_source="$_haraka/node_modules/haraka-plugin-$_pname/config"
+		if [ ! -f "$_source/$1" ]; then
+			echo "unable to find default $1 in "
+			echo "    $_haraka/config"
+			echo " or "
+			echo "    $_source"
+			exit 1
+		fi
+	fi
+
 	echo "cp $_source/$1 $HARAKA_CONF/$1"
 	cp "$_source/$1" "$HARAKA_CONF/$1"
 }
@@ -479,7 +496,7 @@ configure_haraka_http()
 {
 	if [ ! -f "$HARAKA_CONF/http.ini" ]; then
 		tell_status "enable Haraka HTTP server"
-		echo "listen=0.0.0.0:80" | tee -a "$HARAKA_CONF/http.ini"
+		echo "listen=[::0]:80" | tee -a "$HARAKA_CONF/http.ini"
 	fi
 }
 
@@ -558,6 +575,16 @@ $(get_jail_ip stage)
 EO_WL
 }
 
+configure_haraka_dcc()
+{
+	tell_status "configuring DCC"
+	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
+[dccifd]
+host=$(get_jail_ip dcc)
+port=1025
+EO_DCC
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -611,6 +638,7 @@ configure_haraka()
 	configure_haraka_results
 	configure_haraka_log_rotation
 	configure_haraka_access
+	configure_haraka_dcc
 
 	install_geoip_dbs
 }
@@ -633,12 +661,8 @@ start_haraka()
 
 test_haraka()
 {
-	tell_status "waiting for Haraka to start listeners"
-	sleep 3
-
 	tell_status "testing Haraka"
-	stage_listening 25
-	echo "it worked"
+	stage_listening 25 5 2
 }
 
 preinstall_checks() {

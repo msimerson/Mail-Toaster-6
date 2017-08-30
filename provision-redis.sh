@@ -16,15 +16,20 @@ configure_redis()
 {
 	tell_status "configuring redis"
 
-	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/log" \
-		"$STAGE_MNT/usr/local/etc/newsyslog.conf.d" || exit
-	stage_exec chown redis:redis /data/db /data/log || exit
+	for _dir in db log etc; do
+		mkdir -p "$STAGE_MNT/data/$_dir" || exit
+	done
+
+	mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" || exit
+	stage_exec chown redis:redis /data/db /data/log /data/etc || exit
 
 	sed -i .bak \
 		-e '/^stop-writes-on-bgsave-error/ s/yes/no/' \
 		-e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' \
 		-e 's/^# syslog-enabled no/syslog-enabled yes/' \
 		-e 's/^logfile .*/logfile \/data\/log\/redis.log/' \
+		-e 's/^bind.*/#&/' \
+		-e '/^protected-mode/ s/yes/no/' \
 		"$STAGE_MNT/usr/local/etc/redis.conf"
 
 	echo '/data/log/redis.log   redis:redis 644  7  *  @T00   JC   /var/run/redis/redis.pid' \
@@ -41,9 +46,7 @@ start_redis()
 test_redis()
 {
 	echo "testing redis"
-	sleep 1
-	stage_listening 6379
-	echo "it worked"
+	stage_listening 6379 3 2
 }
 
 base_snapshot_exists || exit

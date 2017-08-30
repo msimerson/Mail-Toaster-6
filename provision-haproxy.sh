@@ -66,9 +66,9 @@ configure_haproxy_dot_conf()
 	#    stats admin if TRUE
 
 	frontend http-in
-	bind *:80
-	bind *:443 ssl crt /etc/ssl/private
-	#bind *:443 ssl crt /etc/ssl/private crt /data/ssl.d
+	bind :::80 v4v6
+	bind :::443 v4v6 ssl crt /etc/ssl/private
+	#bind :::443 v4v6 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }

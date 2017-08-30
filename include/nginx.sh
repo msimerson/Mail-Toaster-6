@@ -96,6 +96,7 @@ http {
 
 	server {
 		listen       80;
+		listen  [::]:80;
 
 		include      nginx-locations.conf;
 

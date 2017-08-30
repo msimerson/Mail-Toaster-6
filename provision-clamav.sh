@@ -118,7 +118,6 @@ configure_clamd()
 	local _conf="$STAGE_MNT/usr/local/etc/clamd.conf"
 
 	sed -i .bak \
-		-e 's/^#TCPAddr 127.0.0.1/TCPAddr 0.0.0.0/' \
 		-e 's/^#TCPSocket 3310/TCPSocket 3310/' \
 		-e 's/^#LogFacility LOG_MAIL/LogFacility LOG_MAIL/' \
 		-e 's/^#LogSyslog yes/LogSyslog yes/' \

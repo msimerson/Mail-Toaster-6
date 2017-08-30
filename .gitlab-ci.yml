@@ -1,4 +1,5 @@
 image: auchida/freebsd:latest
+#timeout: 80
 
 # Instructions for creating your own test runner:
 # https://github.com/msimerson/Mail-Toaster-6/wiki/Develop-CI-Testing/
@@ -52,6 +53,7 @@ mta:
   stage: mta
   script:
     - sh provision-clamav.sh
+    - sh provision-dcc.sh
     - sh provision-rspamd.sh
     - sh provision-geoip.sh
     - sh provision-haraka.sh
@@ -77,6 +79,7 @@ extras:
     - sh provision-avg.sh
     - sh provision-spamassassin.sh
     - sh provision-sqwebmail.sh
+    - sh provision-elasticsearch.sh
   tags:
     - freebsd
     - ssh

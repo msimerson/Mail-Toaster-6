@@ -34,11 +34,6 @@ install_lighttpd()
 	stage_pkg_install lighttpd
 
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	# shellcheck disable=2016
-	sed -i .bak \
-		-e '/^server.use-ipv6/ s/enable/disable/' \
-		-e 's/^\$SERVER\["socket"\]/#\$SERVER\["socket"\]/' \
-		"$_conf"
 	cat <<EO_LIGHTTPD >> "$_conf"
 
 server.modules += ( "mod_alias" )
@@ -124,13 +119,13 @@ install_vpopmail_mysql_grants()
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
 
-	local _vpopmail_ip; _vpopmail_ip=$(get_jail_ip vpopmail)
-	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_vpopmail_ip}' IDENTIFIED BY '${_vpass}';" \
- 		| jexec mysql /usr/local/bin/mysql || exit
-
-	local _stage_ip; _stage_ip=$(get_jail_ip)
-	echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_stage_ip}' IDENTIFIED BY '${_vpass}';" \
- 		| jexec mysql /usr/local/bin/mysql || exit
+	for _jail in vpopmail stage dovecot sqwebmail; do
+		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		do
+			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
+				| jexec mysql /usr/local/bin/mysql || exit
+		done
+	done
 }
 
 install_vpop_nrpe()
@@ -221,10 +216,10 @@ test_vpopmail()
 {
 	echo "testing vpopmail"
 	sleep 1 # give the daemons a second to start listening
-	stage_listening 25
-	stage_listening 80
-	stage_listening 89
-	stage_listening 8998
+	stage_listening 25 2
+	stage_listening 80 1
+	stage_listening 89 1
+	stage_listening 8998 2
 
 	stage_test_running lighttpd
 	#stage_test_running vpopmaild
