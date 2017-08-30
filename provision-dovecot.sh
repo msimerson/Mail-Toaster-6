@@ -333,11 +333,7 @@ if environment :matches "imap.user" "*" {
   set "username" "${1}";
 }
 
-pipe :copy "learn-ham-rspamd.sh" [ "${username}" ];
-pipe :copy "learn-ham-sa.sh" [ "${username}" ];
 EO_REPORT_HAM
-
-	compile_sieve report-ham.sieve
 }
 
 configure_sieve_report_spam()
@@ -354,10 +350,7 @@ if environment :matches "imap.user" "*" {
   set "username" "${1}";
 }
 
-pipe :copy "learn-spam-sa.sh" [ "${username}" ];
 EO_REPORT_SPAM
-
-	compile_sieve report-spam.sieve
 }
 
 configure_sieve_learn_rspamd()
