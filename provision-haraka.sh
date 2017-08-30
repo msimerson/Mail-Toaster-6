@@ -161,7 +161,7 @@ host=$(get_jail_ip vpopmail)" | \
 		tell_status "enabling qmail-deliverable plugin"
 		sed -i .bak \
 			-e '/^#qmail-deliverable/ s/#//' \
-			-e '/^#rcpt_to.qmail_deliverable/ s/#//' \
+			-e '/^#rcpt_to.qmail_deliverable/ s/#.*/qmail-deliverable/' \
 			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
 			"$HARAKA_CONF/plugins"
 	fi
