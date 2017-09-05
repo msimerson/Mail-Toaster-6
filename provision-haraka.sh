@@ -19,9 +19,9 @@ install_haraka()
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git-lite
 
-	stage_exec npm install -g Haraka ws express || exit
-	for _p in log-reader qmail-deliverable dcc; do
-		stage_exec bash -c "cd /data && npm install haraka-plugin-$_p"
+	stage_exec npm install --production -g Haraka ws express || exit
+	for _p in log-reader qmail-deliverable dcc known-senders p0f aliases; do
+		stage_exec bash -c "cd /data && npm install --production haraka-plugin-$_p"
 	done
 }
 
