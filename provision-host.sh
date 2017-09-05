@@ -244,6 +244,22 @@ configure_dhparams()
 	openssl dhparam -out "$DHP" 2048 || exit
 }
 
+install_sshguard()
+{
+	tell_status "installing sshguard"
+	pkg install -y sshguard
+
+	tell_status "configuring sshguard for PF"
+	sed -i '.bak' \
+		-e '/sshg-fw-null/ s/^B/#B/' \
+		-e '/sshg-fw-pf/ s/^#//' \
+			/usr/local/etc/sshguard.conf
+
+	tell_status "starting sshguard"
+	sysrc sshguard_enable=YES
+	service sshguard start
+}
+
 check_global_listeners()
 {
 	tell_status "checking for host listeners on all IPs"
@@ -292,6 +308,7 @@ table <ext_ip6> { $PUBLIC_IP6 }
 table <allow_insecure> { }
 
 table <bruteforce> persist
+table <sshguard> persist
 
 http_ports   = "{ 80 443 }"
 mta_ports    = "{ 25 465 587 }"
@@ -331,6 +348,7 @@ rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
 ## Filtering rules
 
 block in quick from <bruteforce>
+block in quick from <sshguard>
 EO_PF_RULES
 
 	echo; echo "/etc/pf.conf has been installed"; echo
@@ -540,6 +558,7 @@ update_host() {
 	add_jail_nat
 	configure_tls_certs
 	configure_dhparams
+	install_sshguard
 	enable_jails
 	install_jailmanage
 	configure_etc_hosts
