@@ -6,7 +6,7 @@
 install_letsencrypt()
 {
 	tell_status "installing Let's Encrypt"
-	pkg install -y curl
+	pkg install -y curl socat
 	fetch -o - https://get.acme.sh | sh
 }
 
