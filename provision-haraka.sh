@@ -20,9 +20,12 @@ install_haraka()
 	stage_exec pkg install -y git-lite
 
 	stage_exec npm install --production -g Haraka ws express || exit
-	for _p in log-reader qmail-deliverable dcc known-senders p0f aliases; do
-		stage_exec bash -c "cd /data && npm install --production haraka-plugin-$_p"
+
+	local _plugins="haraka-plugin-log-reader"
+	for _p in known-senders aliases; do
+		_plugins="$_plugins haraka-plugin-$_p"
 	done
+	stage_exec bash -c "cd /data && npm install --production $_plugins"
 }
 
 install_geoip_dbs()
