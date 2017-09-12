@@ -19,7 +19,7 @@ install_haraka()
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git-lite
 
-	stage_exec npm install --production -g Haraka ws express || exit
+	stage_exec npm install --production -g haraka/Haraka ws express || exit
 
 	local _plugins="haraka-plugin-log-reader"
 	for _p in known-senders aliases; do
