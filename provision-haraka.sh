@@ -72,7 +72,7 @@ install_p0f()
 	tell_status "installing p0f startup file"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 	local _start="$STAGE_MNT/usr/local/etc/rc.d/p0f"
-	cp "$STAGE_MNT/data/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start" || exit
+	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start" || exit
 	chmod 755 "$_start" || exit
 
 	get_public_facing_nic
