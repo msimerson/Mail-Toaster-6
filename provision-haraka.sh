@@ -19,10 +19,13 @@ install_haraka()
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git-lite
 
-	stage_exec npm install --production -g Haraka ws express || exit
-	for _p in log-reader qmail-deliverable dcc known-senders p0f aliases; do
-		stage_exec bash -c "cd /data && npm install --production haraka-plugin-$_p"
+	stage_exec npm install --production -g haraka/Haraka ws express || exit
+
+	local _plugins="haraka-plugin-log-reader"
+	for _p in known-senders aliases; do
+		_plugins="$_plugins haraka-plugin-$_p"
 	done
+	stage_exec bash -c "cd /data && npm install --production $_plugins"
 }
 
 install_geoip_dbs()
@@ -69,7 +72,7 @@ install_p0f()
 	tell_status "installing p0f startup file"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 	local _start="$STAGE_MNT/usr/local/etc/rc.d/p0f"
-	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/contrib/bsd-rc.d/p0f" "$_start" || exit
+	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start" || exit
 	chmod 755 "$_start" || exit
 
 	get_public_facing_nic
