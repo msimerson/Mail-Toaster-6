@@ -174,9 +174,19 @@ configure_haraka_p0f()
 {
 	install_p0f
 
-	if ! grep -qs ^connect.p0f "$HARAKA_CONF/plugins"; then
+	if ! grep -qs ^socket_path "$HARAKA_CONF/p0f.ini"; then
+		tee "$HARAKA_CONF/p0f.ini" <<EO_P0F
+[main]
+socket_path=/tmp/.p0f_socket
+EO_P0F
+	fi
+
+	if ! grep -qs ^p0f "$HARAKA_CONF/plugins"; then
 		tell_status "enable Haraka p0f plugin"
-		sed -i '' -e '/^# connect.p0f/ s/# //' "$HARAKA_CONF/plugins"
+		sed -i '' \
+			-e '/^# connect.p0f/ s/# //' \
+			-e '/^# p0f/ s/# //' \
+			"$HARAKA_CONF/plugins"
 	fi
 }
 
