@@ -46,6 +46,7 @@ export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="0"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
+export ROUNDCUBE_SQL="0"
 export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
@@ -89,6 +90,7 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 export TOASTER_MYSQL=${TOASTER_MYSQL:="0"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then

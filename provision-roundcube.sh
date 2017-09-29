@@ -152,7 +152,7 @@ $config['smtp_conn_options'] = array(
 );
 EO_RC_ADD
 
-	if [ "$TOASTER_MYSQL" = "1" ]; then
+	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		install_roundcube_mysql
 	else
 		sed -i.bak \
