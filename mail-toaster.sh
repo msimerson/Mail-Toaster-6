@@ -1082,3 +1082,12 @@ assure_ip6_addr_is_declared()
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
 		/etc/jail.conf || exit
 }
+
+assure_jail()
+{
+	local _jid; _jid=$(jls -j "$1" jid)
+	if [ -n "$_jid" ]; then
+		echo "jail $1 is required but not available"
+		exit
+	fi
+}

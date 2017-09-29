@@ -12,6 +12,8 @@ mt6-include nginx
 
 install_roundcube_mysql()
 {
+	assure_jail mysql
+
 	local _init_db=0
 	if ! mysql_db_exists roundcubemail; then
 		tell_status "creating roundcube mysql db"

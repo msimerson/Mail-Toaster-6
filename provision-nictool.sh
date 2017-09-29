@@ -11,6 +11,8 @@ export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 
 install_nt_prereqs()
 {
+    assure_jail mysql
+
 	tell_status "installing NicTool app prerequisites"
 	stage_pkg_install perl5 mysql56-client apache24 rsync
 
