@@ -96,7 +96,7 @@ verbose_proctitle = yes
 protocol imap {
   imap_client_workarounds = delay-newmail  tb-extra-mailbox-sep
   mail_max_userip_connections = 45
-  mail_plugins = $mail_plugins imap_quota imap_sieve
+  mail_plugins = $mail_plugins imap_quota trash imap_sieve
 }
 protocol pop3 {
   pop3_client_workarounds = outlook-no-nuls oe-ns-eoh

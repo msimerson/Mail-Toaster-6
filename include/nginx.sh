@@ -98,6 +98,12 @@ http {
 		listen       80;
 		listen  [::]:80;
 
+		# serve Let's Encrypt requests for all domains to /data
+		location /.well-known/acme-challenge {
+			root /data;
+			try_files \$uri =404;
+		}
+
 		include      nginx-locations.conf;
 
 		error_page   500 502 503 504  /50x.html;

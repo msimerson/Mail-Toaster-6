@@ -94,7 +94,7 @@ configure_haraka_syslog()
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
 		if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
 			tee "$HARAKA_CONF/smtp.ini" <<EO_DLF
-daemon_log_file=/dev/null/
+daemon_log_file=/dev/null
 EO_DLF
 		else
 			# send haraka logs to /dev/null
@@ -568,6 +568,7 @@ EO_RESULTS
 configure_haraka_log_rotation()
 {
 	tell_status "configuring haraka.log rotation"
+	stage_sysrc newsyslog_enable=YES
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d" || exit
 	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.log" <<EO_HARAKA
 /var/log/haraka.log			644  7	   *	@T00  JC

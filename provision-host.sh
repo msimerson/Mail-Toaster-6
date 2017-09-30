@@ -257,7 +257,7 @@ install_sshguard()
 
 	tell_status "starting sshguard"
 	sysrc sshguard_enable=YES
-	service sshguard start
+	#service sshguard start
 }
 
 check_global_listeners()
