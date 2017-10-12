@@ -34,6 +34,7 @@ install_dovecot()
 
 	export BATCH=${BATCH:="1"}
 	stage_port_install mail/dovecot || exit 1
+	stage_port_install mail/dovecot-pigeonhole || exit 1
 }
 
 configure_dovecot_local_conf() {
