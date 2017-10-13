@@ -40,6 +40,17 @@ configure_ntpd()
 	/etc/rc.d/ntpd restart
 }
 
+configure_ftpproxy()
+{
+	if grep -q ^ftpproxy_enable /etc/rc.conf; then
+		return
+	fi
+
+	tell_status "enabling ftp-proxy"
+	sysrc ftpproxy_enable=YES || exit
+	service ftp-proxy start
+}
+
 update_syslogd()
 {
 	if grep -q ^syslogd_flags /etc/rc.conf; then
@@ -329,6 +340,13 @@ haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
 nat on \$ext_if inet6 from $JAIL_NET6:0/64 to any -> (\$ext_if)
 
+#### NAT ftp-proxy
+nat-anchor "ftp-proxy/*"
+rdr-anchor "ftp-proxy/*"
+
+# Redirect ftp traffic to proxy
+rdr pass on \$JAIL_NET_INTERFACE proto tcp from any to any port ftp -> 127.0.0.1 port 8021
+
 # Secured POP3 & IMAP traffic to dovecot jail
 rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
@@ -549,6 +567,7 @@ update_host() {
 	update_freebsd
 	configure_pkg_latest ""
 	configure_ntp
+	configure_ftpproxy
 	update_sendmail
 	install_periodic_conf
 	constrain_sshd_to_host
