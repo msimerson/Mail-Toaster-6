@@ -35,7 +35,7 @@ configure_haproxy_dot_conf()
 
 	tell_status "configuring MT6 default haproxy"
 	tee "$_data_cf" <<EO_HAPROXY_CONF
-	global
+global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
 	nbproc      1
@@ -43,7 +43,7 @@ configure_haproxy_dot_conf()
 	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
 
-	defaults
+defaults
 	mode        http
 	balance     roundrobin
 	option      forwardfor   # set X-Forwarded-For
@@ -56,6 +56,8 @@ configure_haproxy_dot_conf()
 	timeout     client 30s
 	#   timeout     client 86400s
 	timeout     tunnel 1h
+	compression algo gzip
+	compression type text/html "text/html; charset=utf-8" text/html;charset=utf-8 text/plain text/css text/javascript application/x-javascript application/javascript application/ecmascript application/rss+xml application/atomsvc+xml application/atom+xml application/atom+xml;type=entry application/atom+xml;type=feed application/cmisquery+xml application/cmisallowableactions+xml application/cmisatom+xml application/cmistree+xml application/cmisacl+xml image/svg+xml
 
 	#listen stats *:9000
 	#    mode http
@@ -65,7 +67,7 @@ configure_haproxy_dot_conf()
 	#    stats auth admin:password
 	#    stats admin if TRUE
 
-	frontend http-in
+frontend http-in
 	bind :::80 v4v6
 	bind :::443 v4v6 ssl crt /etc/ssl/private
 	#bind :::443 v4v6 ssl crt /etc/ssl/private crt /data/ssl.d
