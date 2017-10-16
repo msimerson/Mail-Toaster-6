@@ -53,18 +53,20 @@ configure_ftpproxy()
 
 update_syslogd()
 {
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/64:* -cc"
+
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
 		echo "CAUTION: double check syslogd_flags in /etc/rc.conf"
 		echo "existing:"
 		grep ^syslogd_flags /etc/rc.conf
 		echo "desired:"
-		echo "syslogd_flags=-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -cc"
+		echo "syslogd_flags=$_sysflags"
 		return
 	fi
 
 	tell_status "configuring syslog to accept messages from jails"
-	sysrc syslogd_flags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -cc"
+	sysrc syslogd_flags="$_sysflags"
 	service syslogd restart
 }
 
