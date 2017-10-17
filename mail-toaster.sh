@@ -47,6 +47,8 @@ export TOASTER_MYSQL="1"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export SQUIRREL_SQL="1"
+export TOASTER_NRPE=""
+export TOASTER_MUNIN=""
 
 EO_MT_CONF
 }
@@ -1068,7 +1070,7 @@ assure_ip6_addr_is_declared()
 	fi
 
 	if awk "/^$1/,/}/" /etc/jail.conf | grep -q ip6; then
-		echo "ip6.addr is already declared in $1"
+		echo "ip6.addr is already declared"
 		return
 	fi
 

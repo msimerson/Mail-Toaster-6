@@ -383,8 +383,8 @@ EO_DELIVERABLED_RUN
 	pkg install -y p5-Package-Constants
 
 	echo "installing Qmail::Deliverable"
-	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-CPANPLUS
-	perl -MCPANPLUS -e 'install Qmail::Deliverable'
+	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-App-Cpanminus
+	cpanm Qmail::Deliverable
 }
 
 install_qmail_chkuser()
