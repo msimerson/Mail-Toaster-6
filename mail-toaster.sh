@@ -43,10 +43,11 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
-export TOASTER_MYSQL="1"
+export TOASTER_MYSQL="0"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
-export SQUIRREL_SQL="1"
+export ROUNDCUBE_SQL="0"
+export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
 
@@ -86,9 +87,10 @@ export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
-export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
+export TOASTER_MYSQL=${TOASTER_MYSQL:="0"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
-export SQUIRREL_SQL=${SQUIRREL_SQL:="1"}
+export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
@@ -1079,4 +1081,13 @@ assure_ip6_addr_is_declared()
 		-e "/^$1/,/ip4/ s/ip4.*;/&\\
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
 		/etc/jail.conf || exit
+}
+
+assure_jail()
+{
+	local _jid; _jid=$(jls -j "$1" jid)
+	if [ -n "$_jid" ]; then
+		echo "jail $1 is required but not available"
+		exit
+	fi
 }

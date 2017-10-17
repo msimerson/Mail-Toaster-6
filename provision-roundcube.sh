@@ -12,6 +12,8 @@ mt6-include nginx
 
 install_roundcube_mysql()
 {
+	assure_jail mysql
+
 	local _init_db=0
 	if ! mysql_db_exists roundcubemail; then
 		tell_status "creating roundcube mysql db"
@@ -152,7 +154,7 @@ $config['smtp_conn_options'] = array(
 );
 EO_RC_ADD
 
-	if [ "$TOASTER_MYSQL" = "1" ]; then
+	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		install_roundcube_mysql
 	else
 		sed -i.bak \

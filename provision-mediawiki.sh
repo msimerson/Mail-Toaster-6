@@ -11,6 +11,8 @@ mt6-include nginx
 
 install_mediawiki()
 {
+	assure_jail mysql
+
 	install_php 56 "ctype iconv gd json mbstring mcrypt openssl session xml zlib"
 	install_nginx
 

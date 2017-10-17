@@ -83,6 +83,11 @@ test_mysql()
 	fi
 }
 
+if [ "$TOASTER_MYSQL" != "1" ]; then
+	tell_status "skipping MySQL install: TOASTER_MYSQL!=1"
+	exit
+fi
+
 base_snapshot_exists || exit
 create_staged_fs mysql
 start_staged_jail mysql

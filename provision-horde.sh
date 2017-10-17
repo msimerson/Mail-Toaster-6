@@ -14,6 +14,7 @@ mt6-include nginx
 
 install_horde()
 {
+	assure_jail mysql
 
 	if [ ! -d "$ZFS_DATA_MNT/horde/data" ]; then
 		tell_status "creating $ZFS_DATA_MNT/horde/data"

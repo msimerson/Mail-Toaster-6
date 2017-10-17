@@ -11,6 +11,8 @@ mt6-include nginx
 
 install_wordpress()
 {
+	assure_jail mysql
+
 	install_nginx
 	install_php 56 "mysql session gd"
 

@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA=""
 
 install_dspam()
 {
+	assure_jail mysql
+
 	tell_status "installing dspam"
 	stage_pkg_install dspam || exit
 }
