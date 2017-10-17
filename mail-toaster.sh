@@ -47,6 +47,8 @@ export TOASTER_MYSQL="1"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export SQUIRREL_SQL="1"
+export TOASTER_NRPE=""
+export TOASTER_MUNIN=""
 
 EO_MT_CONF
 }

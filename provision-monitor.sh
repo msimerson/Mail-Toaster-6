@@ -28,12 +28,22 @@ install_lighttpd()
 
 install_nagios()
 {
+	if [ -z "$TOASTER_NRPE" ]; then
+		echo "TOASTER_NRPE unset, skipping nagios install"
+		return
+	fi
+
 	tell_status "installing nagios & nrpe"
 	stage_pkg_install nagios nrpe-ssl
 }
 
 install_munin()
 {
+	if [ -z "$TOASTER_MUNIN" ]; then
+		echo "TOASTER_MUNIN unset, skipping munin install"
+		return
+	fi
+
 	tell_status "installing munin"
 	stage_pkg_install munin-node munin-master
 }
@@ -158,8 +168,13 @@ configure_monitor()
 	fi
 
 	configure_lighttpd
-	configure_nrpe
-	configure_munin
+	if [ -n "$TOASTER_NRPE" ]; then
+		configure_nrpe
+	fi
+
+	if [ -n "$TOASTER_MUNIN" ]; then
+		configure_munin
+	fi
 }
 
 start_monitor()
