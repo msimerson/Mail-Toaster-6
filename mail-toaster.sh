@@ -1068,7 +1068,7 @@ assure_ip6_addr_is_declared()
 	fi
 
 	if awk "/^$1/,/}/" /etc/jail.conf | grep -q ip6; then
-		echo "ip6.addr is already declared in $1"
+		echo "ip6.addr is already declared"
 		return
 	fi
 
