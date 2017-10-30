@@ -368,7 +368,7 @@ configure_sieve_learn_rspamd()
 
 	tell_status "adding learn-ham-rspamd.sh"
 	tee "$SIEVE_DIR/learn-ham-rspamd.sh" <<EO_RSPAM_LEARN_HAM
-exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
+exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
 EO_RSPAM_LEARN_HAM
 	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh" || exit
 
@@ -382,7 +382,7 @@ EO_REPORT_HAM_RSPAMD
 
 	tell_status "adding learn-spam-rspamd.sh"
 	tee "$SIEVE_DIR/learn-spam-rspamd.sh" <<EO_RSPAM_LEARN_SPAM
-exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
+exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
 EO_RSPAM_LEARN_SPAM
 	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh" || exit
 
