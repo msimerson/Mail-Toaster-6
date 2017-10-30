@@ -13,7 +13,7 @@ mt6-include vpopmail
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot dovecot-pigeonhole || exit
+	stage_pkg_install dovecot dovecot-pigeonhole curl || exit
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
