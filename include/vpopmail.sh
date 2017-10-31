@@ -57,7 +57,7 @@ install_qmail()
 		local _qmdir="$STAGE_MNT/var/qmail/$_cdir"
 		if [ -d "$_qmdir" ]; then
 			tell_status "rm -rf $_qmdir"
-			rm -r "$_qmdir" || exit
+			rm -rf "$_qmdir" || exit
 		fi
 	done
 
@@ -66,6 +66,8 @@ install_qmail()
 	stage_exec ln -s /usr/local/vpopmail/qmail-users /var/qmail/users
 
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
+
+	tell_status "setting qmail hostname to $TOASTER_HOSTNAME"
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 
 	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
