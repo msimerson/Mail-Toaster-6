@@ -610,6 +610,10 @@ configure_haraka()
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
 	fi
 
+	if [ ! -f "$HARAKA_CONF/me" ]; then
+		echo "$TOASTER_HOSTNAME" > "$HARAKA_CONF/me"
+	fi
+
 	if [ ! -f "$HARAKA_CONF/deny_includes_uuid" ]; then
 		echo '12' > "$HARAKA_CONF/deny_includes_uuid"
 	fi
