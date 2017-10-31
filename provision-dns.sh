@@ -17,7 +17,9 @@ get_mt6_data()
 	echo "
 
 	   local-data: \"stage		A $(get_jail_ip stage)\"
-	   local-data: \"$(get_reverse_ip stage) PTR stage\""
+	   local-data: \"$(get_reverse_ip stage) PTR stage\"
+	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"
+	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\""
 
 	for _j in $JAIL_ORDERED_LIST
 	do
