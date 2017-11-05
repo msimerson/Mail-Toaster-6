@@ -19,9 +19,9 @@ get_mt6_data()
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		_spf_ips="ip4:$PUBLIC_IP4"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64"
 	else
-		_spf_ips="ip4:$PUBLIC_IP4 ip6:$PUBLIC_IP6"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64 ip6:$PUBLIC_IP6"
 	fi
 
 	echo "
@@ -31,7 +31,8 @@ get_mt6_data()
 	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"
 	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\"
 	   local-data: \"$TOASTER_HOSTNAME TXT 'v=spf1 a $_spf_ips -all'\"
-	   local-data: \"$TOASTER_MAIL_DOMAIN TXT 'v=spf1 a mx $_spf_ips -all'\""
+	   local-data: \"$TOASTER_MAIL_DOMAIN TXT 'v=spf1 a mx $_spf_ips -all'\"
+	   local-data: \"$TOASTER_MAIL_DOMAIN MX 0 $TOASTER_HOSTNAME\""
 
 	for _j in $JAIL_ORDERED_LIST
 	do
