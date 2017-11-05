@@ -150,8 +150,14 @@ configure_tls_dhparams()
 		return
 	fi
 
-	tell_status "installing dhparam.pem"
-	cp /etc/ssl/dhparam.pem "$BASE_MNT/etc/ssl/dhparam.pem" || exit
+	local DHP="/etc/ssl/dhparam.pem"
+	if [ ! -f "$DHP" ]; then
+		# for upgrade compatibilty
+		tell_status "Generating a 2048 bit $DHP"
+		openssl dhparam -out "$DHP" 2048 || exit
+	fi
+
+	cp "$DHP" "$BASE_MNT/etc/ssl/dhparam.pem" || exit
 }
 
 configure_make_conf() {
