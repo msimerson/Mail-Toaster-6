@@ -36,6 +36,11 @@ export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
 export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
 export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
 
+# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
+# Haraka determines it at runtime (with STUN) but the DNS configuration cannot
+export PUBLIC_IP4=""
+export PUBLIC_IP6=""
+
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
@@ -728,7 +733,7 @@ stage_fbsd_package()
 	local _dest="$2"
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
-	tell_status "downloading FreeBSD package $1"
+	tell_status "downloading $(freebsd_release_url_base)/$1.txz"
 	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
 	echo "done"
 
@@ -825,12 +830,13 @@ get_public_ip()
 {
 	get_public_facing_nic "$1"
 
-	export PUBLIC_IP6
-	export PUBLIC_IP4
-
 	if [ "$1" = 'ipv6' ]; then
+		if [ -n "$PUBLIC_IP6" ]; then return fi
+		export PUBLIC_IP6
 		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
 	else
+		if [ -n "$PUBLIC_IP4" ]; then return fi
+		export PUBLIC_IP4
 		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
 	fi
 }
