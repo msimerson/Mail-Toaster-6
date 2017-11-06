@@ -239,16 +239,17 @@ EO_HORDE_CONF
 EO_HORDE_PREFS
 
 
-
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring horde mysql permissions"
-		local _grant='GRANT ALL PRIVILEGES ON horde.* to'
 
-		echo "$_grant 'horde'@'$(get_jail_ip horde)' IDENTIFIED BY '${_hordepass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+		for _jail in horde stage; do
+			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			do
+				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" \
+					| jexec mysql /usr/local/bin/mysql || exit
+			done
+		done
 
-		echo "$_grant 'horde'@'$(get_jail_ip stage)' IDENTIFIED BY '${_hordepass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
 		horde_init_db
 	fi
 }
