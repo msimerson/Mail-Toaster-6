@@ -294,6 +294,8 @@ install_file() {
 		return 1
 	fi
 
+	chown 88:88 "$2"
+
 	_debug "installed as $2"
 	return 0
 }
@@ -309,20 +311,30 @@ mysql_deploy() {
 	_cfullchain="$5"
 
 	assure_file "$_ccert" || return 2
-	_my_conf="/data/mysql"
 
+	_my_conf="/data/mysql"
 	if [ ! -d "$_my_conf" ]; then
 		_debug "missing mysql dir: $_my_conf"
 		return 0
 	fi
 
-	# local _installed="$_my_conf/tls_cert.pem"
-	# has_differences "$_cfullchain" "$_installed" || return 0
-	# install_file "$_cfullchain" "$_installed" || return 1
-	# install_file "$_ckey" "$_my_conf/tls_key.pem" || return 1
+	_tls_dir="$_my_conf/tls"
 
-	# _debug "restarting mysql"
-	# jexec mysql service mysql-server restart
+	if [ ! -d "$_tls_dir" ]; then
+		_debug "creating $_tls_dir"
+		mkdir "$_tls_dir" || return 2
+	fi
+
+	# use file names from docs:
+	#   https://dev.mysql.com/doc/refman/5.6/en/using-encrypted-connections.html
+	has_differences "$_ccert"   "$_tls_dir/server-cert.pem"     || return 0
+
+	install_file "$_ccert"      "$_tls_dir/server-cert.pem"     || return 1
+	install_file "$_ckey"       "$_tls_dir/server-key.pem"      || return 1
+	install_file "$_cfullchain" "$_tls_dir/ca.pem" || return 1
+
+	_debug "restarting mysql"
+	jexec mysql service mysql-server restart
 	return 0
 }
 EO_LE_MYSQL
@@ -363,6 +375,7 @@ install_deploy_scripts()
 	install_deploy_dovecot
 	install_deploy_haraka
 	install_deploy_mailtoaster
+	install_deploy_mysql
 }
 
 update_haproxy_ssld()
