@@ -41,13 +41,14 @@ install_roundcube_mysql()
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
-		local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
 
-		echo "$_grant 'roundcube'@'$(get_jail_ip roundcube)' IDENTIFIED BY '${_rcpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
-
-		echo "$_grant 'roundcube'@'$(get_jail_ip stage)' IDENTIFIED BY '${_rcpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+		for _jail in roundcube stage; do
+			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			do
+				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" \
+					| jexec mysql /usr/local/bin/mysql || exit
+			done
+		done
 
 		roundcube_init_db
 	fi
