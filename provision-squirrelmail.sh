@@ -62,13 +62,14 @@ CREATE TABLE userprefs (
 \$addrbook_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip mysql)/squirrelmail';
 EO_SQUIRREL_SQL
 
-	local _grant='GRANT ALL PRIVILEGES ON squirrelmail.* to'
 
-	echo "$_grant 'squirrelmail'@'$(get_jail_ip squirrelmail)' IDENTIFIED BY '${sqpass}';" \
-		| jexec mysql /usr/local/bin/mysql || exit
-
-	echo "$_grant 'squirrelmail'@'$(get_jail_ip stage)' IDENTIFIED BY '${sqpass}';" \
-		| jexec mysql /usr/local/bin/mysql || exit
+	for _jail in squirrelmail stage; do
+		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		do
+			echo "GRANT ALL PRIVILEGES ON squirrelmail.* to 'squirrelmail'@'${_ip}' IDENTIFIED BY '${sqpass}';" \
+				| jexec mysql /usr/local/bin/mysql || exit
+		done
+	done
 }
 
 install_squirrelmail()

@@ -223,10 +223,63 @@ EO_LOCAL_CONF
 	install_sa_update
 	configure_spamassassin_redis_bayes
 	configure_geoip
+	configure_spamassassin_mysql
+}
 
-	# SASQL ?
-	# create database spamassassin;
-	# $GRANT spamassassin.* to 'spamassassin'@'$(get_jail_ip spamassassin)' IDENTIFIED BY '`$RANDPASS`';
+configure_spamassassin_mysql()
+{
+	if [ "$TOASTER_MYSQL" != "1" ]; then return; fi
+	if [ -f "$_sa_etc/sql.cf" ]; then return; fi
+
+	tell_status "configuring MySQL for SpamAssassin (SASQL, Bayes, AWL)"
+	local _my_pass; _my_pass=$(openssl rand -hex 18)
+
+	tee -a "$_sa_etc/sql.cf" <<EO_MYSQL_CONF
+	# Users scores is useful with the Squirrelmail SASQL plugin
+    # user_scores_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
+    # user_scores_sql_username        spamassassin
+    # user_scores_sql_password        $_my_pass
+
+    # default query
+    #SELECT preference, value FROM _TABLE_ WHERE username = _USERNAME_ OR username = '\@GLOBAL' ORDER BY username ASC
+    # global, then domain level
+    #SELECT preference, value FROM _TABLE_ WHERE username = _USERNAME_ OR username = '\@GLOBAL' OR username = '@~'||_DOMAIN_ ORDER BY username ASC
+    # global overrides user prefs
+    #SELECT preference, value FROM _TABLE_ WHERE username = _USERNAME_ OR username = '\@GLOBAL' ORDER BY username DESC
+    # from the SA SQL README
+    #user_scores_sql_custom_query     SELECT preference, value FROM _TABLE_ WHERE username = _USERNAME_ OR username = '\$GLOBAL' OR username = CONCAT('%',_DOMAIN_) ORDER BY username ASC
+
+    # Bayes in Redis now, by default. Likely a bad choice to enable this.
+    # bayes_store_module              Mail::SpamAssassin::BayesStore::SQL
+    # bayes_sql_dsn                   DBI:mysql:spamassassin:$(get_jail_ip mysql)
+    # bayes_sql_username              spamassassin
+    # bayes_sql_password              $_my_pass
+    # bayes_sql_override_username     someusername
+
+    # Not commonly enabled.
+    # auto_whitelist_factory       Mail::SpamAssassin::SQLBasedAddrList
+    # user_awl_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
+    # user_awl_sql_username        spamassassin
+    # user_awl_sql_password        $_my_pass
+    # user_awl_sql_table           awl
+EO_MYSQL_CONF
+
+	echo 'CREATE DATABASE spamassassin;' | jexec mysql /usr/local/bin/mysql;
+	for _import_file in awl_mysql bayes_mysql userpref_mysql;
+	do
+		local _f="$STAGE_MNT/usr/local/share/doc/spamassassin/sql/${_import_file}.sql"
+		# shellcheck disable=SC2002
+		cat "$_f" | jexec mysql /usr/local/bin/mysql spamassassin
+	done
+
+	for _jail in spamassassin stage;
+	do
+		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		do
+			echo "GRANT spamassassin.* to 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'" \
+				| jexec mysql /usr/local/bin/mysql
+		done
+	done
 }
 
 start_spamassassin()
