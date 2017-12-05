@@ -237,6 +237,7 @@ haraka_deploy() {
 		local _installed="$_h_conf/tls/${_cdomain}.pem"
 		has_differences "$_tmp" "$_installed" || return 0
 		install_file "$_tmp" "$_installed" || return 1
+		rm $_tmp
 	else
 		local _installed="$_h_conf/tls_cert.pem"
 		has_differences "$_cfullchain" "$_installed" || return 0
@@ -244,7 +245,6 @@ haraka_deploy() {
 		install_file "$_ckey" "$_h_conf/tls_key.pem" || return 1
 	fi
 
-	rm $_tmp
 	_debug "restarting haraka"
 	service jail restart haraka
 	return 0
