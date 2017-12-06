@@ -38,6 +38,12 @@ EO_DCC
 
 configure_phishing()
 {
+	local _physmem; _physmem=$(sysctl -n hw.physmem)
+	if [ "$_physmem" -le "4294967296" ]; then
+		tell_status "skipping phish, too little RAM"
+		return
+	fi
+
 	tell_status "enabling phish detection"
 	tee "$RSPAMD_ETC/local.d/phishing.conf" <<EO_PHISH
 	openphish_enabled = true;
