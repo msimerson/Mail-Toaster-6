@@ -10,7 +10,7 @@ export JAIL_CONF_EXTRA="
 install_geoip()
 {
 	tell_status "install GeoIP updater"
-	stage_pkg_install npm || exit
+	stage_pkg_install npm4 || exit
 	stage_exec npm install -g maxmind-geolite-mirror || exit
 }
 
