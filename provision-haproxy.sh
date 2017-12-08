@@ -8,7 +8,7 @@ export JAIL_CONF_EXTRA=""
 
 install_haproxy()
 {
-	if [ "$TLS_LIBRARY" != "libressl" ]; then
+	if [ "$TLS_LIBRARY" = "libressl" ]; then
 		install_haproxy_libressl || exit 1
 		return
 	fi

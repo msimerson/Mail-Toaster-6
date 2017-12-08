@@ -13,8 +13,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install node6 npm3 gmake || exit
-	#stage_port_install www/npm
+	stage_pkg_install npm-node8 gmake python || exit
 
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git-lite
@@ -156,7 +155,8 @@ configure_haraka_qmail_deliverable()
 	if [ ! -f "$HARAKA_CONF/qmail-deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
-host=$(get_jail_ip vpopmail)" | \
+host=$(get_jail_ip vpopmail)
+queue=smtp_forward" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 

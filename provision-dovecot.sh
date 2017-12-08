@@ -444,6 +444,12 @@ configure_sieve()
 		mkdir "$SIEVE_DIR" || exit
 	fi
 
+	local _lc="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	if [ -f "$_lc" ] && ! grep -q sieve "$_lc"; then
+		tell_status "sieve not configured. Update local.conf and reinstall dovecot to enable"
+		return
+	fi
+
 	configure_sieve_report_ham
 	configure_sieve_report_spam
 
