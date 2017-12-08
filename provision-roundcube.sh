@@ -133,7 +133,7 @@ configure_roundcube()
 	local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
 	sed -i .bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
-		-e "/'smtp_server'/  s/'.*';/'tls:\/\/haraka';/" \
+		-e "/'smtp_server'/  s/= '.*'/= 'tls:\/\/haraka'/" \
 		-e "/'smtp_port'/    s/25;/587;/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
