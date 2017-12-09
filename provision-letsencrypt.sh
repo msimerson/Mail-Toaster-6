@@ -398,7 +398,7 @@ configure_letsencrypt()
 
 	tell_status "configuring Let's Encrypt"
 
-	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
+	local _HTTPDIR="$ZFS_DATA_MNT/webmail"
 	local _acme="/root/.acme.sh/acme.sh"
 	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
 		update_haproxy_ssld
