@@ -84,6 +84,11 @@ configure_syslog()
 *.*			@syslog
 EO_SYSLOG
 
+	disable_newsyslog
+}
+
+disable_newsyslog()
+{
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
 	sed -i .bak \
@@ -94,10 +99,8 @@ EO_SYSLOG
 disable_syslog()
 {
 	tell_status "disabling syslog"
-	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO syslogd_enable=NO
-	sed -i .bak \
-		-e '/^0.*newsyslog/ s/^0/#0/' \
-		"$BASE_MNT/etc/crontab"
+	sysrc -f "$BASE_MNT/etc/rc.conf" syslogd_enable=NO
+	disable_newsyslog
 }
 
 disable_root_password()
@@ -150,8 +153,14 @@ configure_tls_dhparams()
 		return
 	fi
 
-	tell_status "installing dhparam.pem"
-	cp /etc/ssl/dhparam.pem "$BASE_MNT/etc/ssl/dhparam.pem" || exit
+	local DHP="/etc/ssl/dhparam.pem"
+	if [ ! -f "$DHP" ]; then
+		# for upgrade compatibilty
+		tell_status "Generating a 2048 bit $DHP"
+		openssl dhparam -out "$DHP" 2048 || exit
+	fi
+
+	cp "$DHP" "$BASE_MNT/etc/ssl/dhparam.pem" || exit
 }
 
 configure_make_conf() {

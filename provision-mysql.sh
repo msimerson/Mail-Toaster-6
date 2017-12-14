@@ -54,6 +54,18 @@ innodb_file_per_table = 1
 EO_MY_CNF
 	fi
 
+	if [ ! -f "$_dbdir/private_key.pem" ]; then
+		tell_status "enabling sha256_password support"
+		openssl genrsa -out "$_dbdir/private_key.pem" 2048
+		chown 88:88 "$_dbdir/private_key.pem"
+		chmod 400 "$_dbdir/private_key.pem"
+	fi
+
+	if [ ! -f "$_dbdir/public_key.pem" ]; then
+		openssl rsa -in "$_dbdir/private_key.pem" -pubout -out "$_dbdir/public_key.pem"
+		chown 88:88 "$_dbdir/public_key.pem"
+		chmod 444 "$_dbdir/public_key.pem"
+	fi
 }
 
 start_mysql()

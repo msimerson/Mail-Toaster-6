@@ -13,8 +13,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install node6 npm3 gmake || exit
-	#stage_port_install www/npm
+	stage_pkg_install npm-node8 gmake python || exit
 
 	tell_status "installing Haraka"
 	stage_exec pkg install -y git-lite
@@ -156,7 +155,8 @@ configure_haraka_qmail_deliverable()
 	if [ ! -f "$HARAKA_CONF/qmail-deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
-host=$(get_jail_ip vpopmail)" | \
+host=$(get_jail_ip vpopmail)
+queue=smtp_forward" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
@@ -565,10 +565,19 @@ order=fail,pass,msg
 EO_RESULTS
 }
 
+enable_newsyslog() {
+	tell_status "enabling newsyslog"
+	stage_sysrc newsyslog_enable=YES
+	sed -i .bak \
+		-e '/^0.*newsyslog/ s/^#0/0/' \
+		"$STAGE_MNT/etc/crontab"
+}
+
 configure_haraka_log_rotation()
 {
+	enable_newsyslog
+
 	tell_status "configuring haraka.log rotation"
-	stage_sysrc newsyslog_enable=YES
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d" || exit
 	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.log" <<EO_HARAKA
 /var/log/haraka.log			644  7	   *	@T00  JC
@@ -608,6 +617,10 @@ configure_haraka()
 	echo 'LOGINFO' > "$HARAKA_CONF/loglevel"
 	if [ ! -f "$HARAKA_CONF/tarpit.timeout" ]; then
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
+	fi
+
+	if [ ! -f "$HARAKA_CONF/me" ]; then
+		echo "$TOASTER_HOSTNAME" > "$HARAKA_CONF/me"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/deny_includes_uuid" ]; then

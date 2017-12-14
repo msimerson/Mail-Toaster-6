@@ -84,8 +84,14 @@ install_nictool_server() {
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
 		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
-		echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'$(get_jail_ip nictool)' IDENTIFIED BY 'lootcin205';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+
+		for _jail in nictool stage; do
+			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			do
+				echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'${_ip}' IDENTIFIED BY 'lootcin205';" \
+					| jexec mysql /usr/local/bin/mysql || exit
+			done
+		done
 	fi
 
 	tell_status "installing NicToolServer dependencies"

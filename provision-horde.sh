@@ -57,27 +57,27 @@ configure_nginx_server()
 	server_name horde;
 
 	location /horde {
-	root /usr/local/www/;
-	index index.php index.html;
+		root /usr/local/www/;
+		index index.php index.html;
 
-	try_files $uri $uri/ /rampage.php?$args;
+		try_files $uri $uri/ /rampage.php?$args;
 
-	location ~ ^/horde/(.+\.php) {
-	fastcgi_split_path_info ^(.+\.php)(/.+)$;
-	fastcgi_param PATH_INFO $fastcgi_path_info;
-	fastcgi_param PATH_TRANSLATED $document_root$fastcgi_path_info;
-	fastcgi_param PHP_VALUE "cgi.fix_pathinfo=1";
-	fastcgi_pass php;
-	fastcgi_index index.php;
-	fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-	include        /usr/local/etc/nginx/fastcgi_params;
-	root /usr/local/www/;
-}
-location ~ ^/horde/(.+\.(?:ico|css|js|gif|jpe?g|png))$ {
-root /usr/local/www/;
-expires max;
-add_header Pragma public;
-add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+		location ~ ^/horde/(.+\.php) {
+		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+		fastcgi_param PATH_INFO $fastcgi_path_info;
+		fastcgi_param PATH_TRANSLATED $document_root$fastcgi_path_info;
+		fastcgi_param PHP_VALUE "cgi.fix_pathinfo=1";
+		fastcgi_pass php;
+		fastcgi_index index.php;
+		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+		include        /usr/local/etc/nginx/fastcgi_params;
+		root /usr/local/www/;
+	}
+	location ~ ^/horde/(.+\.(?:ico|css|js|gif|jpe?g|png))$ {
+		root /usr/local/www/;
+		expires max;
+		add_header Pragma public;
+		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
     }
 
 }
@@ -239,16 +239,17 @@ EO_HORDE_CONF
 EO_HORDE_PREFS
 
 
-
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring horde mysql permissions"
-		local _grant='GRANT ALL PRIVILEGES ON horde.* to'
 
-		echo "$_grant 'horde'@'$(get_jail_ip horde)' IDENTIFIED BY '${_hordepass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+		for _jail in horde stage; do
+			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			do
+				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" \
+					| jexec mysql /usr/local/bin/mysql || exit
+			done
+		done
 
-		echo "$_grant 'horde'@'$(get_jail_ip stage)' IDENTIFIED BY '${_hordepass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
 		horde_init_db
 	fi
 }
