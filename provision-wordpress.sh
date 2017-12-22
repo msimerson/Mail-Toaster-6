@@ -14,7 +14,7 @@ install_wordpress()
 	assure_jail mysql
 
 	install_nginx
-	install_php 56 "mysql session gd"
+	install_php 72 "mysqli session gd"
 
 	stage_pkg_install wordpress
 }

@@ -12,7 +12,7 @@ mt6-include nginx
 
 install_rainloop()
 {
-	install_php 56 || exit
+	install_php 72 || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"

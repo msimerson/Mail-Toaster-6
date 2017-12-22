@@ -13,10 +13,10 @@ install_mediawiki()
 {
 	assure_jail mysql
 
-	install_php 56 "ctype iconv gd json mbstring mcrypt openssl session xml zlib"
+	install_php 71 "ctype iconv gd json mbstring openssl session xml zlib"
 	install_nginx
 
-	stage_pkg_install mediawiki128 xcache
+	stage_pkg_install mediawiki130
 	mkdir -p "$STAGE_MNT/var/cache/mediawiki"
 	chown 80:80 "$STAGE_MNT/var/cache/mediawiki"
 }

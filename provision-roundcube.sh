@@ -65,13 +65,13 @@ roundcube_init_db()
 
 install_roundcube()
 {
-	local _php_modules="fileinfo mcrypt exif openssl"
+	local _php_modules="fileinfo exif openssl"
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "install php sqlite module"
 		_php_modules="$_php_modules pdo_sqlite"
 	fi
 
-	install_php 56 "$_php_modules" || exit
+	install_php 72 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
