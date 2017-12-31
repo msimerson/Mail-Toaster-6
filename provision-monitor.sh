@@ -34,7 +34,7 @@ install_nagios()
 	fi
 
 	tell_status "installing nagios & nrpe"
-	stage_pkg_install nagios nrpe-ssl
+	stage_pkg_install nagios nrpe3
 }
 
 install_munin()

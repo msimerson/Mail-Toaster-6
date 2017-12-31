@@ -249,18 +249,7 @@ EO_HORDE_PREFS
 					| jexec mysql /usr/local/bin/mysql || exit
 			done
 		done
-
-		horde_init_db
 	fi
-}
-
-horde_init_db()
-{
-	tell_status "initializating Horde db"
-	#pkg install -y curl || exit
-	#start_roundcube
-	#curl -i -F initdb='Initialize database' -XPOST \
-		#		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
 }
 
 configure_horde_imp()
