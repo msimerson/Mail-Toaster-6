@@ -530,7 +530,7 @@ configure_haraka_helo()
 
 		tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
-mismatch=false
+host_mismatch=false
 valid_hostname=false
 EO_HELO_INI
 	fi
