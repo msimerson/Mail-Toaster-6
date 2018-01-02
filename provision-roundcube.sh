@@ -65,17 +65,28 @@ roundcube_init_db()
 
 install_roundcube()
 {
-	local _php_modules="fileinfo mcrypt exif openssl"
+	local _php_modules="dom exif fileinfo filter iconv intl json openssl mbstring session xml zip"
+
 	if [ "$TOASTER_MYSQL" != "1" ]; then
-		tell_status "install php sqlite module"
+		tell_status "using sqlite DB backend"
 		_php_modules="$_php_modules pdo_sqlite"
+		stage_make_conf roundcube_SET 'mail_roundcube_SET=SQLITE'
+		stage_make_conf roundcube_UNSET 'mail_roundcube_UNSET=MYSQL PGSQL DOCS GD LDAP NSC PSPELL'
+	else
+		tell_status "using mysql DB backend"
+		_php_modules="$_php_modules pdo_mysql"
+		stage_make_conf roundcube_SET 'mail_roundcube_SET=MYSQL'
+		stage_make_conf roundcube_UNSET 'mail_roundcube_UNSET=SQLITE PGSQL DOCS GD LDAP NSC PSPELL'
 	fi
 
-	install_php 56 "$_php_modules" || exit
+	install_php 72 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube
+	# when FreeBSD port is updated to install PHP 7.2, revert to pkg install
+	#stage_pkg_install roundcube
+
+	stage_port_install mail/roundcube
 }
 
 configure_nginx_server()

@@ -194,7 +194,6 @@ zfs_create_fs() {
 	if zfs_filesystem_exists "$1"; then return; fi
 	if zfs_mountpoint_exists "$2"; then return; fi
 
-	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"

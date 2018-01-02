@@ -14,9 +14,10 @@ install_wordpress()
 	assure_jail mysql
 
 	install_nginx
-	install_php 56 "mysql session gd"
+	install_php 72 "curl ftp gd hash mysqli session tokenizer xml zip zlib"
 
-	stage_pkg_install wordpress
+	# stage_pkg_install wordpress
+	stage_port_install www/wordpress
 }
 
 configure_nginx_standalone()

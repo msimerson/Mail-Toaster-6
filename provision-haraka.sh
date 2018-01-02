@@ -13,18 +13,20 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node8 gmake python || exit
+	stage_pkg_install npm-node8 gmake python git-lite || exit
+	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
-	stage_exec pkg install -y git-lite
+	stage_exec git clone --depth=1 https://github.com/haraka/Haraka.git /tmp/Haraka
+	stage_exec npm set user 0
+	stage_exec npm set -g unsafe-perm true
+	stage_exec npm install -g --only=prod /tmp/Haraka || exit
 
-	stage_exec npm install --production -g haraka/Haraka ws express || exit
-
-	local _plugins="haraka-plugin-log-reader"
+	local _plugins="ws express haraka-plugin-log-reader"
 	for _p in known-senders aliases; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
-	stage_exec bash -c "cd /data && npm install --production $_plugins"
+	stage_exec bash -c "cd /data && npm install --only=prod $_plugins"
 }
 
 install_geoip_dbs()
@@ -600,6 +602,10 @@ EO_WL
 
 configure_haraka_dcc()
 {
+	if [ -f "$HARAKA_CONF/dcc.ini" ]; then
+		return
+	fi
+
 	tell_status "configuring DCC"
 	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
 [dccifd]
