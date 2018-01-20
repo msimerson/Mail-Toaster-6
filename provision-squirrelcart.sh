@@ -20,7 +20,7 @@ install_squirrelcart()
 	# find and unzip the newest squirrelcart zip file
 	local _zipfile
 	# shellcheck disable=2012
-	_zipfile=$(ls -t -1 "$ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip" | head -n1)
+	_zipfile=$(ls -t -1 $ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip | head -n1)
 	if [ ! -f "$_zipfile" ]; then
 		tell_status "place the latest squirrelcart zip file in $ZFS_DATA_MNT/squirrelcart"
 		exit
