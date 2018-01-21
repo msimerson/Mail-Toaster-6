@@ -50,7 +50,7 @@ install_squirrelcart()
 	mv "$STAGE_MNT/tmp/$_verdir/upload" "$STAGE_MNT/usr/local/www/squirrelcart" || exit
 	ln -s /data/sc_images "$STAGE_MNT/usr/local/www/squirrelcart/sc_images"
 	install_nginx || exit
-	install_php 72 "mysqli session curl openssl gd json soap xml" || exit
+	install_php 71 "mysqli session curl openssl gd json soap xml" || exit
 
 	stage_pkg_install postfix || exit
 }
