@@ -19,10 +19,10 @@ install_smf()
 	fi
 
 	fetch -m -o "$STAGE_MNT/data/smf.tar.bz2" \
-		http://download.simplemachines.org/index.php/smf_2-0-13_install.tar.bz2
+		http://download.simplemachines.org/index.php/smf_2-0-15_install.tar.bz2 || exit
 
 	stage_exec sh -c 'cd /usr/local/www/smf; bunzip2 -c /data/smf.tar.bz2 | tar -xf -' || exit
-	stage_exec sh -c 'cd /usr/local/www/smf; chown www:www attachments avatars cache Packages Packages/installed.list Smileys Themes agreement.txt Settings.php Settings_bak.php'
+	stage_exec sh -c 'cd /usr/local/www/smf; chown www:www attachments avatars cache Packages Packages/installed.list Smileys Themes agreement.txt Settings.php Settings_bak.php' || exit
 
 	stage_pkg_install aspell
 }
