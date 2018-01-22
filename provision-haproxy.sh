@@ -106,6 +106,7 @@ frontend http-in
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
 	acl horde        path_beg /horde
+	acl prometheus   path_beg /prometheus
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -125,6 +126,8 @@ frontend http-in
 	use_backend www_wordpress    if  wordpress
 	use_backend www_stage        if  stage
 	use_backend www_horde        if  horde
+	use_backend www_prometheus   if  prometheus
+
 
 	# for Let's Encrypt SSL/TLS certificates
 	use_backend www_webmail      if  letsencrypt
@@ -186,6 +189,10 @@ frontend http-in
 
 	backend www_horde
 	server monitor $(get_jail_ip horde):80
+
+	backend www_prometheus
+	server monitor $(get_jail_ip prometheus):9090
+	reqirep ^([^\ :]*)\ /prometheus/(.*)    \1\ /\2
 
 EO_HAPROXY_CONF
 }
