@@ -450,7 +450,7 @@ create_staged_fs()
 
 stage_unmount_aux_data()
 {
-	case $1 in
+	case "$1" in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
 		whmcs )        unmount_data geoip ;;
@@ -458,7 +458,7 @@ stage_unmount_aux_data()
 }
 
 stage_mount_aux_data() {
-	case $1 in
+	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
 		whmcs )         mount_data geoip ;;
@@ -491,6 +491,7 @@ start_staged_jail()
 
 	stage_mount_aux_data "$_name"
 
+	tell_status "updating pkg database"
 	pkg -j stage update
 }
 
@@ -788,7 +789,7 @@ data_mountpoint()
 		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
-	case $1 in
+	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
 		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
 		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
