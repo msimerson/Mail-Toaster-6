@@ -156,8 +156,8 @@ configure_nrpe()
 	fi
 
 	stage_exec ln -s /data/etc/nrpe.cfg /usr/local/etc/nrpe.cfg
-	stage_sysrc nrpe2_enable="YES"
-	stage_sysrc nrpe2_configfile=/data/etc/nrpe.cfg
+	stage_sysrc nrpe3_enable="YES"
+	stage_sysrc nrpe3_configfile=/data/etc/nrpe.cfg
 }
 
 configure_monitor()
