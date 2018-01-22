@@ -13,7 +13,7 @@ mt6-include vpopmail
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot dovecot-pigeonhole || exit
+	stage_pkg_install dovecot dovecot-pigeonhole curl || exit
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
@@ -368,7 +368,7 @@ configure_sieve_learn_rspamd()
 
 	tell_status "adding learn-ham-rspamd.sh"
 	tee "$SIEVE_DIR/learn-ham-rspamd.sh" <<EO_RSPAM_LEARN_HAM
-exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
+exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
 EO_RSPAM_LEARN_HAM
 	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh" || exit
 
@@ -382,7 +382,7 @@ EO_REPORT_HAM_RSPAMD
 
 	tell_status "adding learn-spam-rspamd.sh"
 	tee "$SIEVE_DIR/learn-spam-rspamd.sh" <<EO_RSPAM_LEARN_SPAM
-exec /usr/local/bin/curl -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
+exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
 EO_RSPAM_LEARN_SPAM
 	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh" || exit
 
@@ -442,6 +442,12 @@ configure_sieve()
 	SIEVE_DIR="$STAGE_MNT/usr/local/lib/dovecot/sieve"
 	if [ ! -d "$SIEVE_DIR" ]; then
 		mkdir "$SIEVE_DIR" || exit
+	fi
+
+	local _lc="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	if [ -f "$_lc" ] && ! grep -q sieve "$_lc"; then
+		tell_status "sieve not configured. Update local.conf and reinstall dovecot to enable"
+		return
 	fi
 
 	configure_sieve_report_ham

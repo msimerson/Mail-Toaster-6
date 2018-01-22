@@ -11,6 +11,8 @@ export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 
 install_nt_prereqs()
 {
+	assure_jail mysql
+
 	tell_status "installing NicTool app prerequisites"
 	stage_pkg_install perl5 mysql56-client apache24 rsync
 
@@ -26,8 +28,7 @@ install_nt_from_git()
 {
 	stage_pkg_install git-lite || exit
 	cd "$STAGE_MNT/usr/local" || exit
-	stage_exec git clone https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
-	stage_exec sh -c 'cd /usr/local/nictool/server && git checkout travis-more-testing'
+	stage_exec git clone --depth=1 https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
 	stage_pkg_install p5-App-Cpanminus
 	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
 	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpanm -n .'
@@ -82,8 +83,14 @@ install_nictool_server() {
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
 		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
-		echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'$(get_jail_ip nictool)' IDENTIFIED BY 'lootcin205';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+
+		for _jail in nictool stage; do
+			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			do
+				echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'${_ip}' IDENTIFIED BY 'lootcin205';" \
+					| jexec mysql /usr/local/bin/mysql || exit
+			done
+		done
 	fi
 
 	tell_status "installing NicToolServer dependencies"
@@ -157,6 +164,17 @@ install_nictool_db()
 	done
 }
 
+install_nictool_user()
+{
+	for _f in master.password group;
+	do
+		if [ -f "$ZFS_JAIL_MNT/nictool/etc/$_f" ]; then
+			cp "$ZFS_JAIL_MNT/nictool/etc/$_f" "$STAGE_MNT/etc/"
+			stage_exec pwd_mkdb -p /etc/master.passwd
+		fi
+	done
+}
+
 install_nictool()
 {
 	install_nt_prereqs
@@ -166,6 +184,7 @@ install_nictool()
 	install_nictool_client
 	install_apache_setup
 	install_nictool_db
+	install_nictool_user
 }
 
 start_nictool()
@@ -179,7 +198,7 @@ test_nictool()
 {
 	tell_status "testing nictool"
 
-	stage_listening 443
+	stage_listening 80
 	stage_test_running httpd
 
 	echo "it worked"

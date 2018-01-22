@@ -11,10 +11,13 @@ mt6-include nginx
 
 install_wordpress()
 {
-	install_nginx
-	install_php 56 "mysql session gd"
+	assure_jail mysql
 
-	stage_pkg_install wordpress
+	install_nginx
+	install_php 72 "curl ftp gd hash mysqli session tokenizer xml zip zlib"
+
+	stage_pkg_install dialog4ports
+	stage_port_install www/wordpress
 }
 
 configure_nginx_standalone()

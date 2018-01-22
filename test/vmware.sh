@@ -65,7 +65,7 @@ cleanstart() {
 vm_setup() {
     # install, no options, Auto ZFS, 8gb swap, sshd & powerd
     #!/bin/sh
-    pkg install -y vim-lite sudo open-vm-tools-nox11 git-lite
+    pkg install -y vim-console sudo open-vm-tools-nox11 git-lite
     chpass -s sh root
     echo 'autoboot_delay="1"' >> /boot/loader.conf
 

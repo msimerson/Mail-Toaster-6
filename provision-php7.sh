@@ -10,8 +10,8 @@ mt6-include 'php'
 
 install_php7()
 {
-	install_php "70" "bcmath bz2 ctype curl dom exif fileinfo filter ftp gd gettext hash \
-iconv json mbstring mcrypt mysqli opcache openssl pdo pdo_mysql pdo_sqlite \
+	install_php "72" "bcmath bz2 ctype curl dom exif fileinfo filter ftp gd gettext hash \
+iconv json mbstring mysqli opcache openssl pdo pdo_mysql pdo_sqlite \
 phar posix recode session simplexml soap sockets sqlite3 sysvmsg sysvsem tokenizer wddx \
 xml xmlreader xmlrpc xmlwriter xsl zip zlib"
 }

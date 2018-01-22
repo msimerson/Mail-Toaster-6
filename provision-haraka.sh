@@ -13,19 +13,20 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install node6 npm3 gmake || exit
-	#stage_port_install www/npm
+	stage_pkg_install npm-node8 gmake python git-lite || exit
+	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
-	stage_exec pkg install -y git-lite
+	stage_exec git clone --depth=1 https://github.com/haraka/Haraka.git /tmp/Haraka
+	stage_exec npm set user 0
+	stage_exec npm set -g unsafe-perm true
+	stage_exec npm install -g --only=prod /tmp/Haraka || exit
 
-	stage_exec npm install --production -g haraka/Haraka ws express || exit
-
-	local _plugins="haraka-plugin-log-reader"
+	local _plugins="ws express haraka-plugin-log-reader"
 	for _p in known-senders aliases; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
-	stage_exec bash -c "cd /data && npm install --production $_plugins"
+	stage_exec bash -c "cd /data && npm install --only=prod $_plugins"
 }
 
 install_geoip_dbs()
@@ -156,7 +157,8 @@ configure_haraka_qmail_deliverable()
 	if [ ! -f "$HARAKA_CONF/qmail-deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
-host=$(get_jail_ip vpopmail)" | \
+host=$(get_jail_ip vpopmail)
+queue=smtp_forward" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
@@ -528,7 +530,7 @@ configure_haraka_helo()
 
 		tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
-mismatch=false
+host_mismatch=false
 valid_hostname=false
 EO_HELO_INI
 	fi
@@ -565,10 +567,19 @@ order=fail,pass,msg
 EO_RESULTS
 }
 
+enable_newsyslog() {
+	tell_status "enabling newsyslog"
+	stage_sysrc newsyslog_enable=YES
+	sed -i .bak \
+		-e '/^0.*newsyslog/ s/^#0/0/' \
+		"$STAGE_MNT/etc/crontab"
+}
+
 configure_haraka_log_rotation()
 {
+	enable_newsyslog
+
 	tell_status "configuring haraka.log rotation"
-	stage_sysrc newsyslog_enable=YES
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d" || exit
 	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.log" <<EO_HARAKA
 /var/log/haraka.log			644  7	   *	@T00  JC
@@ -591,6 +602,10 @@ EO_WL
 
 configure_haraka_dcc()
 {
+	if [ -f "$HARAKA_CONF/dcc.ini" ]; then
+		return
+	fi
+
 	tell_status "configuring DCC"
 	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
 [dccifd]
@@ -608,6 +623,10 @@ configure_haraka()
 	echo 'LOGINFO' > "$HARAKA_CONF/loglevel"
 	if [ ! -f "$HARAKA_CONF/tarpit.timeout" ]; then
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
+	fi
+
+	if [ ! -f "$HARAKA_CONF/me" ]; then
+		echo "$TOASTER_HOSTNAME" > "$HARAKA_CONF/me"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/deny_includes_uuid" ]; then

@@ -86,6 +86,7 @@ http {
 	keepalive_timeout  65;
 
 	set_real_ip_from haproxy;
+	set_real_ip_from haproxy6;
 	real_ip_header X-Forwarded-For;
 	client_max_body_size 25m;
 
@@ -98,7 +99,7 @@ http {
 		listen       80;
 		listen  [::]:80;
 
-		# serve Let's Encrypt requests for all domains to /data
+		# serve all Let's Encrypt requests from /data
 		location /.well-known/acme-challenge {
 			root /data;
 			try_files \$uri =404;
@@ -116,8 +117,9 @@ http {
 EO_NGINX_CONF
 
 	sed -i .bak \
-		-e "s/haproxy/$(get_jail_ip haproxy)/" \
-		"$STAGE_MNT/data/etc/nginx.conf"
+		-e "s/haproxy;/$(get_jail_ip haproxy);/" \
+		-e "s/haproxy6;/$(get_jail_ip6 haproxy);/" \
+		"$_installed" || exit
 }
 
 start_nginx()

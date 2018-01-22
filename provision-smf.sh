@@ -12,17 +12,17 @@ mt6-include nginx
 install_smf()
 {
 	install_nginx
-	install_php 56 "mysql session gd zlib"
+	install_php 72 "mysqli session gd zlib"
 
 	if [ ! -d "$STAGE_MNT/usr/local/www/smf" ]; then
 		mkdir -p "$STAGE_MNT/usr/local/www/smf" || exit
 	fi
 
 	fetch -m -o "$STAGE_MNT/data/smf.tar.bz2" \
-		http://download.simplemachines.org/index.php/smf_2-0-13_install.tar.bz2
+		http://download.simplemachines.org/index.php/smf_2-0-15_install.tar.bz2 || exit
 
 	stage_exec sh -c 'cd /usr/local/www/smf; bunzip2 -c /data/smf.tar.bz2 | tar -xf -' || exit
-	stage_exec sh -c 'cd /usr/local/www/smf; chown www:www attachments avatars cache Packages Packages/installed.list Smileys Themes agreement.txt Settings.php Settings_bak.php'
+	stage_exec sh -c 'cd /usr/local/www/smf; chown www:www attachments avatars cache Packages Packages/installed.list Smileys Themes agreement.txt Settings.php Settings_bak.php' || exit
 
 	stage_pkg_install aspell
 }

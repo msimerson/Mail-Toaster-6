@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA=""
 
 install_dspam()
 {
+	assure_jail mysql
+
 	tell_status "installing dspam"
 	stage_pkg_install dspam || exit
 }
@@ -40,11 +42,13 @@ configure_dspam_mysql()
 
 	_dpass=$(openssl rand -hex 18)
 
-	echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'$(get_jail_ip dspam)' IDENTIFIED BY '${_dpass}';" \
-		| jexec mysql /usr/local/bin/mysql || exit
-
-	echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'$(get_jail_ip stage)' IDENTIFIED BY '${_dpass}';" \
-		| jexec mysql /usr/local/bin/mysql || exit
+	for _jail in dspam stage; do
+		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		do
+			echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'${_ip}' IDENTIFIED BY '${_dpass}';" \
+				| jexec mysql /usr/local/bin/mysql || exit
+		done
+	done
 }
 
 configure_dspam()

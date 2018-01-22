@@ -12,6 +12,8 @@ mt6-include nginx
 
 install_roundcube_mysql()
 {
+	assure_jail mysql
+
 	local _init_db=0
 	if ! mysql_db_exists roundcubemail; then
 		tell_status "creating roundcube mysql db"
@@ -39,13 +41,14 @@ install_roundcube_mysql()
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
-		local _grant='GRANT ALL PRIVILEGES ON roundcubemail.* to'
 
-		echo "$_grant 'roundcube'@'$(get_jail_ip roundcube)' IDENTIFIED BY '${_rcpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
-
-		echo "$_grant 'roundcube'@'$(get_jail_ip stage)' IDENTIFIED BY '${_rcpass}';" \
-			| jexec mysql /usr/local/bin/mysql || exit
+		for _jail in roundcube stage; do
+			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			do
+				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" \
+					| jexec mysql /usr/local/bin/mysql || exit
+			done
+		done
 
 		roundcube_init_db
 	fi
@@ -62,17 +65,28 @@ roundcube_init_db()
 
 install_roundcube()
 {
-	local _php_modules="fileinfo mcrypt exif openssl"
+	local _php_modules="dom exif fileinfo filter iconv intl json openssl mbstring session xml zip"
+
 	if [ "$TOASTER_MYSQL" != "1" ]; then
-		tell_status "install php sqlite module"
+		tell_status "using sqlite DB backend"
 		_php_modules="$_php_modules pdo_sqlite"
+		stage_make_conf roundcube_SET 'mail_roundcube_SET=SQLITE'
+		stage_make_conf roundcube_UNSET 'mail_roundcube_UNSET=MYSQL PGSQL DOCS GD LDAP NSC PSPELL'
+	else
+		tell_status "using mysql DB backend"
+		_php_modules="$_php_modules pdo_mysql"
+		stage_make_conf roundcube_SET 'mail_roundcube_SET=MYSQL'
+		stage_make_conf roundcube_UNSET 'mail_roundcube_UNSET=SQLITE PGSQL DOCS GD LDAP NSC PSPELL'
 	fi
 
-	install_php 56 "$_php_modules" || exit
+	install_php 72 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube
+	# when FreeBSD port is updated to install PHP 7.2, revert to pkg install
+	#stage_pkg_install roundcube
+
+	stage_port_install mail/roundcube
 }
 
 configure_nginx_server()
@@ -130,7 +144,7 @@ configure_roundcube()
 	local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
 	sed -i .bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
-		-e "/'smtp_server'/  s/'';/'tls:\/\/haraka';/" \
+		-e "/'smtp_server'/  s/= '.*'/= 'tls:\/\/haraka'/" \
 		-e "/'smtp_port'/    s/25;/587;/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
@@ -152,7 +166,7 @@ $config['smtp_conn_options'] = array(
 );
 EO_RC_ADD
 
-	if [ "$TOASTER_MYSQL" = "1" ]; then
+	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		install_roundcube_mysql
 	else
 		sed -i.bak \

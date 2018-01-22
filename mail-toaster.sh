@@ -36,6 +36,11 @@ export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
 export TOASTER_ADMIN_EMAIL="postmaster@${_EMAIL_DOMAIN}"
 export TOASTER_SRC_URL="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"
 
+# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
+# Haraka determines it at runtime (with STUN) but the DNS configuration cannot
+export PUBLIC_IP4=""
+export PUBLIC_IP6=""
+
 export JAIL_NET_PREFIX="172.16.15"
 export JAIL_NET_MASK="/12"
 export JAIL_NET_INTERFACE="lo1"
@@ -43,10 +48,13 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
-export TOASTER_MYSQL="1"
+export TOASTER_MYSQL="0"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
-export SQUIRREL_SQL="1"
+export ROUNDCUBE_SQL="0"
+export SQUIRREL_SQL="0"
+export TOASTER_NRPE=""
+export TOASTER_MUNIN=""
 
 EO_MT_CONF
 }
@@ -84,9 +92,10 @@ export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
-export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
+export TOASTER_MYSQL=${TOASTER_MYSQL:="0"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
-export SQUIRREL_SQL=${SQUIRREL_SQL:="1"}
+export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
@@ -185,7 +194,6 @@ zfs_create_fs() {
 	if zfs_filesystem_exists "$1"; then return; fi
 	if zfs_mountpoint_exists "$2"; then return; fi
 
-	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
@@ -442,7 +450,7 @@ create_staged_fs()
 
 stage_unmount_aux_data()
 {
-	case $1 in
+	case "$1" in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
 		whmcs )        unmount_data geoip ;;
@@ -450,7 +458,7 @@ stage_unmount_aux_data()
 }
 
 stage_mount_aux_data() {
-	case $1 in
+	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
 		whmcs )         mount_data geoip ;;
@@ -483,6 +491,7 @@ start_staged_jail()
 
 	stage_mount_aux_data "$_name"
 
+	tell_status "updating pkg database"
 	pkg -j stage update
 }
 
@@ -724,7 +733,7 @@ stage_fbsd_package()
 	local _dest="$2"
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
-	tell_status "downloading FreeBSD package $1"
+	tell_status "downloading $(freebsd_release_url_base)/$1.txz"
 	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
 	echo "done"
 
@@ -780,7 +789,7 @@ data_mountpoint()
 		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
-	case $1 in
+	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
 		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
 		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
@@ -821,12 +830,13 @@ get_public_ip()
 {
 	get_public_facing_nic "$1"
 
-	export PUBLIC_IP6
-	export PUBLIC_IP4
-
-	if [ "$1" = 'ipv6' ]; then
+	if [ "$1" = "ipv6" ]; then
+		if [ -n "$PUBLIC_IP6" ]; then return; fi
+		export PUBLIC_IP6
 		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
 	else
+		if [ -n "$PUBLIC_IP4" ]; then return; fi
+		export PUBLIC_IP4
 		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
 	fi
 }
@@ -1068,7 +1078,7 @@ assure_ip6_addr_is_declared()
 	fi
 
 	if awk "/^$1/,/}/" /etc/jail.conf | grep -q ip6; then
-		echo "ip6.addr is already declared in $1"
+		echo "ip6.addr is already declared"
 		return
 	fi
 
@@ -1077,4 +1087,13 @@ assure_ip6_addr_is_declared()
 		-e "/^$1/,/ip4/ s/ip4.*;/&\\
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
 		/etc/jail.conf || exit
+}
+
+assure_jail()
+{
+	local _jid; _jid=$(jls -j "$1" jid)
+	if [ -z "$_jid" ]; then
+		echo "jail $1 is required but not available"
+		exit
+	fi
 }

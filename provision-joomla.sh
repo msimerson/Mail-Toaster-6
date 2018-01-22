@@ -12,8 +12,10 @@ mt6-include nginx
 
 install_joomla()
 {
+	assure_jail mysql
+
 	# curl so that Joomla updater works
-	install_php 70 "curl mysql" || exit
+	install_php 72 "curl mysqli" || exit
 
 	tell_status "installing Joomla 3"
 	stage_pkg_install joomla3
