@@ -18,7 +18,17 @@ install_knot()
 
 configure_knot()
 {
-	stage_sysrc knot_enable="YES"
+	stage_sysrc sshd_enable=YES
+	stage_sysrc knot_enable=YES
+	stage_sysrc knot_config=/data/etc/knot.conf
+
+	for _f in master.password group;
+	do
+		if [ -f "$ZFS_JAIL_MNT/knot/etc/$_f" ]; then
+			cp "$ZFS_JAIL_MNT/knot/etc/$_f" "$STAGE_MNT/etc/"
+			stage_exec pwd_mkdb -p /etc/master.passwd
+		fi
+	done
 }
 
 start_knot()
@@ -47,7 +57,6 @@ create_staged_fs knot
 start_staged_jail knot
 install_knot
 configure_knot
-configure_axfrdns
 start_knot
 test_knot
 promote_staged_jail knot
