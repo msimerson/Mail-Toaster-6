@@ -52,6 +52,12 @@ install_squirrelcart()
 	install_nginx || exit
 	install_php 71 "mysqli session curl openssl gd json soap xml" || exit
 
+	if [ -f "$ZFS_JAIL_MNT/usr/local/www/squirrelcart/squirrelcart/themes/sc_custom/images/store_logo.png" ]; then
+		tell_status "preserving store logo"
+		cp "$ZFS_JAIL_MNT/usr/local/www/squirrelcart/squirrelcart/themes/sc_custom/images/store_logo.png" \
+			"$STAGE_MNT/usr/local/www/squirrelcart/squirrelcart/themes/sc_custom/images/store_logo.png"
+	fi
+
 	stage_pkg_install postfix || exit
 }
 
