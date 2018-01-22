@@ -16,9 +16,13 @@ configure_postfix()
 {
 	stage_sysrc postfix_enable=YES
 	stage_sysrc sshd_enable=YES
-	stage_sysrc nrpe2_enable=YES
 	stage_sysrc milteropendkim_enable=YES
 	stage_sysrc milteropendkim_cfgfile=/data/etc/opendkim.conf
+
+	if [ -n "$TOASTER_NRPE" ]; then
+		stage_sysrc nrpe3_enable=YES
+		stage_sysrc nrpe3_configfile="/data/etc/nrpe.cfg"
+	fi
 
 	for _f in master main
 	do

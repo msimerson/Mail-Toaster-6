@@ -13,8 +13,11 @@ install_haproxy()
 		return
 	fi
 
-	tell_status "installing haproxy"
-	stage_pkg_install haproxy || exit 1
+	tell_status "installing haproxy devel (1.8)"
+	stage_pkg_install haproxy-devel || exit 1
+
+	tell_status "consider installing hatop for a 'top' style haproxy dashboard"
+	#stage_pkg_install hatop || exit 1
 }
 
 install_haproxy_libressl()
@@ -22,7 +25,7 @@ install_haproxy_libressl()
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
 	stage_pkg_install pcre gmake libressl || exit 1
-	stage_port_install net/haproxy || exit 1
+	stage_port_install net/haproxy-devel || exit 1
 }
 
 configure_haproxy_dot_conf()
@@ -69,8 +72,8 @@ defaults
 
 frontend http-in
 	bind :::80 v4v6
-	bind :::443 v4v6 ssl crt /etc/ssl/private
-	#bind :::443 v4v6 ssl crt /etc/ssl/private crt /data/ssl.d
+	bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private
+	#bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
