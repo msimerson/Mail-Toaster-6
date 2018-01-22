@@ -30,9 +30,13 @@ get_mt6_data()
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
 	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"
 	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\"
-	   local-data: \"$TOASTER_HOSTNAME TXT 'v=spf1 a $_spf_ips -all'\"
-	   local-data: \"$TOASTER_MAIL_DOMAIN TXT 'v=spf1 a mx $_spf_ips -all'\"
+	   local-data: '$TOASTER_MAIL_DOMAIN TXT \"v=spf1 a mx $_spf_ips -all\"'"
+
+	if [ "$TOASTER_HOSTNAME" != "$TOASTER_MAIL_DOMAIN" ]; then
+		echo -n "
+	   local-data: '$TOASTER_HOSTNAME TXT \"v=spf1 a $_spf_ips -all\"'
 	   local-data: \"$TOASTER_MAIL_DOMAIN MX 0 $TOASTER_HOSTNAME\""
+	fi
 
 	for _j in $JAIL_ORDERED_LIST
 	do

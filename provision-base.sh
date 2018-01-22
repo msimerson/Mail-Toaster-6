@@ -84,6 +84,11 @@ configure_syslog()
 *.*			@syslog
 EO_SYSLOG
 
+	disable_newsyslog
+}
+
+disable_newsyslog()
+{
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
 	sed -i .bak \
@@ -94,10 +99,8 @@ EO_SYSLOG
 disable_syslog()
 {
 	tell_status "disabling syslog"
-	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO syslogd_enable=NO
-	sed -i .bak \
-		-e '/^0.*newsyslog/ s/^0/#0/' \
-		"$BASE_MNT/etc/crontab"
+	sysrc -f "$BASE_MNT/etc/rc.conf" syslogd_enable=NO
+	disable_newsyslog
 }
 
 disable_root_password()
@@ -535,7 +538,7 @@ EO_VIMRC
 install_base()
 {
 	tell_status "installing packages desired in every jail"
-	stage_pkg_install pkg vim-lite ca_root_nss || exit
+	stage_pkg_install pkg vim-console ca_root_nss || exit
 
 	stage_exec newaliases || exit
 

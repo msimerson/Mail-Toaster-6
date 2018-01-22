@@ -20,7 +20,7 @@ install_squirrelcart()
 	# find and unzip the newest squirrelcart zip file
 	local _zipfile
 	# shellcheck disable=2012
-	_zipfile=$(ls -t -1 "$ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip" | head -n1)
+	_zipfile=$(ls -t -1 $ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip | head -n1)
 	if [ ! -f "$_zipfile" ]; then
 		tell_status "place the latest squirrelcart zip file in $ZFS_DATA_MNT/squirrelcart"
 		exit
@@ -50,7 +50,13 @@ install_squirrelcart()
 	mv "$STAGE_MNT/tmp/$_verdir/upload" "$STAGE_MNT/usr/local/www/squirrelcart" || exit
 	ln -s /data/sc_images "$STAGE_MNT/usr/local/www/squirrelcart/sc_images"
 	install_nginx || exit
-	install_php 56 "mysqli session curl openssl gd json soap xml" || exit
+	install_php 71 "mysqli session curl openssl gd json soap xml" || exit
+
+	if [ -f "$ZFS_JAIL_MNT/usr/local/www/squirrelcart/squirrelcart/themes/sc_custom/images/store_logo.png" ]; then
+		tell_status "preserving store logo"
+		cp "$ZFS_JAIL_MNT/usr/local/www/squirrelcart/squirrelcart/themes/sc_custom/images/store_logo.png" \
+			"$STAGE_MNT/usr/local/www/squirrelcart/squirrelcart/themes/sc_custom/images/store_logo.png"
+	fi
 
 	stage_pkg_install postfix || exit
 }

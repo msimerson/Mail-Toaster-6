@@ -99,7 +99,7 @@ http {
 		listen       80;
 		listen  [::]:80;
 
-		# serve Let's Encrypt requests for all domains to /data
+		# serve all Let's Encrypt requests from /data
 		location /.well-known/acme-challenge {
 			root /data;
 			try_files \$uri =404;

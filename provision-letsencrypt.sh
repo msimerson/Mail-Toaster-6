@@ -237,6 +237,7 @@ haraka_deploy() {
 		local _installed="$_h_conf/tls/${_cdomain}.pem"
 		has_differences "$_tmp" "$_installed" || return 0
 		install_file "$_tmp" "$_installed" || return 1
+		rm $_tmp
 	else
 		local _installed="$_h_conf/tls_cert.pem"
 		has_differences "$_cfullchain" "$_installed" || return 0
@@ -244,7 +245,6 @@ haraka_deploy() {
 		install_file "$_ckey" "$_h_conf/tls_key.pem" || return 1
 	fi
 
-	rm $_tmp
 	_debug "restarting haraka"
 	service jail restart haraka
 	return 0
@@ -252,6 +252,93 @@ haraka_deploy() {
 EO_LE_HARAKA
 }
 
+# shellcheck disable=SC2120
+install_deploy_mysql()
+{
+	# shellcheck disable=SC2154
+	tee "$_deploy/mysql" <<'EO_LE_MYSQL'
+#!/bin/sh
+
+assure_file() {
+
+	if [ ! -s "$1" ]; then
+		_err "File doesn't exist: $1"
+		return 1
+	fi
+
+	_debug "file exists: $1"
+	return 0
+}
+
+has_differences() {
+
+	if [ ! -f "$2" ]; then
+		_debug "non-existent, deploying: $2"
+		return 0
+	fi
+
+	if diff -q "$1" "$2"; then
+		_debug "file contents identical, skip deploy of $2"
+		return 1
+	fi
+
+	_debug "file has changes, deploying"
+	return 0
+}
+
+install_file() {
+	cp "$1" "$2" || return 1
+
+	if [ ! -s "$2" ]; then
+		_err "install to $2 failed"
+		return 1
+	fi
+
+	chown 88:88 "$2"
+
+	_debug "installed as $2"
+	return 0
+}
+
+#returns 0 means success, otherwise error.
+
+#domain keyfile certfile cafile fullchain
+mysql_deploy() {
+	_cdomain="$1"
+	_ckey="$2"
+	_ccert="$3"
+	_cca="$4"
+	_cfullchain="$5"
+
+	assure_file "$_ccert" || return 2
+
+	_my_conf="/data/mysql"
+	if [ ! -d "$_my_conf" ]; then
+		_debug "missing mysql dir: $_my_conf"
+		return 0
+	fi
+
+	_tls_dir="$_my_conf/tls"
+
+	if [ ! -d "$_tls_dir" ]; then
+		_debug "creating $_tls_dir"
+		mkdir "$_tls_dir" || return 2
+	fi
+
+	# use file names from docs:
+	#   https://dev.mysql.com/doc/refman/5.6/en/using-encrypted-connections.html
+	has_differences "$_ccert"   "$_tls_dir/server-cert.pem"     || return 0
+
+	install_file "$_ccert"      "$_tls_dir/server-cert.pem"     || return 1
+	install_file "$_ckey"       "$_tls_dir/server-key.pem"      || return 1
+	install_file "$_cfullchain" "$_tls_dir/ca.pem" || return 1
+
+	_debug "restarting mysql"
+	jexec mysql service mysql-server restart
+	return 0
+}
+EO_LE_MYSQL
+}
 # shellcheck disable=SC2120
 install_deploy_mailtoaster()
 {
@@ -288,6 +375,7 @@ install_deploy_scripts()
 	install_deploy_dovecot
 	install_deploy_haraka
 	install_deploy_mailtoaster
+	install_deploy_mysql
 }
 
 update_haproxy_ssld()
@@ -310,7 +398,7 @@ configure_letsencrypt()
 
 	tell_status "configuring Let's Encrypt"
 
-	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
+	local _HTTPDIR="$ZFS_DATA_MNT/webmail"
 	local _acme="/root/.acme.sh/acme.sh"
 	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
 		update_haproxy_ssld

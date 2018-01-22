@@ -9,7 +9,7 @@ export JAIL_CONF_EXTRA=""
 install_tinydns()
 {
 	tell_status "installing djbdns"
-	stage_pkg_install djbdns rsync dialog4ports || exit
+	stage_pkg_install rsync dialog4ports daemontools || exit
 
 	if [ ! -d "$STAGE_MNT/data/home" ]; then
 		mkdir "$STAGE_MNT/data/home" || exit
@@ -103,11 +103,16 @@ test_tinydns()
 	stage_listening 53
 	echo "it worked."
 
+	local _fqdn="www.example.com"
+	if ! grep -qs "$_fqdn" "$ZFS_DATA_MNT/tinydns/root/data"; then
+		_fqdn="$TOASTER_HOSTNAME"
+	fi
+
 	tell_status "testing UDP DNS query"
-	drill    www.example.com @"$(get_jail_ip stage)" || exit
+	drill    "$_fqdn" @"$(get_jail_ip stage)" || exit
 
 	tell_status "testing TCP DNS query"
-	drill -t www.example.com @"$(get_jail_ip stage)" || exit
+	drill -t "$_fqdn" @"$(get_jail_ip stage)" || exit
 
 	tell_status "switching tinydns IP to deployment IP"
 	get_jail_ip tinydns | tee "$STAGE_MNT/var/service/tinydns/env/IP" "$STAGE_MNT/var/service/axfrdns/env/IP"

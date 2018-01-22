@@ -194,7 +194,6 @@ zfs_create_fs() {
 	if zfs_filesystem_exists "$1"; then return; fi
 	if zfs_mountpoint_exists "$2"; then return; fi
 
-	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
@@ -451,7 +450,7 @@ create_staged_fs()
 
 stage_unmount_aux_data()
 {
-	case $1 in
+	case "$1" in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
 		whmcs )        unmount_data geoip ;;
@@ -459,7 +458,7 @@ stage_unmount_aux_data()
 }
 
 stage_mount_aux_data() {
-	case $1 in
+	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
 		whmcs )         mount_data geoip ;;
@@ -492,6 +491,7 @@ start_staged_jail()
 
 	stage_mount_aux_data "$_name"
 
+	tell_status "updating pkg database"
 	pkg -j stage update
 }
 
@@ -789,7 +789,7 @@ data_mountpoint()
 		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
-	case $1 in
+	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
 		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
 		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
