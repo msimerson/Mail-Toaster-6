@@ -84,7 +84,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -450,7 +450,7 @@ create_staged_fs()
 
 stage_unmount_aux_data()
 {
-	case $1 in
+	case "$1" in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
 		whmcs )        unmount_data geoip ;;
@@ -458,7 +458,7 @@ stage_unmount_aux_data()
 }
 
 stage_mount_aux_data() {
-	case $1 in
+	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
 		whmcs )         mount_data geoip ;;
@@ -491,6 +491,7 @@ start_staged_jail()
 
 	stage_mount_aux_data "$_name"
 
+	tell_status "updating pkg database"
 	pkg -j stage update
 }
 
@@ -788,7 +789,7 @@ data_mountpoint()
 		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
-	case $1 in
+	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
 		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
 		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;

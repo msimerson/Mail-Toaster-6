@@ -38,6 +38,7 @@ configure_elasticsearch()
 
 	tell_status "installing elasticsearch.yml"
 	local _conf="$STAGE_MNT/usr/local/etc/elasticsearch/elasticsearch.yml"
+	mkdir -p "$STAGE_MNT/data/etc"
 	echo "cp $_conf $_data_conf"
 	cp "$_conf" "$_data_conf" || exit
 	chown 965 "$_data_conf"
@@ -46,6 +47,10 @@ configure_elasticsearch()
 #	if [ ! -f "$STAGE_MNT/data/etc/logging.yml" ]; then
 #		cp "$STAGE_MNT/usr/local/etc/elasticsearch/logging.yml" "$STAGE_MNT/data/etc/"
 #	fi
+
+	if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsesarch/jvm.options" ]; then
+		cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/usr/local/etc/elasticsearch/"
+	fi
 
 	if [ ! -f "$STAGE_MNT/data/etc/log4j2.properties" ]; then
 		cp "$STAGE_MNT/usr/local/etc/elasticsearch/log4j2.properties" "$STAGE_MNT/data/etc/"
@@ -80,9 +85,6 @@ start_elasticsearch()
 {
 	tell_status "starting Elasticsearch"
 	stage_sysrc elasticsearch_enable=YES
-	stage_sysrc elasticsearch_min_mem=4g
-	stage_sysrc elasticsearch_max_mem=4g
-	stage_sysrc elasticsearch_heap_newsize=4g
 	stage_exec service elasticsearch start
 
 	tell_status "starting Kibana"
