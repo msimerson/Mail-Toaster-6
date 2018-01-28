@@ -13,7 +13,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node8 gmake python git-lite || exit
+	stage_pkg_install bash npm-node8 gmake python git-lite || exit
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
