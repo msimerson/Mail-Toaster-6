@@ -14,6 +14,10 @@ install_haraka()
 {
 	tell_status "installing node & npm"
 	stage_pkg_install npm-node8 gmake python git-lite || exit
+	if [ "$BOURNE_SHELL" != "bash" ]; then
+		tell_status "Install bash since not in base"
+		stage_pkg_install bash || exit
+	fi
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
