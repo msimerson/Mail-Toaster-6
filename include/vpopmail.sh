@@ -22,7 +22,7 @@ install_vpopmail_port()
 			"$STAGE_MNT/var/db/ports/mail_vpopmail/"
 	fi
 
-	if [ -f "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" ]; then
+	if grep -qs ^mail_vpopmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
 		tell_status "copying vpopmail options from vpopmail jail"
 		grep ^mail_vpopmail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
 	else
@@ -70,7 +70,7 @@ install_qmail()
 	tell_status "setting qmail hostname to $TOASTER_HOSTNAME"
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 
-	if [ -f "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" ]; then
+	if grep -qs ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
 		tell_status "copying qmail port options from existing vpopmail jail"
 		grep ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
 	else
