@@ -22,9 +22,9 @@ install_vpopmail_port()
 			"$STAGE_MNT/var/db/ports/mail_vpopmail/"
 	fi
 
-	if [ -f "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" ]; then
+	if grep -qs ^mail_vpopmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
 		tell_status "copying vpopmail options from vpopmail jail"
-		grep ^mail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
+		grep ^mail_vpopmail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
 	else
 		tell_status "installing vpopmail port with custom options"
 		stage_make_conf mail_vpopmail_ "
@@ -70,8 +70,14 @@ install_qmail()
 	tell_status "setting qmail hostname to $TOASTER_HOSTNAME"
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 
-	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
+	if grep -qs ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
+		tell_status "copying qmail port options from existing vpopmail jail"
+		grep ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
+	else
+		tell_status "setting custom options for qmail port"
+		stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 '
+	fi
 	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }
