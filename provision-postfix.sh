@@ -30,6 +30,12 @@ configure_postfix()
 			cp "$ZFS_DATA_MNT/postfix/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
 		fi
 	done
+
+	if [ -f "$ZFS_JAIL_MNT/postfix/etc/aliases" ]; then
+		tell_status "preserving /etc/aliases"
+		cp "$ZFS_JAIL_MNT/postfix/etc/aliases" "$STAGE_MNT/etc/aliases"
+		stage_exec newaliases
+	fi
 }
 
 start_postfix()
