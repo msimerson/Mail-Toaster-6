@@ -21,10 +21,10 @@ install_haraka()
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
-	stage_exec git clone --depth=1 https://github.com/haraka/Haraka.git /tmp/Haraka
+	stage_exec git clone --depth=1 https://github.com/haraka/Haraka.git /root/Haraka
 	stage_exec npm set user 0
 	stage_exec npm set -g unsafe-perm true
-	stage_exec npm install -g --only=prod /tmp/Haraka || exit
+	stage_exec npm install -g --only=prod /root/Haraka || exit
 
 	local _plugins="ws express haraka-plugin-log-reader"
 	for _p in known-senders aliases; do
