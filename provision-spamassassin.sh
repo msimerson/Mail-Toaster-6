@@ -17,7 +17,6 @@ install_sa_update()
 PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-update \
 	--gpgkey 6C6191E3 \
-	--channel sought.rules.yerp.org \
 	--channel updates.spamassassin.org
 /usr/local/bin/perl -T /usr/local/bin/sa-compile
 /usr/local/etc/rc.d/sa-spamd reload
@@ -219,7 +218,7 @@ EO_LOCAL_CONF
 	tell_status "initialize sa-update"
 	stage_exec sa-update
 
-	install_sought_rules
+	#install_sought_rules
 	install_sa_update
 	configure_spamassassin_redis_bayes
 	configure_geoip
