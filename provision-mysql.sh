@@ -26,7 +26,7 @@ install_mysql()
 install_mariadb()
 {
 	tell_status "installing mariadb"
-	stage_pkg_install mariadb101-server || exit
+	stage_pkg_install mariadb102-server || exit
 }
 
 configure_mysql()
