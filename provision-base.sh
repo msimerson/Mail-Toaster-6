@@ -280,12 +280,12 @@ EO_PERIODIC
 install_vimrc()
 {
 	tell_status "installing a jail-wide vimrc"
-	local _vimdir="$BASE_MNT/usr/local/lib/vim"
+	local _vimdir="$BASE_MNT/usr/local/etc/vim"
 	if [ ! -d "$_vimdir" ]; then
 		mkdir -p "$_vimdir" || exit
 	fi
 
-	tee -a "$_vimdir/vimrc" <<EO_VIMRC
+	tee  "$_vimdir/vimrc" <<EO_VIMRC
 "==========================================
 " ProjectLink: https://github.com/wklken/vim-for-server
 " Author:  wklken
