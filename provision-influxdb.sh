@@ -16,6 +16,21 @@ install_influxdb()
 
 	mkdir "$STAGE_MNT/var/lib"
 	chown 907:907 "$STAGE_MNT/var/lib"
+
+}
+
+configure_influxdb()
+{
+	local _conf="$STAGE_MNT/usr/local/etc/influxd.conf"
+
+	sed -i.bak \
+		-e '/dir =.*meta"/ s/\/var\/db\/influxdb/\/data\/db/' \
+		-e '/dir =.*data"/ s/\/var\/db\/influxdb/\/data\/db/' \
+		-e '/wal-dir =.*wal"/ s/\/var\/db\/influxdb/\/data\/db/' \
+		"$_conf"
+
+	mkdir "$STAGE_MNT/data/db" || exit
+	chown 907:907 "$STAGE_MNT/data/db" || exit
 }
 
 start_influxdb()
@@ -34,6 +49,7 @@ base_snapshot_exists || exit
 create_staged_fs influxdb
 start_staged_jail influxdb
 install_influxdb
+configure_influxdb
 start_influxdb
 test_influxdb
 promote_staged_jail influxdb
