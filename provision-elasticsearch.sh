@@ -11,11 +11,8 @@ export JAIL_CONF_EXTRA="
 		enforce_statfs = 1;
 		mount += \"$ZFS_DATA_MNT/elasticsearch \$path/data nullfs rw 0 0\";"
 
-install_elasticsearch()
+create_data_dirs()
 {
-	tell_status "installing Elasticsearch"
-	stage_pkg_install elasticsearch5 elasticsearch5-x-pack
-
 	for dir in etc db log plugins; do
 		if [ ! -d "$STAGE_MNT/data/${dir}" ]; then
 			tell_status "creating $STAGE_MNT/data/${dir}"
@@ -23,9 +20,40 @@ install_elasticsearch()
 			chown 965:965 "$STAGE_MNT/data/${dir}"
 		fi
 	done
+}
+
+install_elasticsearch5()
+{
+	tell_status "installing Elasticsearch"
+	stage_pkg_install elasticsearch5 elasticsearch5-x-pack
+
+	create_data_dirs
 
 	tell_status "installing kibana"
 	stage_pkg_install kibana5 kibana5-x-pack
+}
+
+install_elasticsearch6()
+{
+	tell_status "installing Elasticsearch"
+	stage_pkg_install elasticsearch6
+	stage_exec /usr/local/lib/elasticsearch/bin/elasticsearch-plugin install x-pack || exit
+
+	create_data_dirs
+
+	tell_status "installing kibana"
+	stage_pkg_install kibana6
+	mkdir "$STAGE_MNT/usr/local/www/kibana6/config"
+	#cp "$ZFS_DATA_MNT/elasticsearch/etc/kibana.yml" "$STAGE_MNT/usr/local/www/kibana6/config/"
+	touch "$STAGE_MNT/usr/local/www/kibana6/config/kibana.yml"
+	stage_exec node /usr/local/www/kibana6/src/cli_plugin/cli.js install x-pack || exit
+	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana6"
+}
+
+install_elasticsearch()
+{
+	# install_elasticsearch5
+	install_elasticsearch6
 }
 
 configure_elasticsearch()
@@ -43,11 +71,6 @@ configure_elasticsearch()
 	cp "$_conf" "$_data_conf" || exit
 	chown 965 "$_data_conf"
 
-	# for ES < 5
-#	if [ ! -f "$STAGE_MNT/data/etc/logging.yml" ]; then
-#		cp "$STAGE_MNT/usr/local/etc/elasticsearch/logging.yml" "$STAGE_MNT/data/etc/"
-#	fi
-
 	if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsesarch/jvm.options" ]; then
 		cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/usr/local/etc/elasticsearch/"
 	fi
@@ -58,6 +81,7 @@ configure_elasticsearch()
 	fi
 
 	sed -i .bak \
+		-e '/^#network.host:/ s/#//; s/192.168.0.1/172.16.15.254/' \
 		-e '/^path.data: / s/var/data/' \
 		-e '/^path.logs: / s/var/data/' \
 		-e '/^path\./ s/\/elasticsearch//' \
@@ -66,6 +90,8 @@ configure_elasticsearch()
 	tee -a "$_data_conf" <<EO_ES_CONF
 path.conf: /data/etc
 path.plugins: /data/plugins
+xpack.security.enabled: false
+xpack.ml.enabled: false
 EO_ES_CONF
 }
 
