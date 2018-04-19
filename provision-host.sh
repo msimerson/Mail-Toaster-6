@@ -42,7 +42,7 @@ configure_ntpd()
 
 update_syslogd()
 {
-	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/64:* -cc"
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/112:* -cc"
 
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
