@@ -101,7 +101,7 @@ configure_postfix()
 		tell_status "LOOK AT postfix/main.cf"
 		sleep 5
 	fi
-
+	stage_sysrc postfix_enable=YES
 }
 
 configure_squirrelcart_cron()
