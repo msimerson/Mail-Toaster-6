@@ -586,7 +586,7 @@ configure_haraka_log_rotation()
 	tell_status "configuring haraka.log rotation"
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d" || exit
 	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.log" <<EO_HARAKA
-/var/log/haraka.log			644  7	   *	@T00  JC
+/var/log/maillog			644  7	   *	@T00  JC
 EO_HARAKA
 }
 
