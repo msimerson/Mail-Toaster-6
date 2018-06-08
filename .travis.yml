@@ -25,7 +25,7 @@ script:
    - bash -n *.sh
    - shellcheck -e SC2009,SC2039,SC2086,SC2153,SC2016,SC1004,SC2119 *.sh
    - bash -n include/*.sh
-   - shellcheck -e SC2009,SC2039,SC2086,SC2153,SC2016,SC1004,SC2119 include/*.sh
+   - shellcheck -e SC2009,SC2038,SC2039,SC2086,SC2153,SC2016,SC1004,SC2119 include/*.sh
    - bash -n qmail/run.sh
    - shellcheck -e SC2039 qmail/run.sh
    - bash test/*.sh
