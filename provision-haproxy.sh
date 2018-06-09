@@ -240,9 +240,10 @@ for pem in *.pem; do
             -cert ${pem} \
             -url ${ocsp_url} \
             -header Host ${ocsp_host} \
-            -respout ${pem}.ocsp >> ${LOGDIR}/${pem}.log 2>&1
+            -respout ${pem}.ocsp || echo -n ""
+
+        UPDATED=$(( $UPDATED + 1 ))
     fi
-    UPDATED=$(( $UPDATED + 1 ))
 done
 
 if [ $UPDATED -gt 0 ]; then
