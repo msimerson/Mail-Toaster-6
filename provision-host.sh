@@ -186,7 +186,11 @@ configure_tls_certs()
 	fi
 
 	if [ ! -d /etc/ssl/certs ]; then
-		mkdir "/etc/ssl/certs" "/etc/ssl/private"
+		mkdir "/etc/ssl/certs"
+	fi
+
+	if [ ! -d /etc/ssl/private ]; then
+		mkdir "/etc/ssl/private"
 		chmod o-r "/etc/ssl/private"
 	fi
 
