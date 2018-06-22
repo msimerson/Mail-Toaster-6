@@ -56,7 +56,7 @@ install_roundcube_mysql()
 
 roundcube_init_db()
 {
-	tell_status "initializating roundcube db"
+	tell_status "initializing roundcube db"
 	pkg install -y curl || exit
 	start_roundcube
 	curl -i -F initdb='Initialize database' -XPOST \
@@ -84,9 +84,9 @@ install_roundcube()
 
 	tell_status "installing roundcube"
 	# when FreeBSD port is updated to install PHP 7.2, revert to pkg install
-	#stage_pkg_install roundcube
+	stage_pkg_install roundcube-php72
 
-	stage_port_install mail/roundcube
+	#stage_port_install mail/roundcube
 }
 
 configure_nginx_server()
@@ -148,6 +148,7 @@ configure_roundcube()
 		-e "/'smtp_port'/    s/25;/587;/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
+		-e "/'archive',/     s/,$/, 'managesieve',/" \
 		"$_rcc_conf"
 
 	tee -a "$_rcc_conf" <<'EO_RC_ADD'
@@ -183,6 +184,13 @@ EO_RC_ADD
 	sed -i.bak \
 		-e "/enable_installer/ s/true/false/" \
 		"$_rcc_conf"
+
+	# configure the managesieve plugin
+	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+	sed -i.bak \
+		-e "/'managesieve_host'/ s/localhost/dovecot/" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
 }
 
 start_roundcube()
