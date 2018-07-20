@@ -74,7 +74,7 @@ EO_SQUIRREL_SQL
 
 install_squirrelmail()
 {
-	install_php 72 "fileinfo mcrypt exif openssl"
+	install_php 72 "fileinfo pecl-mcrypt exif openssl"
 	install_nginx || exit
 
 	tell_status "installing squirrelmail"
