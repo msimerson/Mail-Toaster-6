@@ -52,6 +52,9 @@ mail_spamassassin_UNSET=SSL PGSQL GNUPG GNUPG2"
 	fi
 
 	#export BATCH=1  # if set, GPG key importing will fail
+	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
+		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
+	fi
 	stage_port_install mail/spamassassin || exit 1
 }
 
