@@ -13,7 +13,7 @@ export JAIL_CONF_EXTRA="
 install_dhcpd()
 {
 	tell_status "installing dhcpd"
-	stage_pkg_install isc-dhcp43-server || exit
+	stage_pkg_install isc-dhcp44-server || exit
 }
 
 configure_dhcpd()
