@@ -15,7 +15,7 @@ install_grafana()
 configure_grafana()
 {
 	if [ ! -d "$STAGE_MNT/data/etc" ]; then
-		mdkir "$STAGE_MNT/data/etc" || exit
+		mkdir "$STAGE_MNT/data/etc" || exit
 	fi
 
 	if [ ! -f "$STAGE_MNT/data/etc/grafana.conf" ]; then
@@ -27,7 +27,7 @@ configure_grafana()
 
 	if [ ! -d "$STAGE_MNT/data/db" ]; then
 		tell_status "creating grafana data/db dir"
-		mdkir "$STAGE_MNT/data/db" || exit
+		mkdir "$STAGE_MNT/data/db" || exit
 		chown 904:904 "$STAGE_MNT/data/db"
 	fi
 
