@@ -111,6 +111,35 @@ white_list = ""
 EO_INI
 }
 
+install_application_ini()
+{
+	local _rlconfdir="$ZFS_DATA_MNT/rainloop/_data_/_default_/configs"
+	local _aini="$_rlconfdir/application.ini"
+	if [ -f "$_aini" ]; then
+		tell_status "preserving application.ini"
+		return
+	fi
+
+	if [ ! -d "$_rlconfdir" ]; then
+		tell_status "creating default/configs dir"
+		mkdir -p "$_rlconfdir" || exit
+	fi
+
+	tell_status "installing configs/application.ini"
+	local _email _pass
+	_email="postmaster@$TOASTER_MAIL_DOMAIN"
+	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
+	tee -a "$_aini" <<EO_AINI
+[security]
+custom_server_signature = "RainLoop"
+
+; Login and password for web admin panel
+admin_login = "$_email"
+admin_password = "$_pass"
+
+EO_AINI
+}
+
 set_default_path()
 {
 	local _rl_ver;
@@ -136,6 +165,7 @@ configure_rainloop()
 
 	set_default_path
 	install_default_ini
+	install_application_ini
 }
 
 start_rainloop()
