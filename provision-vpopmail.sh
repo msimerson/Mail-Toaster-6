@@ -162,6 +162,7 @@ install_quota_report()
 	sed -i '' \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
+		-e "s/My Great Company/$TOASTER_ORG_NAME/" \
 		"$_qr"
 }
 
