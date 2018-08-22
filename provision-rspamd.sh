@@ -21,7 +21,7 @@ configure_redis()
 	fi
 
 	tell_status "add Redis address, for default Lua modules backend"
-	tee "$RSPAMD_ETC/local.d/rspamd.conf" <<EO_REDIS
+	tee "$RSPAMD_ETC/local.d/redis.conf" <<EO_REDIS
 	servers = "$(get_jail_ip redis):6379";
 	db    = "5";
 EO_REDIS
@@ -129,6 +129,7 @@ configure_logging()
 	tee "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
 type = "syslog";
 facility = "LOG_MAIL";
+level = "notice";
 EO_SYSLOG
 }
 
