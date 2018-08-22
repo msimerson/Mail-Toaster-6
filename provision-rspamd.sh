@@ -129,7 +129,7 @@ configure_logging()
 	tee "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
 type = "syslog";
 facility = "LOG_MAIL";
-level = "info";
+level = "notice";
 EO_SYSLOG
 }
 
