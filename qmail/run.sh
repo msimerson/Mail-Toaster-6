@@ -331,7 +331,7 @@ install_vpopmaild_run()
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
-exec /usr/local/bin/tcpserver -vHRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | /usr/bin/logger -t vpopmaild
+exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | /usr/bin/logger -t vpopmaild
 EO_VPOPMAILD
 	chmod 755 $RUN
 

@@ -15,6 +15,7 @@ use warnings;
 my $vpopdir     = '/usr/local/vpopmail';
 my $warn        = 90;
 my $admin       = 'postmaster@example.com';
+my $report_to   = 'user';  # any value besides 'user' will send to admin
 
 # Email users that are over quota to Administrator
 my $OVER = `date` . "
@@ -56,8 +57,8 @@ foreach my $domain ( `$vpopdir/bin/vdominfo -n` ) {
 
         if ( $usage && $usage >= $warn ) {
             $OVER .= sprintf("%5s %7s %-20s %-50s\n", $cnum, "$usage%", $name, "$user\@$domain" );
-
-            open( my $MAIL, '|-', '/usr/bin/mail -s "**** Warning **** Mail Quota Usage"'." $admin" ) or die "unable to pipe to mail\n";
+            my $send_to = ("$report_to" == 'user') ? "$user\@$domain" : $admin;
+            open( my $MAIL, '|-', '/usr/bin/mail -s "**** Warning **** Mail Quota Usage"' . " $send_to" ) or die "unable to pipe to mail\n";
             print $MAIL get_message( $name, $cnum, $usage, "$user\@$domain", $dir);
             close $MAIL;
         }
@@ -80,7 +81,7 @@ if ( $day == 1 && $NONE =~ /\@/ ) {
     open( my $MAIL, '|-', '/usr/bin/mail -s "Users with No Quota" ' . $admin ) or die "unable to pipe to mail\n";
     print $MAIL $NONE;
     close $MAIL;
-} 
+}
 
 sub get_message {
     my ($name, $cnum, $usage, $email, $dir) = @_;
@@ -102,7 +103,7 @@ Here is a summary of how much space each mail folder is consuming:
 
 $report
 
-If you need assistance please contact support\@example.com
+If you need assistance please contact $admin
 
             My Great Company
             Quota Reporting System
