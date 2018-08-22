@@ -126,7 +126,14 @@ configure_roundcube()
 	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
 
 	tell_status "customizing $_rcc_conf"
-	local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
+	local _dovecot_ip;
+	if  [ -z "$ROUNDCUBE_DEFAULT_HOST" ];
+	then
+		_dovecot_ip=$(get_jail_ip dovecot)
+	else
+		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
+	fi
+
 	sed -i .bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
 		-e "/'smtp_server'/  s/= '.*'/= 'tls:\/\/haraka'/" \
