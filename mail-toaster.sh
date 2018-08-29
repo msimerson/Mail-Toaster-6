@@ -56,6 +56,7 @@ export ROUNDCUBE_DEFAULT_HOST=""
 export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
+export TOASTER_QMHANDLE="0"
 
 EO_MT_CONF
 }
