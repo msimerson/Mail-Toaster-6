@@ -46,7 +46,7 @@ install_qmail()
 	tell_status "installing qmail"
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
-	if [ "$TOASTER_QMHANDLE" != "0" ]; then
+	if [ -n "$TOASTER_QMHANDLE" ] && [ "$TOASTER_QMHANDLE" != "0" ]; then
 		stage_pkg_install qmhandle || exit
 		if [ -f "$ZFS_JAIL_MNT/vpopmail/usr/local/etc/qmHandle.conf" ]; then
 			tell_status "preserving qmHandle.conf"
