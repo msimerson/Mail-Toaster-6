@@ -46,6 +46,15 @@ install_qmail()
 	tell_status "installing qmail"
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
 
+	if [ "$TOASTER_QMHANDLE" != "0" ]; then
+		stage_pkg_install qmhandle || exit
+		if [ -f "$ZFS_JAIL_MNT/vpopmail/usr/local/etc/qmHandle.conf" ]; then
+			tell_status "preserving qmHandle.conf"
+			cp "$ZFS_JAIL_MNT/vpopmail/usr/local/etc/qmHandle.conf" \
+				"$STAGE_MNT/usr/local/etc/" || exit
+		fi
+	fi
+
 	for _cdir in control users
 	do
 		local _vmdir="$ZFS_DATA_MNT/vpopmail/qmail-${_cdir}"
