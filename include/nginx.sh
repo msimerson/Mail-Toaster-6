@@ -82,6 +82,7 @@ http {
 	default_type  application/octet-stream;
 
 	sendfile        on;
+	gzip on;
 
 	keepalive_timeout  65;
 
