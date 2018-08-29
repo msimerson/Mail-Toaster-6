@@ -13,8 +13,8 @@ install_haproxy()
 		return
 	fi
 
-	tell_status "installing haproxy devel (1.8)"
-	stage_pkg_install haproxy-devel || exit 1
+	tell_status "installing haproxy"
+	stage_pkg_install haproxy || exit 1
 
 	tell_status "consider installing hatop for a 'top' style haproxy dashboard"
 	#stage_pkg_install hatop || exit 1
@@ -296,6 +296,11 @@ configure_haproxy()
 		rm "$STAGE_MNT/usr/local/etc/haproxy.conf"
 	fi
 	stage_exec ln -s /data/etc/haproxy.conf /usr/local/etc/haproxy.conf
+
+	if [ ! -d "$STAGE_MNT/var/run/haproxy" ]; then
+		# useful for stats socket
+		mkdir "$STAGE_MNT/var/run/haproxy"
+	fi
 
 	configure_haproxy_tls
 }
