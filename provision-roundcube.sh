@@ -148,7 +148,7 @@ configure_roundcube()
 $config['log_driver'] = 'syslog';
 $config['session_lifetime'] = 30;
 $config['enable_installer'] = true;
-$config['mime_types'] = '/usr/local/etc/mime.types';
+$config['mime_types'] = '/usr/local/etc/nginx/mime.types';
 $config['smtp_conn_options'] = array(
  'ssl'            => array(
    'verify_peer'  => false,
