@@ -175,6 +175,29 @@ constrain_sshd_to_host()
 	service sshd restart
 }
 
+update_openssl_defaults()
+{
+	if grep -q commonName_default /etc/ssl/openssl.cnf; then
+		return
+	fi
+
+	tell_status "updating openssl.cnf defaults"
+	local _cc;    _cc=$(fetch -q -4 -o - https://ipinfo.io/country)
+	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
+	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
+	sed -i .bak \
+		-e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME" \
+		-e "/^emailAddress_max.*/ a\ 
+emailAddress_default = $TOASTER_ADMIN_EMAIL" \
+		-e "/^localityName.*/ a\ 
+localityName_default = $_city" \
+		-e "/^countryName_default/ s/AU/$_cc/" \
+		-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
+		-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \
+		/etc/ssl/openssl.cnf
+}
+
 configure_tls_certs()
 {
 	local KEYFILE=/etc/ssl/private/server.key
@@ -194,24 +217,7 @@ configure_tls_certs()
 		chmod o-r "/etc/ssl/private"
 	fi
 
-	if ! grep -q commonName_default /etc/ssl/openssl.cnf; then
-		tell_status "updating openssl.cnf defaults"
-		local _geo;   _geo=$(fetch -4 -o - https://freegeoip.net/csv)
-		local _cc;    _cc=$(echo "$_geo" | cut -d',' -f2)
-		local _state; _state=$(echo "$_geo" | cut -d',' -f5)
-		local _city;  _city=$(echo "$_geo" | cut -d',' -f6)
-		sed -i .bak \
-			-e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME" \
-			-e "/^emailAddress_max.*/ a\ 
-emailAddress_default = $TOASTER_ADMIN_EMAIL" \
-			-e "/^localityName.*/ a\ 
-localityName_default = $_city" \
-			-e "/^countryName_default/ s/AU/$_cc/" \
-			-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
-			-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \
-			/etc/ssl/openssl.cnf
-	fi
+	update_openssl_defaults
 
 	if [ -s "$KEYFILE" ] && [ -s "$CRTFILE" ]; then
 		tell_status "preserving existing TLS certificate"

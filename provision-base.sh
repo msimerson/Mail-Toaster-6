@@ -134,6 +134,19 @@ disable_cron_jobs()
 	echo "done"
 }
 
+enable_security_periodic()
+{
+	local _daily="$BASE_MNT/usr/local/etc/periodic/daily"
+	if [ ! -d "$_daily" ]; then
+		mkdir -p "$_daily"
+	fi
+
+	tee "$_daily/auto_security_upgrades" <<EO_PKG_SECURITY
+#!/bin/sh
+/usr/sbin/pkg audit | grep curl && pkg install -y curl
+EO_PKG_SECURITY
+}
+
 configure_ssl_dirs()
 {
 	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
@@ -202,6 +215,7 @@ configure_base()
 	configure_ssl_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
+	enable_security_periodic
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
@@ -540,7 +554,7 @@ install_base()
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install pkg vim-console ca_root_nss || exit
 
-	stage_exec newaliases || exit
+	stage_exec newaliases
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash "$BASE_MNT"
