@@ -14,9 +14,10 @@ install_influxdb()
 	tell_status "Enable InfluxdDB"
 	stage_sysrc influxd_enable=YES
 
-	mkdir "$STAGE_MNT/var/lib"
-	chown 907:907 "$STAGE_MNT/var/lib"
-
+	if [ ! -d "$STAGE_MNT/var/lib" ]; then
+		mkdir "$STAGE_MNT/var/lib"
+		chown 907:907 "$STAGE_MNT/var/lib"
+	fi
 }
 
 configure_influxdb()
@@ -29,8 +30,10 @@ configure_influxdb()
 		-e '/wal-dir =.*wal"/ s/\/var\/db\/influxdb/\/data\/db/' \
 		"$_conf"
 
-	mkdir "$STAGE_MNT/data/db" || exit
-	chown 907:907 "$STAGE_MNT/data/db" || exit
+	if [ ! -d "$STAGE_MNT/data/db" ]; then
+		mkdir "$STAGE_MNT/data/db" || exit
+		chown 907:907 "$STAGE_MNT/data/db" || exit
+	fi
 }
 
 start_influxdb()
