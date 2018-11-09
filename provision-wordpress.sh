@@ -17,6 +17,8 @@ install_wordpress()
 	install_php 72 "ctype curl ftp gd hash mysqli session tokenizer xml zip zlib"
 
 	stage_pkg_install dialog4ports
+
+	# stage_pkg_install wordpress
 	stage_port_install www/wordpress
 }
 

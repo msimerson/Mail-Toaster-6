@@ -14,7 +14,7 @@ install_nt_prereqs()
 	assure_jail mysql
 
 	tell_status "installing NicTool app prerequisites"
-	stage_pkg_install perl5 mysql56-client apache24 rsync
+	stage_pkg_install perl5 mysql56-client apache24 ap24-mod_perl2 rsync
 
 	tell_status "installing tools for NicTool exports"
 	stage_pkg_install daemontools ucspi-tcp djbdns knot1
@@ -32,7 +32,6 @@ install_nt_from_git()
 	stage_pkg_install p5-App-Cpanminus
 	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
 	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpanm -n .'
-	exit
 }
 
 install_nt_from_tarball()
