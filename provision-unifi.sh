@@ -12,7 +12,7 @@ export JAIL_CONF_EXTRA="
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install mongodb openjdk8 gmake || exit
+	stage_pkg_install mongodb34 openjdk8 gmake || exit
 
 	tell_status "installing Unifi"
 	stage_port_install net-mgmt/unifi5 || exit
