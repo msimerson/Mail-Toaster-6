@@ -43,6 +43,13 @@ EO_RSNAP
 		tell-status "installing default $ZFS_DATA_MNT/etc/rsnapshot.conf"
 		cp "$STAGE_MNT/usr/local/etc/rsnapshot.conf.default" "$ZFS_DATA_MNT/rsnapshot/etc/rsnapshot.conf"
 	fi
+
+	if [ -d "$ZFS_DATA_MNT/rsnapshot/ssh" ]; then
+		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
+			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
+		fi
+		cp "$ZFS_DATA_MNT/rsnapshot/ssh/*" "$STAGE_MNT/root/.ssh"
+	fi
 }
 
 start_rsnapshot()
