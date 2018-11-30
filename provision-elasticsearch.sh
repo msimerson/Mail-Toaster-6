@@ -123,7 +123,7 @@ test_elasticsearch()
 	tell_status "testing Elasticsearch (listening 9200)"
 	stage_listening 9200 10 3
 
-	# not so good things can happen if two ES instances access the data dir
+	# bad things happen if two ES instances access the data dir
 	# so wait until just before promotion to switch the active config
 	stage_sysrc elasticsearch_config=/data/etc
 

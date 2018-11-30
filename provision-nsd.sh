@@ -16,7 +16,7 @@ install_nsd()
 		chown 216:216 "$STAGE_MNT/data/home/nsd"
 	fi
 
-	stage_exec pw user mod nsd -u 216 -g 216 -s /bin/sh -d /data/home/nsd 
+	stage_exec pw user mod nsd -u 216 -g 216 -s /bin/sh -d /data/home/nsd
 }
 
 configure_nsd()

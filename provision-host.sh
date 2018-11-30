@@ -272,6 +272,13 @@ install_sshguard()
 	# service sshguard start
 }
 
+check_timezone()
+{
+	if [ ! -e "/etc/localtime" ]; then
+		tzsetup || exit
+	fi
+}
+
 check_global_listeners()
 {
 	tell_status "checking for host listeners on all IPs"
@@ -576,6 +583,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
+	check_timezone
 	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
