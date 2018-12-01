@@ -20,6 +20,19 @@ install_sphinxsearch()
 	stage_port_install textproc/sphinxsearch || exit
 }
 
+configure_sphinxsearch()
+{
+  local _dbdir="$ZFS_DATA_MNT/db"
+  if [ ! -d "$_dbdir" ]; then
+    mkdir -p "$_dbdir" || exit
+  fi
+
+  tell_status "Setting config to data mount"
+  stage_sysrc sphinxsearch_conffile="/data/sphinx.conf"
+  stage_sysrc sphinxsearch_user="www"
+  stage_sysrc sphinxsearch_group="www"
+  stage_sysrc sphinxsearch_dir="/data/db/"
+}
 start_sphinxsearch()
 {
 	tell_status "Enable Sphinxsearch"
@@ -33,5 +46,6 @@ base_snapshot_exists || exit
 create_staged_fs sphinxsearch
 start_staged_jail sphinxsearch
 install_sphinxsearch
+configure_sphinxsearch
 start_sphinxsearch
 promote_staged_jail sphinxsearch
