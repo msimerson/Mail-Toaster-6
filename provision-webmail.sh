@@ -279,9 +279,11 @@ configure_webmail()
 	   mkdir -p "$_htdocs"
 	fi
 
-	if [ ! -f "$_htdocs/index.html" ]; then
-		install_index
+	if [ -f "$_htdocs/index.html" ]; then
+		tell_status "backing up index.html"
+		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
+	install_index
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		tell_status "installing robots.txt"
