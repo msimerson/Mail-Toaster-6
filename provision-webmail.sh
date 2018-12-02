@@ -100,28 +100,103 @@ install_index()
  <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.0/jquery-ui.min.js"></script>
  <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.0/themes/smoothness/jquery-ui.css" />
  <script>
-  var loggedIn = false;
+  let loggedIn = false;
   $(function() {
     $( "#tabs" ).tabs({ disabled: [3] });
   });
+  const webPaths = {
+    'webmail': '',
+    'sqwebmail': '/cgi-bin/sqwebmail?index=1',
+    'roundcube': '/roundcube/',
+    'squirrelmail': '/squirrelmail/',
+    'rainloop': '/rainloop/',
+  }
+  const adminPaths = {
+    'admin'     : '',
+    'qmailadmin': '/cgi-bin/qmailadmin/qmailadmin/',
+    'rspamd'    : '/rspamd/',
+    'watch'     : '/watch/',
+    'rainloop'  : '/rainloop/?admin',
+  }
+  const statsPaths = {
+    'statistics': '',
+    'munin'     : '/munin/',
+    'nagios'    : '/nagios/',
+    'watch'     : '/watch/',
+    'grafana'   : '/grafana/',
+  }
   function changeWebmail(sel) {
-      if (sel.value === 'roundcube') $('#webmail-item').prop('src','/roundcube/');
-      if (sel.value === 'rainloop') $('#webmail-item').prop('src','/rainloop/');
-      if (sel.value === 'squirrelmail') $('#webmail-item').prop('src','/squirrelmail/');
-      if (sel.value === 'sqwebmail') $('#webmail-item').prop('src','/cgi-bin/sqwebmail?index=1');
-      console.log(sel);
-  };
+    if (!sel || !sel.value) return;
+    $('#webmail-item').prop('src', webPaths[sel.value]);
+    $('#tabs').tabs({ active: [0] });
+  }
   function changeAdmin(sel) {
-      if (sel.value === 'qmailadmin') $('#admin-item').prop('src','/cgi-bin/qmailadmin/qmailadmin/');
-      if (sel.value === 'rspamd') $('#admin-item').prop('src','/rspamd/');
-      if (sel.value === 'watch') $('#admin-item').prop('src','/watch/');
-      if (sel.value === 'rainloop') $('#admin-item').prop('src','/rainloop/?admin');
-  };
+    if (!sel || !sel.value) return;
+    $('#admin-item').prop('src', adminPaths[sel.value]);
+    $('#tabs').tabs({ active: [1] });
+  }
   function changeStats(sel) {
-      if (sel.value === 'munin') $('#stats-item').prop('src','/munin/');
-      if (sel.value === 'nagios') $('#stats-item').prop('src','/nagios/');
-      if (sel.value === 'watch') $('#stats-item').prop('src','/watch/');
-  };
+    if (!sel || !sel.value) return;
+    $('#stats-item').prop('src', statsPaths[sel.value]);
+    $('#tabs').tabs({ active: [2] });
+  }
+  function checkSuccess(tab, w) {
+    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
+      // console.log(`${w} success, present, no action`)
+    }
+    else {
+      // console.log(`${w} success, missing, adding`)
+      $(`#${tab}-select`).append(`<option value="${w}">${w}</option>`);
+    }
+  }
+  function checkFail(tab, w) {
+    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
+      // console.log(`${w} not responding, present, removing`)
+      $(`#${tab}-select option[value=${w}]`).remove();
+    }
+    else {
+      // console.log(`${w} not responding,  missing, no action`)
+    }
+  }
+  function checkWebmail() {
+    ['roundcube','rainloop','squirrelmail','sqwebmail'].forEach(w => {
+      $.ajax({
+        url: `${webPaths[w]}`,
+        success: (data) => { checkSuccess('webmail', w); },
+        timeout: 3000,
+      })
+      .fail(() => { checkFail('webmail', w); })
+    })
+  }
+  function checkAdmin() {
+    ['qmailadmin','rspamd','watch','rainloop'].forEach(w => {
+      $.ajax({
+        url: `${adminPaths[w]}`,
+        success: (data) => { checkSuccess('admin', w); },
+        timeout: 3000,
+      })
+      .fail(() => { checkFail('admin', w); })
+    })
+  }
+  function checkStats() {
+    ['munin','nagios','watch','grafana'].forEach(w => {
+      $.ajax({
+        url: `${statsPaths[w]}`,
+        success: (data) => { checkSuccess('stats', w); },
+        timeout: 3000,
+      })
+      .fail(() => { checkFail('stats', w); })
+    })
+  }
+  function checkAll () {
+    checkWebmail();
+    checkAdmin();
+    checkStats();
+    setTimeout(function () {
+      // make recursive, so if a webmail (dis)appears, the list will update
+      checkAll();
+    }, 60 * 1000);
+  }
   </script>
   <style>
 body {
@@ -129,7 +204,7 @@ body {
 }
   </style>
 </head>
-<body>
+<body onLoad="checkAll()">
 <div id="tabs">
    <ul>
        <li id=tab_webmail><a href="#webmail">
@@ -143,7 +218,7 @@ body {
        </a>
        </li>
        <li id=tab_admin><a href="#admin">
-           <select onChange="changeAdmin(this)">
+           <select id="admin-select" onChange="changeAdmin(this)">
                <option value=admin>Administration</option>
                <option value=qmailadmin>Qmailadmin</option>
                <option value=rspamd>Rspamd</option>
@@ -153,11 +228,12 @@ body {
        </a>
        </li>
        <li id=tab_stats><a href="#stats">
-           <select onChange="changeStats(this)">
+           <select id="stats-select" onChange="changeStats(this)">
                <option value=statistics>Statistics</option>
                <option value=munin>Munin</option>
                <option value=nagios>Nagios</option>
-               <option value=watch>Haraka</option>
+               <option value=watch>Haraka Watch</option>
+               <option value=grafana>Grafana</option>
            </select>
        </a>
        </li>
