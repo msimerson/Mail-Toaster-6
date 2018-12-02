@@ -149,6 +149,7 @@ $config['log_driver'] = 'syslog';
 $config['session_lifetime'] = 30;
 $config['enable_installer'] = true;
 $config['mime_types'] = '/usr/local/etc/nginx/mime.types';
+$config['use_https'] = true;
 $config['smtp_conn_options'] = array(
  'ssl'            => array(
    'verify_peer'  => false,
@@ -180,9 +181,16 @@ EO_RC_ADD
 	# configure the managesieve plugin
 	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+
 	sed -i.bak \
 		-e "/'managesieve_host'/ s/localhost/dovecot/" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+
+	# apply roundcube customizations to php.ini
+	sed -i.bak \
+		-e "/'session.gc_maxlifetime'/ s/=\d+/=21600/" \
+		-e "/upload_max_filesize/ s/=\dM/=5M/" \
+		"$STAGE_MNT/usr/local/etc/php.ini"
 }
 
 start_roundcube()
