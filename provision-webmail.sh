@@ -192,10 +192,14 @@ install_index()
     checkWebmail();
     checkAdmin();
     checkStats();
+/*
+ * This creates a usability problem where it causes (at least) framed webmail
+   app sessions (like squirrelmail) to time out prematurely.
     setTimeout(function () {
       // make recursive, so if a webmail (dis)appears, the list will update
       checkAll();
     }, 60 * 1000);
+*/
   }
   </script>
   <style>
