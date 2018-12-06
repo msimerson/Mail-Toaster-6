@@ -92,6 +92,7 @@ frontend http-in
 	acl haraka       path_beg /logs
 	acl qmailadmin   path_beg /qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/qmailadmin
+	acl qmailadmin   path_beg /cgi-bin/vqadmin
 	acl sqwebmail    path_beg /sqwebmail
 	acl sqwebmail    path_beg /cgi-bin/sqwebmail
 	acl isoqlog      path_beg /isoqlog
