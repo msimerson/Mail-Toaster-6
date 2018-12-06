@@ -92,6 +92,7 @@ frontend http-in
 	acl haraka       path_beg /logs
 	acl qmailadmin   path_beg /qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/qmailadmin
+	acl qmailadmin   path_beg /cgi-bin/vqadmin
 	acl sqwebmail    path_beg /sqwebmail
 	acl sqwebmail    path_beg /cgi-bin/sqwebmail
 	acl isoqlog      path_beg /isoqlog
@@ -107,6 +108,7 @@ frontend http-in
 	acl stage        path_beg /stage
 	acl horde        path_beg /horde
 	acl prometheus   path_beg /prometheus
+	acl grafana      path_beg /grafana
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -127,6 +129,7 @@ frontend http-in
 	use_backend www_stage        if  stage
 	use_backend www_horde        if  horde
 	use_backend www_prometheus   if  prometheus
+	use_backend www_grafana      if  grafana
 
 
 	# for Let's Encrypt SSL/TLS certificates
@@ -193,6 +196,10 @@ frontend http-in
 	backend www_prometheus
 	server monitor $(get_jail_ip prometheus):9090
 	reqirep ^([^\ :]*)\ /prometheus/(.*)    \1\ /\2
+
+	backend www_grafana
+	server monitor $(get_jail_ip grafana):3000
+	reqirep ^([^\ :]*)\ /grafana/(.*)    \1\ /\2
 
 EO_HAPROXY_CONF
 }

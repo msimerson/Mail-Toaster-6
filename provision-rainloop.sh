@@ -131,11 +131,11 @@ configure_rainloop()
 	configure_nginx rainloop
 	configure_nginx_server
 
-	# for persistent data storage
-	chown -R 80:80 "$ZFS_DATA_MNT/rainloop/"
-
 	set_default_path
 	install_default_ini
+
+	# for persistent data storage
+	chown -R 80:80 "$ZFS_DATA_MNT/rainloop/"
 }
 
 start_rainloop()
