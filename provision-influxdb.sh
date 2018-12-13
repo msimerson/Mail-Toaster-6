@@ -43,8 +43,10 @@ start_influxdb()
 
 test_influxdb()
 {
+	tell_status "testing influxd"
+	sleep 5
 	stage_test_running influxd
-	sleep 1
+	sleep 5
 	stage_listening 8086
 }
 
