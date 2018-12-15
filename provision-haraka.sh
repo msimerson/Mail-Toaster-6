@@ -13,18 +13,24 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node8 gmake python || exit
+	stage_pkg_install npm-node8 gmake python git-lite || exit
+	if [ "$BOURNE_SHELL" != "bash" ]; then
+		tell_status "Install bash since not in base"
+		stage_pkg_install bash || exit
+	fi
+	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
-	stage_exec pkg install -y git-lite
+	stage_exec git clone --depth=1 https://github.com/haraka/Haraka.git /root/Haraka
+	stage_exec npm set user 0
+	stage_exec npm set -g unsafe-perm true
+	stage_exec npm install -g --only=prod /root/Haraka || exit
 
-	stage_exec npm install --production -g haraka/Haraka ws express || exit
-
-	local _plugins="haraka-plugin-log-reader"
+	local _plugins="ws express haraka-plugin-log-reader"
 	for _p in known-senders aliases; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
-	stage_exec bash -c "cd /data && npm install --production $_plugins"
+	stage_exec bash -c "cd /data && npm install --only=prod $_plugins"
 }
 
 install_geoip_dbs()
@@ -34,9 +40,9 @@ install_geoip_dbs()
 		return
 	fi
 
-	if ! grep -qs ^connect.geoip "$HARAKA_CONF/plugins"; then
+	if ! grep -qs ^geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"
-		sed -i .bak -e '/^# connect.geoip/ s/# //' "$HARAKA_CONF/plugins"
+		sed -i .bak -e '/^# geoip/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
@@ -184,7 +190,7 @@ EO_P0F
 	if ! grep -qs ^p0f "$HARAKA_CONF/plugins"; then
 		tell_status "enable Haraka p0f plugin"
 		sed -i '' \
-			-e '/^# connect.p0f/ s/# //' \
+			-e '/^# p0f/ s/# //' \
 			-e '/^# p0f/ s/# //' \
 			"$HARAKA_CONF/plugins"
 	fi
@@ -389,7 +395,7 @@ configure_haraka_plugins()
 		-e '/^#attachment/ s/#//' \
 		-e '/^#dkim_sign/ s/#//' \
 		-e '/^#karma$/ s/#//' \
-		-e '/^# connect.fcrdns/ s/# //' \
+		-e '/^# fcrdns/ s/# //' \
 		"$HARAKA_CONF/plugins"
 }
 
@@ -496,12 +502,12 @@ EO_REDIS_CONF
 }
 
 configure_haraka_geoip() {
-	if ! grep -qs ^calc_distance "$HARAKA_CONF/connect.geoip.ini"; then
+	if ! grep -qs ^calc_distance "$HARAKA_CONF/geoip.ini"; then
 		tell_status "enabling geoip distance"
 		echo "calc_distance=true
 [asn]
-report_as=connect.asn
-" | tee -a "$HARAKA_CONF/connect.geoip.ini"
+report_as=asn
+" | tee -a "$HARAKA_CONF/geoip.ini"
 	fi
 }
 
@@ -528,7 +534,7 @@ configure_haraka_helo()
 
 		tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
-mismatch=false
+host_mismatch=false
 valid_hostname=false
 EO_HELO_INI
 	fi
@@ -547,7 +553,7 @@ configure_haraka_results()
 
 	tell_status "cleaning up results"
 	tee "$HARAKA_CONF/results.ini" <<EO_RESULTS
-[connect.fcrdns]
+[fcrdns]
 hide=ptr_names,ptr_name_to_ip,ptr_name_has_ips,ptr_multidomain,has_rdns
 
 [data.headers]
@@ -559,7 +565,7 @@ hide=skip
 [dnsbl]
 hide=pass
 
-[rcpt_to.qmail_deliverable]
+[qmail-deliverable]
 order=fail,pass,msg
 
 EO_RESULTS
@@ -569,8 +575,18 @@ enable_newsyslog() {
 	tell_status "enabling newsyslog"
 	stage_sysrc newsyslog_enable=YES
 	sed -i .bak \
-		-e '/^0.*newsyslog/ s/^#0/0/' \
+		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"
+}
+
+configure_haraka_log_reader()
+{
+	if grep -qs log-reader "$HARAKA_CONF/plugins"; then
+		return
+	fi
+
+	tell_status "enabling log-reader plugin"
+	echo log-reader >> "$HARAKA_CONF/plugins"
 }
 
 configure_haraka_log_rotation()
@@ -600,6 +616,10 @@ EO_WL
 
 configure_haraka_dcc()
 {
+	if [ -f "$HARAKA_CONF/dcc.ini" ]; then
+		return
+	fi
+
 	tell_status "configuring DCC"
 	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
 [dccifd]
@@ -663,6 +683,7 @@ configure_haraka()
 	configure_haraka_haproxy
 	configure_haraka_helo
 	configure_haraka_results
+	configure_haraka_log_reader
 	configure_haraka_log_rotation
 	configure_haraka_access
 	configure_haraka_dcc

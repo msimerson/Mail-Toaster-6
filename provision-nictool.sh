@@ -14,7 +14,7 @@ install_nt_prereqs()
 	assure_jail mysql
 
 	tell_status "installing NicTool app prerequisites"
-	stage_pkg_install perl5 mysql56-client apache24 rsync
+	stage_pkg_install perl5 mysql56-client apache24 ap24-mod_perl2 rsync
 
 	tell_status "installing tools for NicTool exports"
 	stage_pkg_install daemontools ucspi-tcp djbdns knot1
@@ -28,12 +28,10 @@ install_nt_from_git()
 {
 	stage_pkg_install git-lite || exit
 	cd "$STAGE_MNT/usr/local" || exit
-	stage_exec git clone https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
-	stage_exec sh -c 'cd /usr/local/nictool/server && git checkout travis-more-testing'
+	stage_exec git clone --depth=1 https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
 	stage_pkg_install p5-App-Cpanminus
 	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
 	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpanm -n .'
-	exit
 }
 
 install_nt_from_tarball()
@@ -165,6 +163,17 @@ install_nictool_db()
 	done
 }
 
+install_nictool_user()
+{
+	for _f in master.password group;
+	do
+		if [ -f "$ZFS_JAIL_MNT/nictool/etc/$_f" ]; then
+			cp "$ZFS_JAIL_MNT/nictool/etc/$_f" "$STAGE_MNT/etc/"
+			stage_exec pwd_mkdb -p /etc/master.passwd
+		fi
+	done
+}
+
 install_nictool()
 {
 	install_nt_prereqs
@@ -174,6 +183,7 @@ install_nictool()
 	install_nictool_client
 	install_apache_setup
 	install_nictool_db
+	install_nictool_user
 }
 
 start_nictool()
@@ -187,7 +197,7 @@ test_nictool()
 {
 	tell_status "testing nictool"
 
-	stage_listening 443
+	stage_listening 80
 	stage_test_running httpd
 
 	echo "it worked"

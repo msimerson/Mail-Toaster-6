@@ -134,6 +134,19 @@ disable_cron_jobs()
 	echo "done"
 }
 
+enable_security_periodic()
+{
+	local _daily="$BASE_MNT/usr/local/etc/periodic/daily"
+	if [ ! -d "$_daily" ]; then
+		mkdir -p "$_daily"
+	fi
+
+	tee "$_daily/auto_security_upgrades" <<EO_PKG_SECURITY
+#!/bin/sh
+/usr/sbin/pkg audit | grep curl && pkg install -y curl
+EO_PKG_SECURITY
+}
+
 configure_ssl_dirs()
 {
 	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
@@ -202,6 +215,7 @@ configure_base()
 	configure_ssl_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
+	enable_security_periodic
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
@@ -280,12 +294,12 @@ EO_PERIODIC
 install_vimrc()
 {
 	tell_status "installing a jail-wide vimrc"
-	local _vimdir="$BASE_MNT/usr/local/lib/vim"
+	local _vimdir="$BASE_MNT/usr/local/etc/vim"
 	if [ ! -d "$_vimdir" ]; then
 		mkdir -p "$_vimdir" || exit
 	fi
 
-	tee -a "$_vimdir/vimrc" <<EO_VIMRC
+	tee  "$_vimdir/vimrc" <<EO_VIMRC
 "==========================================
 " ProjectLink: https://github.com/wklken/vim-for-server
 " Author:  wklken
@@ -538,9 +552,9 @@ EO_VIMRC
 install_base()
 {
 	tell_status "installing packages desired in every jail"
-	stage_pkg_install pkg vim-lite ca_root_nss || exit
+	stage_pkg_install pkg vim-console ca_root_nss || exit
 
-	stage_exec newaliases || exit
+	stage_exec newaliases
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash "$BASE_MNT"

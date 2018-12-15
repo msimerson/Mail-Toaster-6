@@ -12,11 +12,26 @@ mt6-include nginx
 
 install_rainloop()
 {
-	install_php 56 || exit
+	local _php_modules="curl dom iconv json openssl pdo_sqlite xml zlib"
+
+	if [ "$TOASTER_MYSQL" != "1" ]; then
+		tell_status "using sqlite DB backend"
+		_php_modules="$_php_modules pdo_sqlite"
+		stage_make_conf rainloop-community_SET 'mail_rainloop-community_SET=SQLITE'
+		stage_make_conf rainloop-community_UNSET 'mail_rainloop-community_UNSET=MYSQL PGSQL'
+	else
+		tell_status "using mysql DB backend"
+			_php_modules="$_php_modules pdo_mysql"
+			stage_make_conf rainloop-community_SET 'mail_rainloop-community_SET=MYSQL'
+			stage_make_conf rainloop-community_UNSET 'mail_rainloop-community_UNSET=SQLITE PGSQL'
+	fi
+
+	install_php 72 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"
-	stage_pkg_install rainloop-community
+	#stage_pkg_install rainloop-community
+	stage_port_install mail/rainloop-community
 }
 
 configure_nginx_server()
@@ -116,11 +131,11 @@ configure_rainloop()
 	configure_nginx rainloop
 	configure_nginx_server
 
-	# for persistent data storage
-	chown -R 80:80 "$ZFS_DATA_MNT/rainloop/"
-
 	set_default_path
 	install_default_ini
+
+	# for persistent data storage
+	chown -R 80:80 "$ZFS_DATA_MNT/rainloop/"
 }
 
 start_rainloop()

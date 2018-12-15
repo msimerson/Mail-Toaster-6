@@ -52,9 +52,11 @@ export TOASTER_MYSQL="0"
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export ROUNDCUBE_SQL="0"
+export ROUNDCUBE_DEFAULT_HOST=""
 export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
+export TOASTER_QMHANDLE="0"
 
 EO_MT_CONF
 }
@@ -84,7 +86,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -194,7 +196,6 @@ zfs_create_fs() {
 	if zfs_filesystem_exists "$1"; then return; fi
 	if zfs_mountpoint_exists "$2"; then return; fi
 
-	tell_status "creating data volume"
 	if echo "$1" | grep "$ZFS_DATA_VOL"; then
 		if ! zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 			tell_status "zfs create -o mountpoint=$ZFS_DATA_MNT $ZFS_DATA_VOL"
@@ -451,7 +452,7 @@ create_staged_fs()
 
 stage_unmount_aux_data()
 {
-	case $1 in
+	case "$1" in
 		spamassassin)  unmount_data geoip ;;
 		haraka)        unmount_data geoip ;;
 		whmcs )        unmount_data geoip ;;
@@ -459,7 +460,7 @@ stage_unmount_aux_data()
 }
 
 stage_mount_aux_data() {
-	case $1 in
+	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
 		whmcs )         mount_data geoip ;;
@@ -492,6 +493,7 @@ start_staged_jail()
 
 	stage_mount_aux_data "$_name"
 
+	tell_status "updating pkg database"
 	pkg -j stage update
 }
 
@@ -789,7 +791,7 @@ data_mountpoint()
 		_base_dir="$STAGE_MNT"  # default to stage
 	fi
 
-	case $1 in
+	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
 		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
 		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;

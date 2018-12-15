@@ -7,7 +7,12 @@ install_vpopmail_port()
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "adding mysql dependency"
-		_vpopmail_deps="$_vpopmail_deps mysql56-client"
+		if [ "$TOASTER_MARIADB" = "1" ]; then
+			_vpopmail_deps="$_vpopmail_deps mariadb103-client"
+		else
+			_vpopmail_deps="$_vpopmail_deps mysql56-client"
+		fi
+		
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
 		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
 	fi
@@ -22,9 +27,9 @@ install_vpopmail_port()
 			"$STAGE_MNT/var/db/ports/mail_vpopmail/"
 	fi
 
-	if [ -f "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" ]; then
+	if grep -qs ^mail_vpopmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
 		tell_status "copying vpopmail options from vpopmail jail"
-		grep ^mail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
+		grep ^mail_vpopmail "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
 	else
 		tell_status "installing vpopmail port with custom options"
 		stage_make_conf mail_vpopmail_ "
@@ -45,6 +50,15 @@ install_qmail()
 {
 	tell_status "installing qmail"
 	stage_pkg_install netqmail daemontools ucspi-tcp || exit
+
+	if [ -n "$TOASTER_QMHANDLE" ] && [ "$TOASTER_QMHANDLE" != "0" ]; then
+		stage_pkg_install qmhandle || exit
+		if [ -f "$ZFS_JAIL_MNT/vpopmail/usr/local/etc/qmHandle.conf" ]; then
+			tell_status "preserving qmHandle.conf"
+			cp "$ZFS_JAIL_MNT/vpopmail/usr/local/etc/qmHandle.conf" \
+				"$STAGE_MNT/usr/local/etc/" || exit
+		fi
+	fi
 
 	for _cdir in control users
 	do
@@ -70,8 +84,14 @@ install_qmail()
 	tell_status "setting qmail hostname to $TOASTER_HOSTNAME"
 	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
 
-	stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
+	if grep -qs ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
+		tell_status "copying qmail port options from existing vpopmail jail"
+		grep ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf" >> "$STAGE_MNT/etc/make.conf"
+	else
+		tell_status "setting custom options for qmail port"
+		stage_make_conf mail_qmail_ 'mail_qmail_SET=DNS_CNAME DOCS MAILDIRQUOTA_PATCH
 mail_qmail_UNSET=RCDLINK
 '
+	fi
 	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
 }

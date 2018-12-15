@@ -55,7 +55,7 @@ EO_LIGHTTPD
 install_qmailadmin()
 {
 	tell_status "installing qmailadmin"
-	stage_pkg_install autorespond ezmlm-idx autoconf automake
+	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man
 	stage_make_conf mail_qmailadmin_ '
 mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
 mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
@@ -71,6 +71,10 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 	fi
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+
+	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
+		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
+	fi
 	stage_port_install mail/qmailadmin || exit
 
 	install_lighttpd
@@ -158,6 +162,7 @@ install_quota_report()
 	sed -i '' \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
+		-e "s/My Great Company/$TOASTER_ORG_NAME/" \
 		"$_qr"
 }
 

@@ -56,7 +56,7 @@ install_roundcube_mysql()
 
 roundcube_init_db()
 {
-	tell_status "initializating roundcube db"
+	tell_status "initializing roundcube db"
 	pkg install -y curl || exit
 	start_roundcube
 	curl -i -F initdb='Initialize database' -XPOST \
@@ -65,17 +65,13 @@ roundcube_init_db()
 
 install_roundcube()
 {
-	local _php_modules="fileinfo mcrypt exif openssl"
-	if [ "$TOASTER_MYSQL" != "1" ]; then
-		tell_status "install php sqlite module"
-		_php_modules="$_php_modules pdo_sqlite"
-	fi
+	local _php_modules="dom exif fileinfo filter iconv intl json openssl pdo_mysql pdo_sqlite mbstring session xml zip"
 
-	install_php 56 "$_php_modules" || exit
+	install_php 72 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube
+	stage_pkg_install roundcube-php72
 }
 
 configure_nginx_server()
@@ -130,13 +126,21 @@ configure_roundcube()
 	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
 
 	tell_status "customizing $_rcc_conf"
-	local _dovecot_ip; _dovecot_ip=$(get_jail_ip dovecot)
+	local _dovecot_ip;
+	if  [ -z "$ROUNDCUBE_DEFAULT_HOST" ];
+	then
+		_dovecot_ip=$(get_jail_ip dovecot)
+	else
+		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
+	fi
+
 	sed -i .bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
 		-e "/'smtp_server'/  s/= '.*'/= 'tls:\/\/haraka'/" \
 		-e "/'smtp_port'/    s/25;/587;/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
+		-e "/'archive',/     s/,$/, 'managesieve',/" \
 		"$_rcc_conf"
 
 	tee -a "$_rcc_conf" <<'EO_RC_ADD'
@@ -144,7 +148,8 @@ configure_roundcube()
 $config['log_driver'] = 'syslog';
 $config['session_lifetime'] = 30;
 $config['enable_installer'] = true;
-$config['mime_types'] = '/usr/local/etc/mime.types';
+$config['mime_types'] = '/usr/local/etc/nginx/mime.types';
+$config['use_https'] = true;
 $config['smtp_conn_options'] = array(
  'ssl'            => array(
    'verify_peer'  => false,
@@ -172,6 +177,20 @@ EO_RC_ADD
 	sed -i.bak \
 		-e "/enable_installer/ s/true/false/" \
 		"$_rcc_conf"
+
+	# configure the managesieve plugin
+	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+
+	sed -i.bak \
+		-e "/'managesieve_host'/ s/localhost/dovecot/" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+
+	# apply roundcube customizations to php.ini
+	sed -i.bak \
+		-e "/'session.gc_maxlifetime'/ s/=\d+/=21600/" \
+		-e "/upload_max_filesize/ s/=\dM/=5M/" \
+		"$STAGE_MNT/usr/local/etc/php.ini"
 }
 
 start_roundcube()

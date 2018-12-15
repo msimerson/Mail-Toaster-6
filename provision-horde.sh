@@ -24,14 +24,14 @@ install_horde()
 	tell_status "making vpopmail dir"
 	mkdir -p "$STAGE_MNT/usr/local/vpopmail"  || exit
 
-	install_php 56 || exit
+	stage_exec pkg update -f
+	install_php 56 "simplexml ftp gd fileinfo tidy" || exit
 	install_nginx || exit
 
 	tell_status "installing Horde IMP and Ingo "
-	stage_pkg_install horde-ingo
-	stage_pkg_install horde-imp
-	install_php 56 "simplexml ftp gd fileinfo tidy"
-	stage_pkg_install pecl-imagick
+	stage_pkg_install php56-horde-ingo
+	stage_pkg_install php56-horde-imp
+	stage_pkg_install php56-pecl-imagick
 }
 
 enable_ftp_server_ingo()
@@ -249,18 +249,7 @@ EO_HORDE_PREFS
 					| jexec mysql /usr/local/bin/mysql || exit
 			done
 		done
-
-		horde_init_db
 	fi
-}
-
-horde_init_db()
-{
-	tell_status "initializating Horde db"
-	#pkg install -y curl || exit
-	#start_roundcube
-	#curl -i -F initdb='Initialize database' -XPOST \
-		#		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
 }
 
 configure_horde_imp()
@@ -476,7 +465,7 @@ test_horde()
 {
 	test_nginx
 	test_php_fpm
-	stage_listening 21
+#	stage_listening 21
 	echo "it worked"
 }
 

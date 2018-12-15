@@ -15,6 +15,9 @@ install_haproxy()
 
 	tell_status "installing haproxy"
 	stage_pkg_install haproxy || exit 1
+
+	tell_status "consider installing hatop for a 'top' style haproxy dashboard"
+	#stage_pkg_install hatop || exit 1
 }
 
 install_haproxy_libressl()
@@ -22,7 +25,7 @@ install_haproxy_libressl()
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
 	stage_pkg_install pcre gmake libressl || exit 1
-	stage_port_install net/haproxy || exit 1
+	stage_port_install net/haproxy-devel || exit 1
 }
 
 configure_haproxy_dot_conf()
@@ -69,8 +72,8 @@ defaults
 
 frontend http-in
 	bind :::80 v4v6
-	bind :::443 v4v6 ssl crt /etc/ssl/private
-	#bind :::443 v4v6 ssl crt /etc/ssl/private crt /data/ssl.d
+	bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private
+	#bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -89,6 +92,7 @@ frontend http-in
 	acl haraka       path_beg /logs
 	acl qmailadmin   path_beg /qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/qmailadmin
+	acl qmailadmin   path_beg /cgi-bin/vqadmin
 	acl sqwebmail    path_beg /sqwebmail
 	acl sqwebmail    path_beg /cgi-bin/sqwebmail
 	acl isoqlog      path_beg /isoqlog
@@ -103,6 +107,8 @@ frontend http-in
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
 	acl horde        path_beg /horde
+	acl prometheus   path_beg /prometheus
+	acl grafana      path_beg /grafana
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -122,6 +128,9 @@ frontend http-in
 	use_backend www_wordpress    if  wordpress
 	use_backend www_stage        if  stage
 	use_backend www_horde        if  horde
+	use_backend www_prometheus   if  prometheus
+	use_backend www_grafana      if  grafana
+
 
 	# for Let's Encrypt SSL/TLS certificates
 	use_backend www_webmail      if  letsencrypt
@@ -184,6 +193,14 @@ frontend http-in
 	backend www_horde
 	server monitor $(get_jail_ip horde):80
 
+	backend www_prometheus
+	server monitor $(get_jail_ip prometheus):9090
+	reqirep ^([^\ :]*)\ /prometheus/(.*)    \1\ /\2
+
+	backend www_grafana
+	server monitor $(get_jail_ip grafana):3000
+	reqirep ^([^\ :]*)\ /grafana/(.*)    \1\ /\2
+
 EO_HAPROXY_CONF
 }
 
@@ -230,9 +247,10 @@ for pem in *.pem; do
             -cert ${pem} \
             -url ${ocsp_url} \
             -header Host ${ocsp_host} \
-            -respout ${pem}.ocsp >> ${LOGDIR}/${pem}.log 2>&1
+            -respout ${pem}.ocsp || echo -n ""
+
+        UPDATED=$(( $UPDATED + 1 ))
     fi
-    UPDATED=$(( $UPDATED + 1 ))
 done
 
 if [ $UPDATED -gt 0 ]; then
@@ -285,6 +303,11 @@ configure_haproxy()
 		rm "$STAGE_MNT/usr/local/etc/haproxy.conf"
 	fi
 	stage_exec ln -s /data/etc/haproxy.conf /usr/local/etc/haproxy.conf
+
+	if [ ! -d "$STAGE_MNT/var/run/haproxy" ]; then
+		# useful for stats socket
+		mkdir "$STAGE_MNT/var/run/haproxy"
+	fi
 
 	configure_haproxy_tls
 }

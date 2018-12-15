@@ -42,7 +42,7 @@ configure_ntpd()
 
 update_syslogd()
 {
-	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/64:* -cc"
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/112:* -cc"
 
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
@@ -175,6 +175,29 @@ constrain_sshd_to_host()
 	service sshd restart
 }
 
+update_openssl_defaults()
+{
+	if grep -q commonName_default /etc/ssl/openssl.cnf; then
+		return
+	fi
+
+	tell_status "updating openssl.cnf defaults"
+	local _cc;    _cc=$(fetch -q -4 -o - https://ipinfo.io/country)
+	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
+	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
+	sed -i .bak \
+		-e "/^commonName_max.*/ a\ 
+commonName_default = $TOASTER_HOSTNAME" \
+		-e "/^emailAddress_max.*/ a\ 
+emailAddress_default = $TOASTER_ADMIN_EMAIL" \
+		-e "/^localityName.*/ a\ 
+localityName_default = $_city" \
+		-e "/^countryName_default/ s/AU/$_cc/" \
+		-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
+		-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \
+		/etc/ssl/openssl.cnf
+}
+
 configure_tls_certs()
 {
 	local KEYFILE=/etc/ssl/private/server.key
@@ -186,28 +209,15 @@ configure_tls_certs()
 	fi
 
 	if [ ! -d /etc/ssl/certs ]; then
-		mkdir "/etc/ssl/certs" "/etc/ssl/private"
+		mkdir "/etc/ssl/certs"
+	fi
+
+	if [ ! -d /etc/ssl/private ]; then
+		mkdir "/etc/ssl/private"
 		chmod o-r "/etc/ssl/private"
 	fi
 
-	if ! grep -q commonName_default /etc/ssl/openssl.cnf; then
-		tell_status "updating openssl.cnf defaults"
-		local _geo;   _geo=$(fetch -4 -o - https://freegeoip.net/csv)
-		local _cc;    _cc=$(echo "$_geo" | cut -d',' -f2)
-		local _state; _state=$(echo "$_geo" | cut -d',' -f5)
-		local _city;  _city=$(echo "$_geo" | cut -d',' -f6)
-		sed -i .bak \
-			-e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME" \
-			-e "/^emailAddress_max.*/ a\ 
-emailAddress_default = $TOASTER_ADMIN_EMAIL" \
-			-e "/^localityName.*/ a\ 
-localityName_default = $_city" \
-			-e "/^countryName_default/ s/AU/$_cc/" \
-			-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
-			-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \
-			/etc/ssl/openssl.cnf
-	fi
+	update_openssl_defaults
 
 	if [ -s "$KEYFILE" ] && [ -s "$CRTFILE" ]; then
 		tell_status "preserving existing TLS certificate"
@@ -260,6 +270,13 @@ install_sshguard()
 	tell_status "starting sshguard"
 	sysrc sshguard_enable=YES
 	# service sshguard start
+}
+
+check_timezone()
+{
+	if [ ! -e "/etc/localtime" ]; then
+		tzsetup || exit
+	fi
 }
 
 check_global_listeners()
@@ -566,6 +583,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
+	check_timezone
 	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }
