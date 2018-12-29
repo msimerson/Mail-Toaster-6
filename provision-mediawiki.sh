@@ -16,7 +16,7 @@ install_mediawiki()
 	install_php 72 "ctype dom fileinfo hash iconv intl gd json mbstring mysqli openssl readline session sockets xml xmlreader zlib"
 	install_nginx
 
-	stage_pkg_install dialog4ports mysql56-client
+	stage_pkg_install dialog4ports mysql57-client
 	stage_port_install www/mediawiki131-php72
 
 	mkdir -p "$STAGE_MNT/var/cache/mediawiki"
