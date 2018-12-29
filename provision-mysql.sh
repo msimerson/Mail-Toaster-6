@@ -20,7 +20,7 @@ install_db_server()
 install_mysql()
 {
 	tell_status "installing mysql"
-	stage_pkg_install mysql56-server || exit
+	stage_pkg_install mysql57-server || exit
 }
 
 install_mariadb()
