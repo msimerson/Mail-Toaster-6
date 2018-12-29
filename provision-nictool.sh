@@ -8,6 +8,7 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
 export NICTOOL_VER=${NICTOOL_VER:="2.33"}
+export NICTOOL_UPGRADE=""
 
 install_nt_prereqs()
 {
@@ -17,7 +18,8 @@ install_nt_prereqs()
 	stage_pkg_install perl5 mysql57-client apache24 ap24-mod_perl2 rsync
 
 	tell_status "installing tools for NicTool exports"
-	stage_pkg_install daemontools ucspi-tcp djbdns knot1
+	stage_pkg_install daemontools ucspi-tcp djbdns
+	stage_pkg_install knot2
 
 	tell_status "setting up svscan"
 	stage_sysrc svscan_enable=YES
@@ -59,8 +61,12 @@ install_nictool_client() {
 	stage_exec make -C $_ntcdir
 	stage_exec make -C $_ntcdir install clean
 
+	_ntc_installed="$ZFS_JAIL_MNT/nictool/usr/local/nictool/client/lib/nictoolclient.conf"
 	_ntcconf="$STAGE_MNT/usr/local/nictool/client/lib/nictoolclient.conf"
-	if [ ! -f "$_ntcconf" ]; then
+	if [ -f "$_ntc_installed" ]; then
+		tell_status "preserving nictoolclient.conf"
+		cp "${_ntcconf}.dist" "$_ntcconf"
+	else
 		tell_status "installing default $_ntcconf"
 		cp "${_ntcconf}.dist" "$_ntcconf"
 	fi
@@ -77,8 +83,13 @@ install_nictool_server() {
 	stage_exec make -C $_ntsdir
 	stage_exec make -C $_ntsdir install clean
 
+	_nts_installed="$ZFS_JAIL_MNT/nictool/usr/local/nictool/server/lib/nictoolserver.conf"
 	_ntsconf="$STAGE_MNT/usr/local/nictool/server/lib/nictoolserver.conf"
-	if [ ! -f "$_ntsconf" ]; then
+	if [ -f "$_nts_installed" ]; then
+		NICTOOL_UPGRADE="1"
+		tell_status "preserving nictoolserver.conf"
+		cp "${_nts_installed}" "${_ntsconf}"
+	else
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
 		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
@@ -148,6 +159,8 @@ EO_NICTOOL_APACHE24
 
 install_nictool_db()
 {
+	if [ "$NICTOOL_UPGRADE" = "1" ]; then return; fi
+
 	if mysql_db_exists nictool; then
 		tell_status "nictool mysql db exists"
 		return
@@ -168,6 +181,7 @@ install_nictool_user()
 	for _f in master.password group;
 	do
 		if [ -f "$ZFS_JAIL_MNT/nictool/etc/$_f" ]; then
+			tell_status "preserving /etc/$_f"
 			cp "$ZFS_JAIL_MNT/nictool/etc/$_f" "$STAGE_MNT/etc/"
 			stage_exec pwd_mkdb -p /etc/master.passwd
 		fi
