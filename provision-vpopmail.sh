@@ -46,6 +46,12 @@ server.modules += ( "mod_cgi" )
 \$HTTP["url"] =~ "^/cgi-bin" {
    cgi.assign = ( "" => "" )
 }
+
+server.modules += ( "mod_extforward" )
+extforward.forwarder = (
+     "$(get_jail_ip haproxy)"  => "trust",
+     "$(get_jail_ip haprox6)"  => "trust",
+)
 EO_LIGHTTPD
 
 	stage_sysrc lighttpd_enable=YES
