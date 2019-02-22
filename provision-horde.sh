@@ -25,13 +25,13 @@ install_horde()
 	mkdir -p "$STAGE_MNT/usr/local/vpopmail"  || exit
 
 	stage_exec pkg update -f
-	install_php 56 "simplexml ftp gd fileinfo tidy" || exit
+	install_php 72 "simplexml ftp gd fileinfo tidy" || exit
 	install_nginx || exit
 
 	tell_status "installing Horde IMP and Ingo "
-	stage_pkg_install php56-horde-ingo
-	stage_pkg_install php56-horde-imp
-	stage_pkg_install php56-pecl-imagick
+	stage_pkg_install php72-horde-ingo
+	stage_pkg_install php72-horde-imp
+	stage_pkg_install php72-pecl-imagick
 }
 
 enable_ftp_server_ingo()
