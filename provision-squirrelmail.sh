@@ -177,7 +177,7 @@ configure_squirrelmail_local()
 \$imap_server_type = 'dovecot';
 \$use_imap_tls     = false;
 
-\$data_dir = '/data/data';
+\$data_dir = '/data/pref';
 \$attachment_dir = '/data/attach';
 // \$check_referrer = '$TOASTER_MAIL_DOMAIN';
 \$check_mail_mechanism = 'advanced';
