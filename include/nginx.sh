@@ -88,7 +88,8 @@ http {
 
 	set_real_ip_from haproxy;
 	set_real_ip_from haproxy6;
-	real_ip_header X-Forwarded-For;
+	real_ip_header   proxy_protocol;
+	real_ip_recursive on;
 	client_max_body_size 25m;
 
 	upstream php {
@@ -97,8 +98,10 @@ http {
 	}
 
 	server {
-		listen       80;
-		listen  [::]:80;
+		listen       80 proxy_protocol;
+		listen  [::]:80 proxy_protocol;
+		listen       81 http2 proxy_protocol;
+		listen  [::]:81 http2 proxy_protocol;
 
 		# serve all Let's Encrypt requests from /data
 		location /.well-known/acme-challenge {
