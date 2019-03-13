@@ -100,6 +100,8 @@ http {
 	server {
 		listen       80 proxy_protocol;
 		listen  [::]:80 proxy_protocol;
+		listen       81 http2 proxy_protocol;
+		listen  [::]:81 http2 proxy_protocol;
 
 		# serve all Let's Encrypt requests from /data
 		location /.well-known/acme-challenge {
