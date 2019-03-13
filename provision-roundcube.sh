@@ -136,8 +136,8 @@ configure_roundcube()
 
 	sed -i .bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
-		-e "/'smtp_server'/  s/= '.*'/= 'tls:\/\/haraka'/" \
-		-e "/'smtp_port'/    s/25;/587;/" \
+		-e "/'smtp_server'/  s/= '.*'/= 'ssl:\/\/haraka'/" \
+		-e "/'smtp_port'/    s/25;/465;/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
