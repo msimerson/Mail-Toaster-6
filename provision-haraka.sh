@@ -628,6 +628,20 @@ port=1025
 EO_DCC
 }
 
+configure_haraka_spf()
+{
+	if grep -qv '^;' "$HARAKA_CONF/spf.ini";
+	then
+		tell_status "spf.ini already configured"
+	else
+		tell_status "configuring SPF [relay]context=myself"
+		tee -a "$HARAKA_CONF/spf.ini" <<EO_SPF_RELAY
+[relay]
+context=myself
+EO_SPF_RELAY
+	fi
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -687,6 +701,7 @@ configure_haraka()
 	configure_haraka_log_rotation
 	configure_haraka_access
 	configure_haraka_dcc
+	configure_haraka_spf
 
 	install_geoip_dbs
 }
