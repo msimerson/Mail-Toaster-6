@@ -109,6 +109,7 @@ frontend http-in
 	acl horde        path_beg /horde
 	acl prometheus   path_beg /prometheus
 	acl grafana      path_beg /grafana
+	acl dmarc        path_beg /dmarc
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_monitor      if  munin
@@ -130,6 +131,7 @@ frontend http-in
 	use_backend www_horde        if  horde
 	use_backend www_prometheus   if  prometheus
 	use_backend www_grafana      if  grafana
+	use_backend www_dmarc        if  dmarc
 
 
 	# for Let's Encrypt SSL/TLS certificates
@@ -200,6 +202,9 @@ frontend http-in
 	backend www_grafana
 	server monitor $(get_jail_ip grafana):3000
 	reqirep ^([^\ :]*)\ /grafana/(.*)    \1\ /\2
+
+	backend www_dmarc
+	server monitor $(get_jail_ip mail_dmarc):8080
 
 EO_HAPROXY_CONF
 }
