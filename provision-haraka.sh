@@ -228,6 +228,11 @@ configure_haraka_avg()
 		return
 	fi
 
+	if ! jls | grep -qs avg; then
+		echo "AVG not running, not enabling"
+		return
+	fi
+
 	tell_status "configuring Haraka avg plugin"
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
