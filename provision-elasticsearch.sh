@@ -37,7 +37,6 @@ install_elasticsearch6()
 {
 	tell_status "installing Elasticsearch"
 	stage_pkg_install elasticsearch6
-	stage_exec /usr/local/lib/elasticsearch/bin/elasticsearch-plugin install x-pack || exit
 
 	create_data_dirs
 
@@ -46,7 +45,6 @@ install_elasticsearch6()
 	mkdir "$STAGE_MNT/usr/local/www/kibana6/config"
 	#cp "$ZFS_DATA_MNT/elasticsearch/etc/kibana.yml" "$STAGE_MNT/usr/local/www/kibana6/config/"
 	touch "$STAGE_MNT/usr/local/www/kibana6/config/kibana.yml"
-	stage_exec node /usr/local/www/kibana6/src/cli_plugin/cli.js install x-pack || exit
 	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana6"
 }
 
@@ -109,28 +107,33 @@ configure_kibana()
 
 start_elasticsearch()
 {
-	tell_status "starting Elasticsearch"
+	tell_status "configuring Elasticsearch"
 	stage_sysrc elasticsearch_enable=YES
-	stage_exec service elasticsearch start
+	stage_sysrc elasticsearch_config=/data/etc
+
+	if jls | grep -qs elasticsearch; then
+		# bad things happen if two ES instances access the data dir
+		# so don't actually start it
+		tell_status "NOT starting Elasticsearch"
+	else
+		tell_status "starting Elasticsearch"
+		stage_exec service elasticsearch start
+	fi
 
 	tell_status "starting Kibana"
 	stage_sysrc kibana_enable=YES
+	stage_sysrc kibana_config=/data/etc/kibana.yml
 	stage_exec service kibana start
 }
 
 test_elasticsearch()
 {
 	tell_status "testing Elasticsearch (listening 9200)"
-	stage_listening 9200 10 3
-
-	# bad things happen if two ES instances access the data dir
-	# so wait until just before promotion to switch the active config
-	stage_sysrc elasticsearch_config=/data/etc
+	#stage_listening 9200 10 3
 
 	tell_status "testing Kibana (listening 5601)"
 	echo "kibana has initial setup to do, it make take a while..."
 	stage_listening 5601 30 5
-	stage_sysrc kibana_config=/data/etc/kibana.yml
 }
 
 base_snapshot_exists || exit

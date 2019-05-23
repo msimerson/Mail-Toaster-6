@@ -13,7 +13,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node8 gmake python2 git-lite || exit
+	stage_pkg_install npm-node10 gmake python2 git-lite || exit
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash || exit
@@ -226,6 +226,11 @@ configure_haraka_avg()
 
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
 		echo "AVG data FS missing, not enabling"
+		return
+	fi
+
+	if ! jls | grep -qs avg; then
+		echo "AVG not running, not enabling"
 		return
 	fi
 
