@@ -18,6 +18,7 @@ install_haraka()
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash || exit
 	fi
+	export PYTHON=/usr/local/bin/python2
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
