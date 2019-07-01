@@ -19,6 +19,7 @@ install_haraka()
 		stage_pkg_install bash || exit
 	fi
 	export PYTHON=/usr/local/bin/python2
+  stage_exec ln -s /usr/local/bin/python2.7 /usr/local/bin/python
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
