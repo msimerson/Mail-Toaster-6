@@ -5,7 +5,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-	mount += \"$ZFS_DATA_MNT/spamassassin \$path/data nullfs rw 0 0\";"
+		mount += \"$ZFS_DATA_MNT/spamassassin \$path/data nullfs rw 0 0\";"
 
 install_sa_update()
 {
@@ -111,13 +111,13 @@ EO_RAZOR
 install_spamassassin()
 {
 	tell_status "install SpamAssassin optional dependencies"
-	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-Geo-IP p5-Net-CIDR-Lite p5-IO-Socket-INET6 || exit
+	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-GeoIP2 p5-Net-CIDR-Lite p5-IO-Socket-INET6 || exit
 	stage_pkg_install gnupg1 re2c libidn dcc-dccd || exit
 	install_spamassassin_razor
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing mysql deps for spamassassin"
-		stage_pkg_install mysql56-client p5-DBI p5-DBD-mysql
+		stage_pkg_install mysql57-client p5-DBI p5-DBD-mysql
 	fi
 
 	install_spamassassin_data_fs

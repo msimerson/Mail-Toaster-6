@@ -78,8 +78,10 @@ install_squirrelmail()
 	install_nginx || exit
 
 	tell_status "installing squirrelmail"
-	stage_pkg_install squirrelmail-php72 squirrelmail-sasql-plugin-php72 \
-		squirrelmail-quota_usage-plugin-php72 || exit
+	stage_pkg_install squirrelmail-php72 \
+		squirrelmail-sasql-plugin-php72 \
+		squirrelmail-quota_usage-plugin-php72 \
+		squirrelmail-abook_import_export-plugin-php72 || exit
 
 	configure_squirrelmail_local
 
@@ -175,7 +177,7 @@ configure_squirrelmail_local()
 \$imap_server_type = 'dovecot';
 \$use_imap_tls     = false;
 
-\$data_dir = '/data/data';
+\$data_dir = '/data/pref';
 \$attachment_dir = '/data/attach';
 // \$check_referrer = '$TOASTER_MAIL_DOMAIN';
 \$check_mail_mechanism = 'advanced';

@@ -13,11 +13,13 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node8 gmake python git-lite || exit
+	stage_pkg_install npm-node10 gmake python2 git-lite || exit
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash || exit
 	fi
+	export PYTHON=/usr/local/bin/python2
+	stage_exec ln -s /usr/local/bin/python2.7 /usr/local/bin/python
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
@@ -225,6 +227,11 @@ configure_haraka_avg()
 
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
 		echo "AVG data FS missing, not enabling"
+		return
+	fi
+
+	if ! jls | grep -qs avg; then
+		echo "AVG not running, not enabling"
 		return
 	fi
 
@@ -628,6 +635,20 @@ port=1025
 EO_DCC
 }
 
+configure_haraka_spf()
+{
+	if grep -qv '^;' "$HARAKA_CONF/spf.ini";
+	then
+		tell_status "spf.ini already configured"
+	else
+		tell_status "configuring SPF [relay]context=myself"
+		tee -a "$HARAKA_CONF/spf.ini" <<EO_SPF_RELAY
+[relay]
+context=myself
+EO_SPF_RELAY
+	fi
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -687,6 +708,7 @@ configure_haraka()
 	configure_haraka_log_rotation
 	configure_haraka_access
 	configure_haraka_dcc
+	configure_haraka_spf
 
 	install_geoip_dbs
 }

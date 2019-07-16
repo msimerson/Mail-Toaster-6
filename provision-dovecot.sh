@@ -118,15 +118,10 @@ ssl_key = </data/etc/ssl/private/dovecot.pem
 #  ssl_key = </data/etc/ssl/private/mail.example.com.pem
 #}
 
-# sunset when dovecot 2.3 is in ports/pkg
-# dovecot 2.2 generates dhparams on-the-fly
-#ssl_dh_parameters_length = 2048
-# /sunset
-
-# dovecot 2.3 will support a ssl_dh file
+# dovecot 2.3+ supports a ssl_dh file
 ssl_dh = </etc/ssl/dhparam.pem
 
-# recommended settings for high security (mid-2017)
+# recommended settings for high security (2019)
 ssl_prefer_server_ciphers = yes
 ssl_cipher_list = AES128+EECDH:AES128+EDH
 

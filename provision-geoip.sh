@@ -38,7 +38,7 @@ test_geoip()
 	echo "testing geoip..."
 	stage_exec ls /usr/local/share/GeoIP
 
-	test -f "$STAGE_MNT/usr/local/share/GeoIP/GeoIP.dat" || exit
+	test -f "$STAGE_MNT/usr/local/share/GeoIP/GeoLite2-Country.mmdb" || exit
 	echo "it worked"
 }
 

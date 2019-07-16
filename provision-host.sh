@@ -297,10 +297,11 @@ add_jail_nat()
 {
 	if grep -qs bruteforce /etc/pf.conf; then
 		# this is an upgrade / reinstall
-		if grep -qs _ext_ip6 /etc/pf.conf; then
+		if grep -qs ext_ip6 /etc/pf.conf; then
 			tell_status "preserving pf.conf settings"
 			return
 		fi
+
 		# MT6 without IPv6 rules
 		if [ ! -f "/etc/pf.conf-$(date +%Y.%m.%d)" ]; then
 			# only back up once per day
@@ -329,6 +330,7 @@ table <allow_insecure> { }
 table <bruteforce> persist
 table <sshguard> persist
 
+ssh_ports    = "{ 22 }"
 http_ports   = "{ 80 443 }"
 mta_ports    = "{ 25 465 587 }"
 mua_insecure = "{ 110 143 }"
@@ -366,8 +368,10 @@ rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
 
 ## Filtering rules
 
+block in quick inet  proto tcp from <sshguard> to any port \$ssh_ports
+block in quick inet6 proto tcp from <sshguard> to any port \$ssh_ports
+
 block in quick from <bruteforce>
-block in quick from <sshguard>
 EO_PF_RULES
 
 	echo; echo "/etc/pf.conf has been installed"; echo
