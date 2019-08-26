@@ -168,7 +168,7 @@ install_nictool_db()
 
 	tell_status "creating nictool mysql db"
 	echo "CREATE DATABASE nictool;" | jexec mysql /usr/local/bin/mysql || exit
-	for f in $STAGE_MNT/usr/local/nictool/server/sql/*.sql; do
+	for f in "$STAGE_MNT"/usr/local/nictool/server/sql/*.sql; do
 		tell_status "creating nictool table $f"
 		# shellcheck disable=SC2002
 		cat "$f" | jexec mysql /usr/local/bin/mysql nictool

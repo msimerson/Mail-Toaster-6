@@ -41,7 +41,7 @@ configure_php_ini()
 {
 	local _php_ini="$STAGE_MNT/usr/local/etc/php.ini"
 
-	if [ ! -z "$1" ]; then
+	if [ -n "$1" ]; then
 		if [ -f "$ZFS_JAIL_MNT/$1/usr/local/etc/php.ini" ]; then
 			tell_status "preserving php.ini"
 			cp "$ZFS_JAIL_MNT/$1/usr/local/etc/php.ini" "$_php_ini"
@@ -51,7 +51,7 @@ configure_php_ini()
 
 	tell_status "getting the timezone"
 	TZ=$(md5 -q /etc/localtime)
-	TIMEZONE=$(find /usr/share/zoneinfo -type f -print | xargs md5 -r | grep "$TZ" | awk '{print $2}' |cut -c21-)
+	TIMEZONE=$(find /usr/share/zoneinfo -type f -print0 | xargs md5 -r | grep "$TZ" | awk '{print $2}' |cut -c21-)
 
 	if [ -z "$TIMEZONE" ]; then
 		TIMEZONE="America\/Los_Angeles"

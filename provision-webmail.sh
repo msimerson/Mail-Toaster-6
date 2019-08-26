@@ -67,10 +67,10 @@ server.modules += (
 		"mod_extforward",
 	)
 
-$HTTP["url"] =~ "^/awstats/" {
+\$HTTP["url"] =~ "^/awstats/" {
    cgi.assign = ( "" => "/usr/bin/perl" )
 }
-$HTTP["url"] =~ "^/cgi-bin" {
+\$HTTP["url"] =~ "^/cgi-bin" {
    cgi.assign = ( "" => "" )
 }
 extforward.forwarder = (
