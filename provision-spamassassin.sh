@@ -112,7 +112,7 @@ install_spamassassin()
 {
 	tell_status "install SpamAssassin optional dependencies"
 	stage_pkg_install p5-Mail-SPF p5-Mail-DKIM p5-Net-Patricia p5-libwww p5-GeoIP2 p5-Net-CIDR-Lite p5-IO-Socket-INET6 || exit
-	stage_pkg_install gnupg1 re2c libidn dcc-dccd || exit
+	stage_pkg_install gnupg1 re2c libidn || exit
 	install_spamassassin_razor
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
