@@ -22,7 +22,7 @@ EO_DCC
 install_dcc()
 {
 	tell_status "install dcc"
-	stage_pkg_install dcc-dccd || exit
+	stage_port_install mail/dcc-dccd || exit
 
 	install_dcc_cleanup
 }
@@ -34,7 +34,7 @@ configure_dcc()
 		-e '/^DCCM_LOG_AT=/ s/5/NEVER/' \
 		-e '/^DCCM_REJECT_AT/ s/=.*/=MANY/' \
 		-e "/^DCCIFD_ARGS/ s/-SList-ID\"/-SList-ID -p*,1025,$JAIL_NET_PREFIX.0\/24\"/" \
-		"$STAGE_MNT/usr/local/dcc/dcc_conf"
+		"$STAGE_MNT/var/db/dcc/dcc_conf"
 }
 
 start_dcc()
