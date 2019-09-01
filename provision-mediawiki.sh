@@ -17,7 +17,7 @@ install_mediawiki()
 	install_nginx
 
 	stage_pkg_install dialog4ports mysql57-client
-	stage_port_install www/mediawiki131-php72
+	stage_port_install www/mediawiki131 || exit
 
 	mkdir -p "$STAGE_MNT/var/cache/mediawiki"
 	chown 80:80 "$STAGE_MNT/var/cache/mediawiki"
