@@ -19,7 +19,7 @@ install_wordpress()
 	stage_pkg_install dialog4ports
 
 	# stage_pkg_install wordpress
-	stage_port_install www/wordpress
+	stage_port_install www/wordpress || exit
 }
 
 configure_nginx_standalone()

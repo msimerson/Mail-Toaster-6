@@ -30,8 +30,8 @@ EO_REDIS
 configure_dcc() {
 	tell_status "enabling DCC"
 	tee "$RSPAMD_ETC/local.d/dcc.conf" <<EO_DCC
-	host = $(get_jail_ip dcc);
-	port = 1025;
+	enabled = true;
+	servers = $(get_jail_ip dcc):1025;
 	timeout = 5s;
 EO_DCC
 }

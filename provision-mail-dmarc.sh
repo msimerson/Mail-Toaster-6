@@ -20,6 +20,12 @@ install_dmarc()
 
 	tell_status "Mail::DMARC installed"
 
+	tee "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive" <<EO_DMARC
+#!/bin/sh
+/usr/local/bin/dmarc_receive --imap
+EO_DMARC
+	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive"
+
 	install_dmarc_config
 }
 
@@ -39,7 +45,7 @@ install_dmarc_config()
 start_dmarc()
 {
 	tell_status "starting Mail::DMARC httpd service"
-	stage_exec /usr/local/bin/dmarc_httpd
+	stage_exec /usr/local/bin/dmarc_httpd &
 
 	echo "/usr/local/bin/dmarc_httpd" >> "$ZFS_DATA_MNT/etc/rc.local"
 	sleep 1

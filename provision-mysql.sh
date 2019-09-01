@@ -33,6 +33,7 @@ configure_mysql()
 {
 	tell_status "configuring mysql"
 	stage_sysrc mysql_args="--syslog"
+	stage_sysrc mysql_optfile="/var/db/mysql/my.cnf"
 
 	if [ -f "$ZFS_JAIL_MNT/mysql/etc/my.cnf" ]; then
 		tell_status "preserving /etc/my.cnf"
@@ -49,7 +50,7 @@ configure_mysql()
 		tell_status "installing $_my_cnf"
 		tee -a "$_my_cnf" <<EO_MY_CNF
 [mysqld]
-#innodb_doublewrite = off
+innodb_doublewrite = off
 innodb_file_per_table = 1
 EO_MY_CNF
 	fi

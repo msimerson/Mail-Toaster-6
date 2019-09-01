@@ -91,9 +91,9 @@ install_squirrelmail()
 	cp "$SQ_DIR/plugins/quota_usage/config.php.sample" \
 	   "$SQ_DIR/plugins/quota_usage/config.php"
 
-	mkdir -p "$STAGE_MNT/data/attach" "$STAGE_MNT/data/data"
+	mkdir -p "$STAGE_MNT/data/attach" "$STAGE_MNT/data/data" "$STAGE_MNT/data/pref"
 	cp "$SQ_DIR/data/default_pref" "$STAGE_MNT/data/data/"
-	chown -R www:www "$STAGE_MNT/data"
+	chown -R www:www "$STAGE_MNT/data" "$STAGE_MNT/data/pref"
 	chmod 733 "$STAGE_MNT/data/attach"
 
 	install_squirrelmail_mysql

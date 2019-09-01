@@ -31,7 +31,7 @@ install_rainloop()
 
 	tell_status "installing rainloop"
 	#stage_pkg_install rainloop-community
-	stage_port_install mail/rainloop-community
+	stage_port_install mail/rainloop-community || exit
 }
 
 configure_nginx_server()

@@ -10,6 +10,15 @@ export JAIL_CONF_EXTRA=""
 mt6-include 'php'
 mt6-include nginx
 
+mysql_error_warning()
+{
+    echo; echo "-----------------"
+    echo "WARNING: could not connect to MySQL. (Is it password protected?) If"
+    echo "this is a new install, manually set up MySQL for roundcube."
+    echo "-----------------"; echo
+    sleep 5
+}
+
 install_roundcube_mysql()
 {
 	assure_jail mysql
@@ -17,8 +26,11 @@ install_roundcube_mysql()
 	local _init_db=0
 	if ! mysql_db_exists roundcubemail; then
 		tell_status "creating roundcube mysql db"
-		echo "CREATE DATABASE roundcubemail;" | jexec mysql /usr/local/bin/mysql || exit
-		_init_db=1
+		echo "CREATE DATABASE roundcubemail;" | jexec mysql /usr/local/bin/mysql || mysql_error_warning
+
+		if mysql_db_exists roundcubemail; then
+			_init_db=1
+		fi
 	fi
 
 	local _active_cfg="$ZFS_JAIL_MNT/roundcube/usr/local/www/roundcube/config/config.inc.php"
