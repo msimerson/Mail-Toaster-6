@@ -859,8 +859,8 @@ mysql_db_exists()
 
 fetch_and_exec()
 {
-	fetch -m "$TOASTER_SRC_URL/provision-$1.sh"
-	sh "provision-$1.sh"
+	fetch -m "$TOASTER_SRC_URL/provision/$1.sh"
+	sh "provision/$1.sh"
 }
 
 provision()
