@@ -859,7 +859,9 @@ mysql_db_exists()
 
 fetch_and_exec()
 {
-	fetch -m "$TOASTER_SRC_URL/provision/$1.sh"
+	if [ ! -d provision ]; then mkdir provision; fi
+
+	fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
 	sh "provision/$1.sh"
 }
 
