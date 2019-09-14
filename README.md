@@ -1,6 +1,6 @@
 # Mail-Toaster-6
 
-Mail Toaster v6
+Mail Toaster version 6
 
 To build a Mail Toaster, [start here](https://github.com/msimerson/Mail-Toaster-6/wiki)
 
