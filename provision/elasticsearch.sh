@@ -42,8 +42,8 @@ install_elasticsearch6()
 
 	tell_status "installing kibana"
 	stage_pkg_install kibana6
+
 	mkdir "$STAGE_MNT/usr/local/www/kibana6/config"
-	#cp "$ZFS_DATA_MNT/elasticsearch/etc/kibana.yml" "$STAGE_MNT/usr/local/www/kibana6/config/"
 	touch "$STAGE_MNT/usr/local/www/kibana6/config/kibana.yml"
 	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana6"
 }
@@ -69,8 +69,10 @@ configure_elasticsearch()
 	cp "$_conf" "$_data_conf" || exit
 	chown 965 "$_data_conf"
 
-	if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsesarch/jvm.options" ]; then
-		cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/usr/local/etc/elasticsearch/"
+	if [ ! -f "$STAGE_MNT/data/etc/jvm.options" ]; then
+		if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsesarch/jvm.options" ]; then
+			cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/data/etc/"
+		fi
 	fi
 
 	if [ ! -f "$STAGE_MNT/data/etc/log4j2.properties" ]; then
@@ -79,17 +81,14 @@ configure_elasticsearch()
 	fi
 
 	sed -i .bak \
-		-e '/^#network.host:/ s/#//; s/192.168.0.1/172.16.15.254/' \
+		-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip elasticsearch)/" \
 		-e '/^path.data: / s/var/data/' \
 		-e '/^path.logs: / s/var/data/' \
 		-e '/^path\./ s/\/elasticsearch//' \
 			"$_data_conf"
 
 	tee -a "$_data_conf" <<EO_ES_CONF
-path.conf: /data/etc
-path.plugins: /data/plugins
 xpack.security.enabled: false
-xpack.ml.enabled: false
 EO_ES_CONF
 }
 
@@ -101,8 +100,8 @@ configure_kibana()
 		return
 	fi
 
-	tell_status "installing kibana.yml"
-	cp "$STAGE_MNT/usr/local/etc/kibana.yml" "$STAGE_MNT/data/etc/"
+	tell_status "installing default kibana.yml"
+	cp "$STAGE_MNT/usr/local/etc/kibana/kibana.yml" "$STAGE_MNT/data/etc/"
 }
 
 start_elasticsearch()

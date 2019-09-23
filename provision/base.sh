@@ -141,10 +141,14 @@ enable_security_periodic()
 		mkdir -p "$_daily"
 	fi
 
-	tee "$_daily/auto_security_upgrades" <<EO_PKG_SECURITY
+	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
-/usr/sbin/pkg audit | grep curl && pkg install -y curl
+for _pkg in curl expat vim-console;
+do
+  /usr/sbin/pkg audit | grep "$_pkg" && pkg install -y "$_pkg"
+done
 EO_PKG_SECURITY
+	chmod 755 "$_daily/auto_security_upgrades"
 }
 
 configure_ssl_dirs()
