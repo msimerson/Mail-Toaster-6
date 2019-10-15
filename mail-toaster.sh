@@ -624,8 +624,10 @@ stage_pkg_install()
 
 stage_port_install()
 {
-	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
-	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
+	# $1 is the port directory (ex: mail/dovecot)
+	# $2 is optional CLI make options (ex: BATCH=yes)
+	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean $2"
+	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean "$2" || return 1
 
 	tell_status "port $1 installed"
 }

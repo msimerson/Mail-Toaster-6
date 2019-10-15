@@ -23,6 +23,7 @@ install_dcc_port_options()
 {
 	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
 	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
+	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
 }
 
 install_dcc()
