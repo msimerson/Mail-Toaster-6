@@ -24,8 +24,8 @@ host_setup:
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
     - echo "export TOASTER_MAIL_DOMAIN=`hostname`" >> mail-toaster.conf
     - pkg update && pkg install -y ca_root_nss
-    - sh provision-host.sh
-    - sh provision-base.sh
+    - sh provision/host.sh
+    - sh provision/base.sh
   tags:
     - freebsd
     - ssh
@@ -33,9 +33,9 @@ host_setup:
 mailservices:
   stage: mailservices
   script:
-    - sh provision-dns.sh
-    - sh provision-mysql.sh
-    - sh provision-redis.sh
+    - sh provision/dns.sh
+    - sh provision/mysql.sh
+    - sh provision/redis.sh
   tags:
     - freebsd
     - ssh
@@ -43,8 +43,8 @@ mailservices:
 mailstore:
   stage: mailstore
   script:
-    - sh provision-vpopmail.sh
-    - sh provision-dovecot.sh
+    - sh provision/vpopmail.sh
+    - sh provision/dovecot.sh
   tags:
     - freebsd
     - ssh
@@ -52,11 +52,11 @@ mailstore:
 mta:
   stage: mta
   script:
-    - sh provision-clamav.sh
-    - sh provision-dcc.sh
-    - sh provision-rspamd.sh
-    - sh provision-geoip.sh
-    - sh provision-haraka.sh
+    - sh provision/clamav.sh
+    - sh provision/dcc.sh
+    - sh provision/rspamd.sh
+    - sh provision/geoip.sh
+    - sh provision/haraka.sh
   tags:
     - freebsd
     - ssh
@@ -64,11 +64,11 @@ mta:
 webmail:
   stage: webmail
   script:
-    - sh provision-haproxy.sh
-    - sh provision-webmail.sh
-    - sh provision-roundcube.sh
-    - sh provision-rainloop.sh
-    - sh provision-squirrelmail.sh
+    - sh provision/haproxy.sh
+    - sh provision/webmail.sh
+    - sh provision/roundcube.sh
+    - sh provision/rainloop.sh
+    - sh provision/squirrelmail.sh
   tags:
     - freebsd
     - ssh
@@ -76,10 +76,10 @@ webmail:
 extras:
   stage: extras
   script:
-    - sh provision-avg.sh
-    - sh provision-spamassassin.sh
-    - sh provision-sqwebmail.sh
-    - sh provision-elasticsearch.sh
+    - sh provision/avg.sh
+    - sh provision/spamassassin.sh
+    - sh provision/sqwebmail.sh
+    - sh provision/elasticsearch.sh
   tags:
     - freebsd
     - ssh
@@ -88,7 +88,7 @@ extras:
 test:
   stage: test
   script:
-    - sh provision-monitor.sh
+    - sh provision/monitor.sh
   tags:
     - freebsd
     - ssh
