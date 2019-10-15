@@ -19,8 +19,17 @@ EO_DCC
 	chmod 755 "$_periodic/daily/501.dccd"
 }
 
+install_dcc_port_options()
+{
+	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
+	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
+}
+
 install_dcc()
 {
+	install_dcc_port_options
+	stage_pkg_install dialog4ports
+
 	tell_status "install dcc"
 	stage_port_install mail/dcc-dccd || exit
 

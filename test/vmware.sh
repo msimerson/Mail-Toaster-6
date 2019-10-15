@@ -6,8 +6,8 @@
 #           upgradevm, installTools, checkToolsState, deleteVM, clone
 # vmrun -T fusion start
 
-FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 11.vmwarevm"
-VERSION="11.1p1"
+FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 11 GitLab Runner.vmwarevm"
+VERSION="11.3p3"
 VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
 GUESTUSER="root"
 GUESTPASS="passWord"
