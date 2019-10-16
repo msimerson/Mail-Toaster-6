@@ -44,8 +44,11 @@ install_spamassassin_port()
 		_SA_OPTS="MYSQL $_SA_OPTS"
 	fi
 
-	stage_make_conf mail_spamassassin "mail_spamassassin_SET=$_SA_OPTS
-mail_spamassassin_UNSET=SSL PGSQL GNUPG GNUPG2"
+	stage_make_conf mail_spamassassin_SET "mail_spamassassin_SET=$_SA_OPTS"
+	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=SSL DOCS GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
+	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
+	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
+	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
 
 	if [ ! -d "$STAGE_MNT/usr/ports/mail/spamassassin" ]; then
 		echo "ports aren't mounted!" && exit 1
