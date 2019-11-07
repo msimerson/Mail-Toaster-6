@@ -81,6 +81,8 @@ vm_setup() {
 
 if [ "$1" = "cleanstart" ] || [ "$1" = "freshstart" ]; then
     cleanstart
+elif [ "$1" ]; then
+    $1
 else
     echo "$0 cleanstart"
 fi
