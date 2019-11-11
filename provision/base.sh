@@ -250,7 +250,7 @@ security_status_tcpwrap_enable="YES"
 daily_status_security_inline="NO"
 weekly_status_security_inline="NO"
 monthly_status_security_inline="NO"
-daily_status_security_pkgaudit_quiet="YES"
+security_status_pkgaudit_quiet="YES"
 
 # These are redundant within a jail
 security_status_chkmounts_enable="NO"
