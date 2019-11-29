@@ -288,7 +288,7 @@ get_jail_ip()
 		_octet=$((_octet + 1))
 	done
 
-	# return error code if _incr unset
+	# return error code
 	return 2
 }
 
@@ -318,7 +318,7 @@ get_jail_ip6()
 		_octet=$((_octet + 1))
 	done
 
-	# return error code if _incr unset
+	# return error code
 	return 2
 }
 

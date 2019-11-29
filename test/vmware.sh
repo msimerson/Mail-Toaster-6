@@ -7,7 +7,7 @@
 # vmrun -T fusion start
 
 FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 11 GitLab Runner.vmwarevm"
-VERSION="11.3p3"
+VERSION="12.1p1"
 VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
 GUESTUSER="root"
 GUESTPASS="passWord"
