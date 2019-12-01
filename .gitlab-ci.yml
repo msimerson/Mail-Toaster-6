@@ -78,7 +78,7 @@ extras:
   script:
     - sh provision/avg.sh
     - sh provision/spamassassin.sh
-    - sh provision/sqwebmail.sh
+#   - sh provision/sqwebmail.sh
     - sh provision/elasticsearch.sh
   tags:
     - freebsd
