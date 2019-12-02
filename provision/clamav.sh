@@ -27,7 +27,7 @@ install_clamav_unofficial()
 		dialog --yesno "$_es_mess" 18 74 || return
 	fi
 
-	local CLAMAV_UV=6.1.0
+	local CLAMAV_UV=6.1.1
 	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
 	stage_pkg_install gnupg1 rsync bind-tools
@@ -41,7 +41,7 @@ install_clamav_unofficial()
 	tell_status "installing config files"
 	mkdir -p "$_conf" || exit
 	cp -r "$_dist/config/" "$_conf/" || exit
-	cp "$_conf/os.freebsd.conf" "$_conf/os.conf" || exit
+	cp "$_conf/os/os.freebsd.conf" "$_conf/os.conf" || exit
 
 	if [ -f "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" ]; then
 		tell_status "preserving user.conf"
