@@ -225,39 +225,40 @@ configure_haraka_avg()
 {
 	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
 
-	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
-		echo "AVG data FS missing, not enabling"
-		return
-	fi
-
-	if ! jls | grep -qs avg; then
-		echo "AVG not running, not enabling"
-		return
-	fi
-
-	if ! jls | grep -qs avg; then
-		echo "AVG not running, not enabling"
-		return
-	fi
-
 	tell_status "configuring Haraka avg plugin"
-	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
-
 	if ! grep -qs ^host "$HARAKA_CONF/avg.ini"; then
 		echo "host = $(get_jail_ip avg)
 tmpdir=/data/avg/spool
 " | tee -a "$HARAKA_CONF/avg.ini"
 	fi
 
-	if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
-		tell_status "update tmpdir in avg.ini"
-		sed -i .bak -e \
-			'/^tmpdir/ s/avg$/avg\/spool/g' \
-			"$HARAKA_CONF/avg.ini"
+	if zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
+		tell_status "adding avg data FS to Haraka jail"
+		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
+		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
+
+		if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
+			tell_status "update tmpdir in avg.ini"
+			sed -i .bak -e \
+				'/^tmpdir/ s/avg$/avg\/spool/g' \
+				"$HARAKA_CONF/avg.ini"
+		fi
+	else
+		echo "AVG data FS missing, not enabling"
+		return
 	fi
 
 	if ! grep -q ^avg "$HARAKA_CONF/plugins"; then
+		if ! jls | grep -qs avg; then
+			echo "AVG not running, not enabling"
+			return
+		fi
+
+		if ! jls | grep -qs avg; then
+			echo "AVG not running, not enabling"
+			return
+		fi
+
 		tell_status "enabling avg plugin"
 		# shellcheck disable=1004
 		sed -i '' -e '/clamd$/a\
