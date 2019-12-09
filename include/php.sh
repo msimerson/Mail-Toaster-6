@@ -107,7 +107,8 @@ start_php_fpm()
 	stage_exec service php-fpm start || service php-fpm restart
 }
 
-test_php_fpm() {
+test_php_fpm()
+{
 	tell_status "testing PHP FPM (FastCGI Process Manager) is running"
 	stage_test_running php-fpm
 
