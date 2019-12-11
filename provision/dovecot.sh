@@ -287,7 +287,7 @@ configure_postfix_with_sasl()
 	# configure a MSA with dovecot auth.
 	stage_pkg_install postfix || exit
 
-	stage_exec postconf -e 'relayhost = haraka'
+	stage_exec postconf -e "relayhost = $TOASTER_MSA"
 	stage_exec postconf -e 'smtpd_sasl_type = dovecot'
 	stage_exec postconf -e 'smtpd_sasl_path = private/auth'
 	stage_exec postconf -e 'smtpd_sasl_auth_enable = yes'

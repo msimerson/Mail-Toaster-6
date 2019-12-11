@@ -47,9 +47,12 @@ start_postfix()
 
 test_postfix()
 {
-	tell_status "testing postfix"
-	stage_test_running postfix
+	tell_status "testing opendkim"
+	stage_test_running opendkim
+	stage_listening 1026
 
+	tell_status "testing postfix"
+	stage_test_running master
 	stage_listening 25
 	echo "it worked."
 }

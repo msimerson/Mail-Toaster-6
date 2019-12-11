@@ -57,6 +57,7 @@ export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
 export TOASTER_QMHANDLE="0"
+export TOASTER_MSA="haraka"
 
 EO_MT_CONF
 }
@@ -86,7 +87,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -99,6 +100,7 @@ export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
+export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
@@ -288,6 +290,12 @@ get_jail_ip()
 		_octet=$((_octet + 1))
 	done
 
+	_dns=$(host "$1" | grep 'has address' | cut -f4 -d' ')
+	if [ -n "$_dns" ]; then
+		echo "$_dns"
+		return
+	fi
+
 	# return error code
 	return 2
 }
@@ -317,6 +325,12 @@ get_jail_ip6()
 		fi
 		_octet=$((_octet + 1))
 	done
+
+	_dns=$(host "$1" | grep 'has IPv6 address' | cut -f5 -d' ')
+	if [ -n "$_dns" ]; then
+		echo "$_dns"
+		return
+	fi
 
 	# return error code
 	return 2
