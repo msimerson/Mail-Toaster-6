@@ -156,7 +156,7 @@ configure_squirrelmail_local()
 \$signout_page = 'https://$TOASTER_HOSTNAME/';
 \$domain = '$TOASTER_MAIL_DOMAIN';
 
-\$smtpServerAddress = '$(get_jail_ip haraka)';
+\$smtpServerAddress = '$(get_jail_ip "$TOASTER_MSA")';
 \$smtpPort = 465;
 \$use_smtp_tls = true;
 // PHP 5.6 enables verify_peer by default, which is good but in this context,

@@ -61,7 +61,7 @@ install_ssmtp()
 	   "$BASE_MNT/usr/local/etc/ssmtp/revaliases" || exit
 
 	sed -e "/^root=/ s/postmaster/$TOASTER_ADMIN_EMAIL/" \
-		-e "/^mailhub=/ s/=mail/=haraka/" \
+		-e "/^mailhub=/ s/=mail/=$TOASTER_MSA/" \
 		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
 		-e '/^#FromLineOverride=YES/ s/#//' \
 		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \

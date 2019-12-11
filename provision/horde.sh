@@ -189,7 +189,7 @@ install_horde_mysql()
 	\$conf['history']['driver'] = 'Sql';
 	\$conf['davstorage']['params']['driverconfig'] = 'horde';
 	\$conf['davstorage']['driver'] = 'Sql';
-	\$conf['mailer']['params']['host'] = '$(get_jail_ip haraka)';
+	\$conf['mailer']['params']['host'] = '$(get_jail_ip "$TOASTER_MSA")';
 	\$conf['mailer']['params']['port'] = 587;
 	\$conf['mailer']['params']['secure'] = 'tls';
 	\$conf['mailer']['params']['username_auth'] = true;
