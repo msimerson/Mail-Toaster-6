@@ -12,12 +12,34 @@ install_postfix()
 	stage_pkg_install postfix opendkim dialog4ports || exit
 }
 
+configure_opendkim()
+{
+	stage_sysrc milteropendkim_enable=YES
+	stage_sysrc milteropendkim_cfgfile=/data/etc/opendkim.conf
+
+	tell_status "See http://www.opendkim.org/opendkim-README"
+
+	if [ ! -d "$STAGE_MNT/data/etc" ]; then mkdir "$STAGE_MNT/data/etc"; fi
+	if [ ! -d "$STAGE_MNT/data/dkim" ]; then mkdir "$STAGE_MNT/data/dkim"; fi
+
+	if [ -f "$STAGE_MNT/data/etc/opendkim.conf" ]; then
+		echo "opendkim config retained"
+		return
+	fi
+
+	sed \
+		-e "/^Domain/ s/example.com/$TOASTER_DOMAIN/"  \
+		-e "/^KeyFile/ s/\/.*$/\/data\/dkim\/$TOASTER_DOMAIN.private/"  \
+		-e '/^Socket/ s/inet:port@localhost/inet:2016/' \
+		-e "/^Selector/ s/my-selector-name/$(date '+%b%Y' | tr '[:upper:]' '[:lower:]')/" \
+		"$STAGE_MNT/usr/local/etc/mail/opendkim.conf.sample" \
+		> "$STAGE_MNT/data/etc/opendkim.conf"
+}
+
 configure_postfix()
 {
 	stage_sysrc postfix_enable=YES
-	stage_sysrc sshd_enable=YES
-	stage_sysrc milteropendkim_enable=YES
-	stage_sysrc milteropendkim_cfgfile=/data/etc/opendkim.conf
+	stage_exec postconf -e 'smtp_tls_security_level = may'
 
 	if [ -n "$TOASTER_NRPE" ]; then
 		stage_sysrc nrpe3_enable=YES
