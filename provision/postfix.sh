@@ -9,7 +9,7 @@ export JAIL_CONF_EXTRA=""
 install_postfix()
 {
 	tell_status "installing postfix"
-	stage_pkg_install postfix opendkim dialog4ports || exit
+	stage_pkg_install postfix-sasl opendkim dialog4ports || exit
 }
 
 configure_opendkim()
@@ -28,8 +28,8 @@ configure_opendkim()
 	fi
 
 	sed \
-		-e "/^Domain/ s/example.com/$TOASTER_DOMAIN/"  \
-		-e "/^KeyFile/ s/\/.*$/\/data\/dkim\/$TOASTER_DOMAIN.private/"  \
+		-e "/^Domain/ s/example.com/$TOASTER_MAIL_DOMAIN/"  \
+		-e "/^KeyFile/ s/\/.*$/\/data\/dkim\/$TOASTER_MAIL_DOMAIN.private/"  \
 		-e '/^Socket/ s/inet:port@localhost/inet:2016/' \
 		-e "/^Selector/ s/my-selector-name/$(date '+%b%Y' | tr '[:upper:]' '[:lower:]')/" \
 		"$STAGE_MNT/usr/local/etc/mail/opendkim.conf.sample" \
@@ -39,7 +39,16 @@ configure_opendkim()
 configure_postfix()
 {
 	stage_sysrc postfix_enable=YES
+	stage_exec postconf -e "myhostname = postfix.$TOASTER_HOSTNAME"
+	stage_exec postconf -e 'smtp_use_tls=yes'
 	stage_exec postconf -e 'smtp_tls_security_level = may'
+	stage_exec postconf -e "mynetworks = $JAIL_NET_PREFIX.0/$JAIL_NET_MASK"
+
+	if [ -f "$ZFS_DATA_MNT/etc/sasl_passwd" ]; then
+		stage_exec postmap /data/etc/sasl_passwd
+		stage_exec postconf -e 'smtp_sasl_auth_enable = yes'
+		stage_exec postconf -e 'smtp_sasl_password_maps = hash:/data/etc/sasl_passwd'
+	fi
 
 	if [ -n "$TOASTER_NRPE" ]; then
 		stage_sysrc nrpe3_enable=YES
@@ -58,6 +67,15 @@ configure_postfix()
 		cp "$ZFS_JAIL_MNT/postfix/etc/aliases" "$STAGE_MNT/etc/aliases"
 		stage_exec newaliases
 	fi
+
+	if [ ! -f "$ZFS_JAIL_MNT/usr/local/etc/mail/mailer.conf" ]; then
+		if [ ! -d "$ZFS_JAIL_MNT/usr/local/etc/mail" ]; then
+			mkdir "$ZFS_JAIL_MNT/usr/local/etc/mail"
+		fi
+		stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
+	fi
+
+	configure_opendkim
 }
 
 start_postfix()
@@ -71,7 +89,7 @@ test_postfix()
 {
 	tell_status "testing opendkim"
 	stage_test_running opendkim
-	stage_listening 1026
+	stage_listening 2016
 
 	tell_status "testing postfix"
 	stage_test_running master
