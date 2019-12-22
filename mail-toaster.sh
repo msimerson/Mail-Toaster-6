@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# bump version when a change in this file effects a provision script(s)
+mt6_version() { echo "20191221"; }
+
 dec_to_hex() { printf '%04x\n' "$1"; }
 
 get_random_ip6net()
@@ -16,14 +19,14 @@ create_default_config()
 	local _EMAIL_DOMAIN
 	local _ORGNAME
 
-	if [ -t 0 ]; then
+	if [ -t 0 ] && [ "$(uname)" = 'FreeBSD' ]; then
 		echo "editing prefs"
 		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
 		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
 		_ORGNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_ORG_NAME --inputbox "the name of your organization" 8 70 "Email Inc")
 	fi
 
-	# for Travis CI (Linux) where dialog doesn't exist
+	# for dev/test environs where dialog doesn't exist
 	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
 	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
@@ -73,6 +76,30 @@ config()
 	. mail-toaster.conf
 }
 
+mt6_version_check()
+{
+	if [ "$(uname)" != 'FreeBSD' ]; then return; fi
+
+	local _github
+	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep ^mt6_version | awk '{ print $4 }')
+	if [ -z "$_github" ]; then
+		echo "v: <failed lookup>"
+		return
+	else
+		echo "v: $_github"
+	fi
+
+	local _this
+	_this="$(mt6_version)";
+	if [ -n "$_this" ] && [ "$_this" < "$_github" ]; then
+		echo "NOTICE: updating mail-toaster.sh"
+		mt6-update
+	fi
+}
+
+export TOASTER_SRC_URL=${TOASTER_SRC_URL:="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"}
+
+mt6_version_check
 # load the local config file
 config
 
@@ -80,7 +107,6 @@ config
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
-export TOASTER_SRC_URL=${TOASTER_SRC_URL:="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
@@ -106,7 +132,8 @@ if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
 
-usage() {
+usage()
+{
 	if [ -n "$1" ]; then echo; echo "ERROR: missing required $1"; echo; fi
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
@@ -135,9 +162,11 @@ export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
 export FBSD_REL_VER FBSD_PATCH_VER
-FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
-FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
-FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
+if [ "$(uname)" = 'FreeBSD' ]; then
+	FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
+	FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
+	FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
+fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
 # host OS version, ex: base-11.0-RELEASE and the snapshot name will be the OS
@@ -149,9 +178,7 @@ export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 export STAGE_MNT="$ZFS_JAIL_MNT/stage"
 
-fatal_err() {
-	echo; echo "FATAL: $1"; echo; exit
-}
+fatal_err() { echo; echo "FATAL: $1"; echo; exit; }
 
 safe_jailname()
 {
@@ -193,8 +220,8 @@ zfs_mountpoint_exists()
 	return 1
 }
 
-zfs_create_fs() {
-
+zfs_create_fs()
+{
 	if zfs_filesystem_exists "$1"; then return; fi
 	if zfs_mountpoint_exists "$2"; then return; fi
 
@@ -473,7 +500,8 @@ stage_unmount_aux_data()
 	esac
 }
 
-stage_mount_aux_data() {
+stage_mount_aux_data()
+{
 	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
