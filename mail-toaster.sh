@@ -418,6 +418,31 @@ $1	{
 EO_JAIL_CONF
 }
 
+add_automount()
+{
+	if grep -q auto_ports /etc/auto_master; then
+		if grep -qs "^$ZFS_JAIL_MNT/$1/" /etc/auto_ports; then
+			tell_status "automount ports already configured"
+		else
+			tell_status "enabling /usr/ports automount"
+			echo "$ZFS_JAIL_MNT/$1/usr/ports		-fstype=nullfs :/usr/ports" | tee -a /etc/auto_ports
+			/usr/sbin/automount
+		fi
+	else
+		echo "automount not enabled, see https://github.com/msimerson/Mail-Toaster-6/wiki/automount"
+	fi
+
+	if grep -q auto_pkgcache /etc/auto_master; then
+		if grep -qs "^$ZFS_JAIL_MNT/$1/" /etc/auto_pkgcache; then
+			tell_status "automount pkg cache already configured"
+		else
+			tell_status "enabling /var/cache/pkg automount"
+			echo "$ZFS_JAIL_MNT/$1/var/cache/pkg		-fstype=nullfs :/var/cache/pkg" | tee -a /etc/auto_pkgcache
+			/usr/sbin/automount
+		fi
+	fi
+}
+
 stop_jail()
 {
 	local _safe; _safe=$(safe_jailname "$1")
@@ -651,6 +676,7 @@ promote_staged_jail()
 	rename_active_to_last "$1"
 	rename_ready_to_active "$1"
 	add_jail_conf "$1"
+	add_automount "$1"
 
 	tell_status "service jail start $1"
 	service jail start "$1" || exit 1
