@@ -81,7 +81,7 @@ mt6_version_check()
 	if [ "$(uname)" != 'FreeBSD' ]; then return; fi
 
 	local _github
-	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep ^mt6_version | awk '{ print $4 }')
+	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep '^mt6_version(' | cut -f2 -d'"')
 	if [ -z "$_github" ]; then
 		echo "v: <failed lookup>"
 		return
@@ -91,7 +91,7 @@ mt6_version_check()
 
 	local _this
 	_this="$(mt6_version)";
-	if [ -n "$_this" ] && [ "$_this" < "$_github" ]; then
+	if [ -n "$_this" ] && [ "$_this" -lt "$_github" ]; then
 		echo "NOTICE: updating mail-toaster.sh"
 		mt6-update
 	fi
