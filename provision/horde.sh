@@ -9,7 +9,7 @@ export JAIL_CONF_EXTRA="
 mount += \"$ZFS_DATA_MNT/horde \$path/data nullfs rw 0 0\";
 mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
-mt6-include 'php'
+mt6-include php
 mt6-include nginx
 mt6-include mysql
 
