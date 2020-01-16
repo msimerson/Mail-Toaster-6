@@ -130,20 +130,15 @@ set_mysql_password()
 		return
 	fi
 
-	if [ -n "$TOASTER_MYSQL_PASS" ]; then
-		# the password is already set
-		return
+	if [ -z "$TOASTER_MYSQL_PASS" ]; then
+		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
+
+		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
+		export TOASTER_MYSQL_PASS
 	fi
-
-	tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
-
-	TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
-	export TOASTER_MYSQL_PASS
 
 	write_pass_to_conf
 }
-
-set_mysql_password
 
 if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
 	tell_status "installing MySQL"
@@ -154,6 +149,7 @@ fi
 
 base_snapshot_exists || exit
 create_staged_fs mysql
+set_mysql_password
 start_staged_jail mysql
 install_db_server
 start_mysql

@@ -19,25 +19,12 @@ mysql_bin()
 		return
 	fi
 
-	# unset in toaster-watcher.conf
-	if [ -z "$TOASTER_MYSQL_PASS" ]; then
-		echo "/usr/local/bin/mysql"
-		return
-	fi
-
-	# file exists and has [client] section
-	if [ -f "$_root/.my.cnf" ] && grep -q '^\[client\]' "$_root/.my.cnf"; then
-		# TODO: use sed to insert immediately after [client]?
+	# set in toaster-watcher.conf
+	if [ -n "$TOASTER_MYSQL_PASS" ]; then
 		echo "/usr/local/bin/mysql --password=\"$TOASTER_MYSQL_PASS\""
 		return
 	fi
 
-	tee -a "$_root/.my.cnf" <<EO_MY_CNF
-[client]
-user = root
-password = $TOASTER_MYSQL_PASS
-EO_MY_CNF
-	chmod 600 "$_root/.my.cnf"
 	echo "/usr/local/bin/mysql"
 }
 
