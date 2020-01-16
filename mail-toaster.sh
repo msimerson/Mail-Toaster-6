@@ -65,12 +65,20 @@ export TOASTER_MSA="haraka"
 export MAXMIND_LICENSE_KEY=""
 
 EO_MT_CONF
+
+	chmod 600 mail-toaster.conf
 }
 
 config()
 {
 	if [ ! -f "mail-toaster.conf" ]; then
 		create_default_config
+	fi
+
+	local _mode; _mode=$(stat -f "%OLp" mail-toaster.conf)
+	if [ "$_mode" -ne 600 ]; then
+		echo "tightening permissions on mail-toaster.conf"
+		chmod 600 mail-toaster.conf
 	fi
 
 	echo "loading mail-toaster.conf"
