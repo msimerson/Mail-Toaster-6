@@ -82,7 +82,7 @@ test_dspam()
 {
 	tell_status "testing dspam"
 	sleep 2
-	stage_listening 24
+	stage_listening 2424
 	echo "it worked"
 }
 
