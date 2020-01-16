@@ -98,6 +98,8 @@ test_mysql()
 		echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
 			| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
 			|| exit
+        rm "$STAGE_MNT/root/.mysql_secret"
+
 		echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit
 		stage_listening 3306
 		echo "it worked"
@@ -131,7 +133,7 @@ set_mysql_password()
 
 set_mysql_password
 
-if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ]; then
+if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
 	tell_status "installing MySQL"
 else
 	tell_status "skipping MySQL install, not configured"
