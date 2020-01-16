@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20191221"; }
+mt6_version() { echo "20200114"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -61,6 +61,7 @@ export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
 export TOASTER_QMHANDLE="0"
 export TOASTER_MSA="haraka"
+export MAXMIND_LICENSE_KEY=""
 
 EO_MT_CONF
 }

@@ -1,5 +1,214 @@
+
+## 2020-01
+
+## 2019-10
+
+- rename provision files with - to _ #409
+- grafana: install v6 (was v5) #409
+
+## 2019-09
+
+- ES: updates for v6 install #408
+- move provision files into provision dir #406
+- dmarc: add periodic receive task #405
+- mediawiki: remove php suffix from port name #405
+- mysql: add mysql_optfile to /etc/rc.conf #405
+- rainloop: fail build if port install fails #405
+- roundcube: if mysql connect fails, warn and proceed #405
+- rspamd: update dcc plugin config syntax #405
+- squirrelmail: create missing /data/pref directory #405
+- whmcs: update PHP to v7.2 #405
+- wordpress: fail build if port install fails #405
+
+## 2019-08
+
+- haraka: install node 10 (was 8) #404
+- haraka: only enable AVG if the jail is running #404
+- clamav: update unofficial version  5.6.2 -> 6.1.0 #404
+- mysql: install when any MYSQL option enabled #404
+- spamassassin: remove dcc package install #404
+- dcc: port install (was pkg), path to dcc_conf #404
+- unifi: update to mongo 3.6 #402
+
+## 2019-07
+
+- fix: python not found during compilation #400
+
+## 2019-05
+
+- haraka: install node 10 (was 8) #399
+- haraka: only enable AVG if the jail is running #399
+- elastic: make upgrading smoother #399
+
+## 2019-04
+
+- haraka: install python2 (required by nan) #398
+- add Mail::Dmarc service #397
+
+## 2019-03
+
+- haraka: enable spf [relay]context=myself #396
+- dovecot: update comments in config #395
+- rainloop & roundcube: use port 465 for submission #393
+
+## 2019-02
+
+- squirrelmail: use /data/pref for pref storage (same as migration docs, other uses) #392
+- spamassassin: install p5-GeoIP2 (was p5-Geo-IP) #391
+- horde: update to PHP 7.2 #385
+
+## 2018-12
+
+- nictool: skip SQL setup on upgrade #384
+- update mysql version 5.6 -> 5.7 #383
+- influx: give some more time to start #382
+- haraka: update plugin names of geoip, p0f, qmail-deliv #381
+- clamav: update unofficial 5.4.1 -> 5.6.2 #374
+- haproxy: add grafana support #374
+- roundcube: apply customizations to php.ini (needs testing) #374
+- webmail: show/hide services based on availability, fixes #261 #374
+- webmail: back up index.html and install new one #374
+- webmail: remove recursive checks #374
+- haproxy: add rule for vqadmin #374
+- rainloop: chown after last file installed #374
+- Create folder for sphinx and use mariadb client for vpopmail #373
+
+## 2018-11
+
+- host: check that timezone is set #370
+- update wordpress using recipes #367
+- influx: only create dirs when missing #366
+- unifi: specify mongodb version (port renamed) #366
+
+## 2018-10
+
+- use ipinfo.io instead of freegeoip (deprecated) #365
+
+## 2018-09
+
+- mediawiki: update to 1.31 #363
+
+## 2018-08
+
+- when enabled, install qmHandle in vpopmail jail #362
+- haproxy: remove -devel (1.8 is released now) #361
+- roundcube: update path to nginx mime.types file #361
+- nginx: enable gzip compression #361
+- roundcube: add ROUNDCUBE_DEFAULT_HOST option #359
+- vpopmail: quota_report: update company name #359
+- vpopmail: quota_report: send to users by default #359
+- vpopmail: remove -v option (only log errors) #359
+- rspamd: store redis settings in redis.conf #358
+- mariadb: Upgrade to current stable 10.3 #357
+- dhcp: update to version 4.4 #356
+- grafana: fix typo mdkir #356
+- perl ports build fix #356
+
+## 2018-07
+
+- squirrelmail: php 72 mcrypt -> pecl-mcrypt #355
+
+## 2018-06
+
+- update roundcube & squirrelmail due to -phpVV rename #354
+- roundcube: enable managesieve plugin #352
+- create /etc/ssl/private when missing #353
+- dovecot: update config for 2.3 #351
+- fix sed match to enable newsyslog #350
+- haproxy: fix for OCSP stapling #349
+- shellcheck: disable 2038 #348
+- fix PHP timezone setting #347
+
+## 2018-04
+
+- Fix for new naming of pear and pecl packages #341
+- grafana: install v5 #343
+- narrow IP6 host mask #340
+
+## 2018-03
+
+- es: add v6 support #337
+- Mariadb update to 10.2 #334
+
+## 2018-02
+
+- Fix vimrc path and overwrite default vimrc #335
+- recipes for influxdb, statsd, telegraf #330
+- install just grafana #329
+- spamassassin: disable sought rules #328
+- Haraka: store git co of Haraka to /root (vs /tmp) #327
+- vpopmail: more reliably add vpopmail settings when missing #326
+- postfix: preserve /etc/aliases #326
+
+## 2018-01
+
+- smf: add PHP filter module #325
+- haraka: assure bash is installed (if not in base) #323
+- port rename vim-lite -> vim-console #321
+- geoip: work around npm attempts to be clever #321
+- mediawiki: working php7 install support #321
+- smf: update smf version to 2.0.15 #321
+- squirrelcart: php 7.2 -> 7.1, for now #321
+- squirrelcart: preserve store logo #321
+- nsd: newly added #321
+- knot: preserve sys users & start sshd #321
+- nictool: preserve system users #321
+- es: update where mem settings are set #321
+- haproxy: install -devel with HTTP2 support #321
+- mt.sh: consistently quote strings in case statement #321
+- monitor: configure nrpe3 now #321
+- postfix + opendkim #320
+- haraka: Helo checks error in logging #317
+
+## 2017-12
+
+- Nrpe3 and PHP 7.2 updates #316
+- use PHP 7.2 where supported #313
+- fix unbound TXT record quoting syntax #311
+- letsencrypt: update htdocs dir to match nginx config #310
+- haraka: enable newsyslog (log rotation) #309
+- geoip: install npm3 (and node 6) to get node LTS #308
+- haproxy: fix condition that chooses libressl option #308
+- haraka: install python meta port #308
+- roundcube: fix sed command for updating smtp_server #308
+- tinydns: test with TOASTER_HOSTNAME if example.com not in data file #308
+- dovecot: if sieve not in local.conf, do not try compiling sieve #308
+- haraka: skip LMTP attempts, until Haraka outbound is fixed #308
+- geoip,haraka: install using npm-node8 #308
+- geoip: restrict to npm 4 since 5 is unstable #307
+- rspamd: only enable phishing when RAM > 4GB #305
+
+## 2017-11
+
+- mysql ipv6 grants #299
+- generate TLS certs needed for sha256 password #297
+- dns: extend SPF policy to local nets #296
+- enable config for PUBLIC_IP4 and PUBLIC_IP6 #295
+- show URL for FreeBSD package when downloading #295
+- base: create dhparam.pem if missing (for upgrades) #295
+- vpopmail: do not leave .bak file in periodic dir #295
+- qmail: add comment when updating control/me #294
+- dns: configure private DNS for TOASTER_HOSTNAME #294
+- haraka: if config/me does not exist, write TOASTER_HOSTNAME to it #294
+- dns: add SPF records #294
+
+## 2017-10
+
+- Curl not installed and curl logging reduction #293
+- configure nginx proxy for ipv6 #291
+- net mgmt: make use of NRPE/munin config settings #289
+- syslogd: allow from ${JAIL_IP6}/64 #286
+- monitor: preserve munin data files, munin.conf #281
+- monitor: use CGI method for lighttpd (reduce load) #281
+- dovecot: compile dovecot pigeonhole so they are not out of sync #281
+
 ## 2017-09
 
+- nginx: add lets encrypt rule #273
+- dovecot: add trash plugin to protocol imap #273
+- haraka: install from git #268
+- letsencrypt: install socat, the next version of acme.sh requires it #267
+- haraka: skip installing dev deps #267
 - install sshguard w/pf config #266
 
 
