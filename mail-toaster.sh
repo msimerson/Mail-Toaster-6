@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20200114"; }
+mt6_version() { echo "20200115"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -52,6 +52,7 @@ export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="0"
+export TOASTER_MYSQL_PASS=""
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export ROUNDCUBE_SQL="0"
@@ -986,6 +987,7 @@ unprovision_filesystem()
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
 		tell_status "destroying $ZFS_DATA_MNT/$1"
+		unmount_data "$1"
 		zfs destroy "$ZFS_DATA_VOL/$1"
 	fi
 
@@ -1040,7 +1042,7 @@ unprovision()
 			return
 		fi
 
-		service jail stop "$1"
+		service jail stop stage "$1"
 		unprovision_filesystem "$1"
 		return
 	fi

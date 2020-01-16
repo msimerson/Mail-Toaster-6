@@ -90,11 +90,34 @@ test_mysql()
 		true
 	else
 		sleep 1
-		echo 'SHOW DATABASES' | stage_exec mysql || exit
+		_inital_pass=$(tail -n1 "$STAGE_MNT/root/.mysql_secret")
+		if [ -z "$_inital_pass" ]; then
+			echo "ERROR: unable to find the mysql intial password"
+			exit 1
+		fi
+		echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
+			| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
+			|| exit
+		echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit
 		stage_listening 3306
 		echo "it worked"
 	fi
 }
+
+# if mysql isn't already provisioned
+if [ ! -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
+	# and the password is unset...
+	if [ -z "$TOASTER_MYSQL_PASS" ]; then
+		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
+		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
+		export TOASTER_MYSQL_PASS
+		if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
+			sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=.*$/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf
+		else
+			echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
+		fi
+	fi
+fi
 
 if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ]; then
 	tell_status "installing MySQL"
