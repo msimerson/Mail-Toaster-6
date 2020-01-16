@@ -9,6 +9,7 @@ export JAIL_CONF_EXTRA=""
 
 mt6-include 'php'
 mt6-include nginx
+mt6-include mysql
 
 SQ_DIR="$STAGE_MNT/usr/local/www/squirrelmail"
 
@@ -19,7 +20,7 @@ install_squirrelmail_mysql()
 
 	if ! mysql_db_exists squirrelmail; then
 		tell_status "creating squirrelmail database"
-		echo "CREATE DATABASE squirrelmail;" | jexec mysql /usr/local/bin/mysql || exit
+		mysql_create_db squirrelmail || exit
 		echo "
 CREATE TABLE address (
   owner varchar(128) DEFAULT '' NOT NULL,
@@ -48,7 +49,7 @@ CREATE TABLE userprefs (
   prefkey varchar(64) DEFAULT '' NOT NULL,
   prefval BLOB NOT NULL,
   PRIMARY KEY (user,prefkey)
-);" | jexec mysql /usr/local/bin/mysql squirrelmail || exit
+);" | mysql_query squirrelmail || exit
 
 	fi
 
@@ -67,7 +68,7 @@ EO_SQUIRREL_SQL
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			echo "GRANT ALL PRIVILEGES ON squirrelmail.* to 'squirrelmail'@'${_ip}' IDENTIFIED BY '${sqpass}';" \
-				| jexec mysql /usr/local/bin/mysql || exit
+				| mysql_query || exit
 		done
 	done
 }

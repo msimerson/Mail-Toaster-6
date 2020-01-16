@@ -7,6 +7,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/spamassassin \$path/data nullfs rw 0 0\";"
 
+mt6-include mysql
+
 install_sa_update()
 {
 	tell_status "adding sa-update periodic task"
@@ -269,20 +271,20 @@ configure_spamassassin_mysql()
     # user_awl_sql_table           awl
 EO_MYSQL_CONF
 
-	echo 'CREATE DATABASE spamassassin;' | jexec mysql /usr/local/bin/mysql;
+	mysql_create_db spamassassin || exit
+
 	for _import_file in awl_mysql bayes_mysql userpref_mysql;
 	do
 		local _f="$STAGE_MNT/usr/local/share/doc/spamassassin/sql/${_import_file}.sql"
 		# shellcheck disable=SC2002
-		cat "$_f" | jexec mysql /usr/local/bin/mysql spamassassin
+		cat "$_f" | mysql_query spamassassin
 	done
 
 	for _jail in spamassassin stage;
 	do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "GRANT spamassassin.* to 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'" \
-				| jexec mysql /usr/local/bin/mysql
+			echo "GRANT spamassassin.* to 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'" | mysql_query || exit
 		done
 	done
 }

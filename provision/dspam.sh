@@ -6,6 +6,8 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+mt6-include mysql
+
 install_dspam()
 {
 	assure_jail mysql
@@ -24,10 +26,7 @@ configure_dspam_mysql()
 	fi
 
 	local _last
-	if ! mysql_db_exists dspam; then
-		tell_status "creating dspam database"
-		echo "CREATE DATABASE dspam;" | jexec mysql /usr/local/bin/mysql || exit
-	fi
+	mysql_create_db dspam || exit
 
 	local _curcfg="$ZFS_JAIL_MNT/dspam/usr/local/etc/dspam.conf"
 	if [ -f "$_curcfg" ]; then
@@ -46,7 +45,7 @@ configure_dspam_mysql()
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'${_ip}' IDENTIFIED BY '${_dpass}';" \
-				| jexec mysql /usr/local/bin/mysql || exit
+				| mysql_query || exit
 		done
 	done
 }

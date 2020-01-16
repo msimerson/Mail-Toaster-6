@@ -914,20 +914,6 @@ get_public_ip()
 	fi
 }
 
-mysql_db_exists()
-{
-	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
-	result=$(echo "$_query" | jexec mysql mysql -s -N)
-
-	if [ -z "$result" ]; then
-		echo "$1 db does not exist"
-		return 1
-	fi
-
-	echo "$1 db exists"
-	return 0
-}
-
 fetch_and_exec()
 {
 	if [ ! -d provision ]; then mkdir provision; fi

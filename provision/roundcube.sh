@@ -9,6 +9,7 @@ export JAIL_CONF_EXTRA=""
 
 mt6-include 'php'
 mt6-include nginx
+mt6-include mysql
 
 mysql_error_warning()
 {
@@ -26,7 +27,7 @@ install_roundcube_mysql()
 	local _init_db=0
 	if ! mysql_db_exists roundcubemail; then
 		tell_status "creating roundcube mysql db"
-		echo "CREATE DATABASE roundcubemail;" | jexec mysql /usr/local/bin/mysql || mysql_error_warning
+		mysql_create_db roundcubemail || mysql_error_warning
 
 		if mysql_db_exists roundcubemail; then
 			_init_db=1
@@ -58,7 +59,7 @@ install_roundcube_mysql()
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
 				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" \
-					| jexec mysql /usr/local/bin/mysql || exit
+					| mysql_query || exit
 			done
 		done
 

@@ -7,6 +7,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/mysql \$path/var/db/mysql nullfs rw 0 0\";"
 
+mt6-include mysql
+
 install_db_server()
 {
 	#Check if MariaDB needs to be installed
@@ -104,20 +106,7 @@ test_mysql()
 	fi
 }
 
-# if mysql isn't already provisioned
-if [ ! -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
-	# and the password is unset...
-	if [ -z "$TOASTER_MYSQL_PASS" ]; then
-		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
-		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
-		export TOASTER_MYSQL_PASS
-		if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
-			sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=.*$/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf
-		else
-			echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
-		fi
-	fi
-fi
+set_mysql_password
 
 if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ]; then
 	tell_status "installing MySQL"

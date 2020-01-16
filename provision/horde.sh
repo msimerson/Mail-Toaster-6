@@ -11,6 +11,7 @@ mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include 'php'
 mt6-include nginx
+mt6-include mysql
 
 install_horde()
 {
@@ -89,8 +90,7 @@ install_horde_mysql()
 {
 	local _init_db=0
 	if ! mysql_db_exists horde; then
-		tell_status "creating horde mysql db"
-		echo "CREATE DATABASE horde;" | jexec mysql /usr/local/bin/mysql || exit
+		mysql_create_db horde || exit
 		_init_db=1
 	fi
 
@@ -246,7 +246,7 @@ EO_HORDE_PREFS
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
 				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" \
-					| jexec mysql /usr/local/bin/mysql || exit
+					| mysql_query || exit
 			done
 		done
 	fi
