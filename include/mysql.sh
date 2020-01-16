@@ -32,15 +32,13 @@ mysql_bin()
 		return
 	fi
 
-	local _before; _before=$(umask)
-	umask 077
 	tee -a "$_root/.my.cnf" <<EO_MY_CNF
 [client]
 user = root
 password = $TOASTER_MYSQL_PASS
 EO_MY_CNF
+	chmod 600 "$_root/.my.cnf"
 	echo "/usr/local/bin/mysql"
-	umask "$_before"
 }
 
 mysql_query()
