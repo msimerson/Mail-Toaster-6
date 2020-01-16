@@ -1101,29 +1101,29 @@ mt6-include()
 
 jail_rename()
 {
-    if [ -z "$1" ] || [ -z "$2" ]; then
-        echo "$0 <existing jail name> <new jail name>"
-        exit
-    fi
+	if [ -z "$1" ] || [ -z "$2" ]; then
+		echo "$0 <existing jail name> <new jail name>"
+		exit
+	fi
 
-    echo "renaming $1 to $2"
-    service jail stop "$1"  || exit
+	echo "renaming $1 to $2"
+	service jail stop "$1"  || exit
 
-    for _f in data jails
-    do
-        zfs unmount "$ZFS_VOL/$_f/$1"
-        zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
-        zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
-        zfs mount "$ZFS_VOL/$_f/$2"
-    done
+	for _f in data jails
+	do
+		zfs unmount "$ZFS_VOL/$_f/$1"
+		zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
+		zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
+		zfs mount "$ZFS_VOL/$_f/$2"
+	done
 
-    sed -i .bak \
-        -e "/^$1\s/ s/$1/$2/" \
-        /etc/jail.conf || exit
+	sed -i .bak \
+		-e "/^$1\s/ s/$1/$2/" \
+		/etc/jail.conf || exit
 
-    service jail start "$2"
+	service jail start "$2"
 
-    echo "Don't forget to update your PF and/or Haproxy rules"
+	echo "Don't forget to update your PF and/or Haproxy rules"
 }
 
 configure_pkg_latest()
