@@ -79,7 +79,7 @@ fastcgi.server += (
 	"/munin-cgi/munin-cgi-graph" =>
 		( "munin-cgi-graph" => (
 			"bin-path"    => "/usr/local/www/cgi-bin/munin-cgi-graph",
-			"socket"      => "/var/spool/lighttpd/sockets/munin-cgi-graph.sock", 
+			"socket"      => "/var/spool/lighttpd/sockets/munin-cgi-graph.sock",
 			"bin-copy-environment" => ("PATH", "SHELL", "USER"),
 			"check-local" => "disable",
 			"broken-scriptfilename" => "enable",
@@ -179,7 +179,7 @@ configure_monitor()
 
 start_monitor()
 {
-   	tell_status "starting monitor"
+	tell_status "starting monitor"
 }
 
 test_monitor()
