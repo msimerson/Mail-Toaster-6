@@ -10,6 +10,7 @@ export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail
+mt6-include mysql
 
 install_maildrop()
 {
@@ -107,8 +108,7 @@ install_vpopmail_mysql_grants()
 	fi
 
 	if ! mysql_db_exists vpopmail; then
-		tell_status "creating vpopmail database"
-		echo "CREATE DATABASE vpopmail;" | jexec mysql /usr/local/bin/mysql || mysql_error_warning
+		mysql_create_db vpopmail || mysql_error_warning
 	fi
 
 	if ! mysql_db_exists vpopmail; then
@@ -133,7 +133,7 @@ install_vpopmail_mysql_grants()
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
-				| jexec mysql /usr/local/bin/mysql || exit
+				| mysql_query || exit
 		done
 	done
 }

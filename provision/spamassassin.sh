@@ -7,12 +7,14 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/spamassassin \$path/data nullfs rw 0 0\";"
 
+mt6-include mysql
+
 install_sa_update()
 {
 	tell_status "adding sa-update periodic task"
 	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
 	mkdir -p "$_periodic/daily"
-	cat <<EO_SAUPD > $_periodic/daily/502.sa-update
+	cat <<EO_SAUPD > "$_periodic/daily/502.sa-update"
 #!/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-update \
@@ -39,13 +41,13 @@ install_spamassassin_port()
 	tell_status "install SpamAssassin from ports (w/opts)"
 	stage_pkg_install dialog4ports p5-Encode-Detect p5-Test-NoWarnings || exit
 
-	local _SA_OPTS="DCC DKIM RAZOR RELAY_COUNTRY SPF_QUERY GNUPG_NONE"
+	local _SA_OPTS="DCC DKIM DOCS RAZOR RELAY_COUNTRY SPF_QUERY GNUPG_NONE"
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		_SA_OPTS="MYSQL $_SA_OPTS"
 	fi
 
 	stage_make_conf mail_spamassassin_SET "mail_spamassassin_SET=$_SA_OPTS"
-	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=SSL DOCS GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
+	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=SSL GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
 	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
 	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
 	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
@@ -269,20 +271,22 @@ configure_spamassassin_mysql()
     # user_awl_sql_table           awl
 EO_MYSQL_CONF
 
-	echo 'CREATE DATABASE spamassassin;' | jexec mysql /usr/local/bin/mysql;
-	for _import_file in awl_mysql bayes_mysql userpref_mysql;
+	mysql_create_db spamassassin || exit
+
+	# bayes_mysql
+	for _import_file in awl_mysql userpref_mysql;
 	do
 		local _f="$STAGE_MNT/usr/local/share/doc/spamassassin/sql/${_import_file}.sql"
 		# shellcheck disable=SC2002
-		cat "$_f" | jexec mysql /usr/local/bin/mysql spamassassin
+		cat "$_f" | sed -e 's/TYPE=MyISAM//' | mysql_query spamassassin || exit
 	done
 
 	for _jail in spamassassin stage;
 	do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "GRANT spamassassin.* to 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'" \
-				| jexec mysql /usr/local/bin/mysql
+			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'" \
+				| mysql_query || exit
 		done
 	done
 }

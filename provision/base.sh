@@ -143,6 +143,7 @@ enable_security_periodic()
 
 	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
+# packages that can be safely updated automatically
 for _pkg in curl expat vim-console;
 do
   /usr/sbin/pkg audit | grep "$_pkg" && pkg install -y "$_pkg"
@@ -582,10 +583,11 @@ freebsd_update
 configure_base
 start_staged_jail base "$BASE_MNT" || exit
 install_base
-jail -r stage
+stop_jail stage
 umount "$BASE_MNT/dev"
 rm -rf "$BASE_MNT/var/cache/pkg/*"
 echo "zfs snapshot ${BASE_SNAP}"
 zfs snapshot "${BASE_SNAP}" || exit
+add_jail_conf base
 
 proclaim_success base

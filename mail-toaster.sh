@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20200114"; }
+mt6_version() { echo "20200115"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -52,6 +52,7 @@ export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="0"
+export TOASTER_MYSQL_PASS=""
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export ROUNDCUBE_SQL="0"
@@ -64,12 +65,20 @@ export TOASTER_MSA="haraka"
 export MAXMIND_LICENSE_KEY=""
 
 EO_MT_CONF
+
+	chmod 600 mail-toaster.conf
 }
 
 config()
 {
 	if [ ! -f "mail-toaster.conf" ]; then
 		create_default_config
+	fi
+
+	local _mode; _mode=$(stat -f "%OLp" mail-toaster.conf)
+	if [ "$_mode" -ne 600 ]; then
+		echo "tightening permissions on mail-toaster.conf"
+		chmod 600 mail-toaster.conf
 	fi
 
 	echo "loading mail-toaster.conf"
@@ -913,20 +922,6 @@ get_public_ip()
 	fi
 }
 
-mysql_db_exists()
-{
-	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
-	result=$(echo "$_query" | jexec mysql mysql -s -N)
-
-	if [ -z "$result" ]; then
-		echo "$1 db does not exist"
-		return 1
-	fi
-
-	echo "$1 db exists"
-	return 0
-}
-
 fetch_and_exec()
 {
 	if [ ! -d provision ]; then mkdir provision; fi
@@ -986,6 +981,7 @@ unprovision_filesystem()
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
 		tell_status "destroying $ZFS_DATA_MNT/$1"
+		unmount_data "$1"
 		zfs destroy "$ZFS_DATA_VOL/$1"
 	fi
 
@@ -1040,7 +1036,7 @@ unprovision()
 			return
 		fi
 
-		service jail stop "$1"
+		service jail stop stage "$1"
 		unprovision_filesystem "$1"
 		return
 	fi
@@ -1105,29 +1101,29 @@ mt6-include()
 
 jail_rename()
 {
-    if [ -z "$1" ] || [ -z "$2" ]; then
-        echo "$0 <existing jail name> <new jail name>"
-        exit
-    fi
+	if [ -z "$1" ] || [ -z "$2" ]; then
+		echo "$0 <existing jail name> <new jail name>"
+		exit
+	fi
 
-    echo "renaming $1 to $2"
-    service jail stop "$1"  || exit
+	echo "renaming $1 to $2"
+	service jail stop "$1"  || exit
 
-    for _f in data jails
-    do
-        zfs unmount "$ZFS_VOL/$_f/$1"
-        zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
-        zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
-        zfs mount "$ZFS_VOL/$_f/$2"
-    done
+	for _f in data jails
+	do
+		zfs unmount "$ZFS_VOL/$_f/$1"
+		zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
+		zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
+		zfs mount "$ZFS_VOL/$_f/$2"
+	done
 
-    sed -i .bak \
-        -e "/^$1\s/ s/$1/$2/" \
-        /etc/jail.conf || exit
+	sed -i .bak \
+		-e "/^$1\s/ s/$1/$2/" \
+		/etc/jail.conf || exit
 
-    service jail start "$2"
+	service jail start "$2"
 
-    echo "Don't forget to update your PF and/or Haproxy rules"
+	echo "Don't forget to update your PF and/or Haproxy rules"
 }
 
 configure_pkg_latest()
