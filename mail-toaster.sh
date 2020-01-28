@@ -86,6 +86,13 @@ config()
 	. mail-toaster.conf
 }
 
+mt6-update()
+{
+	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
+	# shellcheck disable=SC1091
+	. mail-toaster.sh
+}
+
 mt6_version_check()
 {
 	if [ "$(uname)" != 'FreeBSD' ]; then return; fi
@@ -1073,13 +1080,6 @@ rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
 		/etc/pf.conf || exit
 
 	pfctl -f /etc/pf.conf || exit
-}
-
-mt6-update()
-{
-	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
-	# shellcheck disable=SC1091
-	. mail-toaster.sh
 }
 
 mt6-include()

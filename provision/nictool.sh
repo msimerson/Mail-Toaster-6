@@ -162,7 +162,7 @@ install_nictool_db()
 {
 	if [ "$NICTOOL_UPGRADE" = "1" ]; then return; fi
 
-	create_mysql_db nictool || exit
+	mysql_create_db nictool || exit
 
 	for f in "$STAGE_MNT"/usr/local/nictool/server/sql/*.sql; do
 		tell_status "creating nictool table $f"
