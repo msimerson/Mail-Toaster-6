@@ -37,6 +37,35 @@ test_jekyll()
 	stage_listening 4000 3
 }
 
+install_jekyll_macosx()
+{
+	sudo port install ruby26 rb26-nokogiri
+	sudo port select --set ruby ruby26
+
+	ruby -r rubygems -e 'require "jekyll-import";
+    JekyllImport::Importers::WordPress.run({
+      "dbname"         => "wordpress_ms_simerson",
+      "user"           => "jekyll",
+      "password"       => "secret",
+      "host"           => "mysql",
+      "port"           => "3306",
+      "socket"         => "",
+      "table_prefix"   => "wp_",
+      "site_prefix"    => "2_",
+      "clean_entities" => true,
+      "comments"       => true,
+      "categories"     => true,
+      "tags"           => true,
+      "more_excerpt"   => true,
+      "more_anchor"    => true,
+      "extension"      => "html",
+      "status"         => ["publish"]
+    })'
+
+	# GRANT SELECT ON wordpress_ms_simerson.* TO 'jekyll'@'172.16.15.55' IDENTIFIED BY 'secret';
+}
+
+
 base_snapshot_exists || exit
 create_staged_fs jekyll
 start_staged_jail jekyll
