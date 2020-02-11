@@ -27,7 +27,7 @@ install_clamav_unofficial()
 		dialog --yesno "$_es_mess" 18 74 || return
 	fi
 
-	local CLAMAV_UV=6.1.1
+	local CLAMAV_UV=7.0.1
 	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
 	stage_pkg_install gnupg1 rsync bind-tools
