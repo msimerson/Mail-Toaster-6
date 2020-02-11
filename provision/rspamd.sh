@@ -167,7 +167,7 @@ configure_rspamd()
 		fi
 	done
 
-  	configure_logging
+	#configure_logging
   	configure_redis
 	configure_dmarc
 	configure_stats

@@ -144,7 +144,7 @@ enable_security_periodic()
 	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
 # packages that can be safely updated automatically
-for _pkg in curl expat vim-console;
+for _pkg in curl expat pkg sudo vim-console;
 do
   /usr/sbin/pkg audit | grep "$_pkg" && pkg install -y "$_pkg"
 done
