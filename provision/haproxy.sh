@@ -84,11 +84,13 @@ defaults
 
 
 frontend http-in
-	mode tcp
+	#mode tcp
 	bind :::80 v4v6 alpn http/1.1
-	bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
+	bind :::443 v4v6 alpn http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
+    http-request  set-header X-Forwarded-Proto https if { ssl_fc }
+    http-request  set-header X-Forwarded-Port %[dst_port]
 	http-response set-header X-Frame-Options sameorigin
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
