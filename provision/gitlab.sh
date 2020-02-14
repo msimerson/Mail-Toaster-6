@@ -34,7 +34,7 @@ postgres:\
 		:tc=default:
 EO_LC
 
- 		stage_exec cap_mkdb /etc/login.conf
+		stage_exec cap_mkdb /etc/login.conf
 		stage_sysrc postgresql_class=postgres
 	fi
 

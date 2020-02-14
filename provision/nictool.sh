@@ -10,6 +10,8 @@ export JAIL_CONF_EXTRA=""
 export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 export NICTOOL_UPGRADE=""
 
+mt6-include mysql
+
 install_nt_prereqs()
 {
 	assure_jail mysql
@@ -97,8 +99,7 @@ install_nictool_server() {
 		for _jail in nictool stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
-				echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'${_ip}' IDENTIFIED BY 'lootcin205';" \
-					| jexec mysql /usr/local/bin/mysql || exit
+				echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'${_ip}' IDENTIFIED BY 'lootcin205';" | mysql_query || exit
 			done
 		done
 	fi
@@ -161,17 +162,12 @@ install_nictool_db()
 {
 	if [ "$NICTOOL_UPGRADE" = "1" ]; then return; fi
 
-	if mysql_db_exists nictool; then
-		tell_status "nictool mysql db exists"
-		return
-	fi
+	mysql_create_db nictool || exit
 
-	tell_status "creating nictool mysql db"
-	echo "CREATE DATABASE nictool;" | jexec mysql /usr/local/bin/mysql || exit
 	for f in "$STAGE_MNT"/usr/local/nictool/server/sql/*.sql; do
 		tell_status "creating nictool table $f"
 		# shellcheck disable=SC2002
-		cat "$f" | jexec mysql /usr/local/bin/mysql nictool
+		cat "$f" | mysql_query nictool || exit
 		sleep 1;
 	done
 }

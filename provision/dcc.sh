@@ -8,19 +8,39 @@ export JAIL_CONF_EXTRA=""
 
 install_dcc_cleanup()
 {
+	if [ ! -x "$STAGE_MNT/usr/local/libexec/cron-dccd" ]; then
+		echo "ERROR: could not find cron-dccd!"
+		exit 2
+	fi
+
+	if [ ! -d "$STAGE_MNT/var/db/dcc/log" ]; then
+		echo "ERROR: could not find dcc log dir!"
+		exit 2
+	fi
+
 	tell_status "adding DCC cleanup periodic task"
 	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
 	mkdir -p "$_periodic"
-	cat <<EO_DCC > $_periodic/daily/501.dccd
+	cat <<EO_DCC > "$_periodic/daily/501.dccd"
 #!/bin/sh
-/usr/local/dcc/libexec/cron-dccd
-/usr/bin/find /usr/local/dcc/log/ -not -newermt '1 days ago' -delete
+/usr/local/libexec/cron-dccd
+/usr/bin/find /var/db/dcc/log/ -not -newermt '1 days ago' -delete
 EO_DCC
 	chmod 755 "$_periodic/daily/501.dccd"
 }
 
+install_dcc_port_options()
+{
+	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
+	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
+	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
+}
+
 install_dcc()
 {
+	install_dcc_port_options
+	stage_pkg_install dialog4ports
+
 	tell_status "install dcc"
 	stage_port_install mail/dcc-dccd || exit
 

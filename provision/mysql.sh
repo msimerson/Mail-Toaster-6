@@ -26,7 +26,7 @@ install_mysql()
 install_mariadb()
 {
 	tell_status "installing mariadb"
-	stage_pkg_install mariadb103-server || exit
+	stage_pkg_install mariadb104-server || exit
 }
 
 configure_mysql()
@@ -87,16 +87,60 @@ test_mysql()
 {
 	tell_status "testing mysql"
 	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
-		true
-	else
-		sleep 1
-		echo 'SHOW DATABASES' | stage_exec mysql || exit
-		stage_listening 3306
-		echo "it worked"
+		return
 	fi
+
+	sleep 1
+	_inital_pass=$(tail -n1 "$STAGE_MNT/root/.mysql_secret")
+	if [ -z "$_inital_pass" ]; then
+		echo "ERROR: unable to find the mysql intial password"
+		exit 1
+	fi
+	echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
+		| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
+		|| exit
+	rm "$STAGE_MNT/root/.mysql_secret"
+
+	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit
+	stage_listening 3306
+	echo "it worked"
 }
 
-if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ]; then
+write_pass_to_conf()
+{
+	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
+		sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=.*$/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf
+		rm mail-toaster.conf.bak
+	else
+		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
+	fi
+
+	tee "$STAGE_MNT/root/.my.cnf" <<EO_MY_CNF
+[client]
+user = root
+password = $TOASTER_MYSQL_PASS
+EO_MY_CNF
+	chmod 600 "$STAGE_MNT/root/.my.cnf"
+}
+
+set_mysql_password()
+{
+	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
+		# mysql is already provisioned
+		return
+	fi
+
+	if [ -z "$TOASTER_MYSQL_PASS" ]; then
+		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
+
+		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
+		export TOASTER_MYSQL_PASS
+	fi
+
+	write_pass_to_conf
+}
+
+if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
 	tell_status "installing MySQL"
 else
 	tell_status "skipping MySQL install, not configured"
@@ -105,6 +149,7 @@ fi
 
 base_snapshot_exists || exit
 create_staged_fs mysql
+set_mysql_password
 start_staged_jail mysql
 install_db_server
 start_mysql

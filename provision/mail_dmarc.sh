@@ -47,7 +47,7 @@ start_dmarc()
 	tell_status "starting Mail::DMARC httpd service"
 	stage_exec /usr/local/bin/dmarc_httpd &
 
-	echo "/usr/local/bin/dmarc_httpd" >> "$ZFS_DATA_MNT/etc/rc.local"
+	echo "/usr/local/bin/dmarc_httpd &" >> "$STAGE_MNT/etc/rc.local"
 	sleep 1
 }
 

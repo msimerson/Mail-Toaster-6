@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# bump version when a change in this file effects a provision script(s)
+mt6_version() { echo "20200115"; }
+
 dec_to_hex() { printf '%04x\n' "$1"; }
 
 get_random_ip6net()
@@ -16,14 +19,14 @@ create_default_config()
 	local _EMAIL_DOMAIN
 	local _ORGNAME
 
-	if [ -t 0 ]; then
+	if [ -t 0 ] && [ "$(uname)" = 'FreeBSD' ]; then
 		echo "editing prefs"
 		_HOSTNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
 		_EMAIL_DOMAIN=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
 		_ORGNAME=$(dialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_ORG_NAME --inputbox "the name of your organization" 8 70 "Email Inc")
 	fi
 
-	# for Travis CI (Linux) where dialog doesn't exist
+	# for dev/test environs where dialog doesn't exist
 	if [ -z "$_HOSTNAME"     ]; then _HOSTNAME=$(hostname); fi
 	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
@@ -49,6 +52,7 @@ export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MYSQL="0"
+export TOASTER_MYSQL_PASS=""
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export ROUNDCUBE_SQL="0"
@@ -57,8 +61,12 @@ export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
 export TOASTER_QMHANDLE="0"
+export TOASTER_MSA="haraka"
+export MAXMIND_LICENSE_KEY=""
 
 EO_MT_CONF
+
+	chmod 600 mail-toaster.conf
 }
 
 config()
@@ -67,11 +75,48 @@ config()
 		create_default_config
 	fi
 
+	local _mode; _mode=$(stat -f "%OLp" mail-toaster.conf)
+	if [ "$_mode" -ne 600 ]; then
+		echo "tightening permissions on mail-toaster.conf"
+		chmod 600 mail-toaster.conf
+	fi
+
 	echo "loading mail-toaster.conf"
 	# shellcheck disable=SC1091,SC2039
 	. mail-toaster.conf
 }
 
+mt6-update()
+{
+	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
+	# shellcheck disable=SC1091
+	. mail-toaster.sh
+}
+
+mt6_version_check()
+{
+	if [ "$(uname)" != 'FreeBSD' ]; then return; fi
+
+	local _github
+	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep '^mt6_version(' | cut -f2 -d'"')
+	if [ -z "$_github" ]; then
+		echo "v: <failed lookup>"
+		return
+	else
+		echo "v: $_github"
+	fi
+
+	local _this
+	_this="$(mt6_version)";
+	if [ -n "$_this" ] && [ "$_this" -lt "$_github" ]; then
+		echo "NOTICE: updating mail-toaster.sh"
+		mt6-update
+	fi
+}
+
+export TOASTER_SRC_URL=${TOASTER_SRC_URL:="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"}
+
+mt6_version_check
 # load the local config file
 config
 
@@ -79,14 +124,13 @@ config
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
-export TOASTER_SRC_URL=${TOASTER_SRC_URL:="https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master"}
 
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -99,12 +143,14 @@ export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
+export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
 
-usage() {
+usage()
+{
 	if [ -n "$1" ]; then echo; echo "ERROR: missing required $1"; echo; fi
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
@@ -133,9 +179,11 @@ export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
 export FBSD_REL_VER FBSD_PATCH_VER
-FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
-FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
-FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
+if [ "$(uname)" = 'FreeBSD' ]; then
+	FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
+	FBSD_PATCH_VER=$(/bin/freebsd-version | /usr/bin/cut -f3 -d'-')
+	FBSD_PATCH_VER=${FBSD_PATCH_VER:="p0"}
+fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
 # host OS version, ex: base-11.0-RELEASE and the snapshot name will be the OS
@@ -147,9 +195,7 @@ export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 export STAGE_MNT="$ZFS_JAIL_MNT/stage"
 
-fatal_err() {
-	echo; echo "FATAL: $1"; echo; exit
-}
+fatal_err() { echo; echo "FATAL: $1"; echo; exit; }
 
 safe_jailname()
 {
@@ -191,8 +237,8 @@ zfs_mountpoint_exists()
 	return 1
 }
 
-zfs_create_fs() {
-
+zfs_create_fs()
+{
 	if zfs_filesystem_exists "$1"; then return; fi
 	if zfs_mountpoint_exists "$2"; then return; fi
 
@@ -288,7 +334,13 @@ get_jail_ip()
 		_octet=$((_octet + 1))
 	done
 
-	# return error code if _incr unset
+	_dns=$(host "$1" | grep 'has address' | cut -f4 -d' ')
+	if [ -n "$_dns" ]; then
+		echo "$_dns"
+		return
+	fi
+
+	# return error code
 	return 2
 }
 
@@ -318,7 +370,13 @@ get_jail_ip6()
 		_octet=$((_octet + 1))
 	done
 
-	# return error code if _incr unset
+	_dns=$(host "$1" | grep 'has IPv6 address' | cut -f5 -d' ')
+	if [ -n "$_dns" ]; then
+		echo "$_dns"
+		return
+	fi
+
+	# return error code
 	return 2
 }
 
@@ -375,6 +433,31 @@ $1	{
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}${JAIL_CONF_EXTRA}
 	}
 EO_JAIL_CONF
+}
+
+add_automount()
+{
+	if grep -q auto_ports /etc/auto_master; then
+		if grep -qs "^$ZFS_JAIL_MNT/$1/" /etc/auto_ports; then
+			tell_status "automount ports already configured"
+		else
+			tell_status "enabling /usr/ports automount"
+			echo "$ZFS_JAIL_MNT/$1/usr/ports		-fstype=nullfs :/usr/ports" | tee -a /etc/auto_ports
+			/usr/sbin/automount
+		fi
+	else
+		echo "automount not enabled, see https://github.com/msimerson/Mail-Toaster-6/wiki/automount"
+	fi
+
+	if grep -q auto_pkgcache /etc/auto_master; then
+		if grep -qs "^$ZFS_JAIL_MNT/$1/" /etc/auto_pkgcache; then
+			tell_status "automount pkg cache already configured"
+		else
+			tell_status "enabling /var/cache/pkg automount"
+			echo "$ZFS_JAIL_MNT/$1/var/cache/pkg		-fstype=nullfs :/var/cache/pkg" | tee -a /etc/auto_pkgcache
+			/usr/sbin/automount
+		fi
+	fi
 }
 
 stop_jail()
@@ -459,7 +542,8 @@ stage_unmount_aux_data()
 	esac
 }
 
-stage_mount_aux_data() {
+stage_mount_aux_data()
+{
 	case "$1" in
 		spamassassin )  mount_data geoip ;;
 		haraka )        mount_data geoip ;;
@@ -609,6 +693,7 @@ promote_staged_jail()
 	rename_active_to_last "$1"
 	rename_ready_to_active "$1"
 	add_jail_conf "$1"
+	add_automount "$1"
 
 	tell_status "service jail start $1"
 	service jail start "$1" || exit 1
@@ -624,6 +709,7 @@ stage_pkg_install()
 
 stage_port_install()
 {
+	# $1 is the port directory (ex: mail/dovecot)
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
 
@@ -843,20 +929,6 @@ get_public_ip()
 	fi
 }
 
-mysql_db_exists()
-{
-	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
-	result=$(echo "$_query" | jexec mysql mysql -s -N)
-
-	if [ -z "$result" ]; then
-		echo "$1 db does not exist"
-		return 1
-	fi
-
-	echo "$1 db exists"
-	return 0
-}
-
 fetch_and_exec()
 {
 	if [ ! -d provision ]; then mkdir provision; fi
@@ -916,6 +988,7 @@ unprovision_filesystem()
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
 		tell_status "destroying $ZFS_DATA_MNT/$1"
+		unmount_data "$1"
 		zfs destroy "$ZFS_DATA_VOL/$1"
 	fi
 
@@ -970,7 +1043,7 @@ unprovision()
 			return
 		fi
 
-		service jail stop "$1"
+		service jail stop stage "$1"
 		unprovision_filesystem "$1"
 		return
 	fi
@@ -1009,13 +1082,6 @@ rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
 	pfctl -f /etc/pf.conf || exit
 }
 
-mt6-update()
-{
-	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
-	# shellcheck disable=SC1091
-	. mail-toaster.sh
-}
-
 mt6-include()
 {
 	if [ ! -d include ]; then
@@ -1035,29 +1101,29 @@ mt6-include()
 
 jail_rename()
 {
-    if [ -z "$1" ] || [ -z "$2" ]; then
-        echo "$0 <existing jail name> <new jail name>"
-        exit
-    fi
+	if [ -z "$1" ] || [ -z "$2" ]; then
+		echo "$0 <existing jail name> <new jail name>"
+		exit
+	fi
 
-    echo "renaming $1 to $2"
-    service jail stop "$1"  || exit
+	echo "renaming $1 to $2"
+	service jail stop "$1"  || exit
 
-    for _f in data jails
-    do
-        zfs unmount "$ZFS_VOL/$_f/$1"
-        zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
-        zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
-        zfs mount "$ZFS_VOL/$_f/$2"
-    done
+	for _f in data jails
+	do
+		zfs unmount "$ZFS_VOL/$_f/$1"
+		zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
+		zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
+		zfs mount "$ZFS_VOL/$_f/$2"
+	done
 
-    sed -i .bak \
-        -e "/^$1\s/ s/$1/$2/" \
-        /etc/jail.conf || exit
+	sed -i .bak \
+		-e "/^$1\s/ s/$1/$2/" \
+		/etc/jail.conf || exit
 
-    service jail start "$2"
+	service jail start "$2"
 
-    echo "Don't forget to update your PF and/or Haproxy rules"
+	echo "Don't forget to update your PF and/or Haproxy rules"
 }
 
 configure_pkg_latest()

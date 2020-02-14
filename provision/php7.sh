@@ -6,7 +6,7 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
-mt6-include 'php'
+mt6-include php
 
 install_php7()
 {

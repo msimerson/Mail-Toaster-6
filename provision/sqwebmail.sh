@@ -19,7 +19,7 @@ security_courier-authlib_SET=AUTH_VCHKPW
 	export BATCH=${BATCH:="1"}
 
 	# sunset after 2017-08 (when courier-unicode 2.0 is installed by pkg)
-	stage_port_install devel/courier-unicode || exit
+	#stage_port_install devel/courier-unicode || exit
 
 	stage_port_install security/courier-authlib || exit
 }
@@ -46,7 +46,7 @@ install_sqwebmail()
 	install_vpopmail_port
 
 	tell_status "installing sqwebmail"
-	stage_pkg_install sqwebmail courier-authlib lighttpd maildrop gnupg || exit
+	stage_pkg_install courier-authlib lighttpd maildrop gnupg || exit
 
 	install_authdaemond
 	install_sqwebmail_src

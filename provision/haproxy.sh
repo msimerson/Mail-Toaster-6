@@ -126,7 +126,7 @@ frontend http-in
 	use_backend www_webmail      if  letsencrypt
 
 	use_backend www_monitor      if  munin
-	use_backend www_monitor      if  nagios
+	use_backend www_nagios       if  nagios
 	use_backend www_haraka       if  watch
 	use_backend www_vpopmail     if  qmailadmin
 	use_backend www_sqwebmail    if  sqwebmail
@@ -214,6 +214,9 @@ frontend http-in
 
 	backend www_dmarc
 	server monitor $(get_jail_ip mail_dmarc):8080
+
+	backend www_nagios
+	server monitor $(get_jail_ip nagios):80
 
 EO_HAPROXY_CONF
 }
