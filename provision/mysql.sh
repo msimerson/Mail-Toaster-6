@@ -97,7 +97,7 @@ test_mysql()
 		exit 1
 	fi
 	echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
-		| stage_exec mysql -u root --connect-expired-password --password="\"$_inital_pass\"" \
+		| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
 		|| exit
 	rm "$STAGE_MNT/root/.mysql_secret"
 
