@@ -8,16 +8,28 @@ export JAIL_CONF_EXTRA=""
 
 install_haproxy()
 {
-	if [ "$TLS_LIBRARY" = "libressl" ]; then
-		install_haproxy_libressl || exit 1
-		return
-	fi
-
-	tell_status "installing haproxy"
-	stage_pkg_install haproxy || exit 1
+	case "$TLS_LIBRARY" in
+		libressl)  install_haproxy_libressl;;
+		openssl*)  install_haproxy_openssl;;
+		*)	       install_haproxy_pkg;;
+	esac
 
 	tell_status "consider installing hatop for a 'top' style haproxy dashboard"
-	#stage_pkg_install hatop || exit 1
+	#stage_pkg_install hatop
+}
+
+install_haproxy_pkg()
+{
+	tell_status "installing haproxy"
+	stage_pkg_install haproxy || exit 1
+}
+
+install_haproxy_openssl()
+{
+	tell_status "compiling haproxy against openssl $TLS_LIBRARY"
+	echo "DEFAULT_VERSIONS+=ssl=$TLS_LIBRARY" >> "$STAGE_MNT/etc/make.conf"
+	stage_pkg_install pcre gmake "$TLS_LIBRARY" || exit 1
+	stage_port_install net/haproxy || exit 1
 }
 
 install_haproxy_libressl()
@@ -25,7 +37,7 @@ install_haproxy_libressl()
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
 	stage_pkg_install pcre gmake libressl || exit 1
-	stage_port_install net/haproxy-devel || exit 1
+	stage_port_install net/haproxy || exit 1
 }
 
 configure_haproxy_dot_conf()
@@ -70,10 +82,11 @@ defaults
 	#    stats auth admin:password
 	#    stats admin if TRUE
 
+
 frontend http-in
-	bind :::80 v4v6
-	bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private
-	#bind :::443 v4v6 alpn h2,http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
+	#mode tcp
+	bind :::80 v4v6 alpn http/1.1
+	bind :::443 v4v6 alpn http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -112,6 +125,8 @@ frontend http-in
 	acl dmarc        path_beg /dmarc
 
 	use_backend websocket_haraka if  is_websocket
+	use_backend www_webmail      if  letsencrypt
+
 	use_backend www_monitor      if  munin
 	use_backend www_nagios       if  nagios
 	use_backend www_haraka       if  watch
@@ -133,10 +148,6 @@ frontend http-in
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
 
-
-	# for Let's Encrypt SSL/TLS certificates
-	use_backend www_webmail      if  letsencrypt
-
 	default_backend www_webmail
 
 	backend www_vpopmail
@@ -156,17 +167,17 @@ frontend http-in
 	server haraka $(get_jail_ip haraka):80
 
 	backend www_webmail
-	server webmail $(get_jail_ip webmail):80
+	server webmail $(get_jail_ip webmail):80 send-proxy
 
 	backend www_roundcube
-	server roundcube $(get_jail_ip roundcube):80
+	server roundcube $(get_jail_ip roundcube):80 send-proxy
 	reqirep ^([^\ :]*)\ /roundcube/(.*)    \1\ /\2
 
 	backend www_squirrelmail
-	server squirrelmail $(get_jail_ip squirrelmail):80
+	server squirrelmail $(get_jail_ip squirrelmail):80 send-proxy
 
 	backend www_rainloop
-	server rainloop $(get_jail_ip rainloop):80
+	server rainloop $(get_jail_ip rainloop):80 send-proxy
 	reqirep ^([^\ :]*)\ /rainloop/(.*)    \1\ /\2
 
 	backend www_monitor
@@ -181,19 +192,19 @@ frontend http-in
 	reqirep ^([^\ :]*)\ /nictool/(.*)    \1\ /\2
 
 	backend www_mediawiki
-	server monitor $(get_jail_ip mediawiki):80
+	server monitor $(get_jail_ip mediawiki):80 send-proxy
 
 	backend www_smf
-	server monitor $(get_jail_ip smf):80
+	server monitor $(get_jail_ip smf):80 send-proxy
 
 	backend www_wordpress
-	server monitor $(get_jail_ip wordpress):80
+	server monitor $(get_jail_ip wordpress):80 send-proxy
 
 	backend www_stage
-	server monitor $(get_jail_ip stage):80
+	server monitor $(get_jail_ip stage):80 send-proxy
 
 	backend www_horde
-	server monitor $(get_jail_ip horde):80
+	server monitor $(get_jail_ip horde):80 send-proxy
 
 	backend www_prometheus
 	server monitor $(get_jail_ip prometheus):9090
