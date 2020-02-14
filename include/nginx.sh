@@ -40,10 +40,10 @@ install_nginx_newsyslog()
 	tell_status "enabling nginx log file rotation"
 	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx" <<EO_NG_NSL
 # rotate nightly (default)
-/var/log/nginx-*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+/var/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 
-# rotate when file size reaches 1M
-#/var/log/nginx-*.log		root:wheel	644	 7     1024	 *   BCGX  /var/run/nginx.pid 30
+# rotate when file size reaches 20M
+#/var/log/nginx/*.log		root:wheel	644	 7     20480	 *   BCGX  /var/run/nginx.pid 30
 EO_NG_NSL
 
 }

@@ -86,7 +86,7 @@ start_mysql()
 test_mysql()
 {
 	tell_status "testing mysql"
-	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
+	if [ -d "$ZFS_DATA_MNT/mysql/mysql" ]; then
 		return
 	fi
 
@@ -109,7 +109,7 @@ test_mysql()
 write_pass_to_conf()
 {
 	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
-		sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=.*$/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf
+		sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=\"\"/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf
 		rm mail-toaster.conf.bak
 	else
 		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
@@ -125,7 +125,7 @@ EO_MY_CNF
 
 set_mysql_password()
 {
-	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
+	if [ -d "$ZFS_DATA_MNT/mysql/mysql" ]; then
 		# mysql is already provisioned
 		return
 	fi
