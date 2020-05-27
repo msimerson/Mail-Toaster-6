@@ -30,7 +30,7 @@ install_clamav_unofficial()
 	local CLAMAV_UV=7.0.1
 	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
-	stage_pkg_install gnupg1 rsync bind-tools
+	stage_pkg_install gnupg1 rsync bind-tools gtar
 	fetch -m -o "$STAGE_MNT/tmp/" \
 	  "https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz"
 	tar -xz -C "$STAGE_MNT/tmp/" -f "$STAGE_MNT/tmp/$CLAMAV_UV.tar.gz" || exit
