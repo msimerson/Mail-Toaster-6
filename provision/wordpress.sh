@@ -14,7 +14,7 @@ install_wordpress()
 	assure_jail mysql
 
 	install_nginx
-	install_php 72 "ctype curl ftp gd hash mysqli session tokenizer xml zip zlib"
+	install_php 72 "ctype curl ftp gd hash json mysqli session tokenizer xml zip zlib"
 
 	stage_pkg_install dialog4ports
 
