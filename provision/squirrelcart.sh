@@ -19,7 +19,7 @@ install_squirrelcart()
 
 	# find and unzip the newest squirrelcart zip file
 	local _zipfile
-	# shellcheck disable=2012
+	# shellcheck disable=2012,2086
 	_zipfile=$(ls -t -1 $ZFS_DATA_MNT/squirrelcart/squirrelcart*.zip | head -n1)
 	if [ ! -f "$_zipfile" ]; then
 		tell_status "place the latest squirrelcart zip file in $ZFS_DATA_MNT/squirrelcart"
@@ -48,6 +48,10 @@ install_squirrelcart()
 	done
 
 	mv "$STAGE_MNT/tmp/$_verdir/upload" "$STAGE_MNT/usr/local/www/squirrelcart" || exit
+	if [ -d "$STAGE_MNT/usr/local/www/squirrelcart/sc_images" ];
+	then
+		rm -r "$STAGE_MNT/usr/local/www/squirrelcart/sc_images"
+	fi
 	ln -s /data/sc_images "$STAGE_MNT/usr/local/www/squirrelcart/sc_images"
 	install_nginx || exit
 	install_php 72 "mysqli session curl openssl gd json soap xml" || exit
@@ -132,7 +136,7 @@ configure_squirrelcart()
 	configure_postfix
 
 	local _cf_rel="usr/local/www/squirrelcart/squirrelcart/config.php"
-	local _cf_prev="$ZFS_DATA_MNT/squirrelcart/$_cf_rel"
+	local _cf_prev="$ZFS_JAIL_MNT/squirrelcart.last/$_cf_rel"
 	local _cf_stage="$STAGE_MNT/$_cf_rel"
 
 	if [ -f "$_cf_prev" ]; then
