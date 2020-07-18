@@ -48,10 +48,26 @@ install_elasticsearch6()
 	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana6"
 }
 
+install_elasticsearch7()
+{
+	tell_status "installing Elasticsearch"
+	stage_pkg_install elasticsearch7
+
+	create_data_dirs
+
+	tell_status "installing kibana"
+	stage_pkg_install kibana7
+
+	mkdir "$STAGE_MNT/usr/local/www/kibana7/config"
+	touch "$STAGE_MNT/usr/local/www/kibana7/config/kibana.yml"
+	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana7"
+}
+
 install_elasticsearch()
 {
-	# install_elasticsearch5
-	install_elasticsearch6
+	#install_elasticsearch5
+	#install_elasticsearch6
+	install_elasticsearch7
 }
 
 configure_elasticsearch()
