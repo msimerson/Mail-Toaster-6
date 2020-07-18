@@ -14,7 +14,7 @@ install_wordpress()
 	assure_jail mysql
 
 	install_nginx
-	install_php 72 "ctype curl ftp gd hash json mysqli session tokenizer xml zip zlib"
+	install_php 74 "ctype curl dom exif fileinfo filter ftp gd iconv json mbstring mysqli openssl pecl-imagick session tokenizer xml zip zlib"
 
 	stage_pkg_install dialog4ports
 
@@ -123,22 +123,25 @@ configure_wp_config()
 	local _wp_install="$ZFS_JAIL_MNT/wordpress/usr/local/www/wordpress"
 	local _wp_stage="$STAGE_MNT/usr/local/www/wordpress"
 
-	if [ ! -d "$_local_content" ]; then
-		tell_status "copying wp-content to /data"
-		cp -r "$_wp_stage/wp-content" "$_local_content"
-		chown -R 80:80 "$_local_content"
+	if [ -d "$_local_content" ]; then
+		tell_status "linking wp-content to $_local_content"
+		rm -r "$STAGE_MNT/usr/local/www/wordpress/wp-content"
+		ln -s "$STAGE_MNT/usr/local/www/wordpress/wp-content" /data/content
 	else
-		chown -R 80:80 "$_wp_stage/wp-content"
+		tell_status "copying wp-content to /data"
+		mv "$_wp_stage/wp-content" "$_local_content"
+		chown -R 80:80 "$_local_content"
 	fi
 
 	if [ ! -d "$_local_content/uploads" ]; then
+		tell_status "creating $_local_content/uploads"
 		mkdir "$_local_content/uploads"
 		chown 80:80 "$_local_content/uploads"
 	fi
 
 	local _installed_config="$_wp_install/wp-config.php"
 	if [ -f "$_installed_config" ]; then
-		tell_status "installing local wp-config.php"
+		tell_status "preserving wp-config.php"
 		cp "$_installed_config" "$STAGE_MNT/usr/local/www/wordpress/" || exit
 		return
 	else
