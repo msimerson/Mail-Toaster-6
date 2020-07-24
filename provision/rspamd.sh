@@ -143,7 +143,7 @@ EO_SURBL
 configure_worker()
 {
 	tee "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
-	bind_socket = "*v4:11333";
+	bind_socket = "*:11333";
 	count = 4;
 EO_WORKER
 }
