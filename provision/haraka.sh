@@ -28,8 +28,8 @@ install_haraka()
 	stage_exec npm set -g unsafe-perm true
 	stage_exec npm install -g --only=prod /root/Haraka || exit
 
-	local _plugins="ws express haraka-plugin-log-reader"
-	for _p in known-senders aliases; do
+	local _plugins="ws express"
+	for _p in log-reader known-senders aliases dmarc-perl; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
 	stage_exec bash -c "cd /data && npm install --only=prod $_plugins"
