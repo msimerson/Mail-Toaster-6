@@ -8,13 +8,12 @@ export JAIL_CONF_EXTRA=""
 
 install_mongodb()
 {
-	# package for 3.4 doesn't exist yet
-	#tell_status "installing mongodb 3.4 pkg"
-	#stage_pkg_install mongodb34 || exit
+	tell_status "installing mongodb 4.2 pkg"
+	stage_pkg_install mongodb42 || exit
 
-	tell_status "install mongodb 3.4"
-	stage_pkg_install dialog4ports python scons boost-libs snappy pcre cyrus-sasl || exit 1
-	stage_port_install databases/mongodb34 || exit 1
+	#tell_status "install mongodb 4.2"
+	#stage_pkg_install dialog4ports python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp mongodb42 || exit 1
+	#stage_port_install databases/mongodb42 || exit 1
 }
 
 configure_mongodb()
