@@ -158,7 +158,7 @@ frontend http-in
 
 	backend www_haraka
 	server haraka $(get_jail_ip haraka):80
-	reqirep ^([^\ :]*)\ /haraka/(.*)    \1\ /\2
+	http-request replace-uri /haraka/(.*) /\1
 
 	backend websocket_haraka
 	timeout queue 5s
@@ -171,25 +171,25 @@ frontend http-in
 
 	backend www_roundcube
 	server roundcube $(get_jail_ip roundcube):80 send-proxy
-	reqirep ^([^\ :]*)\ /roundcube/(.*)    \1\ /\2
+	http-request replace-uri /roundcube/(.*) /\1
 
 	backend www_squirrelmail
 	server squirrelmail $(get_jail_ip squirrelmail):80 send-proxy
 
 	backend www_rainloop
 	server rainloop $(get_jail_ip rainloop):80 send-proxy
-	reqirep ^([^\ :]*)\ /rainloop/(.*)    \1\ /\2
+	http-request replace-uri /rainloop/(.*) /\1
 
 	backend www_monitor
 	server monitor $(get_jail_ip monitor):80
 
 	backend www_rspamd
 	server monitor $(get_jail_ip rspamd):11334
-	reqirep ^([^\ :]*)\ /rspamd/(.*)    \1\ /\2
+	http-request replace-uri /rspamd/(.*) /\1
 
 	backend www_nictool
 	server monitor $(get_jail_ip nictool):80
-	reqirep ^([^\ :]*)\ /nictool/(.*)    \1\ /\2
+	http-request replace-uri /nictool/(.*) /\1
 
 	backend www_mediawiki
 	server monitor $(get_jail_ip mediawiki):80 send-proxy
@@ -208,11 +208,11 @@ frontend http-in
 
 	backend www_prometheus
 	server monitor $(get_jail_ip prometheus):9090
-	reqirep ^([^\ :]*)\ /prometheus/(.*)    \1\ /\2
+	http-request replace-uri /prometheus/(.*) /\1
 
 	backend www_grafana
 	server monitor $(get_jail_ip grafana):3000
-	reqirep ^([^\ :]*)\ /grafana/(.*)    \1\ /\2
+	http-request replace-uri /grafana/(.*) /\1
 
 	backend www_dmarc
 	server monitor $(get_jail_ip mail_dmarc):8080
