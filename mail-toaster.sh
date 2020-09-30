@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20200115"; }
+mt6_version() { echo "20201030"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -672,6 +672,7 @@ enable_jail()
 
 	tell_status "enabling jail $1 at startup"
 	sysrc jail_list+=" $1"
+	sysrc -f /etc/periodic.conf security_status_pkgaudit_jails+=" $1"
 }
 
 promote_staged_jail()
@@ -1034,6 +1035,13 @@ unprovision_files()
 	fi
 }
 
+unprovision_rc()
+{
+	tell_status "disabling jail $1 startup"
+	sysrc jail_list-=" $1"
+	sysrc -f /etc/periodic.conf security_status_pkgaudit_jails-=" $1"
+}
+
 unprovision()
 {
 	if [ -n "$1" ]; then
@@ -1045,6 +1053,7 @@ unprovision()
 
 		service jail stop stage "$1"
 		unprovision_filesystem "$1"
+		unprovision_rc "$1"
 		return
 	fi
 
