@@ -7,7 +7,7 @@
 # vmrun -T fusion start
 
 FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 11.vmwarevm"
-VERSION="12.1p1"
+VERSION="12.1p2"
 VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
 GUESTUSER="root"
 GUESTPASS="passWord"
