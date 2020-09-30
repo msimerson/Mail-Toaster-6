@@ -143,8 +143,14 @@ enable_security_periodic()
 
 	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
-# packages that can be safely updated automatically
-for _pkg in curl expat libxml2 pkg sudo vim-console;
+
+# packages to be updated automatically
+auto_upgrade="curl expat libxml2 pkg sudo vim-console"
+
+# add packages with:
+#   sysrc -f /usr/local/etc/periodic/daily/auto_security_upgrades auto_upgrade+=" $NEW"
+
+for _pkg in $auto_upgrade;
 do
   /usr/sbin/pkg audit | grep "$_pkg" && pkg install -y "$_pkg"
 done
