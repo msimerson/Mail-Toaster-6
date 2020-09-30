@@ -143,8 +143,14 @@ enable_security_periodic()
 
 	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
-# packages that can be safely updated automatically
-for _pkg in curl expat pkg sudo vim-console;
+
+# packages to be updated automatically
+auto_upgrade="curl expat libxml2 pkg sudo vim-console"
+
+# add packages with:
+#   sysrc -f /usr/local/etc/periodic/daily/auto_security_upgrades auto_upgrade+=" $NEW"
+
+for _pkg in $auto_upgrade;
 do
   /usr/sbin/pkg audit | grep "$_pkg" && pkg install -y "$_pkg"
 done
@@ -246,12 +252,12 @@ monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
 security_show_info="NO"
-security_status_pkgaudit_enable="YES"
+security_status_pkgaudit_enable="NO"
+security_status_pkgaudit_quiet="YES"
 security_status_tcpwrap_enable="YES"
 daily_status_security_inline="NO"
 weekly_status_security_inline="NO"
 monthly_status_security_inline="NO"
-security_status_pkgaudit_quiet="YES"
 
 # These are redundant within a jail
 security_status_chkmounts_enable="NO"

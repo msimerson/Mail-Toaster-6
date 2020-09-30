@@ -72,7 +72,7 @@ roundcube_init_db()
 	tell_status "initializing roundcube db"
 	pkg install -y curl || exit
 	start_roundcube
-	curl -i -F initdb='Initialize database' -XPOST \
+	curl -i --haproxy-protocol -F initdb='Initialize database' -XPOST \
 		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
 }
 
