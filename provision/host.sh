@@ -95,6 +95,8 @@ security_show_info="YES"
 security_status_chksetuid_enable="NO"
 security_status_neggrpperm_enable="NO"
 security_status_pkgaudit_enable="YES"
+security_status_pkgaudit_quiet="YES"
+security_status_pkgaudit_jails="dns"
 security_status_tcpwrap_enable="YES"
 
 security_status_ipfwlimit_enable="NO"
