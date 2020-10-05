@@ -444,8 +444,7 @@ endif
 " ============================ theme and status line ============================
 
 " theme
-set background=dark
-colorscheme desert
+colorscheme molokai
 
 " set mark column color
 hi! link SignColumn   LineNr
