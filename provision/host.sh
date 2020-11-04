@@ -561,10 +561,10 @@ configure_etc_hosts()
 	tell_status "adding /etc/hosts entries"
 	local _hosts
 
-	for j in $JAIL_ORDERED_LIST;
+	for _j in $JAIL_ORDERED_LIST;
 	do
 		_hosts="$_hosts
-$(get_jail_ip "$j")		$j"
+$(get_jail_ip "$_j")		$_j"
 	done
 
 	echo "$_hosts" | tee -a "/etc/hosts"

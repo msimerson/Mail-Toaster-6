@@ -325,9 +325,9 @@ get_jail_ip()
 
 	local _octet="$_start"
 
-	for j in $JAIL_ORDERED_LIST
+	for _j in $JAIL_ORDERED_LIST
 	do
-		if [ "$1" = "$j" ]; then
+		if [ "$1" = "$_j" ]; then
 			echo "$JAIL_NET_PREFIX.$_octet"
 			return
 		fi
@@ -361,9 +361,9 @@ get_jail_ip6()
 
 	local _octet="$_start"
 
-	for j in $JAIL_ORDERED_LIST
+	for _j in $JAIL_ORDERED_LIST
 	do
-		if [ "$1" = "$j" ]; then
+		if [ "$1" = "$_j" ]; then
 			echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
 			return
 		fi
