@@ -4,7 +4,9 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_CONF_EXTRA="
+                allow.mlock;"
+
 
 install_mongodb()
 {
@@ -14,6 +16,22 @@ install_mongodb()
 	#tell_status "install mongodb 4.2"
 	#stage_pkg_install dialog4ports python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp mongodb42 || exit 1
 	#stage_port_install databases/mongodb42 || exit 1
+}
+
+check_max_wired() {
+	_count=$(sysctl -n vm.stats.vm.v_wire_count)
+	_wired=$(sysctl -n vm.max_wired)
+
+	if [ "$_count" -lt "$_wired" ]; then
+		return
+	fi
+
+	echo "increase vm.max_wired > $_count"
+	echo "sysctl vm.max_wired $((_count * 2))"
+	sysctl vm.max_wired=$((_count * 2))
+	tee -a /etc/sysctl.conf <<EO_SYSCTL_MONGO
+vm.max_wired="$((_count * 2))"
+EO_SYSCTL_MONGO
 }
 
 configure_mongodb()
@@ -28,6 +46,8 @@ configure_mongodb()
 		tell_status "installing /data/etc/mongodb.conf"
 		cp "$STAGE_MNT/usr/local/etc/mongodb.conf" "$STAGE_MNT/data/etc/mongodb.conf"
 	fi
+
+	check_max_wired
 
 	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
 		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod"
