@@ -44,7 +44,7 @@ configure_mongodb()
 
 	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
 		tell_status "installing /data/etc/mongodb.conf"
-		cp "$STAGE_MNT/usr/local/etc/mongodb.conf" "$STAGE_MNT/data/etc/mongodb.conf"
+		cp "$STAGE_MNT/usr/local/etc/mongodb.conf.sample" "$STAGE_MNT/data/etc/mongodb.conf"
 	fi
 
 	check_max_wired
