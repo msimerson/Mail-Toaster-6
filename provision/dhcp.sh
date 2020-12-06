@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA="devfs_ruleset=7

@@ -24,7 +24,6 @@ install_php()
 		_ports="$_ports php$_version-$m"
 	done
 
-	# shellcheck disable=SC2086
 	stage_pkg_install $_ports || exit
 	install_php_newsyslog
 }

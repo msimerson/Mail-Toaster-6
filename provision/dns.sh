@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
@@ -26,7 +25,6 @@ get_mt6_data()
 
 	echo "
 
-	   local-zone: $TOASTER_MAIL_DOMAIN typetransparent
 	   local-data: \"stage		A $(get_jail_ip stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
 	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"

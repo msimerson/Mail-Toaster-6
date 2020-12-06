@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 # https://github.com/gitlabhq/gitlab-recipes/blob/master/install/freebsd/freebsd-10.md
