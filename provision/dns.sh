@@ -25,6 +25,7 @@ get_mt6_data()
 
 	echo "
 
+	   local-zone: $TOASTER_MAIL_DOMAIN typetransparent
 	   local-data: \"stage		A $(get_jail_ip stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
 	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"
