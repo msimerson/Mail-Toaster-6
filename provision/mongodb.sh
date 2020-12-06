@@ -4,8 +4,8 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-                allow.mlock;"
-
+				allow.sysvipc;
+				allow.mlock;"
 
 install_mongodb()
 {
