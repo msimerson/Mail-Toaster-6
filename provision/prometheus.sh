@@ -1,10 +1,8 @@
 #!/bin/sh
 
-# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-# shellcheck disable=2016
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/prometheus \$path/data nullfs rw 0 0\";"
 

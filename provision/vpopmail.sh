@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"

@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# shellcheck disable=1091
 . mail-toaster.sh || exit
 
 # https://wiki.freebsd.org/Docker

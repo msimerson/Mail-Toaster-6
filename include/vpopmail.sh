@@ -39,7 +39,6 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 	fi
 
 	tell_status "install vpopmail deps"
-	# shellcheck disable=2086
 	stage_pkg_install $_vpopmail_deps
 
 	tell_status "installing vpopmail port with custom options"
