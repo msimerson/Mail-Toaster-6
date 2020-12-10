@@ -23,6 +23,15 @@ configure_nsd()
 	stage_sysrc nsd_enable=YES
 	stage_sysrc nsd_config=/data/etc/nsd.conf
 
+	if [ ! -d "$STAGE_MNT/data/etc" ]; then
+		mkdir "$STAGE_MNT/data/etc"
+	fi
+
+	if [ ! -f "$STAGE_MNT/data/etc/nsd.conf" ]; then
+		tell_status "installing default nsd.conf"
+		cp "$STAGE_MNT/usr/local/etc/nsd/nsd.conf" "$STAGE_MNT/data/etc/"
+	fi
+
 	for _f in master.password group;
 	do
 		if [ -f "$ZFS_JAIL_MNT/nsd/etc/$_f" ]; then
