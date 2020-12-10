@@ -12,22 +12,22 @@ mt6-include nginx
 
 install_whmcs()
 {
-	install_php 72 "ctype curl filter gd hash iconv imap json mbstring openssl session soap xml xmlrpc zip zlib"
+	stage_pkg_install sudo libmaxminddb
+	install_php 74 "ctype curl filter gd iconv imap json mbstring openssl session soap xml xmlrpc zip zlib"
 	install_nginx whmcs
 
-	stage_pkg_install sudo
 	stage_port_install devel/ioncube || exit
 }
 
 configure_whmcs_nginx()
 {
-        local _datadir="$ZFS_DATA_MNT/wmhcs"
+        local _datadir="$ZFS_DATA_MNT/whmcs"
         if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-            tell_status "preserving /data/etc/nginx-locations.conf"
+            tell_status "preserving $_datadir/etc/nginx-locations.conf"
             return
         fi
 
-        tell_status "saving /data/etc/nginx-locations.conf"
+        tell_status "saving $_datadir/etc/nginx-locations.conf"
         tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_WHMCS'
 
         listen       80;
