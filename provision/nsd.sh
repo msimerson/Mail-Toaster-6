@@ -22,6 +22,7 @@ configure_nsd()
 {
 	stage_sysrc nsd_enable=YES
 	stage_sysrc nsd_config=/data/etc/nsd.conf
+	stage_sysrc sshd_enable=YES
 
 	if [ ! -d "$STAGE_MNT/data/etc" ]; then
 		mkdir "$STAGE_MNT/data/etc"
@@ -30,6 +31,10 @@ configure_nsd()
 	if [ ! -f "$STAGE_MNT/data/etc/nsd.conf" ]; then
 		tell_status "installing default nsd.conf"
 		cp "$STAGE_MNT/usr/local/etc/nsd/nsd.conf" "$STAGE_MNT/data/etc/"
+	else
+		tell_status "linking custom nsd.conf to /usr/local"
+		rm "$STAGE_MNT/usr/local/etc/nsd/nsd.conf"
+		stage_exec ln -s /data/etc/nsd.conf /usr/local/etc/nsd/nsd.conf
 	fi
 
 	for _f in master.password group;
