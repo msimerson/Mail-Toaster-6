@@ -26,7 +26,7 @@ install_clamav_unofficial()
 		dialog --yesno "$_es_mess" 18 74 || return
 	fi
 
-	local CLAMAV_UV=7.2
+	local CLAMAV_UV=7.2.1
 	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
 	stage_pkg_install gnupg1 rsync bind-tools gtar
@@ -77,6 +77,12 @@ install_clamav_unofficial()
 
 	tell_status "starting a ClamAV UNOFFICIAL update"
 	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh
+
+	if [ ! -d "$STAGE_MNT/var/db/clamav-unofficial-sigs/configs" ]; then
+		mkdir -p "$STAGE_MNT/var/db/clamav-unofficial-sigs/configs"
+		touch "$STAGE_MNT/var/db/clamav-unofficial-sigs/configs/last-version-check.txt"
+		chown 106:106 "$STAGE_MNT/var/db/clamav-unofficial-sigs/configs/last-version-check.txt"
+	fi
 
 	for f in EMAIL_Cryptowall.yar antidebug_antivm.yar; do
 		if [ -f "$ZFS_DATA_MNT/clamav/$f" ]; then
