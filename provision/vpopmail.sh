@@ -50,9 +50,13 @@ server.modules += ( "mod_cgi" )
 server.modules += ( "mod_extforward" )
 extforward.forwarder = (
      "$(get_jail_ip haproxy)"  => "trust",
-     "$(get_jail_ip haprox6)"  => "trust",
+     "$(get_jail_ip6 haproxy)"  => "trust",
 )
 EO_LIGHTTPD
+
+	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
+		sed -i .bak -e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+	fi
 
 	stage_sysrc lighttpd_enable=YES
 	stage_exec service lighttpd start
