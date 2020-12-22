@@ -60,6 +60,8 @@ install_elasticsearch7()
 	mkdir "$STAGE_MNT/usr/local/www/kibana7/config"
 	touch "$STAGE_MNT/usr/local/www/kibana7/config/kibana.yml"
 	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana7"
+
+	install_beats
 }
 
 install_elasticsearch()
@@ -67,6 +69,13 @@ install_elasticsearch()
 	#install_elasticsearch5
 	#install_elasticsearch6
 	install_elasticsearch7
+}
+
+install_beats()
+{
+	stage_pkg_install beats7
+	stage_exec -c 'cd "$STAGE_MNT/usr/local/etc/beats" && metricbeat modules enable elasticsearch-xpack'
+	stage_sysrc metricbeat_enable=YES
 }
 
 configure_elasticsearch()
