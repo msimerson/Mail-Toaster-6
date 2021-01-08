@@ -243,9 +243,10 @@ configure_dovecot_sql_conf()
   user_query = SELECT pw_dir as home \\
     ,89 AS uid ,89 AS gid \\
     ,CASE \\
+      WHEN (pw_shell = 'NOQUOTA') THEN '*:bytes=0' \\
       WHEN (pw_shell RLIKE '^[0-9]+S') THEN concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) \\
       ELSE '?:bytes=0' \\
-     END AS userdb_quota_rule \\
+     END AS quota_rule \\
     FROM vpopmail WHERE pw_name = '%n' AND pw_domain = '%d'
 
   iterate_query = SELECT CONCAT(pw_name, '@', pw_domain) AS user FROM vpopmail
