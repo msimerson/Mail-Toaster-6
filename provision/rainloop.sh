@@ -112,7 +112,7 @@ EO_INI
 set_default_path()
 {
 	local _rl_ver;
-	_rl_ver="$(pkg -j stage info rainloop-community-php73 | grep Version | awk '{ print $3 }')"
+	_rl_ver="$(pkg -j stage info rainloop-community-php73 | grep Version | awk '{ print $3 }' | cut -f1 -d_)"
 	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
 	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
 
