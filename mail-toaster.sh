@@ -51,7 +51,7 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
-export TOASTER_MYSQL="0"
+export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
@@ -138,7 +138,7 @@ export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
-export TOASTER_MYSQL=${TOASTER_MYSQL:="0"}
+export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
@@ -437,7 +437,7 @@ EO_JAIL_CONF
 
 add_automount()
 {
-	if grep -q auto_ports /etc/auto_master; then
+	if grep -qs auto_ports /etc/auto_master; then
 		if grep -qs "^$ZFS_JAIL_MNT/$1/" /etc/auto_ports; then
 			tell_status "automount ports already configured"
 		else
@@ -449,7 +449,7 @@ add_automount()
 		echo "automount not enabled, see https://github.com/msimerson/Mail-Toaster-6/wiki/automount"
 	fi
 
-	if grep -q auto_pkgcache /etc/auto_master; then
+	if grep -qs auto_pkgcache /etc/auto_master; then
 		if grep -qs "^$ZFS_JAIL_MNT/$1/" /etc/auto_pkgcache; then
 			tell_status "automount pkg cache already configured"
 		else
@@ -694,7 +694,7 @@ promote_staged_jail()
 	rename_active_to_last "$1"
 	rename_ready_to_active "$1"
 	add_jail_conf "$1"
-	add_automount "$1"
+	#add_automount "$1"
 
 	tell_status "service jail start $1"
 	service jail start "$1" || exit 1

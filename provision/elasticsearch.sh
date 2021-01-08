@@ -94,7 +94,7 @@ configure_elasticsearch()
 	chown 965 "$_data_conf"
 
 	if [ ! -f "$STAGE_MNT/data/etc/jvm.options" ]; then
-		if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsesarch/jvm.options" ]; then
+		if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsearch/jvm.options" ]; then
 			cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/data/etc/"
 		fi
 	fi

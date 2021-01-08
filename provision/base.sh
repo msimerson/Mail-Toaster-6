@@ -116,7 +116,7 @@ disable_root_password()
 
 disable_cron_jobs()
 {
-	if grep -q '^1.*adjkerntz' "$BASE_MNT/etc/crontab"; then
+	if ! grep -q '^1.*adjkerntz' "$BASE_MNT/etc/crontab"; then
 		tell_status "cron jobs already configured"
 		return
 	fi
@@ -126,8 +126,8 @@ disable_cron_jobs()
 	# the jail doesn't have permission to run adjkerntz.
 	sed -i .bak \
 		-e '/^1.*adjkerntz/ s/^1/#1/'  \
-		-e '/^\*.*atrun/    s/^\*/#*/' \
 		-e '/^\*.*entropy/  s/^\*/#*/' \
+		-e '/^\*.*atrun/    s/^\*/#*/' \
 		"$BASE_MNT/etc/crontab" || exit
 
 	echo "done"

@@ -78,11 +78,11 @@ install_roundcube()
 {
 	local _php_modules="dom exif fileinfo filter iconv intl json openssl pdo_mysql pdo_sqlite mbstring session xml zip"
 
-	install_php 72 "$_php_modules" || exit
+	install_php 74 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube-php72
+	stage_pkg_install roundcube-php74
 }
 
 configure_nginx_server()

@@ -67,6 +67,7 @@ configure_lighttpd()
 	sed -i .bak \
 		-e '/^var.server_root/ s/data/data-dist/' \
 		-e '/^server.document-root/ s/data/data-dist/' \
+		-e '/^var.state_dir/ s/"\//"\/var\//' \
 		"$_lighttpd"
 
 	tee -a "$_lighttpd" <<EO_LIGHTTPD

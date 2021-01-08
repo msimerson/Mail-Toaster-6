@@ -40,10 +40,9 @@ install_spamassassin_port()
 	tell_status "install SpamAssassin from ports (w/opts)"
 	stage_pkg_install dialog4ports p5-Encode-Detect p5-Test-NoWarnings || exit
 
-	local _SA_OPTS="DCC DKIM DOCS RAZOR RELAY_COUNTRY SPF_QUERY GNUPG_NONE"
-	if [ "$TOASTER_MYSQL" = "1" ]; then
-		_SA_OPTS="MYSQL $_SA_OPTS"
-	fi
+	local _SA_OPTS="DCC DKIM DOCS RAZOR SPF_QUERY GNUPG_NONE"
+	if [    "$TOASTER_MYSQL" = "1" ]; then _SA_OPTS="MYSQL $_SA_OPTS"; fi
+	if [ -n "$MAXMIND_LICENSE_KEY" ]; then _SA_OPTS="RELAY_COUNTRY $_SA_OPTS"; fi
 
 	stage_make_conf mail_spamassassin_SET "mail_spamassassin_SET=$_SA_OPTS"
 	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=SSL GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
@@ -202,6 +201,13 @@ EO_LOCAL_PRE
 	fi
 
 	if [ "$_should_install" = "yes" ]; then
+		for _f in "$_sa_etc"/*.sample; do
+			_df=$(echo $_f | cut -f1-2 -d.)
+			if [ ! -f "$_df" ]; then
+				cp "$_f" "$_df"
+			fi
+		done
+
 		tell_status "updating local.cf"
 		tee -a "$_sa_etc/local.cf" <<EO_LOCAL_CONF
 report_safe 			0

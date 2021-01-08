@@ -52,6 +52,8 @@ configure_mysql()
 innodb_doublewrite = off
 innodb_file_per_table = 1
 EO_MY_CNF
+	else
+		rm "$STAGE_MNT/root/.mysql_secret"
 	fi
 
 	if [ ! -f "$_dbdir/private_key.pem" ]; then
@@ -84,21 +86,25 @@ start_mysql()
 
 test_mysql()
 {
-	tell_status "testing mysql"
+	if [ -f "$STAGE_MNT/root/.mysql_secret" ]; then
+		tell_status "new install, setting root password"
+		_inital_pass=$(tail -n1 "$STAGE_MNT/root/.mysql_secret")
+		if [ -z "$_inital_pass" ]; then
+			echo "ERROR: unable to find the mysql intial password"
+			exit 1
+		fi
+		echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
+			| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
+			|| exit
+		rm "$STAGE_MNT/root/.mysql_secret"
+	fi
+
 	if [ -d "$ZFS_DATA_MNT/mysql/mysql" ]; then
+		tell_status "reinstall, skipping tests"
 		return
 	fi
 
-	sleep 1
-	_inital_pass=$(tail -n1 "$STAGE_MNT/root/.mysql_secret")
-	if [ -z "$_inital_pass" ]; then
-		echo "ERROR: unable to find the mysql intial password"
-		exit 1
-	fi
-	echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
-		| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
-		|| exit
-	rm "$STAGE_MNT/root/.mysql_secret"
+	tell_status "testing mysql"
 
 	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit
 	stage_listening 3306
@@ -108,7 +114,7 @@ test_mysql()
 write_pass_to_conf()
 {
 	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
-		sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=\"\"/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf
+		sed -i .bak -e "/^export TOASTER_MYSQL_PASS=/ s/=\"\"/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf || exit
 		rm mail-toaster.conf.bak
 	else
 		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
@@ -124,11 +130,6 @@ EO_MY_CNF
 
 set_mysql_password()
 {
-	if [ -d "$ZFS_DATA_MNT/mysql/mysql" ]; then
-		# mysql is already provisioned
-		return
-	fi
-
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
 		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
 

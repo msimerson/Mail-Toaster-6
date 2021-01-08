@@ -10,7 +10,7 @@ mt6-include nginx
 
 install_rainloop()
 {
-	local _php_modules="curl dom iconv json openssl pdo_sqlite xml zlib"
+	local _php_modules="curl dom iconv json openssl pdo_sqlite simplexml xml zlib"
 
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "using sqlite DB backend"
@@ -24,7 +24,7 @@ install_rainloop()
 			stage_make_conf rainloop-community_UNSET 'mail_rainloop-community_UNSET=SQLITE PGSQL'
 	fi
 
-	install_php 72 "$_php_modules" || exit
+	install_php 73 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"
@@ -112,7 +112,7 @@ EO_INI
 set_default_path()
 {
 	local _rl_ver;
-	_rl_ver="$(pkg -j stage info rainloop-community-php72 | grep Version | awk '{ print $3 }')"
+	_rl_ver="$(pkg -j stage info rainloop-community-php73 | grep Version | awk '{ print $3 }' | cut -f1 -d_)"
 	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
 	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
 
