@@ -202,6 +202,13 @@ EO_LOCAL_PRE
 	fi
 
 	if [ "$_should_install" = "yes" ]; then
+		for _f in "$_sa_etc"/*.sample; do
+			_df=$(echo $_f | cut -f1-2 -d.)
+			if [ ! -f "$_df" ]; then
+				cp "$_f" "$_df"
+			fi
+		done
+
 		tell_status "updating local.cf"
 		tee -a "$_sa_etc/local.cf" <<EO_LOCAL_CONF
 report_safe 			0
