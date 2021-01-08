@@ -56,6 +56,7 @@ configure_lighttpd()
 	sed -i .bak \
 		-e '/^var\.server_root/ s/""/"\/usr\/local\/www"/' \
 		-e '/^var\.log_root/ s/""/"\/var\/log\/lighttpd"/' \
+		-e '/^var.state_dir/ s/"\//"\/var\//' \
 		-e '/^server\.username/ s/""/"www"/' \
 		-e '/^server\.groupname/ s/""/"www"/' \
 		-e '/^server\.use-ipv6/ s/"enable"/"disable"/' \
