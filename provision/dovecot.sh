@@ -225,17 +225,28 @@ configure_dovecot_sql_conf()
 	_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
 	tee "$_sqlconf" <<EO_DOVECOT_SQL
+  driver = mysql
   default_pass_scheme = PLAIN
   connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail
-  password_query = SELECT \
-    CONCAT(pw_name, '@', pw_domain) AS user, \
-    pw_clear_passwd AS password,
-    pw_dir AS userdb_home, 89 AS userdb_uid, 89 AS userdb_gid, \
-    concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) as userdb_quota_rule \
+
+  password_query = SELECT \\
+    CONCAT(pw_name, '@', pw_domain) AS user \\
+    ,pw_clear_passwd AS password \\
+    ,pw_dir AS userdb_home, 89 AS userdb_uid, 89 AS userdb_gid \\
+    ,CASE \\
+      WHEN (pw_shell RLIKE '^[0-9]+S') THEN concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) \\
+      ELSE '?:bytes=0' \\
+     END AS userdb_quota_rule \\
     FROM vpopmail WHERE pw_name = '%n' AND pw_domain = '%d'
-  user_query = SELECT pw_dir as home, 89 AS uid, 89 AS gid \
-    concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) as quota_rule \
+
+  user_query = SELECT pw_dir as home \\
+    ,89 AS uid ,89 AS gid \\
+    ,CASE \\
+      WHEN (pw_shell RLIKE '^[0-9]+S') THEN concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) \\
+      ELSE '?:bytes=0' \\
+     END AS userdb_quota_rule \\
     FROM vpopmail WHERE pw_name = '%n' AND pw_domain = '%d'
+
   iterate_query = SELECT CONCAT(pw_name, '@', pw_domain) AS user FROM vpopmail
 EO_DOVECOT_SQL
 }
