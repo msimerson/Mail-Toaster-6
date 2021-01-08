@@ -203,9 +203,10 @@ configure_dovecot_sql_conf()
     tell_status "configuring SQL"
     local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
 
+    # shellcheck disable=SC2034
     _vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
-    tee "$_sqlconf" <<"EO_DOVECOT_SQL"
+    tee "$_sqlconf" <<EO_DOVECOT_SQL
   default_pass_scheme = PLAIN
   connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail
   password_query = SELECT \
