@@ -234,6 +234,7 @@ configure_dovecot_sql_conf()
     ,pw_clear_passwd AS password \\
     ,pw_dir AS userdb_home, 89 AS userdb_uid, 89 AS userdb_gid \\
     ,CASE \\
+      WHEN (pw_shell = 'NOQUOTA') THEN '*:bytes=0' \\
       WHEN (pw_shell RLIKE '^[0-9]+S') THEN concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) \\
       ELSE '?:bytes=0' \\
      END AS userdb_quota_rule \\
