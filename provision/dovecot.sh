@@ -201,10 +201,13 @@ EO_DOVECOT_LOCAL
 configure_dovecot_sql_conf()
 {
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
-	if grep -q -E 'driver\s*=\s*vpopmail' $_localconf; then
+	if ! grep -q -E 'driver\s*=\s*vpopmail' $_localconf; then
+		tell_status "passdb conversion to SQL already complete"
+		return
+	fi
 
-		tell_status "converting dovecot passdb to SQL"
-		jexec stage perl -i.bak -0777 -pe 's/passdb \{.*?\}/passdb {
+	tell_status "converting dovecot passdb to SQL"
+	jexec stage perl -i.bak -0777 -pe 's/passdb \{.*?\}/passdb {
   driver = sql
   args = \/data\/etc\/dovecot-sql.conf.ext
  }/sg;
@@ -216,7 +219,6 @@ configure_dovecot_sql_conf()
    driver = sql
    args = \/data\/etc\/dovecot-sql.conf.ext
  }/sg' /data/etc/local.conf
-	fi
 
 	tell_status "configuring SQL"
 	local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
@@ -524,8 +526,8 @@ configure_dovecot()
 	done
 
 	configure_dovecot_local_conf
-	configure_dovecot_sql_conf
 	configure_example_config
+	configure_dovecot_sql_conf
 	configure_system_auth
 	configure_vsz_limit
 	configure_tls_certs
