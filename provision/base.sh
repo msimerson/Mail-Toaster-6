@@ -440,11 +440,6 @@ endif
 " set mouse=a
 
 
-" ============================ theme and status line ============================
-
-" theme
-colorscheme molokai
-
 " set mark column color
 hi! link SignColumn   LineNr
 hi! link ShowMarksHLl DiffAdd

@@ -12,14 +12,15 @@ mt6-include vpopmail
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot dovecot-pigeonhole curl || exit
+	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql57-client || exit
 
 	tell_status "configure dovecot port options"
-	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=VPOPMAIL LIBWRAP EXAMPLES'
-	stage_make_conf dovecot_SET 'mail_dovecot_SET=VPOPMAIL LIBWRAP EXAMPLES'
+	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=MYSQL LIBWRAP EXAMPLES'
+	stage_make_conf dovecot_SET 'mail_dovecot_SET=MYSQL LIBWRAP EXAMPLES'
 
-	install_qmail
-	install_vpopmail_port
+	tell_status "creating vpopmail user & group"
+	stage_exec pw groupadd -n vpopmail -g 89
+	stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
 
 	tell_status "mounting shared vpopmail fs"
 	mount_data vpopmail
@@ -28,7 +29,7 @@ install_dovecot()
 		echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
 	fi
 
-	tell_status "building dovecot with vpopmail support"
+	tell_status "building dovecot"
 	stage_pkg_install dialog4ports
 
 	export BATCH=${BATCH:="1"}
@@ -84,11 +85,16 @@ service lmtp {
 }
 
 passdb {
-  driver = vpopmail
+  driver = sql
+  args = /data/etc/dovecot-sql.conf.ext
 }
 userdb {
-  driver = vpopmail
-  args = quota_template=quota_rule=*:backend=%q
+  driver = prefetch
+}
+userdb {
+  # This userdb is used only by lda.
+  driver = sql
+  args = /data/etc/dovecot-sql.conf.ext
 }
 
 shutdown_clients = no
@@ -190,6 +196,48 @@ namespace inbox {
 }
 EO_DOVECOT_LOCAL
 
+}
+
+configure_dovecot_sql_conf()
+{
+	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	if grep -q -E 'driver\s*=\s*vpopmail' $_localconf; then
+
+		tell_status "converting dovecot passdb to SQL"
+		jexec stage perl -i.bak -0777 -pe 's/passdb \{.*?\}/passdb {
+  driver = sql
+  args = \/data\/etc\/dovecot-sql.conf.ext
+ }/sg;
+ s/userdb \{.*?\}/userdb {
+   driver = prefetch
+ }
+ userdb {
+   # used only by lda.
+   driver = sql
+   args = \/data\/etc\/dovecot-sql.conf.ext
+ }/sg' /data/etc/local.conf
+	fi
+
+	tell_status "configuring SQL"
+	local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
+
+	# shellcheck disable=SC2034
+	_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+
+	tee "$_sqlconf" <<EO_DOVECOT_SQL
+  default_pass_scheme = PLAIN
+  connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail
+  password_query = SELECT \
+    CONCAT(pw_name, '@', pw_domain) AS user, \
+    pw_clear_passwd AS password,
+    pw_dir AS userdb_home, 89 AS userdb_uid, 89 AS userdb_gid, \
+    concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) as userdb_quota_rule \
+    FROM vpopmail WHERE pw_name = '%n' AND pw_domain = '%d'
+  user_query = SELECT pw_dir as home, 89 AS uid, 89 AS gid \
+    concat('*:bytes=', SUBSTRING_INDEX(pw_shell, 'S', 1)) as quota_rule \
+    FROM vpopmail WHERE pw_name = '%n' AND pw_domain = '%d'
+  iterate_query = SELECT CONCAT(pw_name, '@', pw_domain) AS user FROM vpopmail
+EO_DOVECOT_SQL
 }
 
 configure_example_config()
@@ -463,6 +511,7 @@ configure_dovecot()
 	done
 
 	configure_dovecot_local_conf
+	configure_dovecot_sql_conf
 	configure_example_config
 	configure_system_auth
 	configure_vsz_limit
@@ -498,9 +547,9 @@ test_imap()
 	# shellcheck disable=SC2050
 	if [ "has" = "some messages" ]; then
 		empty -v -w -i out -o in "Select completed"  ". FETCH 1 BODY\n"
-		empty -v -w -i out -o in "OK Fetch completed" ". logout\n"
+		empty -v -w -i out -o in "OK Fetch completed" ". LOGOUT\n"
 	else
-		empty -v -w -i out -o in "Select completed" ". logout\n"
+		empty -v -w -i out -o in "Select completed" ". LOGOUT\n"
 	fi
 	echo "Logout completed"
 }
