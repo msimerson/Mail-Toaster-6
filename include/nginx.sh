@@ -128,7 +128,7 @@ start_nginx()
 {
 	tell_status "starting nginx"
 	stage_sysrc nginx_enable=YES
-	stage_exec service nginx start || service nginx restart
+	stage_exec service nginx start || stage_exec service nginx restart
 }
 
 test_nginx() {
