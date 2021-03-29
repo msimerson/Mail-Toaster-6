@@ -199,8 +199,8 @@ EO_RC_ADD
 
 	# apply roundcube customizations to php.ini
 	sed -i.bak \
-		-e "/'session.gc_maxlifetime'/ s/=\d+/=21600/" \
-		-e "/upload_max_filesize/ s/=\dM/=5M/" \
+		-e "/'session.gc_maxlifetime'/ s/=[1-9][0-9]*/=21600/" \
+		-e "/upload_max_filesize/ s/=[1-9][0-9]*M/=5M/" \
 		"$STAGE_MNT/usr/local/etc/php.ini"
 }
 
