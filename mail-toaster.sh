@@ -200,6 +200,7 @@ fatal_err() { echo; echo "FATAL: $1"; echo; exit; }
 safe_jailname()
 {
 	# constrain jail name chars to alpha-numeric and _
+	# shellcheck disable=SC2001
 	echo "$1" | sed -e 's/[^a-zA-Z0-9]/_/g'
 }
 
