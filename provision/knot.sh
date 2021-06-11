@@ -7,12 +7,27 @@ export JAIL_CONF_EXTRA=""
 
 install_knot()
 {
-	tell_status "installing Knot DNS 2"
-	stage_pkg_install knot2 rsync dialog4ports || exit
+	tell_status "installing Knot DNS 3"
+	stage_pkg_install knot3 rsync dialog4ports || exit
 
 	if [ ! -d "$STAGE_MNT/data/home" ]; then
 		mkdir -p "$STAGE_MNT/data/home" || exit
 	fi
+
+	install_nrpe
+}
+
+install_nrpe()
+{
+	if [ -z "$TOASTER_NRPE" ]; then
+		echo "TOASTER_NRPE unset, skipping nrpe plugin"
+		return
+	fi
+
+	tell_status "installing nrpe plugin"
+	stage_pkg_install nrpe3
+	stage_sysrc nrpe3_enable=YES
+	stage_sysrc nrpe3_configfile="/data/etc/nrpe.cfg"
 }
 
 configure_knot()
