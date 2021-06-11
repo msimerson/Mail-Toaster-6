@@ -106,6 +106,8 @@ install_clamav_nrpe()
 
 	tell_status "installing clamav nrpe plugin"
 	stage_pkg_install nagios-check_clamav
+	stage_sysrc nrpe3_enable=YES
+	stage_sysrc nrpe3_configfile="/data/etc/nrpe.cfg"
 }
 
 install_clamav()
