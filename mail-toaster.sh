@@ -200,6 +200,7 @@ fatal_err() { echo; echo "FATAL: $1"; echo; exit; }
 safe_jailname()
 {
 	# constrain jail name chars to alpha-numeric and _
+	# shellcheck disable=SC2001
 	echo "$1" | sed -e 's/[^a-zA-Z0-9]/_/g'
 }
 
@@ -408,7 +409,7 @@ add_jail_conf()
 
 	jail_conf_header
 
-	if grep -q "^$1" /etc/jail.conf; then
+	if grep -q "^$1\\>" /etc/jail.conf; then
 		tell_status "$1 already in /etc/jail.conf"
 		return;
 	fi

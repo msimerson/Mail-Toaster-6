@@ -124,12 +124,17 @@ EO_RSPAMD_STAT
 
 configure_logging()
 {
-	tell_status "configuring syslog logging"
-	tee "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
+	if [ "$RSPAMD_SYSLOG" = "1" ]; then
+		tell_status "configuring syslog logging"
+		tee "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
 type = "syslog";
 facility = "LOG_MAIL";
 level = "notice";
 EO_SYSLOG
+	else
+		tell_status "configuring log rotation"
+		stage_sysrc newsyslog_enable="YES"
+	fi
 }
 
 configure_surbl()
@@ -166,7 +171,7 @@ configure_rspamd()
 		fi
 	done
 
-	#configure_logging
+	configure_logging
   	configure_redis
 	configure_dmarc
 	configure_stats
