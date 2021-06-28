@@ -409,7 +409,7 @@ add_jail_conf()
 
 	jail_conf_header
 
-	if grep -q "^$1" /etc/jail.conf; then
+	if grep -q "^$1\\>" /etc/jail.conf; then
 		tell_status "$1 already in /etc/jail.conf"
 		return;
 	fi
