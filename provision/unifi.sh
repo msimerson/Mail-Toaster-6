@@ -10,26 +10,26 @@ export JAIL_CONF_EXTRA="
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install mongodb36 openjdk8 gmake || exit
+	stage_pkg_install mongodb36 openjdk8 snappyjava gmake || exit
 
 	tell_status "installing Unifi"
 	stage_port_install net-mgmt/unifi5 || exit
 
 	tell_status "Enable UniFi 5"
 	stage_sysrc unifi_enable=YES
-	stage_sysrc mongod_enable=YES
+	#stage_sysrc mongod_enable=YES
 }
 
 start_unifi()
 {
-	stage_exec service mongod start
+	#stage_exec service mongod start
 	stage_exec service unifi start
 }
 
 test_unifi()
 {
-	stage_test_running mongod
-	sleep 1
+	#stage_test_running mongod
+	#sleep 1
 	stage_test_running java
 	sleep 1
 }
