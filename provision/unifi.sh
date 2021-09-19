@@ -13,23 +13,19 @@ install_unifi()
 	stage_pkg_install mongodb36 openjdk8 snappyjava gmake || exit
 
 	tell_status "installing Unifi"
-	stage_port_install net-mgmt/unifi5 || exit
+	stage_port_install net-mgmt/unifi6 || exit
 
-	tell_status "Enable UniFi 5"
+	tell_status "Enable UniFi"
 	stage_sysrc unifi_enable=YES
-	#stage_sysrc mongod_enable=YES
 }
 
 start_unifi()
 {
-	#stage_exec service mongod start
 	stage_exec service unifi start
 }
 
 test_unifi()
 {
-	#stage_test_running mongod
-	#sleep 1
 	stage_test_running java
 	sleep 1
 }

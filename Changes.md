@@ -1,10 +1,164 @@
 
+## 2021-q3
+
+- rename vim-console -> vim
+- unifi: install v5 -> v6
+- unifi: preinstall snappyjava (dep) (#485)
+
+
+## 2021-q2
+
+- dovecot: improve grep regex that detects SQL conversion (#484)
+- Disable redundant backups in jails (#480)
+- Fix jail.conf updating for common-prefixed jail names (#479)
++ clamav: if installing nrpe, also configure it
++ knot: install knot v3, add NRPE install
++ php7: v7.2 -> v7.4
+- rspamd: add env.RSPAMD_SYSLOG to control log dest (#477)
+
+
+## 2021-q1
+
+- Fix timezone detection (#472)
+- Fixed roundcube php.ini customizations (#473)
+- Fix service nginx restart to run in staged jail (#475)
+- Fix php_fpm restart to run in staged jail (#474)
+- wp: create link within stage jail (#470)
+- cannot create outside it as the path does not exist
+* mt: mysql defaults to enabled #468
+* rainloop: update PHP to 7.3, add simplexml
+* roundcube: update PHP to 7.4
+* test: update runner to FreeBSD 12.2
+* squirrelmail: php73 -> 7.4
+* dovecot: handle quota value of NOQUOTA
+* gitlab: re-enable sqwebmail build
+* lighttpd: fixup state_dir
+* spamassassin: install sample .cf files
+* mysql: use .mysql_secret file to detect (re)install
+* rainloop: fix include add when version has patch suffix
+* spama: default RELAY_COUNTRY to off unless MM License
+* base: fix cron job logic
+* es: fix typo in path
+
+
+## 2020-q4
+
+- dovecot: passdb/userdb switch from vpopmail -> sql (#467)
+- es: install beats for cluster monitoring (#466)
+- vpopmail: fix ipv6 config for lighttpd (#465)
+- clamav-unofficial: update to 7.2.1, nsd default config (#464)
++ whmcs: fix typo, update PHP to 7.4 #463
++ clamav: update unofficial to 7.2
++ nsd: install default nsd.conf when staging
++ haraka: update node 10 -> 12
+- dns: add local-zone: typetransparent declaration (#460)
+- mongo: enable sysvipc #462
+- GitHub actions replace travis #461
+- port mongodb.conf is now suffixed with sample #459
+- mongo: check & set vm.max_wired if needed #457
+* consistent use of `_j`
+
+
+## 2020-q3
+
+- gitlab: remove geoip build (now requires account creds)
+- vim: change default theme to be more readable (#454)
+* roundcube: curl needs to send init request with proxy proto #453
+* base: add libxml2 to auto-security-update packages
+* vmware: update version to 12.1p2
+* host: enable pkg audit in jails
+* mt: run pkg audit on host for newly provisioned jails
+* base: auto-upgrades, move list into variable, so it can be more easily updated with CLI tools
+
+- haproxy: replace deprecated reqirep with http-request (#450)
+* haraka: install haraka-plugin-dmarc-perl
+* mongodb: install version 4.2 (was 3.4) #449
+
+## 2020-q2
+
+- rspamd: bind to IPv4 and IPv6
++ rainloop: fix version detection #443
++ squirrelcart: fix image location
++ wordpress: php 7.2 -> 7.4
++ elastic: version 6 -> v7
+- change rspamd worker bind socket to ipv4 (#442)
+- wp: add php-json module (#441)
+
+## 2020-03
+
+- clamav: install gtar, for unofficial
+- borg: use python 37
+
+## 2020-02
+
+- haproxy/nginx: use proxy protocol (was x-forwarded-for) (#394)
+- haproxy: support building against openssl 1.1.1 (adds TLS 1.3 support)
+- nginx: update newsyslog path to nginx logs (#440)
++ mysql: better "already installed" detection
+- geoip: prompt for license key
+- geoip: add support for geoipupdate
+- mysql: remove extra quotes (#438)
+- clamav: update unofficial to 7.0.1 (#436)
+- Rspamd: disable syslog logging (broken upstream) (#435)
++ rspamd: disable syslog until unbroken upstream
++ base: add pkg & sudo to list of ports to autoupgrade
+- Mariadb upgrade to 10.4 #434
+
+
 ## 2020-01
+
+- raise mt6-update to keep in scope (#431)
+* mysql: quote the password, JIC
+* whmcs: create basic location config if missing
+
+- mysql provision with root password (#430)
++ mysql: on new provision, store and set root password
+* mysql: use include/mysql functions everywhere
+* remove unnecessary quotes
+* dspam: test on port 2424 where dpsam now listens
+* roundcube: if smtp_port is 587, update to 465
+* spamassassin: SQL fixes
+* mt.sh: change perms to 600 on m-t.conf
+* mysql: prefer .my.cnf and .mylogin.cnf over CLI password
+- geoip: install node 12 (was 8)
+
+
+## 2019-12
+
+- mt: when enabled, add automount config for ports and/or pkg cache (#428)
+- dcc: update for new path (port change) (#427)
+- add MT version check (#426)
+- postfix + dkim improvements (#424)
+- postfix: add default config for dkim (#423)
+- Update issue templates
+- promote postfix to VM list (#421)
+* get_jail_ip(6) will try DNS now, for local/custom build scripts
+* add TOASTER_MSA, to choose a local MSA other than haraka
+- add nagios & borg provision scripts #420
+* clamav: update unofficial to 6.1.1 #419
+* haraka: improve avg provision logic
+* test: update freebsd VM version
+* shellcheck: add .shellcheckrc
+
+
+## 2019-11
+
+- sqwebmail: remove pkg install (no longer built)
+- add build scripts for Ghost & Jekyll (#418)
+- dmarc: use correct path for rc.local (#417)
+- base: update renamed periodic.conf setting (#416)
+- tinydns: provision IPv6 tinydns/axfrdns servers (#415)
+- add DEVELOP.md #414
+
 
 ## 2019-10
 
+- spamassassin: set port build options
+- dcc: set the port build options #411
+- rename provision-* files provision/*.sh #410
 - rename provision files with - to _ #409
 - grafana: install v6 (was v5) #409
+
 
 ## 2019-09
 
@@ -19,6 +173,7 @@
 - squirrelmail: create missing /data/pref directory #405
 - whmcs: update PHP to v7.2 #405
 - wordpress: fail build if port install fails #405
+
 
 ## 2019-08
 
