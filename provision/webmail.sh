@@ -50,7 +50,6 @@ configure_lighttpd()
 	sed -i .bak \
 		-e 's/^#include_shell "cat/include_shell "cat/' \
 		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
-		-e '/^var.state_dir/ s/"\//"\/var\//' \
 		"$_lighttpd_conf"
 
 	tee "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
