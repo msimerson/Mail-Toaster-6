@@ -37,6 +37,15 @@ configure_nsd()
 		stage_exec ln -s /data/etc/nsd.conf /usr/local/etc/nsd/nsd.conf
 	fi
 
+	if [ ! -d "$STAGE_MNT/data/etc" ]; then
+		mkdir "$STAGE_MNT/data/etc"
+	fi
+
+	if [ ! -f "$STAGE_MNT/data/etc/nsd.conf" ]; then
+		tell_status "installing default nsd.conf"
+		cp "$STAGE_MNT/usr/local/etc/nsd/nsd.conf" "$STAGE_MNT/data/etc/"
+	fi
+
 	for _f in master.password group;
 	do
 		if [ -f "$ZFS_JAIL_MNT/nsd/etc/$_f" ]; then
