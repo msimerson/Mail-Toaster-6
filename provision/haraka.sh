@@ -12,13 +12,13 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node12 gmake python2 git-lite || exit
+	stage_pkg_install npm-node14 gmake python3 git-lite || exit
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash || exit
 	fi
-	export PYTHON=/usr/local/bin/python2
-	stage_exec ln -s /usr/local/bin/python2.7 /usr/local/bin/python
+	export PYTHON=/usr/local/bin/python3
+	stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
 	stage_exec npm install -g --only=prod node-gyp || exit
 
 	tell_status "installing Haraka"
