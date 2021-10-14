@@ -556,6 +556,7 @@ test_imap()
 
 	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 143
 	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):993"
+	if [ ! -e out ]; then exit; fi
 	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS\n"
 	empty -v -w -i out -o in "Logged in"         ". LIST \"\" \"*\"\n"
 	empty -v -w -i out -o in "List completed"    ". SELECT INBOX\n"
@@ -567,6 +568,7 @@ test_imap()
 		empty -v -w -i out -o in "Select completed" ". LOGOUT\n"
 	fi
 	echo "Logout completed"
+	if [ -e out ]; then exit; fi
 }
 
 test_pop3()
@@ -581,10 +583,13 @@ test_pop3()
 
 	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 110
 	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):995"
+	if [ ! -e out ]; then exit; fi
 	empty -v -w -i out -o in "\+OK." "user $POST_USER\n"
 	empty -v -w -i out -o in "\+OK" "pass $POST_PASS\n"
 	empty -v -w -i out -o in "OK Logged in" "list\n"
 	empty -v -w -i out -o in "." "quit\n"
+
+	if [ -e out ]; then exit; fi
 }
 
 test_dovecot()
