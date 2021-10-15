@@ -50,7 +50,8 @@ install_elasticsearch6()
 install_elasticsearch7()
 {
 	tell_status "installing Elasticsearch"
-	stage_pkg_install elasticsearch7
+	stage_pkg_install elasticsearch7 openjdk11
+	stage_sysrc elasticsearch_java_home=/usr/local/openjdk11
 
 	create_data_dirs
 
