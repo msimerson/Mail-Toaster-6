@@ -4,17 +4,17 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-				allow.sysvipc;
-				allow.mlock;"
+		allow.sysvipc;
+		allow.mlock;
+		mount += \"$ZFS_DATA_MNT/mongodb \$path/data nullfs rw 0 0\";"
 
 install_mongodb()
 {
-	tell_status "installing mongodb 4.2 pkg"
-	stage_pkg_install mongodb42 || exit
+	tell_status "installing mongodb 4.4"
+	stage_pkg_install mongodb44 || exit
 
-	#tell_status "install mongodb 4.2"
-	#stage_pkg_install dialog4ports python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp mongodb42 || exit 1
-	#stage_port_install databases/mongodb42 || exit 1
+	#stage_pkg_install dialog4ports python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp mongodb44 || exit 1
+	#stage_port_install databases/mongodb44 || exit 1
 }
 
 check_max_wired() {
