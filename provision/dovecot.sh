@@ -203,11 +203,9 @@ configure_dovecot_sql_conf()
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 	if grep -q -E 'driver[[:space:]]*=[[:space:]]*sql' $_localconf; then
 		tell_status "passdb conversion to SQL already complete"
-		return
-	fi
-
-	tell_status "converting dovecot passdb to SQL"
-	jexec stage perl -i.bak -0777 -pe 's/passdb \{.*?\}/passdb {
+	else
+		tell_status "converting dovecot passdb to SQL"
+		jexec stage perl -i.bak -0777 -pe 's/passdb \{.*?\}/passdb {
   driver = sql
   args = \/data\/etc\/dovecot-sql.conf.ext
  }/sg;
@@ -219,14 +217,19 @@ configure_dovecot_sql_conf()
    driver = sql
    args = \/data\/etc\/dovecot-sql.conf.ext
  }/sg' /data/etc/local.conf
+	fi
 
-	tell_status "configuring SQL"
-	local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
+	_localconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
+	if grep -q -E 'driver[[:space:]]*=[[:space:]]mysql' $_localconf; then
+		tell_status "SQL configured."
+	else
+		tell_status "configuring SQL"
+		local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
 
-	# shellcheck disable=SC2034
-	_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+		# shellcheck disable=SC2034
+		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
-	tee "$_sqlconf" <<EO_DOVECOT_SQL
+		tee "$_sqlconf" <<EO_DOVECOT_SQL
   driver = mysql
   default_pass_scheme = PLAIN
   connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail
@@ -253,6 +256,7 @@ configure_dovecot_sql_conf()
 
   iterate_query = SELECT CONCAT(pw_name, '@', pw_domain) AS user FROM vpopmail
 EO_DOVECOT_SQL
+	fi
 }
 
 configure_example_config()
