@@ -652,8 +652,9 @@ stage_clear_caches()
 
 stage_resolv_conf()
 {
-	local _nsip; _nsip=$(get_jail_ip dns)
-	echo "nameserver $_nsip" | tee "$STAGE_MNT/etc/resolv.conf"
+	tell_status "configuring DNS for local recursor"
+	echo "nameserver $(get_jail_ip dns)" > "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip dns6)" >> "$STAGE_MNT/etc/resolv.conf"
 }
 
 seed_pkg_audit()

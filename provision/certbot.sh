@@ -197,6 +197,8 @@ configure_certbot()
 	local _certbot="/usr/local/bin/certbot"
 	if $_certbot certonly --webroot-path "$_HTTPDIR" -d "$TOASTER_HOSTNAME"; then
 		update_haproxy_ssld
+		tell_status "renewing certs and installing with deployment scripts"
+		certbot renew --force-renewal
 	else
 		tell_status "TLS Certificate Issue failed"
 		exit 1
