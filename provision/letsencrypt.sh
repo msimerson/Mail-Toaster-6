@@ -7,6 +7,7 @@ install_letsencrypt()
 	tell_status "installing Let's Encrypt"
 	pkg install -y curl socat
 	fetch -o - https://get.acme.sh | sh
+	/root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
 }
 
 # shellcheck disable=SC2120
