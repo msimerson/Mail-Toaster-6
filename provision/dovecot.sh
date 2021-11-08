@@ -611,6 +611,7 @@ create_staged_fs dovecot
 start_staged_jail dovecot
 install_dovecot
 configure_dovecot
+stage_resolv_conf
 start_dovecot
 test_dovecot
 unmount_data vpopmail
