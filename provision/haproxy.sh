@@ -95,6 +95,7 @@ frontend http-in
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
 	acl letsencrypt  path_beg -i /.well-known/acme-challenge
+	acl letsencrypt  path_beg -i /.well-known/pki-validation
 	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	acl munin        path_beg /munin

@@ -106,6 +106,10 @@ http {
 			root /data;
 			try_files \$uri =404;
 		}
+		location /.well-known/pki-validation {
+			root /data;
+			try_files \$uri =404;
+		}
 
 		include      nginx-locations.conf;
 

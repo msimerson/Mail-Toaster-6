@@ -4,15 +4,13 @@
 
 install_letsencrypt()
 {
-	tell_status "installing Let's Encrypt"
+	tell_status "installing ACME.sh & Let's Encrypt"
 	pkg install -y curl socat
 	fetch -o - https://get.acme.sh | sh
 }
 
-# shellcheck disable=SC2120
 install_deploy_haproxy()
 {
-	# shellcheck disable=SC2154
 	tee "$_deploy/haproxy" <<'EO_LE_HAPROXY'
 #!/bin/sh
 
@@ -86,10 +84,8 @@ haproxy_deploy() {
 EO_LE_HAPROXY
 }
 
-# shellcheck disable=SC2120
 install_deploy_dovecot()
 {
-	# shellcheck disable=SC2154
 	tee "$_deploy/dovecot" <<'EO_LE_DOVECOT'
 #!/bin/sh
 
@@ -164,10 +160,8 @@ dovecot_deploy() {
 EO_LE_DOVECOT
 }
 
-# shellcheck disable=SC2120
 install_deploy_haraka()
 {
-	# shellcheck disable=SC2154
 	tee "$_deploy/haraka" <<'EO_LE_HARAKA'
 #!/bin/sh
 
@@ -251,10 +245,8 @@ haraka_deploy() {
 EO_LE_HARAKA
 }
 
-# shellcheck disable=SC2120
 install_deploy_mysql()
 {
-	# shellcheck disable=SC2154
 	tee "$_deploy/mysql" <<'EO_LE_MYSQL'
 #!/bin/sh
 
@@ -338,10 +330,9 @@ mysql_deploy() {
 }
 EO_LE_MYSQL
 }
-# shellcheck disable=SC2120
+
 install_deploy_mailtoaster()
 {
-	# shellcheck disable=SC2154
 	tee "$_deploy/mailtoaster" <<'EO_LE_MT'
 #!/usr/local/bin/bash
 
@@ -395,10 +386,13 @@ configure_letsencrypt()
 {
 	install_deploy_scripts
 
-	tell_status "configuring Let's Encrypt"
+	tell_status "configuring acme.sh"
 
 	local _HTTPDIR="$ZFS_DATA_MNT/webmail"
 	local _acme="/root/.acme.sh/acme.sh"
+
+	$_acme --set-default-ca --server letsencrypt
+
 	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
 		update_haproxy_ssld
 		$_acme --deploy -d "$TOASTER_HOSTNAME" --deploy-hook mailtoaster
