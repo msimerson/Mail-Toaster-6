@@ -573,7 +573,10 @@ test_imap()
 		empty -v -w -i out -o in "Select completed" ". LOGOUT\n"
 	fi
 	echo "Logout completed"
-	if [ -e out ]; then exit; fi
+	if [ -e out ]; then
+		sleep 1
+		if [ -e out ]; then exit; fi
+	fi
 }
 
 test_pop3()
@@ -594,7 +597,10 @@ test_pop3()
 	empty -v -w -i out -o in "OK Logged in" "list\n"
 	empty -v -w -i out -o in "." "quit\n"
 
-	if [ -e out ]; then exit; fi
+	if [ -e out ]; then
+		sleep 1
+		if [ -e out ]; then exit; fi
+	fi
 }
 
 test_dovecot()
