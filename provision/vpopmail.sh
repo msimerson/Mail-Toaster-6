@@ -36,7 +36,7 @@ install_lighttpd()
 	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	cat <<EO_LIGHTTPD >> "$_conf"
 
-server.modules += ( "mod_alias" )
+server.modules += ( "mod_alias", "mod_auth", "mod_authn_file" )
 
 alias.url = ( "/cgi-bin/"     => "/usr/local/www/cgi-bin/",
               "/qmailadmin/"  => "/usr/local/www/data/qmailadmin/",
@@ -52,6 +52,18 @@ extforward.forwarder = (
      "$(get_jail_ip haproxy)"  => "trust",
      "$(get_jail_ip6 haproxy)"  => "trust",
 )
+
+auth.backend                   = "htdigest"
+auth.backend.htdigest.userfile = "/usr/local/etc/WebUsers"
+
+auth.require   = ( "/cgi-bin/vqadmin" =>
+                     (
+                         "method"  => "digest",
+                         "realm"   => "Admins Only",
+                         "require" => "valid-user"
+                      ),
+                 )
+
 EO_LIGHTTPD
 
 	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
@@ -59,6 +71,7 @@ EO_LIGHTTPD
 	fi
 
 	stage_sysrc lighttpd_enable=YES
+	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
 	stage_exec service lighttpd start
 }
 
@@ -88,6 +101,13 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 	stage_port_install mail/qmailadmin || exit
 
 	install_lighttpd
+}
+
+install_vqadmin()
+{
+	tell_status "installing vqadmin"
+	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
+	stage_port_install mail/vqadmin || exit
 }
 
 mysql_error_warning()
