@@ -186,6 +186,7 @@ plugin {
 }
 
 namespace inbox {
+  mail_location = maildir:~/Maildir
   mailbox Spam {
     auto = no
     special_use = \Junk
