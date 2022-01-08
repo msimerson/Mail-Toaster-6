@@ -271,7 +271,7 @@ configure_example_config()
 
 	tell_status "installing example config files"
 	cp -R "$STAGE_MNT/usr/local/etc/dovecot/example-config/" "$_dcdir/" || exit
-	sed -i .bak \
+	sed -i.bak \
 		-e 's/^#listen = \*, ::/listen = \*/' \
 		"$_dcdir/dovecot.conf" || exit
 }
@@ -285,7 +285,7 @@ configure_system_auth()
 	fi
 
 	tell_status "disabling auth-system"
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^\!include auth-system/ s/\!/#!/' \
 		"$_authconf" || exit
 }
@@ -299,7 +299,7 @@ configure_vsz_limit()
 	fi
 
 	tell_status "bumping up default_vsz_limit 256 -> 384"
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^#default_vsz_limit/ s/#//; s/256/384/' \
 		"$_master"
 }
@@ -309,7 +309,7 @@ configure_tls_certs()
 	local _sslconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-ssl.conf"
 	if grep -qs ^ssl_cert "$_sslconf"; then
 		tell_status "removing ssl_cert from 10-ssl.conf"
-		sed -i .bak \
+		sed -i.bak \
 			-e '/ssl_cert/ s/^s/#s/' \
 			-e '/ssl_key/ s/^s/#s/' \
 			"$_sslconf"
@@ -317,7 +317,7 @@ configure_tls_certs()
 
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 	if grep -qs dovecot.pem "$_localconf"; then
-		sed -i .bak \
+		sed -i.bak \
 			-e "/^ssl_cert/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
 			-e "/^ssl_key/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
 			"$_localconf"

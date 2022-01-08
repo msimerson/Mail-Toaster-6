@@ -285,7 +285,7 @@ EO_HORDE_IMP_CONF
 
 	local _horde_imp_backend="$STAGE_MNT/usr/local/www/horde/imp/config/backends.local.php"
 	cp "$STAGE_MNT/usr/local/www/horde/imp/config/backends.php" $_horde_imp_backend
-	sed -i .bak \
+	sed -i.bak \
 		-e "s/'hostspec' => 'localhost'/'hostspec' => '$(get_jail_ip dovecot)'/" \
 		"$_horde_imp_backend" || exit
 }

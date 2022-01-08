@@ -412,8 +412,8 @@ install_qmail_chkuser()
 	echo "chkuser patch applied successfully"
 	sleep 2;
 
-	sed -i -e 's/VPOPMAIL_HOME=\/home\/vpopmail/VPOPMAIL_HOME=\/usr\/local\/vpopmail/g' Makefile
-	sed -i -e 's/home\/vpopmail/usr\/local\/vpopmail/' conf-cc
+	sed -i '' -e 's/VPOPMAIL_HOME=\/home\/vpopmail/VPOPMAIL_HOME=\/usr\/local\/vpopmail/g' Makefile
+	sed -i '' -e 's/home\/vpopmail/usr\/local\/vpopmail/' conf-cc
 	make && make setup && cd $PORTDIR && make deinstall && make install clean
 }
 

@@ -520,7 +520,7 @@ create_staged_fs()
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
 
 	stage_sysrc hostname="$1"
-	sed -i -e "/^hostname=/ s/_HOSTNAME_/$1/" \
+	sed -i '' -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
 	assure_data_volume_mount_is_declared "$1"
@@ -1033,7 +1033,7 @@ unprovision_files()
 	done
 
 	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
-		sed -i .bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+		sed -i.bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
 	fi
 }
 
@@ -1082,7 +1082,7 @@ add_pf_portmap()
 	fi
 
 	tell_status "adding redirection rules for $2"
-	sed -i .bak \
+	sed -i.bak \
 		-e "/^## Filtering rules/ c\\
 rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")\\
 rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
@@ -1128,7 +1128,7 @@ jail_rename()
 		zfs mount "$ZFS_VOL/$_f/$2"
 	done
 
-	sed -i .bak \
+	sed -i.bak \
 		-e "/^$1\s/ s/$1/$2/" \
 		/etc/jail.conf || exit
 
@@ -1164,7 +1164,7 @@ assure_ip6_addr_is_declared()
 	fi
 
 	tell_status "adding ip6.addr to $1 section in /etc/jail.conf"
-	sed -i .bak \
+	sed -i.bak \
 		-e "/^$1/,/ip4/ s/ip4.*;/&\\
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
 		/etc/jail.conf || exit

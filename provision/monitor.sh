@@ -53,7 +53,7 @@ configure_lighttpd()
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
 	# shellcheck disable=2016
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^var\.server_root/ s/""/"\/usr\/local\/www"/' \
 		-e '/^var\.log_root/ s/""/"\/var\/log\/lighttpd"/' \
 		-e '/^server\.username/ s/""/"www"/' \
@@ -125,8 +125,8 @@ configure_munin()
 		tell_status "preserving munin.conf"
 	else
 		tell_status "update munin.conf to use ZFS_DATA_MNT"
-	
-		sed -i .bak \
+
+		sed -i.bak \
 			-e 's/^#dbdir.*/dbdir   \/data\/var\/munin/' \
 			-e 's/^#graph_strategy cron/graph_strategy cgi/' \
 			-e 's/^#html_strategy cron/html_strategy cgi/' \
@@ -138,7 +138,7 @@ configure_munin()
 	stage_exec mkdir -p /var/munin/cgi-tmp
 	stage_exec chmod -R 777 /var/munin/cgi-tmp
 	stage_exec chown -R www:www /var/munin/cgi-tmp
-	
+
 	stage_sysrc munin_node_enable=YES
 	stage_sysrc munin_node_config=/data/etc/munin/munin-node.conf
 }

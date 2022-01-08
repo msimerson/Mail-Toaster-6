@@ -38,7 +38,7 @@ configure_minecraft()
 		sleep 1
 	done
 	tell_status "accepting EULA"
-	sed -i .bak -e '/^eula/ s/false/true/' "$_eula"
+	sed -i.bak -e '/^eula/ s/false/true/' "$_eula"
 	echo "done"
 }
 
