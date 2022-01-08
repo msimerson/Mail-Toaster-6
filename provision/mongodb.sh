@@ -10,11 +10,11 @@ export JAIL_CONF_EXTRA="
 
 install_mongodb()
 {
-	tell_status "installing mongodb 4.4"
-	stage_pkg_install mongodb44 || exit
+	tell_status "installing mongodb"
+	stage_pkg_install mongodb50 || exit
 
 	#stage_pkg_install dialog4ports python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp mongodb44 || exit 1
-	#stage_port_install databases/mongodb44 || exit 1
+	#stage_port_install databases/mongodb50 || exit 1
 }
 
 check_max_wired() {
