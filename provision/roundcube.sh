@@ -45,7 +45,7 @@ install_roundcube_mysql()
 	fi
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
-	sed -i .bak \
+	sed -i.bak \
 		-e "s/roundcube:pass@/roundcube:${_rcpass}@/" \
 		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
 		"$_rcc_dir/config.inc.php" || exit
@@ -145,7 +145,7 @@ configure_roundcube()
 		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
 	fi
 
-	sed -i .bak \
+	sed -i.bak \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
 		-e "/'smtp_server'/  s/= '.*'/= 'ssl:\/\/$TOASTER_MSA'/" \
 		-e "/'smtp_port'/    s/25;/465;/ ; s/587;/465;/" \

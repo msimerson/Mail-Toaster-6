@@ -59,7 +59,7 @@ configure_php_ini()
 	tell_status "Setting TIMEZONE to :  $TIMEZONE "
 
 	cp "$STAGE_MNT/usr/local/etc/php.ini-production" "$_php_ini" || exit
-	sed -i .bak \
+	sed -i.bak \
 		-e "s|^;date.timezone =|date.timezone = $TIMEZONE|" \
 		-e '/^post_max_size/ s/8M/25M/' \
 		-e '/^upload_max_filesize/ s/2M/25M/' \
@@ -70,7 +70,7 @@ configure_php_ini()
 configure_php_fpm() {
 
 	tell_status "enable syslog for PHP-FPM"
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^;error_log/ s/^;//' \
 		-e '/^error_log/ s/= .*/= syslog/' \
 		"$STAGE_MNT/usr/local/etc/php-fpm.conf"
@@ -85,7 +85,7 @@ configure_php_fpm() {
 		_fpmconf="$STAGE_MNT/usr/local/etc/php-fpm.d/www.conf"
 	fi
 
-	sed -i .bak \
+	sed -i.bak \
 		-e "/^listen =/      s/= .*/= '\/tmp\/php-cgi.socket';/" \
 		-e '/^;listen.owner/ s/^;//' \
 		-e '/^;listen.group/ s/^;//' \

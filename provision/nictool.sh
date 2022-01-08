@@ -92,7 +92,7 @@ install_nictool_server() {
 	else
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
-		sed -i .bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
+		sed -i.bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
 
 		for _jail in nictool stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");

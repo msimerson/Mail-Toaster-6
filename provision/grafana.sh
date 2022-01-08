@@ -7,8 +7,8 @@ export JAIL_CONF_EXTRA=""
 
 install_grafana()
 {
-	tell_status "installing Grafana 6"
-	stage_pkg_install grafana6 || exit
+	tell_status "installing Grafana"
+	stage_pkg_install grafana8 || exit
 }
 
 configure_grafana()
@@ -22,7 +22,7 @@ configure_grafana()
 		cp "$STAGE_MNT/usr/local/etc/grafana.conf" "$STAGE_MNT/data/etc/grafana.conf" || exit
 	fi
 
-	stage_sysrc grafana_conf="/data/etc/grafana.conf"
+	stage_sysrc grafana_config="/data/etc/grafana.conf"
 
 	if [ ! -d "$STAGE_MNT/data/db" ]; then
 		tell_status "creating grafana data/db dir"

@@ -105,7 +105,7 @@ configure_elasticsearch()
 		chown 965 "$STAGE_MNT/data/etc/log4j2.properties"
 	fi
 
-	sed -i .bak \
+	sed -i.bak \
 		-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip elasticsearch)/" \
 		-e '/^path.data: / s/var/data/' \
 		-e '/^path.logs: / s/var/data/' \

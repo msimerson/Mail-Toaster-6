@@ -166,9 +166,9 @@ constrain_sshd_to_host()
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sed -i .bak -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
+	sed -i.bak -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
 	if [ -n "$PUBLIC_IP6" ]; then
-		sed -i .bak6 -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
+		sed -i.bak6 -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
 	fi
 
 	grep ^Listen /etc/ssh/sshd_config
@@ -186,7 +186,7 @@ update_openssl_defaults()
 	local _cc;    _cc=$(fetch -q -4 -o - https://ipinfo.io/country)
 	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
 	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
-	sed -i .bak \
+	sed -i.bak \
 		-e "/^commonName_max.*/ a\ 
 commonName_default = $TOASTER_HOSTNAME" \
 		-e "/^emailAddress_max.*/ a\ 
@@ -263,7 +263,7 @@ install_sshguard()
 	pkg install -y sshguard
 
 	tell_status "configuring sshguard for PF"
-	sed -i '.bak' \
+	sed -i.bak \
 		-e '/sshg-fw-null/ s/^B/#B/' \
 		-e '/sshg-fw-pf/ s/^#//' \
 			/usr/local/etc/sshguard.conf
@@ -390,11 +390,11 @@ EO_PF_RULES
 
 install_jailmanage()
 {
-	if [ -s /usr/local/sbin/jailmanage ]; then return; fi
+	if [ -s /usr/local/bin/jailmanage ]; then return; fi
 
 	tell_status "installing jailmanage"
-	fetch -o /usr/local/sbin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
-	chmod 755 /usr/local/sbin/jailmanage
+	fetch -o /usr/local/bin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
+	chmod 755 /usr/local/bin/jailmanage
 }
 
 set_jail_start_order()
@@ -493,7 +493,7 @@ update_freebsd()
 
 	if grep -q '^Components src' /etc/freebsd-update.conf; then
 		tell_status "remove src from freebsd-update"
-		sed -i .bak -e '/^Components/ s/src //' /etc/freebsd-update.conf
+		sed -i.bak -e '/^Components/ s/src //' /etc/freebsd-update.conf
 	fi
 
 	tell_status "updating FreeBSD with security patches"
@@ -554,7 +554,7 @@ configure_etc_hosts()
 	# hosts DNS on *every* incoming syslog message.
 	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
 		tell_status "removing /etc/hosts toaster additions"
-		sed -i .bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+		sed -i.bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
 	fi
 
 	tell_status "adding /etc/hosts entries"

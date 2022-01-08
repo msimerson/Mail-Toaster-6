@@ -122,7 +122,7 @@ http {
 
 EO_NGINX_CONF
 
-	sed -i .bak \
+	sed -i.bak \
 		-e "s/haproxy;/$(get_jail_ip haproxy);/" \
 		-e "s/haproxy6;/$(get_jail_ip6 haproxy);/" \
 		"$_installed" || exit

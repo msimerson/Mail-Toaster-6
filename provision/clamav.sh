@@ -26,7 +26,7 @@ install_clamav_unofficial()
 		dialog --yesno "$_es_mess" 18 74 || return
 	fi
 
-	local CLAMAV_UV=7.2.1
+	local CLAMAV_UV=7.2.5
 	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
 	stage_pkg_install gnupg1 rsync bind-tools gtar
@@ -49,7 +49,7 @@ install_clamav_unofficial()
 		echo "done"
 	else
 		tell_status "completing user configuration"
-		sed -i .bak \
+		sed -i.bak \
 			-e '/^#user_configuration_complete/ s/^#//' \
 			"$_conf/user.conf"
 		echo "done"
@@ -58,7 +58,7 @@ install_clamav_unofficial()
 	if grep -qs ^Antidebug_AntiVM "$_conf/master.conf"; then
 		tell_status "disabling error throwing rules"
 		echo "see https://github.com/extremeshok/clamav-unofficial-sigs/issues/151"
-		sed -i .bak \
+		sed -i.bak \
 			-e '/^Antidebug_AntiVM/ s/^A/#A/' \
 			-e '/^email/ s/^e/#e/' \
 			"$_conf/master.conf"
@@ -66,7 +66,7 @@ install_clamav_unofficial()
 
 	tell_status "installing clamav-unofficial-sigs.sh"
 	local _sigs_sh="$_dist/clamav-unofficial-sigs.sh"
-	sed -i .bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' "$_sigs_sh"
+	sed -i.bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' "$_sigs_sh"
 	chmod 755 "$_sigs_sh" || exit
 	cp "$_sigs_sh" "$STAGE_MNT/usr/local/bin" || exit
 
@@ -124,7 +124,7 @@ configure_clamd()
 	tell_status "configuring clamd"
 	local _conf="$STAGE_MNT/usr/local/etc/clamd.conf"
 
-	sed -i .bak \
+	sed -i.bak \
 		-e 's/^#TCPSocket 3310/TCPSocket 3310/' \
 		-e 's/^#LogFacility LOG_MAIL/LogFacility LOG_MAIL/' \
 		-e 's/^#LogSyslog yes/LogSyslog yes/' \
@@ -153,7 +153,7 @@ configure_freshclam()
 	tell_status "configuring freshclam"
 	local _conf="$STAGE_MNT/usr/local/etc/freshclam.conf"
 
-	sed -i .bak \
+	sed -i.bak \
 		-e 's/^UpdateLogFile /#UpdateLogFile /' \
 		-e 's/^#LogSyslog yes/LogSyslog yes/' \
 		-e 's/^#LogFacility LOG_MAIL/LogFacility LOG_MAIL/' \

@@ -115,7 +115,7 @@ configure_zsh_shell()
 	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
 	stage_exec mkdir /root/.config
 	stage_exec cp /root/.zim/modules/prompt/external-themes/liquidprompt/liquidpromptrc-dist /root/.config/liquidpromptrc
-	stage_exec sed -i .bak \
+	stage_exec sed -i.bak \
 					-e 's/^LP_HOSTNAME_ALWAYS=0/LP_HOSTNAME_ALWAYS=1/' \
 					"/root/.config/liquidpromptrc" || exit
 

@@ -182,7 +182,7 @@ update_haproxy_ssld()
 	fi
 
 	tell_status "switching haproxy TLS cert dir to /data/ssl.d"
-	sed -i .bak \
+	sed -i.bak \
 		-e 's!ssl crt /etc.*!ssl crt /data/ssl.d!' \
 		"$_haconf"
 }

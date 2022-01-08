@@ -43,7 +43,7 @@ install_geoip_dbs()
 
 	if ! grep -qs ^geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"
-		sed -i .bak -e '/^# geoip/ s/# //' "$HARAKA_CONF/plugins"
+		sed -i.bak -e '/^# geoip/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
@@ -150,7 +150,7 @@ configure_haraka_vpopmail()
 		tell_status "enabling vpopmaild plugin"
 
 		# shellcheck disable=1004
-		sed -i '.bak' \
+		sed -i.bak \
 			-e '/^# auth\/auth_ldap$/a\
 auth\/auth_vpopmaild
 ' "$HARAKA_CONF/plugins"
@@ -169,7 +169,7 @@ queue=smtp_forward" | \
 
 	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
 		tell_status "enabling qmail-deliverable plugin"
-		sed -i .bak \
+		sed -i.bak \
 			-e '/^#qmail-deliverable/ s/#//' \
 			-e '/^#rcpt_to.qmail_deliverable/ s/#.*/qmail-deliverable/' \
 			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
@@ -238,7 +238,7 @@ tmpdir=/data/avg/spool
 
 		if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
 			tell_status "update tmpdir in avg.ini"
-			sed -i .bak -e \
+			sed -i.bak -e \
 				'/^tmpdir/ s/avg$/avg\/spool/g' \
 				"$HARAKA_CONF/avg.ini"
 		fi
@@ -383,7 +383,7 @@ configure_haraka_smtp_ini()
 		configure_install_default smtp.ini
 	fi
 
-	sed -i .bak \
+	sed -i.bak \
 		-e 's/^;listen=\[.*$/listen=[::0]:25,[::0]:465,[::0]:587/' \
 		-e 's/^;nodes=cpus/nodes=2/' \
 		-e 's/^;daemonize=true/daemonize=true/' \
@@ -399,7 +399,7 @@ configure_haraka_plugins()
 	fi
 
 	# enable a bunch of plugins
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^#process_title/ s/#//' \
 		-e '/^#spf$/ s/#//' \
 		-e '/^#bounce/ s/#//' \
@@ -436,14 +436,14 @@ configure_haraka_limit()
 {
 	if ! grep -qs ^limit "$HARAKA_CONF/plugins"; then
 		tell_status "adding limit plugin"
-		sed -i .bak \
+		sed -i.bak \
 			-e 's/^max_unrecognized_commands/# limit/' \
 			"$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/limit.ini" ]; then
 		configure_install_default limit.ini
-		sed -i .bak \
+		sed -i.bak \
 			-e 's/^; max/max/' \
 			-e 's/^; history/history/' \
 			-e 's/^; discon/discon/' \
@@ -586,7 +586,7 @@ EO_RESULTS
 enable_newsyslog() {
 	tell_status "enabling newsyslog"
 	stage_sysrc newsyslog_enable=YES
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"
 }
