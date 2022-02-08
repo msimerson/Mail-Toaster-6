@@ -11,11 +11,10 @@ mt6-include nginx
 install_nagios()
 {
 	tell_status "installing nagios"
-	stage_pkg_install nagios4 npre3 || exit
+	stage_pkg_install nagios4 nrpe3 || exit
 
 	tell_status "installing web services"
 	install_nginx
-	install_php 72
 	stage_pkg_install fcgiwrap || exit
 }
 
