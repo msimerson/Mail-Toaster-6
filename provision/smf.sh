@@ -11,7 +11,7 @@ mt6-include nginx
 install_smf()
 {
 	install_nginx
-	install_php 72 "filter gd mysqli pdo_mysql session zlib"
+	install_php 74 "filter gd mysqli pdo_mysql session zlib"
 
 	if [ ! -d "$STAGE_MNT/usr/local/www/smf" ]; then
 		mkdir -p "$STAGE_MNT/usr/local/www/smf" || exit
