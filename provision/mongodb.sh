@@ -18,6 +18,11 @@ install_mongodb()
 }
 
 check_max_wired() {
+	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
+	if [ "$_fbsd_major" -gt "12" ]; then
+		return
+	fi
+
 	_count=$(sysctl -n vm.stats.vm.v_wire_count)
 	_wired=$(sysctl -n vm.max_wired)
 
