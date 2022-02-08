@@ -50,7 +50,7 @@ configure_dovecot_local_conf() {
 #mail_debug = yes
 listen = *, ::
 auth_verbose=yes
-auth_mechanisms = plain login digest-md5 cram-md5
+auth_mechanisms = plain login digest-md5 cram-md5 scram-sha-1 scram-sha-256
 auth_username_format = %Lu
 disable_plaintext_auth = no
 first_valid_gid = 89
