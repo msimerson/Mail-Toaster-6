@@ -12,11 +12,11 @@ install_mediawiki()
 {
 	assure_jail mysql
 
-	install_php 74 "ctype dom fileinfo filter iconv intl gd json mbstring mysqli openssl readline session sockets xml xmlreader zlib"
+	install_php 74 "ctype dom fileinfo hash iconv intl gd json mbstring mysqli openssl readline session sockets xml xmlreader zlib"
 	install_nginx
 
 	stage_pkg_install dialog4ports mysql57-client
-	stage_port_install www/mediawiki135 || exit
+	stage_port_install www/mediawiki135-php74 || exit
 
 	mkdir -p "$STAGE_MNT/var/cache/mediawiki"
 	chown 80:80 "$STAGE_MNT/var/cache/mediawiki"
