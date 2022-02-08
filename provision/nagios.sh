@@ -88,6 +88,12 @@ configure_nagios()
 	echo "linking to /data/spool"
 	stage_exec ln -s /data/spool /var/spool/nagios
 
+	for f in nagios.cfg cgi.cfg
+	do
+		echo "linking $f into /usr/local/etc/nagios/ for CGI"
+		ln -s /data/etc/nagios/$f $STAGE_MNT/usr/local/etc/nagios/$f
+	done
+
 	configure_nginx nagios
 	configure_php
 	configure_nginx_server
