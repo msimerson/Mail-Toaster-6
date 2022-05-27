@@ -143,8 +143,14 @@ enable_security_periodic()
 	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
 
+auto_remove="vim-console"
+for _pkg in $auto_remove;
+do
+  /usr/sbin/pkg delete "$_pkg"
+done
+
 # packages to be updated automatically
-auto_upgrade="curl expat libxml2 pkg sudo vim"
+auto_upgrade="curl expat libxml2 pkg sudo vim-tiny"
 
 # add packages with:
 #   sysrc -f /usr/local/etc/periodic/daily/auto_security_upgrades auto_upgrade+=" $NEW"
@@ -560,7 +566,7 @@ EO_VIMRC
 install_base()
 {
 	tell_status "installing packages desired in every jail"
-	stage_pkg_install pkg vim ca_root_nss || exit
+	stage_pkg_install pkg vim-tiny ca_root_nss || exit
 
 	stage_exec newaliases
 
