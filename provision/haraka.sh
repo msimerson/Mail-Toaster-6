@@ -12,26 +12,26 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node14 gmake python3 git-lite || exit
+	stage_pkg_install npm-node16 gmake python3 pkgconf git-lite || exit
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash || exit
 	fi
 	export PYTHON=/usr/local/bin/python3
 	stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
-	stage_exec npm install -g --only=prod node-gyp || exit
+	stage_exec npm install -g --omit=dev node-gyp || exit
 
 	tell_status "installing Haraka"
 	stage_exec git clone --depth=1 https://github.com/haraka/Haraka.git /root/Haraka
 	stage_exec npm set user 0
 	stage_exec npm set -g unsafe-perm true
-	stage_exec npm install -g --only=prod /root/Haraka || exit
+	stage_exec npm install -g --omit=dev /root/Haraka || exit
 
 	local _plugins="ws express"
 	for _p in log-reader known-senders aliases dmarc-perl; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
-	stage_exec bash -c "cd /data && npm install --only=prod $_plugins"
+	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
 }
 
 install_geoip_dbs()

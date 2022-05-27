@@ -172,7 +172,7 @@ install_nictool_db()
 
 install_nictool_user()
 {
-	for _f in master.password group;
+	for _f in master.passwd group;
 	do
 		if [ -f "$ZFS_JAIL_MNT/nictool/etc/$_f" ]; then
 			tell_status "preserving /etc/$_f"
