@@ -46,7 +46,7 @@ configure_nsd()
 		cp "$STAGE_MNT/usr/local/etc/nsd/nsd.conf" "$STAGE_MNT/data/etc/"
 	fi
 
-	for _f in master.password group;
+	for _f in master.passwd group;
 	do
 		if [ -f "$ZFS_JAIL_MNT/nsd/etc/$_f" ]; then
 			cp "$ZFS_JAIL_MNT/nsd/etc/$_f" "$STAGE_MNT/etc/"

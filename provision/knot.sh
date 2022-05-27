@@ -36,7 +36,7 @@ configure_knot()
 	stage_sysrc knot_enable=YES
 	stage_sysrc knot_config=/data/etc/knot.conf
 
-	for _f in master.password group;
+	for _f in master.passwd group;
 	do
 		if [ -f "$ZFS_JAIL_MNT/knot/etc/$_f" ]; then
 			cp "$ZFS_JAIL_MNT/knot/etc/$_f" "$STAGE_MNT/etc/"
