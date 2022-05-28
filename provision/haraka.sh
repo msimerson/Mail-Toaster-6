@@ -26,9 +26,10 @@ install_haraka()
 	stage_exec npm set user 0
 	stage_exec npm set -g unsafe-perm true
 	stage_exec npm install -g --omit=dev /root/Haraka || exit
+	stage_exec bash -c "cd /root/Haraka && npm install --omit=dev" || exit
 
 	local _plugins="ws express"
-	for _p in log-reader known-senders aliases dmarc-perl; do
+	for _p in log-reader known-senders dmarc-perl; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
 	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
