@@ -10,7 +10,7 @@ export JAIL_CONF_EXTRA="
 install_wildduck()
 {
 	tell_status "installing node.js"
-	stage_pkg_install npm-node14 git-lite || exit
+	stage_pkg_install npm-node16 git-lite || exit
 
 	tell_status "installing wildduck"
 	stage_pkg_install dialog4ports
