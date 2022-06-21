@@ -654,7 +654,7 @@ stage_resolv_conf()
 {
 	tell_status "configuring DNS for local recursor"
 	echo "nameserver $(get_jail_ip dns)" > "$STAGE_MNT/etc/resolv.conf"
-	echo "nameserver $(get_jail_ip dns6)" >> "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip6 dns)" >> "$STAGE_MNT/etc/resolv.conf"
 }
 
 seed_pkg_audit()
