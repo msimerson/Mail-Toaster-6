@@ -9,6 +9,11 @@ install_postfix()
 {
 	tell_status "installing postfix"
 	stage_pkg_install postfix-sasl opendkim dialog4ports || exit
+
+	if [ -n "$TOASTER_NRPE" ]; then
+		tell_status "installing nagios-plugins"
+		stage_pkg_install nagios-plugins || exit
+	fi
 }
 
 configure_opendkim()
