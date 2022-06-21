@@ -9,6 +9,7 @@ export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 export NICTOOL_UPGRADE=""
 
 mt6-include mysql
+mt6-include user
 
 install_nt_prereqs()
 {
@@ -170,18 +171,6 @@ install_nictool_db()
 	done
 }
 
-install_nictool_user()
-{
-	for _f in master.passwd group;
-	do
-		if [ -f "$ZFS_JAIL_MNT/nictool/etc/$_f" ]; then
-			tell_status "preserving /etc/$_f"
-			cp "$ZFS_JAIL_MNT/nictool/etc/$_f" "$STAGE_MNT/etc/"
-			stage_exec pwd_mkdb -p /etc/master.passwd
-		fi
-	done
-}
-
 install_nictool()
 {
 	install_nt_prereqs
@@ -191,7 +180,7 @@ install_nictool()
 	install_nictool_client
 	install_apache_setup
 	install_nictool_db
-	install_nictool_user
+	preserve_passdb nictool
 }
 
 start_nictool()

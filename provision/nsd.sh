@@ -5,6 +5,8 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+mt6-include user
+
 install_nsd()
 {
 	tell_status "installing NSD"
@@ -46,13 +48,7 @@ configure_nsd()
 		cp "$STAGE_MNT/usr/local/etc/nsd/nsd.conf" "$STAGE_MNT/data/etc/"
 	fi
 
-	for _f in master.passwd group;
-	do
-		if [ -f "$ZFS_JAIL_MNT/nsd/etc/$_f" ]; then
-			cp "$ZFS_JAIL_MNT/nsd/etc/$_f" "$STAGE_MNT/etc/"
-			stage_exec pwd_mkdb -p /etc/master.passwd
-		fi
-	done
+	preserve_passdb nsd
 }
 
 start_nsd()
