@@ -67,7 +67,7 @@ auth.require   = ( "/cgi-bin/vqadmin" =>
 EO_LIGHTTPD
 
 	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
-		sed -i .bak -e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+		sed -i.bak -e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	fi
 
 	stage_sysrc lighttpd_enable=YES
@@ -146,7 +146,7 @@ install_vpopmail_mysql_grants()
 
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
-	sed -i .bak \
+	sed -i.bak \
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \

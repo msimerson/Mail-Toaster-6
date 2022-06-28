@@ -47,7 +47,7 @@ configure_lighttpd()
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
 	# shellcheck disable=2016
-	sed -i .bak \
+	sed -i.bak \
 		-e 's/^#include_shell "cat/include_shell "cat/' \
 		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
 		"$_lighttpd_conf"

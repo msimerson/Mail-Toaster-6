@@ -275,7 +275,7 @@ EO_VPOPMAIL_ETC
 	if [ -f "$ETC/tcp.smtp.cdb" ]; then
 		if [ -f "$SUP/qmail-smtpd/run" ]; then
 			echo "adding tcp.smtp.cdb to qmail-smtpd/run"
-			sed -i .bak \
+			sed -i.bak \
 				-e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' \
 				"$SUP/qmail-smtpd/run"
 		fi

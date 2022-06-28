@@ -64,7 +64,7 @@ configure_lighttpd()
 
 	tell_status "enabling sqwebmail in lighttpd.conf"
 	# shellcheck disable=2016
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^var.server_root/ s/data/data-dist/' \
 		-e '/^server.document-root/ s/data/data-dist/' \
 		"$_lighttpd"
@@ -90,7 +90,7 @@ configure_authdaemon()
 	stage_sysrc courier_authdaemond_enable=YES
 
 	tell_status "configuring authdaemond"
-	sed -i .bak \
+	sed -i.bak \
 		-e '/^authmodulelist/ s/authuserdb authvchkpw authpam authldap authmysql authpgsql/authvchkpw/' \
 		"$STAGE_MNT/usr/local/etc/authlib/authdaemonrc"
 }
