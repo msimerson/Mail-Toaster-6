@@ -125,7 +125,7 @@ configure_wp_config()
 	if [ -d "$_local_content" ]; then
 		tell_status "linking wp-content to $_local_content"
 		rm -r "$STAGE_MNT/usr/local/www/wordpress/wp-content"
-		stage_exec ln -s "/usr/local/www/wordpress/wp-content" /data/content
+		stage_exec ln -s /data/content "/usr/local/www/wordpress/wp-content"
 	else
 		tell_status "copying wp-content to /data"
 		mv "$_wp_stage/wp-content" "$_local_content"
