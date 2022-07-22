@@ -10,7 +10,8 @@ install_puppeteer()
 	tell_status "install puppeteer"
 	stage_pkg_install npm-node16 chromium
 
-	stage_exec npm install -g puppeteer
+	stage_exec PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install -g puppeteer
+	stage_exec npm install -g https://github.com/msimerson/google-charts-node.git
 }
 
 configure_puppeteer()
@@ -27,13 +28,13 @@ configure_puppeteer()
 start_puppeteer()
 {
 	tell_status "starting up puppeteer"
-	stage_exec bash -c "cd /data/test && puppeteer serve &"
+	#stage_exec bash -c "cd /data/test && puppeteer serve &"
 }
 
 test_puppeteer()
 {
 	tell_status "testing puppeteer"
-	stage_listening 4000 3
+	#stage_listening 4000 3
 }
 
 base_snapshot_exists || exit
