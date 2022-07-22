@@ -11,6 +11,7 @@ install_puppeteer()
 	stage_pkg_install npm-node16 chromium
 
 	stage_exec PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install -g puppeteer
+	stage_exec npm install -g https://github.com/msimerson/google-charts-node.git
 }
 
 configure_puppeteer()
