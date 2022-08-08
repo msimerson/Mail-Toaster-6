@@ -337,7 +337,7 @@ let mapleader = ','
 let g:mapleader = ','
 
 " syntax
-syntax on
+"syntax on
 
 " history : how many lines of history VIM has to remember
 set history=2000
