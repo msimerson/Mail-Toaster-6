@@ -437,9 +437,7 @@ configure_haraka_limit()
 {
 	if ! grep -qs ^limit "$HARAKA_CONF/plugins"; then
 		tell_status "adding limit plugin"
-		sed -i.bak \
-			-e 's/^max_unrecognized_commands/# limit/' \
-			"$HARAKA_CONF/plugins"
+        echo 'limit' | tee -a "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/limit.ini" ]; then
