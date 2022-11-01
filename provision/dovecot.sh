@@ -2,13 +2,17 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA="allow.sysvipc=1"
+export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-        allow.sysvipc 1;
 		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail
+
+allow_sysvipc_stage(){
+    tell_status "allow sysvipc for the staged jail"
+    jail -m jid=stage allow.sysvipc=1
+}
 
 install_dovecot()
 {
@@ -606,6 +610,7 @@ test_dovecot()
 base_snapshot_exists || exit
 create_staged_fs dovecot
 start_staged_jail dovecot
+allow_sysvipc_stage
 install_dovecot
 configure_dovecot
 start_dovecot
