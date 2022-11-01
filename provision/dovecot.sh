@@ -9,6 +9,11 @@ export JAIL_CONF_EXTRA="
 
 mt6-include vpopmail
 
+allow_sysvipc_stage(){
+    tell_status "allow sysvipc for the staged jail"
+    jail -m jid=stage allow.sysvipc=1
+}
+
 install_dovecot()
 {
 	tell_status "installing dovecot package"
@@ -562,15 +567,15 @@ test_imap()
 	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 143
 	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):993"
 	if [ ! -e out ]; then exit; fi
-	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS\n"
-	empty -v -w -i out -o in "Logged in"         ". LIST \"\" \"*\"\n"
-	empty -v -w -i out -o in "List completed"    ". SELECT INBOX\n"
+	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS"$'\n'
+	empty -v -w -i out -o in "Logged in"         $'. LIST \"\" \"*\"\n'
+	empty -v -w -i out -o in "List completed"    $'. SELECT INBOX\n'
 	# shellcheck disable=SC2050
 	if [ "has" = "some messages" ]; then
-		empty -v -w -i out -o in "Select completed"  ". FETCH 1 BODY\n"
-		empty -v -w -i out -o in "OK Fetch completed" ". LOGOUT\n"
+		empty -v -w -i out -o in "Select completed"  $'. FETCH 1 BODY\n'
+		empty -v -w -i out -o in "OK Fetch completed" $'. LOGOUT\n'
 	else
-		empty -v -w -i out -o in "Select completed" ". LOGOUT\n"
+		empty -v -w -i out -o in "Select completed" $'. LOGOUT\n'
 	fi
 	echo "Logout completed"
 	if [ -e out ]; then
@@ -592,10 +597,10 @@ test_pop3()
 	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 110
 	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):995"
 	if [ ! -e out ]; then exit; fi
-	empty -v -w -i out -o in "\+OK." "user $POST_USER\n"
-	empty -v -w -i out -o in "\+OK" "pass $POST_PASS\n"
-	empty -v -w -i out -o in "OK Logged in" "list\n"
-	empty -v -w -i out -o in "." "quit\n"
+	empty -v -w -i out -o in "\+OK." "user $POST_USER"$'\n'
+	empty -v -w -i out -o in "\+OK" "pass $POST_PASS"$'\n'
+	empty -v -w -i out -o in "OK Logged in" $'list\n'
+	empty -v -w -i out -o in "." $'quit\n'
 
 	if [ -e out ]; then
 		sleep 1
@@ -616,6 +621,7 @@ test_dovecot()
 base_snapshot_exists || exit
 create_staged_fs dovecot
 start_staged_jail dovecot
+allow_sysvipc_stage
 install_dovecot
 configure_dovecot
 stage_resolv_conf
