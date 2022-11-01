@@ -205,6 +205,8 @@ install_vpopmail()
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
+    echo "CFLAGS+= -fcommon" >> $STAGE_MNT/etc/make.conf
+
 
 	tell_status "installing vpopmail package"
 	stage_pkg_install vpopmail || exit
