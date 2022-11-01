@@ -15,21 +15,21 @@ install_rainloop()
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "using sqlite DB backend"
 		_php_modules="$_php_modules pdo_sqlite"
-		stage_make_conf rainloop-community_SET 'mail_rainloop-community_SET=SQLITE'
-		stage_make_conf rainloop-community_UNSET 'mail_rainloop-community_UNSET=MYSQL PGSQL'
+		stage_make_conf rainloop_SET 'mail_rainloop_SET=SQLITE'
+		stage_make_conf rainloop_UNSET 'mail_rainloop_UNSET=MYSQL PGSQL'
 	else
 		tell_status "using mysql DB backend"
 			_php_modules="$_php_modules pdo_mysql"
-			stage_make_conf rainloop-community_SET 'mail_rainloop-community_SET=MYSQL'
-			stage_make_conf rainloop-community_UNSET 'mail_rainloop-community_UNSET=SQLITE PGSQL'
+			stage_make_conf rainloop_SET 'mail_rainloop_SET=MYSQL'
+			stage_make_conf rainloop_UNSET 'mail_rainloop_UNSET=SQLITE PGSQL'
 	fi
 
 	install_php 74 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"
-	#stage_pkg_install rainloop-community
-	stage_port_install mail/rainloop-community || exit
+	#stage_pkg_install rainloop
+	stage_port_install mail/rainloop || exit
 }
 
 configure_nginx_server()
@@ -112,7 +112,7 @@ EO_INI
 set_default_path()
 {
 	local _rl_ver;
-	_rl_ver="$(pkg -j stage info rainloop-community-php74 | grep Version | awk '{ print $3 }' | cut -f1 -d_)"
+	_rl_ver="$(pkg -j stage info rainloop-php74 | grep Version | awk '{ print $3 }' | cut -f1 -d_)"
 	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
 	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
 
