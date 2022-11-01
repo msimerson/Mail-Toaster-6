@@ -205,8 +205,11 @@ install_vpopmail()
 
 	# stage_exec pw groupadd -n vpopmail -g 89
 	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
-    echo "CFLAGS+= -fcommon" >> $STAGE_MNT/etc/make.conf
 
+	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
+	if [ "$_fbsd_major" -gt "12" ]; then
+		echo "CFLAGS+= -fcommon" >> $STAGE_MNT/etc/make.conf
+	fi
 
 	tell_status "installing vpopmail package"
 	stage_pkg_install vpopmail || exit
