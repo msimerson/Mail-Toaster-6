@@ -88,13 +88,14 @@ test_mysql()
 {
 	if [ -f "$STAGE_MNT/root/.mysql_secret" ]; then
 		tell_status "new install, setting root password"
-		_inital_pass=$(tail -n1 "$STAGE_MNT/root/.mysql_secret")
-		if [ -z "$_inital_pass" ]; then
-			echo "ERROR: unable to find the mysql intial password"
+		local _initial_pass
+		_initial_pass="$(tail -n1 "$STAGE_MNT/root/.mysql_secret")"
+		if [ -z "$_initial_pass" ]; then
+			echo "ERROR: unable to find the mysql initial password"
 			exit 1
 		fi
 		echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
-			| stage_exec mysql -u root --connect-expired-password --password="$_inital_pass" \
+			| stage_exec mysql -u root --connect-expired-password --password="$_initial_pass" \
 			|| exit
 		rm "$STAGE_MNT/root/.mysql_secret"
 	fi
