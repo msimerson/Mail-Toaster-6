@@ -48,7 +48,7 @@ mysql_create_db()
 	fi
 
 	tell_status "creating mysql database $1"
-	echo "CREATE DATABASE $1;" | jexec mysql $(mysql_bin) || return 1
+	echo "CREATE DATABASE $1 CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;" | jexec mysql $(mysql_bin) || return 1
 	return 0
 }
 
