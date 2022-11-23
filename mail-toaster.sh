@@ -667,10 +667,10 @@ seed_pkg_audit()
 
 enable_jail()
 {
-	if sysrc -e jail_list | grep -q "$1"; then
+	case " $(sysrc -n jail_list) " in *" $1 "*)
 		#echo "jail $1 already enabled at startup"
-		return
-	fi
+		return ;;
+	esac
 
 	tell_status "enabling jail $1 at startup"
 	sysrc jail_list+=" $1"
