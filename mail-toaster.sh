@@ -63,6 +63,7 @@ export TOASTER_MUNIN=""
 export TOASTER_QMHANDLE="0"
 export TOASTER_MSA="haraka"
 export MAXMIND_LICENSE_KEY=""
+export TOASTER_USE_TMPFS="0"
 
 EO_MT_CONF
 
@@ -426,12 +427,19 @@ add_jail_conf()
 		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
 	fi
 
+	local _add_mounts=""
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		_add_mounts="
+		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
+		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
+	fi
+
 	tell_status "adding $1 to /etc/jail.conf"
 	tee -a /etc/jail.conf <<EO_JAIL_CONF
 
 $1	{
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}${JAIL_CONF_EXTRA}
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}${JAIL_CONF_EXTRA}${_add_mounts}
 	}
 EO_JAIL_CONF
 }
