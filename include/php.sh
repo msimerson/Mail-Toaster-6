@@ -121,3 +121,8 @@ test_php_fpm()
 		fi
 	fi
 }
+
+php_quote()
+{
+	stage_exec php -r 'var_export($argv[1]);' "$1"
+}

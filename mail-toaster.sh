@@ -5,6 +5,8 @@ mt6_version() { echo "20220621"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
+sed_replacement_quote() { printf "%s" "$1" | sed 's,[&\\/],\\\1,g'; }
+
 get_random_ip6net()
 {
 	# shellcheck disable=2039
@@ -57,6 +59,7 @@ export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
 export ROUNDCUBE_SQL="0"
 export ROUNDCUBE_DEFAULT_HOST=""
+export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
 export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
@@ -143,6 +146,7 @@ export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
+export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 
@@ -645,6 +649,13 @@ tell_status()
 {
 	echo; echo "   ***   $1   ***"; echo
 	sleep 1
+}
+
+tell_settings()
+{
+	echo "   ***   Configured $1 settings:"
+	set | grep "^$1_"
+	sleep 2
 }
 
 proclaim_success()
