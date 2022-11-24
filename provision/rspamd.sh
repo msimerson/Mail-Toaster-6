@@ -11,6 +11,14 @@ install_rspamd()
 {
 	tell_status "installing rspamd"
 	stage_pkg_install rspamd || exit
+
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
+mkdir -p /var/run/rspamd
+chown rspamd:rspamd /var/run/rspamd
+EO_RC_LOCAL
+		stage_exec service local start
+	fi
 }
 
 configure_redis()
