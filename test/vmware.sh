@@ -7,7 +7,7 @@
 # vmrun -T fusion start
 
 FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 11.vmwarevm"
-VERSION="12.3-p0"
+VERSION="12.3-p6"
 VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
 GUESTUSER="root"
 GUESTPASS="passWord"
@@ -64,7 +64,7 @@ cleanstart() {
 
 vm_setup() {
 	# install, no options, Auto ZFS, 8gb swap, sshd & powerd
-	pkg install -y vim sudo open-vm-tools-nox11 git-lite
+	pkg install -y vim-tiny sudo open-vm-tools-nox11 git-lite
 	chpass -s sh root
 	echo 'autoboot_delay="1"' >> /boot/loader.conf
 
