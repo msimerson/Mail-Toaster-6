@@ -37,6 +37,7 @@ configure_knot()
 	stage_sysrc sshd_enable=YES
 	stage_sysrc knot_enable=YES
 	stage_sysrc knot_config=/data/etc/knot.conf
+	jexec pw user mod knot -d /data/home/knot -s /bin/sh
 
 	preserve_passdb knot
 }
