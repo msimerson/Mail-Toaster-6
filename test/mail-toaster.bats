@@ -664,6 +664,7 @@ promote_setup() {
   enable_jail()           { :; }
   proclaim_success()      { :; }
   add_jail_conf()          { echo "add_jail_conf" >> "$CALLS"; }
+  zfs()                    { echo "zfs $*" >> "$CALLS"; }
   retire_jail_host_etc()   { echo "retire" >> "$CALLS"; }
   service()                { echo "start" >> "$CALLS"; return "${SERVICE_RC:-0}"; }
 }
@@ -687,6 +688,18 @@ promote_setup() {
 
   run cat "$CALLS"
   refute_output --partial "retire"
+}
+
+@test "promote_staged_jail - creates a snapshot if ZFS_SNAPSHOT_PROVISIONED=1" {
+  promote_setup
+  export ZFS_JAIL_VOL="fakezroot/jails"
+  export ZFS_SNAPSHOT_PROVISIONED="1"
+  promote_staged_jail dovecot
+
+  run cat "$CALLS"
+  assert_line --index 0 "add_jail_conf"
+  assert_line --index 1 "zfs snapshot $ZFS_JAIL_VOL/dovecot@provisioned"
+  assert_line --index 2 "start"
 }
 
 
