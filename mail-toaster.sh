@@ -486,6 +486,8 @@ promote_staged_jail()
 	rename_ready_to_active "$1"
 	add_jail_conf "$1"
 	#add_automount "$1"
+	[ "$ZFS_SNAPSHOT_PROVISIONED" = 0 ] ||
+		zfs snapshot "$ZFS_JAIL_VOL/$1@provisioned"
 
 	tell_status "service jail start $1"
 	service jail start "$1" || exit 1
@@ -793,6 +795,7 @@ unprovision_last()
 	for _j in $JAIL_ORDERED_LIST; do
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
+			zfs destroy "$ZFS_JAIL_VOL/$_j.last@provisioned" || true
 			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
 		fi
 	done
@@ -803,6 +806,7 @@ unprovision_filesystem()
 	for suffix in ready last; do
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.$suffix"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$1.$suffix"
+			zfs destroy "$ZFS_JAIL_VOL/$1.$suffix@provisioned" || true
 			zfs destroy "$ZFS_JAIL_VOL/$1.$suffix" || return 1
 		fi
 	done
@@ -819,6 +823,7 @@ unprovision_filesystem()
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1"; then
 		tell_status "destroying $ZFS_JAIL_VOL/$1"
+		zfs destroy "$ZFS_JAIL_VOL/$1@provisioned" || return 1
 		zfs destroy "$ZFS_JAIL_VOL/$1" || return 1
 	fi
 }
