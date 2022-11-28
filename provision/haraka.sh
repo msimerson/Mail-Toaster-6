@@ -404,7 +404,8 @@ configure_haraka_plugins()
 		-e '/^#process_title/ s/#//' \
 		-e '/^#spf$/ s/#//' \
 		-e '/^#bounce/ s/#//' \
-		-e '/^#data.uribl/ s/#//' \
+		-e '/^#data.uribl/ s/#data\.//' \
+		-e '/^#uribl/ s/#//' \
 		-e '/^#attachment/ s/#//' \
 		-e '/^#dkim_sign/ s/#//' \
 		-e '/^#karma$/ s/#//' \
