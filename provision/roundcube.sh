@@ -187,10 +187,17 @@ configure_roundcube()
 		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
 	fi
 
+	local _version="$(pkg -j "$SAFE_NAME" version -qe roundcube-php80)"
+	if [ "$(pkg -j "$SAFE_NAME" version -t "$_version" "roundcube-php80-1.6.0,1")" = "<" ]; then
+		_imap_host="default_host"
+		_smtp_host="smtp_server"
+	else
+		_imap_host="imap_host"
+		_smtp_host="smtp_host"
+	fi
 	sed -i.bak \
-		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
-		-e "/'smtp_server'/  s/= '.*'/= 'ssl:\/\/$TOASTER_MSA'/" \
-		-e "/'smtp_port'/    s/25;/465;/ ; s/587;/465;/" \
+		-e "/'$_imap_host'/  s/localhost/$_dovecot_ip/" \
+		-e "/'$_smtp_host'/  s/= '.*'/= 'ssl:\/\/$TOASTER_MSA:465'/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'product_name'/ s/'Roundcube Webmail'/$(sed_replacement_quote "$(php_quote "$ROUNDCUBE_PRODUCT_NAME")")/" \
