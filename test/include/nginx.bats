@@ -320,3 +320,22 @@ get_jail_data() { echo "$ZFS_DATA_MNT/$1"; }
 
   rm -rf "$tmpdir"
 }
+
+@test "configure_nginx - sets log destination to /data/log/nginx" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  stage_sysrc() { :; }
+  get_jail_ip4() { echo "172.16.15.1"; }
+  get_jail_ip6() { echo "::1"; }
+
+  run configure_nginx myjail
+  assert_success
+
+  run grep "error_log /data/log/nginx/.*;" "$ZFS_DATA_MNT/myjail/etc/nginx/nginx.conf"
+  assert_success
+
+  run test -d "$ZFS_DATA_MNT/myjail/log/nginx"
+  assert_success
+
+  rm -rf "$tmpdir"
+}
