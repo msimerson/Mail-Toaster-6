@@ -167,6 +167,7 @@ configure_roundcube()
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
+		-e "/'product_name'/ s/'Roundcube Webmail'/$(sed_replacement_quote "$(php_quote "$ROUNDCUBE_PRODUCT_NAME")")/" \
 		"$_rcc_conf"
 
 	tee -a "$_rcc_conf" <<'EO_RC_ADD'
@@ -232,6 +233,7 @@ test_roundcube()
 	echo "it worked"
 }
 
+tell_settings ROUNDCUBE
 base_snapshot_exists || exit
 create_staged_fs roundcube
 start_staged_jail roundcube
