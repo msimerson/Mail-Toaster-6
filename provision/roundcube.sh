@@ -93,22 +93,37 @@ configure_nginx_server()
 		return
 	fi
 
+	local _add_server="" _add_location=""
+	if [ "$TOASTER_USE_TMPFS" = "1" ]; then
+		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
+TEMPDIRS="/tmp/nginx/fastcgi_temp /tmp/nginx/client_body_temp"
+mkdir -p $TEMPDIRS
+chown www:www $TEMPDIRS
+chmod 0700 $TEMPDIRS
+EO_RC_LOCAL
+		stage_exec service local start
+		_add_server="client_body_temp_path /tmp/nginx/client_body_temp;"
+		_add_location="fastcgi_temp_path /tmp/nginx/fastcgi_temp;"
+	fi
+
 	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_LOCALS'
+	tee "$_datadir/etc/nginx-locations.conf" <<EO_NGINX_LOCALS
 
 	server_name  roundcube;
 	root   /usr/local/www/roundcube;
 	index  index.php;
 
+	$_add_server
 	location /roundcube {
 		alias /usr/local/www/roundcube;
 	}
 
-	location ~ \.php$ {
+	location ~ \\.php\$ {
 		include        /usr/local/etc/nginx/fastcgi_params;
 		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+		fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
 		fastcgi_pass   php;
+		$_add_location
 	}
 
 EO_NGINX_LOCALS
