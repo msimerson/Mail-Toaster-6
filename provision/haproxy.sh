@@ -52,7 +52,6 @@ configure_haproxy_dot_conf()
 global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
-	nbproc      1
 	ssl-default-bind-options no-sslv3 no-tls-tickets
 	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
