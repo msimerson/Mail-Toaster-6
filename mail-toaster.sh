@@ -5,7 +5,7 @@ mt6_version() { echo "20220621"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
-sed_replacement_quote() { printf "%s" "$1" | sed 's,[&\\/],\\\1,g'; }
+sed_replacement_quote() { printf "%s" "$1" | sed -E 's,([&\\/]),\\\1,g'; }
 
 get_random_ip6net()
 {
