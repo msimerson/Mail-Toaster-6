@@ -179,7 +179,7 @@ configure_roundcube()
 	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
 
 	tell_status "customizing $_rcc_conf"
-	local _dovecot_ip;
+	local _dovecot_ip
 	if  [ -z "$ROUNDCUBE_DEFAULT_HOST" ];
 	then
 		_dovecot_ip=$(get_jail_ip dovecot)
@@ -187,7 +187,8 @@ configure_roundcube()
 		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
 	fi
 
-	local _version="$(pkg -j "$SAFE_NAME" version -qe roundcube-php80)"
+	local _version
+	_version="$(pkg -j "$SAFE_NAME" version -qe roundcube-php80)"
 	if [ "$(pkg -j "$SAFE_NAME" version -t "$_version" "roundcube-php80-1.6.0,1")" = "<" ]; then
 		_imap_host="default_host"
 		_smtp_host="smtp_server"
