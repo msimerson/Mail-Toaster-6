@@ -72,14 +72,13 @@ defaults
 	compression algo gzip
 	compression type text/html "text/html; charset=utf-8" text/html;charset=utf-8 text/plain text/css text/javascript application/x-javascript application/javascript application/ecmascript application/rss+xml application/atomsvc+xml application/atom+xml application/atom+xml;type=entry application/atom+xml;type=feed application/cmisquery+xml application/cmisallowableactions+xml application/cmisatom+xml application/cmistree+xml application/cmisacl+xml image/svg+xml
 
-	#listen stats *:9000
-	#    mode http
-	#    balance
-	#    stats uri /haproxy_stats
-	#    stats realm HAProxy\ Statistics
-	#    stats auth admin:password
-	#    stats admin if TRUE
-
+#frontend stats
+#    bind *:9000
+#    stats enable
+#    stats uri /haproxy_stats
+#    stats realm HAProxy\ Statistics
+#    stats auth admin:password
+#    stats admin if TRUE
 
 frontend http-in
 	#mode tcp
