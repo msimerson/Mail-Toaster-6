@@ -93,20 +93,21 @@ install_index()
 	tee "$_htdocs/index.html" <<'EO_INDEX'
 <html>
 <head>
- <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
- <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.0/jquery-ui.min.js"></script>
- <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.0/themes/smoothness/jquery-ui.css" />
+ <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>
+ <script src="//code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+ <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css" />
  <script>
   let loggedIn = false;
   $(function() {
     $( "#tabs" ).tabs({ disabled: [3] });
   });
   const webPaths = {
-    'webmail': '',
-    'sqwebmail': '/cgi-bin/sqwebmail?index=1',
-    'roundcube': '/roundcube/',
+    'webmail'     : '',
+    'rainloop'    : '/rainloop/',
+    'roundcube'   : '/roundcube/',
+    'snappymail'  : '/snappymail/',
+    'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
     'squirrelmail': '/squirrelmail/',
-    'rainloop': '/rainloop/',
   }
   const adminPaths = {
     'admin'     : '',
@@ -114,6 +115,7 @@ install_index()
     'rspamd'    : '/rspamd/',
     'watch'     : '/watch/',
     'rainloop'  : '/rainloop/?admin',
+    'snappymail': '/snappymail/?admin',
   }
   const statsPaths = {
     'statistics': '',
@@ -156,47 +158,42 @@ install_index()
     }
   }
   function checkWebmail() {
-    ['roundcube','rainloop','squirrelmail','sqwebmail'].forEach(w => {
+    for (const w in webPaths) {
+      if (w === 'webmail') continue
       $.ajax({
         url: `${webPaths[w]}`,
         success: (data) => { checkSuccess('webmail', w); },
         timeout: 3000,
       })
       .fail(() => { checkFail('webmail', w); })
-    })
+    }
   }
   function checkAdmin() {
-    ['qmailadmin','rspamd','watch','rainloop'].forEach(w => {
+    for (const w in adminPaths) {
+      if (w === 'admin') continue
       $.ajax({
         url: `${adminPaths[w]}`,
         success: (data) => { checkSuccess('admin', w); },
         timeout: 3000,
       })
       .fail(() => { checkFail('admin', w); })
-    })
+    }
   }
   function checkStats() {
-    ['munin','nagios','watch','grafana'].forEach(w => {
+    for (const w in statsPaths) {
+      if (w === 'statistics') continue
       $.ajax({
         url: `${statsPaths[w]}`,
         success: (data) => { checkSuccess('stats', w); },
         timeout: 3000,
       })
       .fail(() => { checkFail('stats', w); })
-    })
+    }
   }
   function checkAll () {
     checkWebmail();
     checkAdmin();
     checkStats();
-/*
- * This creates a usability problem where it causes (at least) framed webmail
-   app sessions (like squirrelmail) to time out prematurely.
-    setTimeout(function () {
-      // make recursive, so if a webmail (dis)appears, the list will update
-      checkAll();
-    }, 60 * 1000);
-*/
   }
   </script>
   <style>
@@ -212,8 +209,9 @@ body {
            <select id="webmail-select" onChange="changeWebmail(this);">
                <option value=webmail>Webmail</option>
                <option value=roundcube>Roundcube</option>
-               <option value=rainloop>Rainloop</option>
+               <option value=snappymail>Snappymail</option>
                <option value=squirrelmail>Squirrelmail</option>
+               <option value=rainloop>Rainloop</option>
                <option value=sqwebmail>Sqwebmail</option>
            </select>
        </a>
@@ -224,6 +222,7 @@ body {
                <option value=qmailadmin>Qmailadmin</option>
                <option value=rspamd>Rspamd</option>
                <option value=watch>Haraka Watch</option>
+               <option value=snappymail>Snappymail Admin</option>
                <option value=rainloop>Rainloop Admin</option>
            </select>
        </a>

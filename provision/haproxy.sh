@@ -110,6 +110,7 @@ frontend http-in
 	acl rspamd       path_beg /rspamd
 	acl roundcube    path_beg /roundcube
 	acl rainloop     path_beg /rainloop
+	acl snappymail   path_beg /snappymail
 	acl squirrelmail path_beg /squirrelmail
 	acl nictool      path_beg /nictool
 	acl mediawiki    path_beg /wiki
@@ -135,6 +136,7 @@ frontend http-in
 	use_backend www_rspamd       if  rspamd
 	use_backend www_roundcube    if  roundcube
 	use_backend www_rainloop     if  rainloop
+	use_backend www_snappymail   if  snappymail
 	use_backend www_squirrelmail if  squirrelmail
 	use_backend www_nictool      if  nictool
 	use_backend www_mediawiki    if  mediawiki
@@ -177,6 +179,10 @@ frontend http-in
 	backend www_rainloop
 	server rainloop $(get_jail_ip rainloop):80 send-proxy
 	http-request replace-uri /rainloop/(.*) /\1
+
+	backend www_snappymail
+	server snappymail 172.16.15.60:80 send-proxy
+	http-request replace-path /snappymail/(.*) /\1
 
 	backend www_monitor
 	server monitor $(get_jail_ip monitor):80
