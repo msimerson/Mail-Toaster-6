@@ -10,12 +10,12 @@ mt6-include nginx
 
 install_snappymail()
 {
-	local _php_modules="curl dom gd iconv intl mbstring pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
+	local _php_modules="curl dom gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
 
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "using sqlite DB backend"
 		stage_pkg_install sqlite3
-		_php_modules="$_php_modules pdo_sqlite"
+		# _php_modules="$_php_modules pdo_sqlite"
 		stage_make_conf snappymail_SET 'mail_snappymail_SET=SQLITE3 GNUPG'
 		stage_make_conf snappymail_UNSET 'mail_snappymail_UNSET=MYSQL PGSQL REDIS LDAP'
 	else
@@ -194,6 +194,26 @@ define('APP_DATA_FOLDER_PATH', '/data/');
 EO_INCLUDE
 }
 
+set_application_path()
+{
+	local _appini="$ZFS_DATA_MNT/snappymail/_data_/_default_/configs/application.ini"
+
+	if [ ! -f "$_appini" ]; then
+		echo "missing $_appini"
+		curl -k "https://haproxy/stage/snappymail/?admin"
+		sleep 1
+	fi
+
+	if [ ! -f "$_appini" ]; then
+		echo; echo "still missing $_appini"
+		exit
+	fi
+
+	sed -i.bak \
+		-e '/^app_path =/ s/""/"\/snappymail"/' \
+		"$_appini"
+}
+
 configure_snappymail()
 {
 	configure_php snappymail
@@ -211,6 +231,8 @@ start_snappymail()
 {
 	start_php_fpm
 	start_nginx
+
+	set_application_path
 }
 
 test_snappymail()
