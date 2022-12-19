@@ -41,6 +41,12 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 	tell_status "install vpopmail deps"
 	stage_pkg_install $_vpopmail_deps
 
+	if ! grep -qs ^CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
+		# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=257672
+		tell_status "patching vpopmail Makefile"
+		echo "CFLAGS+=	-fcommon" | tee -a "/usr/ports/mail/vpopmail/Makefile" || exit
+	fi
+
 	tell_status "installing vpopmail port with custom options"
 	stage_exec make -C /usr/ports/mail/vpopmail build deinstall install clean
 }
