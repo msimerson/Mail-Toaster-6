@@ -75,7 +75,7 @@ roundcube_init_db()
 
 install_roundcube()
 {
-	local _php_modules="ctype dom exif fileinfo filter gd iconv intl mbstring pspell session xml zip"
+	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pspell session xml zip"
 
 	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		_php_modules="$_php_modules pdo_mysql"
@@ -168,7 +168,7 @@ configure_roundcube()
 		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
 
 	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
-	local _rcc_conf="$STAGE_MNT$_local_path"
+	local _rcc_conf="${STAGE_MNT}${_local_path}"
 	if [ -f "$ZFS_JAIL_MNT/roundcube.last/$_local_path" ]; then
 		tell_status "preserving $_rcc_conf"
 		cp "$ZFS_JAIL_MNT/roundcube.last/$_local_path" "$_rcc_conf" || exit
@@ -296,8 +296,18 @@ EO_RC_ADD
 		"$STAGE_MNT/usr/local/etc/php.ini"
 }
 
+fixup_url()
+{
+	# nasty hack for roundcube 1.6.0 bug
+	# see https://github.com/roundcube/roundcubemail/issues/8738, #8170, #8770
+	sed -i.bak \
+		-e "/return \$prefix/    s/\./\. 'roundcube\/' \./" \
+		"$STAGE_MNT/usr/local/www/roundcube/program/include/rcmail.php"
+}
+
 start_roundcube()
 {
+	fixup_url
 	start_php_fpm
 	start_nginx
 }

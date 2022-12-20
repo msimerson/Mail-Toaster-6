@@ -8,7 +8,7 @@ export JAIL_CONF_EXTRA=""
 install_grafana()
 {
 	tell_status "installing Grafana"
-	stage_pkg_install grafana8 || exit
+	stage_pkg_install grafana9 || exit
 }
 
 configure_grafana()

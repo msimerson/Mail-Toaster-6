@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20220621"; }
+mt6_version() { echo "20221219"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -67,7 +67,7 @@ export ROUNDCUBE_EXTENSIONS="automatic_addressbook contextmenu html5_notifier th
 export ROUNDCUBE_FROM_LOCAL_PORT="0"
 export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
 export ROUNDCUBE_SQL="0"
-
+export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
@@ -142,7 +142,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -159,6 +159,7 @@ export ROUNDCUBE_EXTENSIONS=${ROUNDCUBE_EXTENSIONS:="automatic_addressbook conte
 export ROUNDCUBE_FROM_LOCAL_PORT=${ROUNDCUBE_FROM_LOCAL_PORT:="0"}
 export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
+export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 
@@ -665,8 +666,9 @@ tell_status()
 
 tell_settings()
 {
-	echo "   ***   Configured $1 settings:"
+	echo; echo "   ***   Configured $1 settings:"
 	set | grep "^$1_"
+	echo
 	sleep 2
 }
 

@@ -110,6 +110,10 @@ http {
 			root /data;
 			try_files \$uri =404;
 		}
+		# Forbid access to dotfiles
+		location ~ (^|/)\. {
+			return 403;
+		}
 
 		include      nginx-locations.conf;
 
