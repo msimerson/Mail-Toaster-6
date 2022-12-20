@@ -57,7 +57,7 @@ export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_MARIADB="0"
 export TOASTER_PKG_AUDIT="0"
-
+export ROUNDCUBE_SQL="0"
 export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export ROUNDCUBE_CORE_PLUGINS="archive emoticons enigma jqueryui managesieve markasjunk newmail_notifier userinfo zipdownload"
 export ROUNDCUBE_DEFAULT_HOST=""
@@ -66,7 +66,6 @@ export ROUNDCUBE_EXTENSIONS="automatic_addressbook contextmenu html5_notifier th
 # set ROUNDCUBE_FROM_LOCAL_PORT to 1 and place the port and any wanted extension ports to ./ports
 export ROUNDCUBE_FROM_LOCAL_PORT="0"
 export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
-export ROUNDCUBE_SQL="0"
 export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
