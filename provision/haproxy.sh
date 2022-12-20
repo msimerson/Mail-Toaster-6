@@ -167,62 +167,62 @@ frontend http-in
 	server haraka $(get_jail_ip haraka):80
 
 	backend www_webmail
-	server webmail $(get_jail_ip webmail):80 send-proxy
+	server webmail $(get_jail_ip webmail):80 send-proxy-v2
 
 	backend www_roundcube
-	server roundcube $(get_jail_ip roundcube):80 send-proxy
-	http-request replace-uri /roundcube/(.*) /\1
+	server roundcube $(get_jail_ip roundcube):80 send-proxy-v2
+	http-request replace-path /roundcube/(.*) /\1
 
 	backend www_squirrelmail
-	server squirrelmail $(get_jail_ip squirrelmail):80 send-proxy
+	server squirrelmail $(get_jail_ip squirrelmail):80 send-proxy-v2
 
 	backend www_rainloop
-	server rainloop $(get_jail_ip rainloop):80 send-proxy
-	http-request replace-uri /rainloop/(.*) /\1
+	server rainloop $(get_jail_ip rainloop):80 send-proxy-v2
+	http-request replace-path /rainloop/(.*) /\1
 
 	backend www_snappymail
-	server snappymail 172.16.15.60:80 send-proxy
+	server snappymail $(get_jail_ip snappymail) send-proxy-v2
 	http-request replace-path /snappymail/(.*) /\1
 
 	backend www_monitor
 	server monitor $(get_jail_ip monitor):80
 
 	backend www_rspamd
-	server monitor $(get_jail_ip rspamd):11334
-	http-request replace-uri /rspamd/(.*) /\1
+	server rspamd $(get_jail_ip rspamd):11334
+	http-request replace-path /rspamd/(.*) /\1
 
 	backend www_nictool
-	server monitor $(get_jail_ip nictool):80
-	http-request replace-uri /nictool/(.*) /\1
+	server nictool $(get_jail_ip nictool):80
+	http-request replace-path /nictool/(.*) /\1
 
 	backend www_mediawiki
-	server monitor $(get_jail_ip mediawiki):80 send-proxy
+	server mediawiki $(get_jail_ip mediawiki):80 send-proxy-v2
 
 	backend www_smf
-	server monitor $(get_jail_ip smf):80 send-proxy
+	server smf $(get_jail_ip smf):80 send-proxy-v2
 
 	backend www_wordpress
-	server monitor $(get_jail_ip wordpress):80 send-proxy
+	server wordpress $(get_jail_ip wordpress):80 send-proxy-v2
 
 	backend www_stage
-	server monitor $(get_jail_ip stage):80 send-proxy
+	server stage $(get_jail_ip stage):80 send-proxy-v2
 
 	backend www_horde
-	server monitor $(get_jail_ip horde):80 send-proxy
+	server horde $(get_jail_ip horde):80 send-proxy-v2
 
 	backend www_prometheus
 	server monitor $(get_jail_ip prometheus):9090
-	http-request replace-uri /prometheus/(.*) /\1
+	http-request replace-path /prometheus/(.*) /\1
 
 	backend www_grafana
-	server monitor $(get_jail_ip grafana):3000
-	http-request replace-uri /grafana/(.*) /\1
+	server grafana $(get_jail_ip grafana):3000
+	http-request replace-path /grafana/(.*) /\1
 
 	backend www_dmarc
-	server monitor $(get_jail_ip mail_dmarc):8080
+	server dmarc $(get_jail_ip mail_dmarc):8080
 
 	backend www_nagios
-	server monitor $(get_jail_ip nagios):80
+	server nagios $(get_jail_ip nagios):80
 
 EO_HAPROXY_CONF
 }
