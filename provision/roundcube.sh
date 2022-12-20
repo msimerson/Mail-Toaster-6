@@ -35,7 +35,6 @@ install_roundcube_mysql()
 	local _active_cfg="$ZFS_JAIL_MNT/roundcube/usr/local/www/roundcube/config/config.inc.php"
 	if [ -f "$_active_cfg" ]; then
 		local _rcpass
-		# shellcheck disable=2086
 		_rcpass=$(grep '//roundcube:' $_active_cfg | grep ^\$config | cut -f3 -d: | cut -f1 -d@)
 		if [ -n "$_rcpass" ] && [ "$_rcpass" != "pass" ]; then
 			echo "preserving roundcube password $_rcpass"
@@ -76,13 +75,19 @@ roundcube_init_db()
 
 install_roundcube()
 {
-	local _php_modules="dom exif fileinfo filter iconv intl json openssl pdo_mysql pdo_sqlite mbstring session xml zip"
+	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pspell session xml zip"
 
-	install_php 74 "$_php_modules" || exit
+	if [ "$ROUNDCUBE_SQL" = "1" ]; then
+		_php_modules="$_php_modules pdo_mysql"
+	else
+		_php_modules="$_php_modules pdo_sqlite"
+	fi
+
+	install_php 81 "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube-php74
+	stage_pkg_install roundcube-php81
 }
 
 configure_nginx_server()
@@ -141,7 +146,7 @@ configure_roundcube()
 		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
 
 	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
-	local _rcc_conf="$STAGE_MNT/$_local_path"
+	local _rcc_conf="${STAGE_MNT}${_local_path}"
 	if [ -f "$ZFS_JAIL_MNT/roundcube.last/$_local_path" ]; then
 		tell_status "preserving $_rcc_conf"
 		cp "$ZFS_JAIL_MNT/roundcube.last/$_local_path" "$_rcc_conf" || exit
@@ -152,7 +157,7 @@ configure_roundcube()
 	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
 
 	tell_status "customizing $_rcc_conf"
-	local _dovecot_ip;
+	local _dovecot_ip
 	if  [ -z "$ROUNDCUBE_DEFAULT_HOST" ];
 	then
 		_dovecot_ip=$(get_jail_ip dovecot)
@@ -164,6 +169,8 @@ configure_roundcube()
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
 		-e "/'smtp_server'/  s/= '.*'/= 'ssl:\/\/$TOASTER_MSA'/" \
 		-e "/'smtp_port'/    s/25;/465;/ ; s/587;/465;/" \
+		-e "/'imap_host'/    s/localhost/$_dovecot_ip/" \
+		-e "/'smtp_host'/    s/localhost:587/= 'ssl:\/\/$TOASTER_MSA:465'/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
@@ -205,7 +212,7 @@ EO_RC_ADD
 		-e "/enable_installer/ s/true/false/" \
 		"$_rcc_conf"
 
-	# configure the managesieve plugin
+	tell_status "configure the managesieve plugin"
 	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
 
@@ -213,15 +220,26 @@ EO_RC_ADD
 		-e "/'managesieve_host'/ s/localhost/dovecot/" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
 
-	# apply roundcube customizations to php.ini
+	tell_status "apply roundcube customizations to php.ini"
 	sed -i.bak \
-		-e "/'session.gc_maxlifetime'/ s/=[1-9][0-9]*/=21600/" \
-		-e "/upload_max_filesize/ s/=[1-9][0-9]*M/=5M/" \
+		-e "/^session.gc_maxlifetime/ s/= *[1-9][0-9]*/= 21600/" \
+		-e "/^post_max_size/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
+		-e "/^upload_max_filesize/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
 		"$STAGE_MNT/usr/local/etc/php.ini"
+}
+
+fixup_url()
+{
+	# nasty hack for roundcube 1.6.0 bug
+	# see https://github.com/roundcube/roundcubemail/issues/8738, #8170, #8770
+	sed -i.bak \
+		-e "/return \$prefix/    s/\./\. 'roundcube\/' \./" \
+		"$STAGE_MNT/usr/local/www/roundcube/program/include/rcmail.php"
 }
 
 start_roundcube()
 {
+	fixup_url
 	start_php_fpm
 	start_nginx
 }

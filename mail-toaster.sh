@@ -655,8 +655,9 @@ tell_status()
 
 tell_settings()
 {
-	echo "   ***   Configured $1 settings:"
+	echo; echo "   ***   Configured $1 settings:"
 	set | grep "^$1_"
+	echo
 	sleep 2
 }
 
