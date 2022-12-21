@@ -25,7 +25,7 @@ install_haraka()
 	stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git" || exit
 
 	local _plugins="ws express"
-	for _p in log-reader known-senders dmarc-perl; do
+	for _p in log-reader dmarc-perl; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
 	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
