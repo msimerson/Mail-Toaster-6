@@ -181,7 +181,7 @@ frontend http-in
 	http-request replace-path /rainloop/(.*) /\1
 
 	backend www_snappymail
-	server snappymail $(get_jail_ip snappymail) send-proxy-v2
+	server snappymail $(get_jail_ip snappymail):80 send-proxy-v2
 	http-request replace-path /snappymail/(.*) /\1
 
 	backend www_monitor
