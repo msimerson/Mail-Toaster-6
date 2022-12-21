@@ -115,7 +115,9 @@ test_mysql()
 write_pass_to_conf()
 {
 	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
-		sed -i '' -e "/^export TOASTER_MYSQL_PASS=/ s/=\"\"/=\"$TOASTER_MYSQL_PASS\"/" mail-toaster.conf || exit
+		sed -i '' \
+			-e "/^export TOASTER_MYSQL_PASS=/ s|=\"\"|=\"$TOASTER_MYSQL_PASS\"|" \
+			mail-toaster.conf || exit
 	else
 		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
 	fi
