@@ -103,9 +103,9 @@ install_index()
   });
   const webPaths = {
     'webmail'     : '',
-    'rainloop'    : '/rainloop/',
     'roundcube'   : '/roundcube/',
     'snappymail'  : '/snappymail/',
+    'rainloop'    : '/rainloop/',
     'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
     'squirrelmail': '/squirrelmail/',
   }
@@ -114,8 +114,8 @@ install_index()
     'qmailadmin': '/cgi-bin/qmailadmin/qmailadmin/',
     'rspamd'    : '/rspamd/',
     'watch'     : '/watch/',
-    'rainloop'  : '/rainloop/?admin',
     'snappymail': '/snappymail/?admin',
+    'rainloop'  : '/rainloop/?admin',
   }
   const statsPaths = {
     'statistics': '',

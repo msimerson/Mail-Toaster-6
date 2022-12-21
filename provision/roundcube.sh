@@ -174,8 +174,8 @@ configure_roundcube()
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
-		-e "/'product_name'/ s/'Roundcube Webmail'/$(sed_replacement_quote "$(php_quote "$ROUNDCUBE_PRODUCT_NAME")")/" \
-		"$_rcc_conf"
+		-e "/'product_name'/ s|'Roundcube Webmail'|'$ROUNDCUBE_PRODUCT_NAME'|" \
+		"$_rcc_conf" || exit
 
 	tee -a "$_rcc_conf" <<'EO_RC_ADD'
 
@@ -199,7 +199,7 @@ EO_RC_ADD
 	else
 		sed -i.bak \
 			-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/sqlite.db?mode=0646';/" \
-			"$_rcc_conf"
+			"$_rcc_conf" || exit
 
 		if [ ! -f "$ZFS_DATA_MNT/roundcube/sqlite.db" ]; then
 			mkdir -p "$STAGE_MNT/data"
@@ -225,7 +225,7 @@ EO_RC_ADD
 		-e "/^session.gc_maxlifetime/ s/= *[1-9][0-9]*/= 21600/" \
 		-e "/^post_max_size/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
 		-e "/^upload_max_filesize/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
-		"$STAGE_MNT/usr/local/etc/php.ini"
+		"$STAGE_MNT/usr/local/etc/php.ini" || exit
 }
 
 fixup_url()
