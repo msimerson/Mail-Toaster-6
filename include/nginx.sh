@@ -110,8 +110,9 @@ http {
 			root /data;
 			try_files \$uri =404;
 		}
-		# Forbid access to dotfiles
-		location ~ (^|/)\. {
+
+		# Forbid access to other dotfiles
+		location ~ /\.(?!well-known).* {
 			return 403;
 		}
 
