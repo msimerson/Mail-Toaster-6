@@ -17,12 +17,12 @@ configure_grafana()
 		mkdir "$STAGE_MNT/data/etc" || exit
 	fi
 
-	if [ ! -f "$STAGE_MNT/data/etc/grafana.conf" ]; then
-		tell_status "installing default grafana.conf"
-		cp "$STAGE_MNT/usr/local/etc/grafana.conf" "$STAGE_MNT/data/etc/grafana.conf" || exit
+	if [ ! -f "$STAGE_MNT/data/etc/grafana.ini" ]; then
+		tell_status "installing default grafana.ini"
+		cp "$STAGE_MNT/usr/local/etc/grafana/grafana.ini" "$STAGE_MNT/data/etc/grafana.ini" || exit
 	fi
 
-	stage_sysrc grafana_config="/data/etc/grafana.conf"
+	stage_sysrc grafana_config="/data/etc/grafana.ini"
 
 	if [ ! -d "$STAGE_MNT/data/db" ]; then
 		tell_status "creating grafana data/db dir"
