@@ -21,6 +21,10 @@ install_haraka()
 	stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
 	stage_exec npm install -g --omit=dev node-gyp || exit
 
+	# Workaround for NPM bug https://github.com/npm/cli/issues/2610
+	stage_exec bash -c 'git config --global url."https://github.com/".insteadOf git@github.com:'
+	stage_exec bash -c 'git config --global url."https://".insteadOf git://'
+
 	tell_status "installing Haraka"
 	stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git" || exit
 
