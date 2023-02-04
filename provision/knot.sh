@@ -46,6 +46,7 @@ start_knot()
 {
 	tell_status "starting knot daemon"
 	stage_exec service knot start || exit
+	sleep 2
 }
 
 test_knot()

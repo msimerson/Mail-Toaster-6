@@ -5,6 +5,10 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+_dkim_private_key="$ZFS_DATA_MNT/postfix/dkim/$TOASTER_MAIL_DOMAIN.private"
+_has_dkim=""
+if [ -f "$_dkim_private_key" ]; then _has_dkim=1; fi
+
 install_postfix()
 {
 	tell_status "installing postfix"
@@ -62,6 +66,7 @@ configure_postfix()
 	for _f in master main
 	do
 		if [ -f "$ZFS_DATA_MNT/postfix/etc/$_f.cf" ]; then
+			tell_status "preserving /usr/local/etc/postfix/$_f.cf"
 			cp "$ZFS_DATA_MNT/postfix/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
 		fi
 	done
@@ -85,15 +90,19 @@ configure_postfix()
 start_postfix()
 {
 	tell_status "starting postfix"
-	stage_exec service milter-opendkim start
+	if [ -n "$_has_dkim" ]; then
+		stage_exec service milter-opendkim start
+	fi
 	stage_exec service postfix start || exit
 }
 
 test_postfix()
 {
-	tell_status "testing opendkim"
-	stage_test_running opendkim
-	stage_listening 2016
+	if [ -n "$_has_dkim" ]; then
+		tell_status "testing opendkim"
+		stage_test_running opendkim
+		stage_listening 2016
+	fi
 
 	tell_status "testing postfix"
 	stage_test_running master
