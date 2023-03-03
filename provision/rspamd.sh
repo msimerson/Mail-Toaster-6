@@ -67,21 +67,21 @@ configure_dmarc()
 	tell_status "add Redis address, for DMARC stats"
 	tee -a "$RSPAMD_ETC/local.d/dmarc.conf" <<EO_DMARC
 
-	# Enables storing reporting information to redis
-	reporting = true;
 	actions = {
 		quarantine = "add_header";
 		reject = "reject";
 	}
 	send_reports = true;
+	# Enables storing reporting information to redis
 	report_settings {
+		enabled = true;
 		org_name = "$TOASTER_ORG_NAME";
 		domain = "$TOASTER_MAIL_DOMAIN";
 		email = "$TOASTER_ADMIN_EMAIL";
 		# uncomment this when the reports are working
 		override_address = "$TOASTER_ADMIN_EMAIL";
+		smtp = "$(get_jail_ip haraka)";
 	}
-	smtp = "$(get_jail_ip haraka)";
 EO_DMARC
 }
 
