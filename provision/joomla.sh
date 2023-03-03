@@ -14,7 +14,7 @@ install_joomla()
 	assure_jail mysql
 
 	# curl so that Joomla updater works
-	install_php 73 "curl mysqli" || exit
+	install_php 81 "curl mysqli" || exit
 
 	tell_status "installing Joomla 3"
 	stage_pkg_install joomla3
