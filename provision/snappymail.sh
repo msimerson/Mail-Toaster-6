@@ -196,7 +196,7 @@ EO_INCLUDE
 
 set_application_path()
 {
-	local _appini="$ZFS_DATA_MNT/snappymail/_data_/_default_/configs/application.ini"
+	local _appini="$ZFS_DATA_MNT/snappymail/_data_/_default_/domains/default.json"
 
 	if [ ! -f "$_appini" ]; then
 		echo "missing $_appini"
