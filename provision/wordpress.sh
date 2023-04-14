@@ -13,7 +13,7 @@ install_wordpress()
 	assure_jail mysql
 
 	install_nginx
-	install_php 74 "ctype curl dom exif fileinfo filter ftp gd iconv intl json mbstring mysqli openssl pecl-imagick session tokenizer xml zip zlib"
+	install_php 81 "ctype curl dom exif fileinfo filter ftp gd iconv intl mbstring mysqli pecl-imagick-im7 session tokenizer xml zip zlib"
 
 	stage_pkg_install dialog4ports
 
