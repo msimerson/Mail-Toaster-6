@@ -65,6 +65,7 @@ export SQUIRREL_SQL="0"
 export TOASTER_NRPE=""
 export TOASTER_MUNIN=""
 export TOASTER_QMHANDLE="0"
+export TOASTER_SENTRY=""
 export TOASTER_MSA="haraka"
 export MAXMIND_LICENSE_KEY=""
 export TOASTER_USE_TMPFS="0"
@@ -962,6 +963,26 @@ fetch_and_exec()
 	sh "provision/$1.sh"
 }
 
+install_sentry()
+{
+	if [ -z "$TOASTER_SENTRY" ]; then
+		echo "TOASTER_SENTRY unset, skipping sentry"
+		return
+	fi
+
+	tell_status "installing sentry"
+	stage_pkg_install perl5 p5-Net-IP
+	stage_exec mkdir /var/db/sentry || exit
+	stage_exec fetch -o /var/db/sentry/sentry.pl --no-verify-peer https://raw.githubusercontent.com/msimerson/sentry/master/sentry.pl
+	stage_exec perl /var/db/sentry/sentry.pl --update
+
+	if [ -n "$TOASTER_NRPE" ]; then
+		tell_status "installing nagios sentry plugin"
+		stage_pkg_install nagios-plugins || exit
+		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master/contrib/check_sentry
+	fi
+}
+
 provision()
 {
 	case "$1" in
@@ -970,7 +991,7 @@ provision()
 
 	if ! get_jail_ip "$1"; then
 		echo "unknown jail $1"
-		return;
+		return
 	fi
 
 	fetch_and_exec "$1"
