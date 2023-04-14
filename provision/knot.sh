@@ -17,6 +17,7 @@ install_knot()
 	fi
 
 	install_nrpe
+	install_sentry
 }
 
 install_nrpe()
