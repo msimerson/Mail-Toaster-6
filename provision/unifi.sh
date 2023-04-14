@@ -21,6 +21,7 @@ install_unifi()
 
 configure_unifi()
 {
+	true;
 	# /usr/local/share/java/unifi/data/system.properties
 	#"db.mongo.local=false"
 	#"db.mongo.uri=mongodb://ubnt:password@IP_ADDRESS:PORT/unifi-test"
