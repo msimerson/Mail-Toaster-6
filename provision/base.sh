@@ -285,6 +285,7 @@ daily_clean_hoststat_enable="NO"
 daily_clean_tmps_enable="YES"
 daily_clean_tmps_verbose="NO"
 daily_news_expire_enable="NO"
+daily_ntpd_leapfile_enable="NO"
 
 daily_show_success="NO"
 daily_show_info="NO"
