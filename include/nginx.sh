@@ -62,11 +62,11 @@ configure_nginx()
 
 	local _installed="$_datadir/etc/nginx.conf"
 	if [ -f "$_installed" ]; then
-		tell_status "preserving $_datadir/etc/nginx.conf"
+		tell_status "preserving $_installed"
 		return
 	fi
 
-	tell_status "saving /data/etc/nginx.conf"
+	tell_status "saving $_installed"
 	tee "$_installed" <<EO_NGINX_CONF
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;
