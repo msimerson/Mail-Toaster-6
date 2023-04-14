@@ -1,0 +1,43 @@
+#!/bin/sh
+
+# by Matt Simerson
+# A NRPE (nagios) plugin to ensure that sentry is installed
+#   and active. (see: https://github.com/msimerson/sentry)
+# Dec 10, 2013 - initial writing
+
+SENTRY_DIR=/var/db/sentry
+SENTRY_BIN="$SENTRY_DIR/sentry.pl"
+GREP=/usr/bin/grep
+
+if [ ! -x $GREP ]; then
+    echo "ERROR: edit check_sentry and set GREP"
+    GREP="grep"
+fi
+
+echoerr() { echo "$@" >&2; }
+usage() {
+    echo "   usage: $0"
+    echo " "
+    exit 3
+}
+
+$GREP -v '^#' /etc/hosts.allow | $GREP -q sentry
+if [ $? -ne 0 ]; then
+    echo "sentry not active in hosts.allow!"
+    exit 2
+fi
+
+if [ ! -x $SENTRY_BIN ]; then
+    echoerr "sentry not executable by $USER!"
+    if [ ! -d $SENTRY_DIR ]; then
+        echo "sentry dir ($SENTRY_DIR) doesn't exist!"
+        exit 2
+    fi
+
+    echo "OK - sentry appears installed and active"
+    exit 0
+fi
+
+
+echo "OK - sentry installed and active"
+exit 0
