@@ -1,4 +1,4 @@
-name: Mail Toaster Tests
+name: CI Tests
 
 on: [ push, pull_request ]
 
