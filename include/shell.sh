@@ -6,7 +6,13 @@ install_bash()
 	stage_pkg_install bash || exit
 	stage_exec chpass -s /usr/local/bin/bash
 
-	local _profile="$1/root/.bash_profile"
+	local _profile="$1/usr/local/etc/profile"
+	if [ -f "$_profile" ]; then
+		tell_status "preserving $_profile"
+		return
+	fi
+
+	_profile="$1/root/.bash_profile"
 	if [ -f "$_profile" ]; then
 		tell_status "preserving $_profile"
 		return
@@ -116,7 +122,7 @@ configure_zsh_shell()
 	stage_exec mkdir /root/.config
 	stage_exec cp /root/.zim/modules/prompt/external-themes/liquidprompt/liquidpromptrc-dist /root/.config/liquidpromptrc
 	stage_exec sed -i.bak \
-					-e 's/^LP_HOSTNAME_ALWAYS=0/LP_HOSTNAME_ALWAYS=1/' \
-					"/root/.config/liquidpromptrc" || exit
+		-e 's/^LP_HOSTNAME_ALWAYS=0/LP_HOSTNAME_ALWAYS=1/' \
+		"/root/.config/liquidpromptrc" || exit
 
 }
