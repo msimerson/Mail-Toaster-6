@@ -32,6 +32,7 @@ install_haraka()
 	for _p in log-reader dmarc-perl; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
+	stage_exec rm /data/package.json
 	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
 }
 
