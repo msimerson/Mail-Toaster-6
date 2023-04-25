@@ -475,6 +475,13 @@ update_ports_tree()
 		return
 	fi
 
+	if [ -d "/usr/ports/.git" ]; then
+		echo "ports via git detected"
+		cd "/usr/ports/" || return
+		git pull &
+		return
+	fi
+
 	portsnap fetch || exit
 
 	if [ -d /usr/ports/mail/vpopmail ]; then
