@@ -53,22 +53,23 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
+export TOASTER_MARIADB="0"
+export TOASTER_MSA="haraka"
+export TOASTER_MUNIN=""
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
-export TOASTER_MARIADB="0"
+export TOASTER_NRPE=""
 export TOASTER_PKG_AUDIT="0"
+export TOASTER_QMHANDLE="0"
+export TOASTER_SENTRY=""
+export TOASTER_USE_TMPFS="0"
+export TOASTER_VPOPMAIL_EXT="0"
+export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
 export ROUNDCUBE_DEFAULT_HOST=""
 export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
 export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export SQUIRREL_SQL="0"
-export TOASTER_NRPE=""
-export TOASTER_MUNIN=""
-export TOASTER_QMHANDLE="0"
-export TOASTER_SENTRY=""
-export TOASTER_MSA="haraka"
-export MAXMIND_LICENSE_KEY=""
-export TOASTER_USE_TMPFS="0"
 
 EO_MT_CONF
 
@@ -146,12 +147,14 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
-export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export TOASTER_NTP=${TOASTER_NTP:="ntp"}
+export TOASTER_MSA=${TOASTER_MSA:="haraka"}
+export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
+export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:="0"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
-export TOASTER_NTP=${TOASTER_NTP:="ntp"}
-export TOASTER_MSA=${TOASTER_MSA:="haraka"}
+export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
