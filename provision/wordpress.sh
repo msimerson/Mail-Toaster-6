@@ -23,8 +23,7 @@ install_wordpress()
 
 configure_nginx_server
 {
-	configure_nginx_server_d wordpress <<'EO_WP_NGINX'
-
+	_NGINX_SERVER='
 	server_name     wordpress;
 
 	index		index.php;
@@ -42,7 +41,7 @@ configure_nginx_server
 	}
 
 	location / {
-		# include "?$args" so non-default permalinks don't break
+		# include "?$args" so non-default permalinks do not break
 		try_files $uri $uri/ /index.php?$args;
 	}
 
@@ -57,9 +56,9 @@ configure_nginx_server
 		expires max;
 		log_not_found off;
 	}
-
-EO_WP_NGINX
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d wordpress
 }
 
 configure_nginx_with_path()

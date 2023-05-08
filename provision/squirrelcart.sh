@@ -66,8 +66,7 @@ install_squirrelcart()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d squirrelcart <<'EO_SMF_NGINX'
-
+	 _NGINX_SERVER='
 		server_name         squirrelcart;
 
 		location /cart/ {
@@ -84,8 +83,9 @@ configure_nginx_server()
 			fastcgi_param  PATH_INFO $2;
 			include        /usr/local/etc/nginx/fastcgi_params;
 		}
-
-EO_SMF_NGINX
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d squirrelcart
 }
 
 configure_postfix()

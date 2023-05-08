@@ -24,8 +24,7 @@ install_joomla()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d "joomla" <<EO_NGINX
-
+	 _NGINX_SERVER='
 	server_name joomla
 
 	location / {
@@ -39,9 +38,9 @@ configure_nginx_server()
 		fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
 		fastcgi_pass   php;
 	}
-
-EO_NGINX
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d joomla
 }
 
 configure_joomla()

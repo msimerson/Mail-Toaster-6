@@ -24,8 +24,7 @@ install_mediawiki()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d mediawiki <<'EO_WIKI'
-
+	_NGINX_SERVER='
 	server_name  mediawiki;
 
 	location = /wiki {
@@ -83,9 +82,9 @@ configure_nginx_server()
 	location / {
 	    try_files $uri $uri/ @rewrite;
 	}
-
-EO_WIKI
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d mediawiki
 }
 
 configure_mediawiki()

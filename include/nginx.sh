@@ -65,7 +65,6 @@ configure_nginx_server_d()
 		listen       80 proxy_protocol;
 		listen  [::]:80 proxy_protocol;
 		$_NGINX_SERVER
-
 		location ~ /\.ht {
 			deny  all;
 		}

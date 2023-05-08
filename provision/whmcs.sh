@@ -21,8 +21,7 @@ install_whmcs()
 
 configure_whmcs_nginx()
 {
-    configure_nginx_server_d "whmcs" <<'EO_NGINX_WHMCS'
-
+	_NGINX_SERVER='
         server_name  theartfarm.com www.theartfarm.com;
 
         if ($request_method !~ ^(GET|HEAD|POST)$ ) {
@@ -63,9 +62,9 @@ configure_whmcs_nginx()
         location = /404.html {
             root   /data/html/;
         }
-
-EO_NGINX_WHMCS
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d whmcs
 }
 
 configure_whmcs()

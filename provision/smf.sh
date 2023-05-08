@@ -28,8 +28,7 @@ install_smf()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d smf <<'EO_SMF_NGINX'
-
+	 _NGINX_SERVER='
 	server_name         smf;
 
 	location /forum/images/custom_avatars/ {
@@ -53,9 +52,9 @@ configure_nginx_server()
 		index index.php;
 		try_files $uri $uri/ =404;
 	}
-
-EO_SMF_NGINX
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d smf
 }
 
 configure_smf()
