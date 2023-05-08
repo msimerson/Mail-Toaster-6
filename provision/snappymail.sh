@@ -8,7 +8,7 @@ export JAIL_CONF_EXTRA=""
 mt6-include php
 mt6-include nginx
 
-PHP_VER="81"
+PHP_VER="82"
 
 install_snappymail()
 {
@@ -38,45 +38,46 @@ install_snappymail()
 
 configure_nginx_server()
 {
+    # shellcheck disable=SC2089
     _NGINX_SERVER='
-	server_name  snappymail;
+		server_name  snappymail;
 
-	add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
-	add_header X-Content-Type-Options "nosniff" always;
-	add_header X-XSS-Protection "1; mode=block" always;
-	add_header X-Robots-Tag "none" always;
-	add_header X-Download-Options "noopen" always;
-	add_header X-Permitted-Cross-Domain-Policies "none" always;
-	add_header Referrer-Policy "no-referrer" always;
-	add_header X-Frame-Options "SAMEORIGIN" always;
-	fastcgi_hide_header X-Powered-By;
+		add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
+		add_header X-Content-Type-Options "nosniff" always;
+		add_header X-XSS-Protection "1; mode=block" always;
+		add_header X-Robots-Tag "none" always;
+		add_header X-Download-Options "noopen" always;
+		add_header X-Permitted-Cross-Domain-Policies "none" always;
+		add_header Referrer-Policy "no-referrer" always;
+		add_header X-Frame-Options "SAMEORIGIN" always;
+		fastcgi_hide_header X-Powered-By;
 
-	location / {
-		root   /usr/local/www/snappymail;
-		index  index.php;
-		try_files $uri $uri/ /index.php?$query_string;
-	}
+		location / {
+			root   /usr/local/www/snappymail;
+			index  index.php;
+			try_files $uri $uri/ /index.php?$query_string;
+		}
 
-	location ~ \.php$ {
-		root           /usr/local/www/snappymail;
-		try_files $uri $uri/ /index.php?$query_string;
-		fastcgi_split_path_info ^(.+\.php)(.*)$;
-		fastcgi_keep_conn on;
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-		fastcgi_pass   php;
-	}
+		location ~ \.php$ {
+			root           /usr/local/www/snappymail;
+			try_files $uri $uri/ /index.php?$query_string;
+			fastcgi_split_path_info ^(.+\.php)(.*)$;
+			fastcgi_keep_conn on;
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+			fastcgi_pass   php;
+		}
 
-	location ~ /\.ht {
-		deny  all;
-	}
+		location ~ /\.ht {
+			deny  all;
+		}
 
-	location ^~ /data {
-		deny all;
-	}
+		location ^~ /data {
+			deny all;
+		}
 '
-
+    # shellcheck disable=SC2090
 	export _NGINX_SERVER
 	configure_nginx_server_d snappymail
 }

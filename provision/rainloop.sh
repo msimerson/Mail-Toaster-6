@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA=""
 mt6-include php
 mt6-include nginx
 
+PHP_VER=81
+
 install_rainloop()
 {
 	local _php_modules="curl dom iconv pdo_sqlite simplexml xml zlib"
@@ -24,11 +26,11 @@ install_rainloop()
 		stage_make_conf rainloop_UNSET 'mail_rainloop_UNSET=SQLITE PGSQL'
 	fi
 
-	install_php 80 "$_php_modules" || exit
+	install_php $PHP_VER "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"
-	#stage_pkg_install rainloop
+	#stage_pkg_install rainloop-php$PHP_VER
 	stage_port_install mail/rainloop || exit
 }
 

@@ -129,9 +129,7 @@ http {
 
 	include /data/etc/nginx/server.d/*.conf;
 }
-
 EO_NGINX_CONF
-
 }
 
 start_nginx()

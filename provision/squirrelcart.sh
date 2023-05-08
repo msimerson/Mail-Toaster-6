@@ -123,7 +123,6 @@ configure_squirrelcart()
 
 	configure_nginx squirrelcart
 	configure_nginx_server
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 
 	configure_squirrelcart_cron
 	configure_postfix

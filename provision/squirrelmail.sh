@@ -101,26 +101,26 @@ install_squirrelmail()
 configure_nginx_server()
 {
 	_NGINX_SERVER='
-	server_name  squirrelmail;
+		server_name  squirrelmail;
 
-	root   /usr/local/www;
-	index  index.php;
+		root   /usr/local/www;
+		index  index.php;
 
-	location / {
-		try_files $uri $uri/ /index.php?$args;
-	}
+		location / {
+			try_files $uri $uri/ /index.php?$args;
+		}
 
-	location ~ \.php$ {
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
-		fastcgi_pass   php;
-	}
+		location ~ \.php$ {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
+			fastcgi_pass   php;
+		}
 
-	location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
-		expires max;
-		log_not_found off;
-	}
+		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
+			expires max;
+			log_not_found off;
+		}
 '
 	export _NGINX_SERVER
 	configure_nginx_server_d squirrelmail

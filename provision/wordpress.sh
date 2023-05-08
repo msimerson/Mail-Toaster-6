@@ -21,42 +21,44 @@ install_wordpress()
 	stage_port_install www/wordpress || exit
 }
 
-configure_nginx_server
+configure_nginx_server()
 {
+	# shellcheck disable=2089
 	_NGINX_SERVER='
-	server_name     wordpress;
+		server_name     wordpress;
 
-	index		index.php;
-	root		/usr/local/www;
+		index		index.php;
+		root		/usr/local/www;
 
-	location = /favicon.ico {
-		log_not_found off;
-		access_log off;
-	}
+		location = /favicon.ico {
+			log_not_found off;
+			access_log off;
+		}
 
-	location = /robots.txt {
-		allow all;
-		log_not_found off;
-		access_log off;
-	}
+		location = /robots.txt {
+			allow all;
+			log_not_found off;
+			access_log off;
+		}
 
-	location / {
-		# include "?$args" so non-default permalinks do not break
-		try_files $uri $uri/ /index.php?$args;
-	}
+		location / {
+			# include "?$args" so non-default permalinks do not break
+			try_files $uri $uri/ /index.php?$args;
+		}
 
-	location ~ \.php$ {
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-		fastcgi_intercept_errors on;
-		fastcgi_pass php;
-	}
+		location ~ \.php$ {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+			fastcgi_intercept_errors on;
+			fastcgi_pass php;
+		}
 
-	location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
-		expires max;
-		log_not_found off;
-	}
+		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
+			expires max;
+			log_not_found off;
+		}
 '
+	# shellcheck disable=2090
 	export _NGINX_SERVER
 	configure_nginx_server_d wordpress
 }
@@ -169,7 +171,6 @@ define('PATH_CURRENT_SITE', '/');
 define('SITE_ID_CURRENT_SITE', 1);
 define('BLOG_ID_CURRENT_SITE', 1);
 EO_WP_NGINX
-
 }
 
 configure_wordpress()
@@ -181,8 +182,6 @@ configure_wordpress()
 	# configure_nginx_with_path /wpn
 
 	configure_wp_config
-
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 }
 
 start_wordpress()

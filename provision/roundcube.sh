@@ -141,6 +141,11 @@ EO_RC_LOCAL
 			fastcgi_pass   php;
 			$_add_location
 		}
+
+		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
+			expires max;
+			log_not_found off;
+		}
 "
 	export _NGINX_SERVER
 	configure_nginx_server_d roundcube

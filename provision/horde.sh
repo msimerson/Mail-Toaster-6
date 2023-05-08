@@ -25,13 +25,8 @@ install_horde()
 	mkdir -p "$STAGE_MNT/usr/local/vpopmail"  || exit
 
 	stage_exec pkg update -f
-	install_php 80 "simplexml ftp gd fileinfo tidy" || exit
+	install_php 80 "simplexml ftp gd fileinfo tidy pecl-imagick" || exit
 	install_nginx || exit
-
-	tell_status "installing Horde IMP and Ingo "
-	stage_pkg_install php80-horde-ingo
-	stage_pkg_install php80-horde-imp
-	stage_pkg_install php80-pecl-imagick
 }
 
 enable_ftp_server_ingo()
@@ -45,34 +40,36 @@ enable_ftp_server_ingo()
 
 configure_nginx_server()
 {
+	# shellcheck disable=2089
 	_NGINX_SERVER='
-	server_name horde;
+		server_name horde;
 
-	location /horde {
-		root /usr/local/www/;
-		index index.php index.html;
+		location /horde {
+			root /usr/local/www/;
+			index index.php index.html;
 
-		try_files $uri $uri/ /rampage.php?$args;
+			try_files $uri $uri/ /rampage.php?$args;
 
-		location ~ ^/horde/(.+\.php) {
-		fastcgi_split_path_info ^(.+\.php)(/.+)$;
-		fastcgi_param PATH_INFO $fastcgi_path_info;
-		fastcgi_param PATH_TRANSLATED $document_root$fastcgi_path_info;
-		fastcgi_param PHP_VALUE "cgi.fix_pathinfo=1";
-		fastcgi_pass php;
-		fastcgi_index index.php;
-		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-		include        /usr/local/etc/nginx/fastcgi_params;
-		root /usr/local/www/;
-	}
+			location ~ ^/horde/(.+\.php) {
+			fastcgi_split_path_info ^(.+\.php)(/.+)$;
+			fastcgi_param PATH_INFO $fastcgi_path_info;
+			fastcgi_param PATH_TRANSLATED $document_root$fastcgi_path_info;
+			fastcgi_param PHP_VALUE "cgi.fix_pathinfo=1";
+			fastcgi_pass php;
+			fastcgi_index index.php;
+			fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+			include        /usr/local/etc/nginx/fastcgi_params;
+			root /usr/local/www/;
+		}
 
-	location ~ ^/horde/(.+\.(?:ico|css|js|gif|jpe?g|png))$ {
-		root /usr/local/www/;
-		expires max;
-		add_header Pragma public;
-		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-    }
+		location ~ ^/horde/(.+\.(?:ico|css|js|gif|jpe?g|png))$ {
+			root /usr/local/www/;
+			expires max;
+			add_header Pragma public;
+			add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+		}
 '
+	# shellcheck disable=2090
 	export _NGINX_SERVER
 	configure_nginx_server_d horde
 }

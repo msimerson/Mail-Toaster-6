@@ -29,29 +29,29 @@ install_smf()
 configure_nginx_server()
 {
 	 _NGINX_SERVER='
-	server_name         smf;
+		server_name         smf;
 
-	location /forum/images/custom_avatars/ {
-		alias /data/custom_avatars/;
-		index index.php;
-		expires max;
-		try_files $uri =404;
-	}
+		location /forum/images/custom_avatars/ {
+			alias /data/custom_avatars/;
+			index index.php;
+			expires max;
+			try_files $uri =404;
+		}
 
-	location ~ ^/forum/(.+\.php)(/.*)?$ {
-		alias          /usr/local/www/smf;
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_pass   php;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
-		fastcgi_param  PATH_INFO $2;
-	}
+		location ~ ^/forum/(.+\.php)(/.*)?$ {
+			alias          /usr/local/www/smf;
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_pass   php;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root/$1;
+			fastcgi_param  PATH_INFO $2;
+		}
 
-	location /forum/ {
-		alias /usr/local/www/smf/;
-		index index.php;
-		try_files $uri $uri/ =404;
-	}
+		location /forum/ {
+			alias /usr/local/www/smf/;
+			index index.php;
+			try_files $uri $uri/ =404;
+		}
 '
 	export _NGINX_SERVER
 	configure_nginx_server_d smf
@@ -70,8 +70,6 @@ configure_smf()
 		tell_status "post-install configuration will be required"
 		sleep 2
 	fi
-
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 }
 
 start_smf()

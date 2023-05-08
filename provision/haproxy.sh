@@ -222,7 +222,7 @@ frontend http-in
 	server dmarc $(get_jail_ip mail_dmarc):8080
 
 	backend www_nagios
-	server nagios $(get_jail_ip nagios):80
+	server nagios $(get_jail_ip nagios):80 send-proxy-v2
 
 EO_HAPROXY_CONF
 }
