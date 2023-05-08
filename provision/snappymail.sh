@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA=""
 mt6-include php
 mt6-include nginx
 
+PHP_VER="81"
+
 install_snappymail()
 {
 	local _php_modules="curl dom gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
@@ -25,19 +27,18 @@ install_snappymail()
 		stage_make_conf snappymail_UNSET 'mail_snappymail_UNSET=SQLITE3 PGSQL REDIS LDAP'
 	fi
 
-	install_php 82 "$_php_modules" || exit
+	install_php "$PHP_VER" "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing snappymail"
-	# stage_pkg_install snappymail-php82
+	# stage_pkg_install snappymail-php$PHP_VER
 	stage_pkg_install gnupg
 	stage_port_install mail/snappymail || exit
 }
 
 configure_nginx_server()
 {
-    configure_nginx_server_d snappymail <<'EO_NGINX_SERVER'
-
+    _NGINX_SERVER='
 	server_name  snappymail;
 
 	add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
@@ -74,9 +75,10 @@ configure_nginx_server()
 	location ^~ /data {
 		deny all;
 	}
+'
 
-EO_NGINX_SERVER
-
+	export _NGINX_SERVER
+	configure_nginx_server_d snappymail
 }
 
 install_default_json()

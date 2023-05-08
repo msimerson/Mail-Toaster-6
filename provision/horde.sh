@@ -45,8 +45,7 @@ enable_ftp_server_ingo()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d horde <<'EO_NGINX_SERVER'
-
+	_NGINX_SERVER='
 	server_name horde;
 
 	location /horde {
@@ -73,9 +72,9 @@ configure_nginx_server()
 		add_header Pragma public;
 		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
     }
-
-EO_NGINX_SERVER
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d horde
 }
 
 install_horde_mysql()

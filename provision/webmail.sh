@@ -9,33 +9,32 @@ mt6-include nginx
 
 configure_nginx_server()
 {
-  configure_nginx_server_d webmail <<'EO_NGINX_SERVER'
+	_NGINX_SERVER='
+		server_name  webmail;
 
-    server_name  webmail;
+		# serve ACME requests from /data
+		location /.well-known/acme-challenge {
+		  root /data;
+			try_files $uri =404;
+		}
 
-    # serve ACME requests from /data
-    location /.well-known/acme-challenge {
-      root /data;
-      try_files \$uri =404;
-    }
+		location /.well-known/pki-validation {
+			root /data;
+			try_files $uri =404;
+		}
 
-    location /.well-known/pki-validation {
-      root /data;
-      try_files \$uri =404;
-    }
+		# Forbid access to other dotfiles
+		location ~ /\.(?!well-known).* {
+			return 403;
+		}
 
-    # Forbid access to other dotfiles
-    location ~ /\.(?!well-known).* {
-      return 403;
-    }
-
-    location / {
-      root   /data/htdocs;
-      index  index.html index.htm;
-    }
-
-EO_NGINX_SERVER
-
+		location / {
+			root   /data/htdocs;
+			index  index.html index.htm;
+		}
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d webmail
 }
 
 install_lighttpd()

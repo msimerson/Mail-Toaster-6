@@ -20,8 +20,7 @@ install_nagios()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d nagiox <<'EO_NGINX_SERVER'
-
+	_NGINX_SERVER='
     server_name         nagios;
 
     auth_basic "Private";
@@ -52,8 +51,9 @@ configure_nginx_server()
             fastcgi_pass unix:/var/run/fcgiwrap/fcgiwrap.sock;
         }
     }
-
-EO_NGINX_SERVER
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d nagios
 }
 
 configure_fcgiwrap()

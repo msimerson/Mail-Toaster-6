@@ -9,6 +9,8 @@ mt6-include php
 mt6-include nginx
 mt6-include mysql
 
+PHP_VER="81"
+
 mysql_error_warning()
 {
     echo; echo "-----------------"
@@ -73,6 +75,19 @@ roundcube_init_db()
 		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
 }
 
+install_roundcube_plugins()
+{
+	local _rc_plugins="contextmenu html5_notifier larry"
+	if [ -d "$ZFS_DATA_MNT/spamassassin/etc" ]; then
+		_rc_plugins="$_rc_plugins sauserprefs"
+	fi
+
+	for _pi in $_rc_plugins; do
+		tell_status "installing roundcube plugin $_pi"
+		stage_pkg_install roundcube-${_pi}-php${PHP_VER}
+	done
+}
+
 install_roundcube()
 {
 	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pspell session xml zip"
@@ -83,16 +98,19 @@ install_roundcube()
 		_php_modules="$_php_modules pdo_sqlite"
 	fi
 
-	install_php 81 "$_php_modules" || exit
+	install_php $PHP_VER "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube-php81
+	stage_pkg_install roundcube-php${PHP_VER} || exit 1
+
+	install_roundcube_plugins
 }
 
 configure_nginx_server()
 {
 	local _add_server="" _add_location=""
+
 	if [ "$TOASTER_USE_TMPFS" = "1" ]; then
 		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
 TEMPDIRS="/tmp/nginx/fastcgi_temp /tmp/nginx/client_body_temp"
@@ -105,8 +123,7 @@ EO_RC_LOCAL
 		_add_location="fastcgi_temp_path /tmp/nginx/fastcgi_temp;"
 	fi
 
-	configure_nginx_server_d roundcube <<EO_NGINX_RC
-
+	_NGINX_SERVER="
 		server_name  roundcube;
 
 		root   /usr/local/www/roundcube;
@@ -124,9 +141,9 @@ EO_RC_LOCAL
 			fastcgi_pass   php;
 			$_add_location
 		}
-
-EO_NGINX_RC
-
+"
+	export _NGINX_SERVER
+	configure_nginx_server_d roundcube
 }
 
 configure_roundcube()

@@ -64,8 +64,7 @@ configure_nginx_server_d()
 	server {
 		listen       80 proxy_protocol;
 		listen  [::]:80 proxy_protocol;
-
-$2
+		$_NGINX_SERVER
 
 		location ~ /\.ht {
 			deny  all;
@@ -88,7 +87,7 @@ configure_nginx()
 	fi
 
 	local _etcdir="$ZFS_DATA_MNT/$1/etc/nginx"
-	if [ ! -d "$_etcdir" ]; then mkdir "$_etcdir"; fi
+	if [ ! -d "$_etcdir" ]; then mkdir -p "$_etcdir" || exit 1; fi
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
@@ -118,8 +117,8 @@ http {
 
 	keepalive_timeout  65;
 
-	set_real_ip_from haproxy;
-	set_real_ip_from haproxy6;
+	set_real_ip_from $(get_jail_ip haproxy);
+	set_real_ip_from $(get_jail_ip6 haproxy);
 	real_ip_header   proxy_protocol;
 	real_ip_recursive on;
 	client_max_body_size 25m;
@@ -134,10 +133,6 @@ http {
 
 EO_NGINX_CONF
 
-	sed -i.bak \
-		-e "s/haproxy;/$(get_jail_ip haproxy);/" \
-		-e "s/haproxy6;/$(get_jail_ip6 haproxy);/" \
-		"$_installed" || exit
 }
 
 start_nginx()

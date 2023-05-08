@@ -100,8 +100,7 @@ install_squirrelmail()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d squirrelmail <<'EO_NGINX_SERVER'
-
+	_NGINX_SERVER='
 	server_name  squirrelmail;
 
 	root   /usr/local/www;
@@ -122,9 +121,9 @@ configure_nginx_server()
 		expires max;
 		log_not_found off;
 	}
-
-EO_NGINX_SERVER
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d squirrelmail
 }
 
 configure_squirrelmail_local()

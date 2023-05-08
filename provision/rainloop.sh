@@ -34,8 +34,7 @@ install_rainloop()
 
 configure_nginx_server()
 {
-	configure_nginx_server_d rainloop <<'EO_NGINX_SERVER'
-
+	 _NGINX_SERVER='
 	server_name  rainloop;
 
 	location / {
@@ -58,9 +57,9 @@ configure_nginx_server()
 	location ^~ /data {
 		deny all;
 	}
-
-EO_NGINX_SERVER
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d rainloop
 }
 
 install_default_ini()
