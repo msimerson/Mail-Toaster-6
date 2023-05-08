@@ -34,14 +34,7 @@ install_rainloop()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/rainloop"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+	configure_nginx_server_d rainloop <<'EO_NGINX_SERVER'
 
 	server_name  rainloop;
 
@@ -60,10 +53,6 @@ configure_nginx_server()
 		fastcgi_index  index.php;
 		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
 		fastcgi_pass   php;
-	}
-
-	location ~ /\.ht {
-		deny  all;
 	}
 
 	location ^~ /data {

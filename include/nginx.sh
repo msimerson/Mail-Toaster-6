@@ -48,6 +48,38 @@ EO_NG_NSL
 
 }
 
+configure_nginx_server_d()
+{
+	local _server_d="$ZFS_DATA_MNT/$1/etc/nginx/server.d"
+	if [ ! -d "$_server_d" ]; then mkdir -p "$_server_d" || exit 1; fi
+
+	local _server_conf="$_server_d/$1.conf"
+	if [ -f "$_server_conf" ]; then
+		tell_status "preserving $_server_conf"
+		return
+	fi
+
+	tell_status "creating $_server_conf"
+	tee "$_server_conf" <<EO_NGINX_SERVER_CONF
+	server {
+		listen       80 proxy_protocol;
+		listen  [::]:80 proxy_protocol;
+
+$2
+
+		location ~ /\.ht {
+			deny  all;
+		}
+
+		error_page   500 502 503 504  /50x.html;
+		location = /50x.html {
+			root   /usr/local/www/nginx-dist;
+		}
+	}
+EO_NGINX_SERVER_CONF
+
+}
+
 configure_nginx()
 {
 	if [ -z "$1" ]; then
@@ -55,12 +87,12 @@ configure_nginx()
 		exit 1
 	fi
 
-	local _datadir="$ZFS_DATA_MNT/$1"
-	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
+	local _etcdir="$ZFS_DATA_MNT/$1/etc/nginx"
+	if [ ! -d "$_etcdir" ]; then mkdir "$_etcdir"; fi
 
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
+	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
-	local _installed="$_datadir/etc/nginx.conf"
+	local _installed="$_etcdir/nginx.conf"
 	if [ -f "$_installed" ]; then
 		tell_status "preserving $_installed"
 		return
@@ -97,32 +129,7 @@ http {
 		#server 127.0.0.1:9000;
 	}
 
-	server {
-		listen       80 proxy_protocol;
-		listen  [::]:80 proxy_protocol;
-
-		# serve all Let's Encrypt requests from /data
-		location /.well-known/acme-challenge {
-			root /data;
-			try_files \$uri =404;
-		}
-		location /.well-known/pki-validation {
-			root /data;
-			try_files \$uri =404;
-		}
-
-		# Forbid access to other dotfiles
-		location ~ /\.(?!well-known).* {
-			return 403;
-		}
-
-		include      nginx-locations.conf;
-
-		error_page   500 502 503 504  /50x.html;
-		location = /50x.html {
-			root   /usr/local/www/nginx-dist;
-		}
-	}
+	include /data/etc/nginx/server.d/*.conf;
 }
 
 EO_NGINX_CONF

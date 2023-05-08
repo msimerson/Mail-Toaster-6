@@ -24,16 +24,7 @@ install_mediawiki()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/mediawiki"
-	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
-
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_WIKI'
+	configure_nginx_server_d mediawiki <<'EO_WIKI'
 
 	server_name  mediawiki;
 

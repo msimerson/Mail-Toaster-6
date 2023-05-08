@@ -100,17 +100,10 @@ install_squirrelmail()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/squirrelmail"
-	local _conf="etc/nginx-locations.conf"
-	if [ -f "$_datadir/$_conf" ]; then
-		tell_status "preserving /data/$_conf"
-		return
-	fi
-
-	tell_status "saving /data/$_conf"
-	tee "$_datadir/$_conf" <<'EO_NGINX_SERVER'
+	configure_nginx_server_d squirrelmail <<'EO_NGINX_SERVER'
 
 	server_name  squirrelmail;
+
 	root   /usr/local/www;
 	index  index.php;
 

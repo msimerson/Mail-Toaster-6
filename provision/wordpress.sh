@@ -21,16 +21,12 @@ install_wordpress()
 	stage_port_install www/wordpress || exit
 }
 
-configure_nginx_standalone()
+configure_nginx_server
 {
-	if [ -f "$STAGE_MNT/data/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_WP_NGINX'
+	configure_nginx_server_d wordpress <<'EO_WP_NGINX'
 
 	server_name     wordpress;
+
 	index		index.php;
 	root		/usr/local/www;
 
@@ -182,7 +178,7 @@ configure_wordpress()
 	configure_php wordpress
 	configure_nginx wordpress
 
-	configure_nginx_standalone
+	configure_nginx_server
 	# configure_nginx_with_path /wpn
 
 	configure_wp_config

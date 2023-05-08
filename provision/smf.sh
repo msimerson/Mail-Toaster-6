@@ -28,12 +28,7 @@ install_smf()
 
 configure_nginx_server()
 {
-	if [ -f "$STAGE_MNT/data/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_SMF_NGINX'
+	configure_nginx_server_d smf <<'EO_SMF_NGINX'
 
 	server_name         smf;
 

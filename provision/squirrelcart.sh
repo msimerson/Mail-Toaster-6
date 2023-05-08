@@ -66,13 +66,7 @@ install_squirrelcart()
 
 configure_nginx_server()
 {
-	if [ -f "$STAGE_MNT/data/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_SMF_NGINX'
+	configure_nginx_server_d squirrelcart <<'EO_SMF_NGINX'
 
 		server_name         squirrelcart;
 

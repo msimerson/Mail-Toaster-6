@@ -9,24 +9,30 @@ mt6-include nginx
 
 configure_nginx_server()
 {
-	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
-	mkdir -p "$_nginx_conf" || exit
+  configure_nginx_server_d webmail <<'EO_NGINX_SERVER'
 
-	local _datadir="$ZFS_DATA_MNT/webmail"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
+    server_name  webmail;
 
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+    # serve ACME requests from /data
+    location /.well-known/acme-challenge {
+      root /data;
+      try_files \$uri =404;
+    }
 
-	server_name  webmail;
+    location /.well-known/pki-validation {
+      root /data;
+      try_files \$uri =404;
+    }
 
-	location / {
-		root   /data/htdocs;
-		index  index.html index.htm;
-	}
+    # Forbid access to other dotfiles
+    location ~ /\.(?!well-known).* {
+      return 403;
+    }
+
+    location / {
+      root   /data/htdocs;
+      index  index.html index.htm;
+    }
 
 EO_NGINX_SERVER
 

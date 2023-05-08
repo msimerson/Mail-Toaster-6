@@ -92,12 +92,6 @@ install_roundcube()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/roundcube"
-	if [ -f "$_datadir/etc/nginx-server.conf" ]; then
-		tell_status "preserving /data/etc/nginx-server.conf"
-		return
-	fi
-
 	local _add_server="" _add_location=""
 	if [ "$TOASTER_USE_TMPFS" = "1" ]; then
 		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
@@ -111,27 +105,27 @@ EO_RC_LOCAL
 		_add_location="fastcgi_temp_path /tmp/nginx/fastcgi_temp;"
 	fi
 
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<EO_NGINX_LOCALS
+	configure_nginx_server_d roundcube <<EO_NGINX_RC
 
-	server_name  roundcube;
-	root   /usr/local/www/roundcube;
-	index  index.php;
+		server_name  roundcube;
 
-	$_add_server
-	location /roundcube {
-		alias /usr/local/www/roundcube;
-	}
+		root   /usr/local/www/roundcube;
+		index  index.php;
 
-	location ~ \\.php\$ {
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
-		fastcgi_pass   php;
-		$_add_location
-	}
+		$_add_server
+		location /roundcube {
+			alias /usr/local/www/roundcube;
+		}
 
-EO_NGINX_LOCALS
+		location ~ \\.php\$ {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
+			fastcgi_pass   php;
+			$_add_location
+		}
+
+EO_NGINX_RC
 
 }
 

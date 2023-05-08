@@ -45,14 +45,7 @@ enable_ftp_server_ingo()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/horde"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+	configure_nginx_server_d horde <<'EO_NGINX_SERVER'
 
 	server_name horde;
 
@@ -73,6 +66,7 @@ configure_nginx_server()
 		include        /usr/local/etc/nginx/fastcgi_params;
 		root /usr/local/www/;
 	}
+
 	location ~ ^/horde/(.+\.(?:ico|css|js|gif|jpe?g|png))$ {
 		root /usr/local/www/;
 		expires max;
@@ -80,7 +74,6 @@ configure_nginx_server()
 		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
     }
 
-}
 EO_NGINX_SERVER
 
 }

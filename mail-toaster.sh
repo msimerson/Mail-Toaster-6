@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20221219"; }
+mt6_version() { echo "20230507"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -137,7 +137,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -962,7 +962,12 @@ fetch_and_exec()
 {
 	if [ ! -d provision ]; then mkdir provision; fi
 
-	fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
+	if [ -d ".git" ]; then
+		tell_status "skipping fetch, running from git"
+	else
+		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
+	fi
+
 	sh "provision/$1.sh"
 }
 
@@ -1145,11 +1150,15 @@ mt6-include()
 		mkdir include || exit
 	fi
 
-	fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
+	if [ -d ".git" ]; then
+		tell_status "skipping include d/l, running from git"
+	else
+		fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
 
-	if [ ! -f "include/$1.sh" ]; then
-		echo "unable to download include/$1.sh"
-		exit
+		if [ ! -f "include/$1.sh" ]; then
+			echo "unable to download include/$1.sh"
+			exit
+		fi
 	fi
 
 	# shellcheck source=include/$.sh disable=SC1091
@@ -1185,14 +1194,21 @@ jail_rename()
 
 configure_pkg_latest()
 {
+	local _pkg_host="pkg.FreeBSD.org"
+
+	if [ -d "$ZFS_DATA_MNT/bsd_cache/pkg" ]; then
+		tell_status "switching pkg to bsd_cache"
+		_pkg_host="bsd_cache.$TOASTER_MAIL_DOMAIN"
+	fi
+
 	local REPODIR="$1/usr/local/etc/pkg/repos"
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
-	tee "$REPODIR/FreeBSD.conf" <<'EO_PKG'
+	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
 FreeBSD: {
-  url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest"
+  url: "pkg+http://$_pkg_host/\${ABI}/latest"
 }
 EO_PKG
 }

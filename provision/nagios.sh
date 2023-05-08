@@ -20,14 +20,7 @@ install_nagios()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/nagios"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+	configure_nginx_server_d nagiox <<'EO_NGINX_SERVER'
 
     server_name         nagios;
 

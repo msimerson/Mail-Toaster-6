@@ -24,37 +24,21 @@ install_joomla()
 
 configure_nginx_server()
 {
-	if [ -f "$ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" ]; then
-		tell_status "preserving nginx.conf"
-		cp "$ZFS_JAIL_MNT/joomla/usr/local/etc/nginx/nginx.conf" \
-			"$STAGE_MNT/usr/local/etc/nginx/nginx.conf"
-		return
-	fi
+	configure_nginx_server_d "joomla" <<EO_NGINX
 
-	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
-	mkdir -p "$_nginx_conf" || exit
-
-	tee "$_nginx_conf/joomla.conf" <<EO_NGINX
-server {
-    listen       80;
-    server_name  joomla;
-
-	set_real_ip_from $(get_jail_ip haproxy);
-	real_ip_header X-Forwarded-For;
-	client_max_body_size 25m;
+	server_name joomla
 
 	location / {
-	   root   /usr/local/www/joomla3;
-	   index  index.php;
+		root   /usr/local/www/joomla3;
+		index  index.php;
 	}
 
 	location ~  ^/(.+\.php)\$ {
-	   include        /usr/local/etc/nginx/fastcgi_params;
-	   fastcgi_index  index.php;
-	   fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
-	   fastcgi_pass   php;
+		include        /usr/local/etc/nginx/fastcgi_params;
+		fastcgi_index  index.php;
+		fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
+		fastcgi_pass   php;
 	}
-}
 
 EO_NGINX
 
