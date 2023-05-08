@@ -90,6 +90,7 @@ install_webmail()
 		install_lighttpd || exit
 	else
 		install_nginx || exit
+    configure_nginx_server
 	fi
 }
 

@@ -478,7 +478,8 @@ update_ports_tree()
 	if [ -d "/usr/ports/.git" ]; then
 		echo "ports via git detected"
 		cd "/usr/ports/" || return
-		git pull &
+		git pull
+		cd - || return
 		return
 	fi
 
