@@ -530,7 +530,7 @@ plumb_jail_nic()
 
 	if ! grep -q cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface at startup"
-		sysrc cloned_interfaces=lo1 || exit
+		sysrc cloned_interfaces+=lo1 || exit
 	fi
 
 	local _missing;

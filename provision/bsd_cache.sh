@@ -16,7 +16,7 @@ configure_nginx_server()
 
 		server_name  pkg;
 
-		location /pkg {
+		location / {
 			root          /data/cache/pkg;
 			try_files     $uri @pkg_cache;
 		}
@@ -106,6 +106,7 @@ create_cachedir()
 	tell_status "creating $_cachedir"
 	mkdir "$_cachedir"
 	chown 80:80 $_cachedir
+	echo "done"
 }
 
 configure_bsd_cache()
@@ -137,15 +138,27 @@ update_existing_jails()
 		tell_status "updating jail $_j pkg"
 		tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
-  url: "pkg+http://bsd_cache/pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+	enabled: no
 }
 EO_PKG_CONF
 
-		sed -i '' -e '/^#VULNXML_SITE/ s/^#// s/\.freebsd\.org//' \
+		tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+MT6: {
+  url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+  enabled: yes
+}
+EO_PKG_MT6
+
+		# cache pkg audit vulnerability db
+		sed -i '' \
+			-e '/^#VULNXML_SITE/ s/^#//' \
+			-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
 			"$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg.conf"
 
-		sed -i '' -e '/^ServerName/ s/update\.FreeBSD.org/freebsd-update/'
+		sed -i '' -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
 			"$ZFS_JAIL_MNT/$_j/etc/freebsd-update.conf"
+
+		echo "done"
 	done
 }
 
