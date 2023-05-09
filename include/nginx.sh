@@ -48,24 +48,32 @@ EO_NG_NSL
 
 }
 
+contains() {
+	string="$1"
+	substring="$2"
+	if [ "${string#*"$substring"}" != "$string" ]; then return 0; fi
+	return 1
+}
+
 configure_nginx_server_d()
 {
+	# $1 is jail name, $2 is 'server' name, defaults to $1
 	local _server_d="$ZFS_DATA_MNT/$1/etc/nginx/server.d"
 	if [ ! -d "$_server_d" ]; then mkdir -p "$_server_d" || exit 1; fi
 
-	local _server_conf="$_server_d/$1.conf"
+	# shellcheck disable=2155
+	local _server_conf="$_server_d/$([ -z "$2" ] && echo "$1" || echo "$2").conf"
 	if [ -f "$_server_conf" ]; then
 		tell_status "preserving $_server_conf"
 		return
 	fi
 
-	tell_status "creating $_server_conf"
-	tee "$_server_conf" <<EO_NGINX_SERVER_CONF
-	server {
+	# most calls get enclosing server block
+	local _prefix='	server {
 		listen       80 proxy_protocol;
 		listen  [::]:80 proxy_protocol;
-		$_NGINX_SERVER
-		location ~ /\.ht {
+'
+	local _suffix='location ~ /\.ht {
 			deny  all;
 		}
 
@@ -73,9 +81,20 @@ configure_nginx_server_d()
 		location = /50x.html {
 			root   /usr/local/www/nginx-dist;
 		}
-	}
-EO_NGINX_SERVER_CONF
+	}'
 
+	# for when caller sets custom server block
+	if contains "$_NGINX_SERVER" "listen"; then
+		_prefix=''
+		_suffix=''
+	fi
+
+	tell_status "creating $_server_conf"
+	tee "$_server_conf" <<EO_NGINX_SERVER_CONF
+		$_prefix
+		$_NGINX_SERVER
+		$_suffix
+EO_NGINX_SERVER_CONF
 }
 
 configure_nginx()

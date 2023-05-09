@@ -3,6 +3,22 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2022-05
+
+- ngnix: add configure_nginx_server_d()
+- nginx: move nginx configs into /data/etc/nginx/
+- nginx: put server declarations in etc/nginx/server.d
+- bsd_cache: add local cache for pkg and freebsd-update
+    + speed++ when managing many jails
+- mt: skip fetching latest provision files when running from git
+    + dev feature, easier to test feature branches
+- haproxy: add send-proxy to nagios backend
+- horde: broken, no more PHP 7.4, needs attention
+- host: support git updates for /usr/ports
+- rainloop: update PHP to 8.1
+- roundcube: install plugins: contextmenu html5_notifier larry
+- mediawiki: bump ver to 1.39, PHP version to 8.2
+
 ## 2021-q3
 
 - rename vim-console -> vim

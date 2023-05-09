@@ -9,50 +9,88 @@ mt6-include nginx
 
 configure_nginx_server()
 {
-  _NGINX_SERVER='
+	_NGINX_SERVER='
+	server {
+		listen       80;
+		listen  [::]:80;
+
 		server_name  pkg;
 
-		location / {
+		location /pkg {
 			root          /data/cache/pkg;
-			try_files     $uri @cache;
+			try_files     $uri @pkg_cache;
 		}
 
-		location @cache {
-			root          /data/cache/pkg;
-			proxy_store             on;
-			proxy_pass              https://pkg.freebsd.org;
-			proxy_cache_lock        on;
-			proxy_cache_lock_timeout        20s;
-			proxy_cache_revalidate  on;
-			proxy_cache_valid       200 301 302 24h;
-			proxy_cache_valid       404 10m;
+		location @pkg_cache {
+			root                     /data/cache/pkg;
+			proxy_store              on;
+			proxy_pass               https://pkg.freebsd.org;
+			proxy_cache_lock         on;
+			proxy_cache_lock_timeout 20s;
+			proxy_cache_revalidate   on;
+			proxy_cache_valid        200 301 302 12h;
+			proxy_cache_valid        404 5m;
 		}
+	}
 '
 	export _NGINX_SERVER
-	configure_nginx_server_d pkg
+	configure_nginx_server_d bsd_cache pkg
 
-  _NGINX_SERVER='
+	_NGINX_SERVER='
+	server {
+		listen       80;
+		listen  [::]:80;
+
 		server_name  freebsd-update;
 
 		location / {
 			root          /data/cache/freebsd-update;
-			try_files     $uri @cache;
+			try_files     $uri @update_cache;
 		}
 
-		location @cache {
-			root          /data/cache/freebsd-update;
-			proxy_store             on;
-			proxy_pass              https://update.freebsd.org;
-			proxy_http_version      1.1;
-			proxy_cache_lock        on;
-			proxy_cache_lock_timeout        20s;
-			proxy_cache_revalidate  on;
-			proxy_cache_valid       200 301 302 24h;
-			proxy_cache_valid       404 10m;
+		location @update_cache {
+			root                     /data/cache/freebsd-update;
+			proxy_store              on;
+			proxy_pass               https://update.freebsd.org;
+			proxy_http_version       1.1;
+			proxy_cache_lock         on;
+			proxy_cache_lock_timeout 20s;
+			proxy_cache_revalidate   on;
+			proxy_cache_valid        200 301 302 12h;
+			proxy_cache_valid        404 5m;
 		}
+	}
 '
 	export _NGINX_SERVER
-	configure_nginx_server_d update
+	configure_nginx_server_d bsd_cache update
+
+	_NGINX_SERVER='
+	server {
+		listen       80;
+		listen  [::]:80;
+
+		server_name  vulnxml;
+
+		location / {
+			root          /data/cache/vulnxml;
+			try_files     $uri @vuln_cache;
+		}
+
+		location @vuln_cache {
+			root                     /data/cache/vulnxml;
+			proxy_store              on;
+			proxy_pass               http://vuxml.freebsd.org;
+			proxy_http_version       1.1;
+			proxy_cache_lock         on;
+			proxy_cache_lock_timeout 20s;
+			proxy_cache_revalidate   on;
+			proxy_cache_valid        200 301 302 12h;
+			proxy_cache_valid        404 5m;
+		}
+	}
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d bsd_cache vulnxml
 }
 
 install_bsd_cache()
@@ -60,10 +98,21 @@ install_bsd_cache()
 	install_nginx || exit
 }
 
+create_cachedir()
+{
+	local _cachedir="$ZFS_DATA_MNT/bsd_cache/cache"
+	if [ -d "$_cachedir" ]; then return; fi
+
+	tell_status "creating $_cachedir"
+	mkdir "$_cachedir"
+	chown 80:80 $_cachedir
+}
+
 configure_bsd_cache()
 {
 	configure_nginx bsd_cache
 	configure_nginx_server
+	create_cachedir
 }
 
 start_bsd_cache()
@@ -77,6 +126,29 @@ test_bsd_cache()
 	stage_listening 80
 }
 
+update_existing_jails()
+{
+	tell_status "configuring all jails to use bsd_cache"
+	for _j in $JAIL_ORDERED_LIST; do
+		if [ ! -d "$ZFS_JAIL_MNT/$_j/etc" ]; then continue; fi
+
+		local _repo_dir="$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg/repos"
+		if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
+		tell_status "updating jail $_j pkg"
+		tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+FreeBSD: {
+  url: "pkg+http://bsd_cache/pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+}
+EO_PKG_CONF
+
+		sed -i '' -e '/^#VULNXML_SITE/ s/^#// s/\.freebsd\.org//' \
+			"$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg.conf"
+
+		sed -i '' -e '/^ServerName/ s/update\.FreeBSD.org/freebsd-update/'
+			"$ZFS_JAIL_MNT/$_j/etc/freebsd-update.conf"
+	done
+}
+
 base_snapshot_exists || exit
 create_staged_fs bsd_cache
 start_staged_jail bsd_cache
@@ -85,3 +157,4 @@ configure_bsd_cache
 start_bsd_cache
 test_bsd_cache
 promote_staged_jail bsd_cache
+update_existing_jails

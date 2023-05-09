@@ -568,8 +568,7 @@ configure_etc_hosts()
 	tell_status "adding /etc/hosts entries"
 	local _hosts
 
-	for _j in $JAIL_ORDERED_LIST;
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		_hosts="$_hosts
 $(get_jail_ip "$_j")		$_j"
 	done

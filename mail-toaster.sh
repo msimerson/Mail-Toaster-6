@@ -60,6 +60,7 @@ export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_NRPE=""
 export TOASTER_PKG_AUDIT="0"
+export TOASTER_PKG_BRANCH="latest"
 export TOASTER_QMHANDLE="0"
 export TOASTER_SENTRY=""
 export TOASTER_USE_TMPFS="0"
@@ -150,6 +151,7 @@ export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
+export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
 export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:="0"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
@@ -337,8 +339,7 @@ get_jail_ip()
 
 	local _octet="$_start"
 
-	for _j in $JAIL_ORDERED_LIST
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		if [ "$1" = "$_j" ]; then
 			echo "$JAIL_NET_PREFIX.$_octet"
 			return
@@ -373,8 +374,7 @@ get_jail_ip6()
 
 	local _octet="$_start"
 
-	for _j in $JAIL_ORDERED_LIST
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		if [ "$1" = "$_j" ]; then
 			echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
 			return
@@ -1208,7 +1208,7 @@ configure_pkg_latest()
 	mkdir -p "$REPODIR"
 	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
 FreeBSD: {
-  url: "pkg+http://$_pkg_host/\${ABI}/latest"
+  url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }
 EO_PKG
 }

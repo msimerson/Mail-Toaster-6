@@ -30,7 +30,10 @@ get_mt6_data()
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
 	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"
 	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\"
-	   local-data: '$TOASTER_MAIL_DOMAIN TXT \"v=spf1 a mx $_spf_ips -all\"'"
+	   local-data: '$TOASTER_MAIL_DOMAIN TXT \"v=spf1 a mx $_spf_ips -all\"'
+	   local-data: \"freebsd-update		A $(get_jail_ip bsd_cache)\"
+	   local-data: \"pkg				A $(get_jail_ip bsd_cache)\"
+	   local-data: \"vulnxml		    A $(get_jail_ip bsd_cache)\""
 
 	if [ "$TOASTER_HOSTNAME" != "$TOASTER_MAIL_DOMAIN" ]; then
 		echo -n "
@@ -38,8 +41,7 @@ get_mt6_data()
 	   local-data: \"$TOASTER_MAIL_DOMAIN MX 0 $TOASTER_HOSTNAME\""
 	fi
 
-	for _j in $JAIL_ORDERED_LIST
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		echo "
 	   local-data: \"$_j		A $(get_jail_ip "$_j")\"
 	   local-data: \"$(get_reverse_ip "$_j") PTR $_j\"
