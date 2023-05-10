@@ -1200,7 +1200,7 @@ configure_pkg_latest()
 
 	if [ -d "$ZFS_DATA_MNT/bsd_cache/pkg" ]; then
 		tell_status "switching pkg to bsd_cache"
-		_pkg_host="bsd_cache.$TOASTER_MAIL_DOMAIN"
+		_pkg_host="pkg"
 	fi
 
 	local REPODIR="$1/usr/local/etc/pkg/repos"

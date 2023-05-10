@@ -38,9 +38,8 @@ install_snappymail()
 
 configure_nginx_server()
 {
-    # shellcheck disable=SC2089
-    _NGINX_SERVER='
-		server_name  snappymail;
+	# shellcheck disable=SC2089
+	_NGINX_SERVER='server_name  snappymail;
 
 		add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
 		add_header X-Content-Type-Options "nosniff" always;
@@ -52,10 +51,10 @@ configure_nginx_server()
 		add_header X-Frame-Options "SAMEORIGIN" always;
 		fastcgi_hide_header X-Powered-By;
 
-		location / {
+		location /snappymail/ {
 			root   /usr/local/www/snappymail;
 			index  index.php;
-			try_files $uri $uri/ /index.php?$query_string;
+			try_files $uri index.php?$query_string;
 		}
 
 		location ~ \.php$ {
@@ -77,7 +76,7 @@ configure_nginx_server()
 			deny all;
 		}
 '
-    # shellcheck disable=SC2090
+	# shellcheck disable=SC2090
 	export _NGINX_SERVER
 	configure_nginx_server_d snappymail
 }

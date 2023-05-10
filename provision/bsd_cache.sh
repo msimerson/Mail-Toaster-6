@@ -24,7 +24,7 @@ configure_nginx_server()
 		location @pkg_cache {
 			root                     /data/cache/pkg;
 			proxy_store              on;
-			proxy_pass               https://pkg.freebsd.org;
+			proxy_pass               http://pkg.freebsd.org;
 			proxy_cache_lock         on;
 			proxy_cache_lock_timeout 20s;
 			proxy_cache_revalidate   on;
@@ -51,7 +51,7 @@ configure_nginx_server()
 		location @update_cache {
 			root                     /data/cache/freebsd-update;
 			proxy_store              on;
-			proxy_pass               https://update.freebsd.org;
+			proxy_pass               http://update.freebsd.org;
 			proxy_http_version       1.1;
 			proxy_cache_lock         on;
 			proxy_cache_lock_timeout 20s;
@@ -144,8 +144,8 @@ EO_PKG_CONF
 
 		tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
 MT6: {
-  url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
-  enabled: yes
+	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+	enabled: yes
 }
 EO_PKG_MT6
 
