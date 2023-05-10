@@ -39,7 +39,8 @@ install_snappymail()
 configure_nginx_server()
 {
 	# shellcheck disable=SC2089
-	_NGINX_SERVER='server_name  snappymail;
+	_NGINX_SERVER='
+		server_name  snappymail;
 
 		add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
 		add_header X-Content-Type-Options "nosniff" always;
