@@ -69,7 +69,7 @@ configure_nginx_server_d()
 	fi
 
 	# most calls get enclosing server block
-	local _prefix='	server {
+	local _prefix='server {
 		listen       80 proxy_protocol;
 		listen  [::]:80 proxy_protocol;
 '
@@ -91,7 +91,7 @@ configure_nginx_server_d()
 
 	tell_status "creating $_server_conf"
 	tee "$_server_conf" <<EO_NGINX_SERVER_CONF
-		$_prefix
+	$_prefix
 		$_NGINX_SERVER
 		$_suffix
 EO_NGINX_SERVER_CONF

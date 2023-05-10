@@ -547,7 +547,7 @@ create_staged_fs()
 	assure_ip6_addr_is_declared "$1"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-	mount_data "$1" "$STAGE_MNT"
+	mount_data "$1" "$STAGE_MNT" || exit 1
 
 	stage_mount_ports
 	stage_mount_pkg_cache
@@ -875,16 +875,16 @@ mount_data()
 
 	if [ ! -d "$_data_mp" ]; then
 		echo "mkdir -p $_data_mp"
-		mkdir -p "$_data_mp" || exit
+		mkdir -p "$_data_mp" || exit 1
 	fi
 
 	if mount -t nullfs | grep -q "$_data_mp"; then
 		echo "$_data_mp already mounted!"
-		return
+		exit 1
 	fi
 
 	echo "mount_nullfs $_data_mnt $_data_mp"
-	mount_nullfs "$_data_mnt" "$_data_mp" || exit
+	mount_nullfs "$_data_mnt" "$_data_mp" || exit 1
 }
 
 unmount_data()
@@ -1125,6 +1125,7 @@ unprovision()
 	ipcrm -W
 	unprovision_filesystems
 	unprovision_files
+	echo "done"
 }
 
 add_pf_portmap()

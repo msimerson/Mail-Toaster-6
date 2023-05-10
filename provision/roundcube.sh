@@ -134,6 +134,10 @@ EO_RC_LOCAL
 			alias /usr/local/www/roundcube;
 		}
 
+		location ~ ^/(bin|SQL|config|temp|logs)$ {
+			deny all;
+		}
+
 		location ~ \\.php\$ {
 			include        /usr/local/etc/nginx/fastcgi_params;
 			fastcgi_index  index.php;
@@ -142,8 +146,9 @@ EO_RC_LOCAL
 			$_add_location
 		}
 
-		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
-			expires max;
+		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf|webp|ttf)$ {
+			expires       max;
+			access_log    off;
 			log_not_found off;
 		}
 "
@@ -208,6 +213,7 @@ $config['smtp_conn_options'] = array(
    'cafile'       => '/etc/ssl/cert.pem',
  ),
 );
+$config['request_path'] = '/roundcube';
 EO_RC_ADD
 
 	if [ "$ROUNDCUBE_SQL" = "1" ]; then
@@ -246,7 +252,7 @@ EO_RC_ADD
 
 fixup_url()
 {
-	# nasty hack for roundcube 1.6.0 bug
+	# hack for roundcube 1.6.0 bug
 	# see https://github.com/roundcube/roundcubemail/issues/8738, #8170, #8770
 	sed -i.bak \
 		-e "/return \$prefix/    s/\./\. 'roundcube\/' \./" \
@@ -255,7 +261,7 @@ fixup_url()
 
 start_roundcube()
 {
-	fixup_url
+	# fixup_url
 	start_php_fpm
 	start_nginx
 }
