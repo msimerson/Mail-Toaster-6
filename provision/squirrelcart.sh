@@ -66,14 +66,7 @@ install_squirrelcart()
 
 configure_nginx_server()
 {
-	if [ -f "$STAGE_MNT/data/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_SMF_NGINX'
-
+	 _NGINX_SERVER='
 		server_name         squirrelcart;
 
 		location /cart/ {
@@ -90,8 +83,9 @@ configure_nginx_server()
 			fastcgi_param  PATH_INFO $2;
 			include        /usr/local/etc/nginx/fastcgi_params;
 		}
-
-EO_SMF_NGINX
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d squirrelcart
 }
 
 configure_postfix()
@@ -129,7 +123,6 @@ configure_squirrelcart()
 
 	configure_nginx squirrelcart
 	configure_nginx_server
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
 
 	configure_squirrelcart_cron
 	configure_postfix

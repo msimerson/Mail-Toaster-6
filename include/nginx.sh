@@ -48,6 +48,55 @@ EO_NG_NSL
 
 }
 
+contains() {
+	string="$1"
+	substring="$2"
+	if [ "${string#*"$substring"}" != "$string" ]; then return 0; fi
+	return 1
+}
+
+configure_nginx_server_d()
+{
+	# $1 is jail name, $2 is 'server' name, defaults to $1
+	local _server_d="$ZFS_DATA_MNT/$1/etc/nginx/server.d"
+	if [ ! -d "$_server_d" ]; then mkdir -p "$_server_d" || exit 1; fi
+
+	# shellcheck disable=2155
+	local _server_conf="$_server_d/$([ -z "$2" ] && echo "$1" || echo "$2").conf"
+	if [ -f "$_server_conf" ]; then
+		tell_status "preserving $_server_conf"
+		return
+	fi
+
+	# most calls get enclosing server block
+	local _prefix='server {
+		listen       80 proxy_protocol;
+		listen  [::]:80 proxy_protocol;
+'
+	local _suffix='location ~ /\.ht {
+			deny  all;
+		}
+
+		error_page   500 502 503 504  /50x.html;
+		location = /50x.html {
+			root   /usr/local/www/nginx-dist;
+		}
+	}'
+
+	# for when caller sets custom server block
+	if contains "$_NGINX_SERVER" "listen"; then
+		_prefix=''
+		_suffix=''
+	fi
+
+	tell_status "creating $_server_conf"
+	tee "$_server_conf" <<EO_NGINX_SERVER_CONF
+	$_prefix
+		$_NGINX_SERVER
+		$_suffix
+EO_NGINX_SERVER_CONF
+}
+
 configure_nginx()
 {
 	if [ -z "$1" ]; then
@@ -55,12 +104,12 @@ configure_nginx()
 		exit 1
 	fi
 
-	local _datadir="$ZFS_DATA_MNT/$1"
-	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
+	local _etcdir="$ZFS_DATA_MNT/$1/etc/nginx"
+	if [ ! -d "$_etcdir" ]; then mkdir -p "$_etcdir" || exit 1; fi
 
-	stage_sysrc nginx_flags='-c /data/etc/nginx.conf'
+	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
-	local _installed="$_datadir/etc/nginx.conf"
+	local _installed="$_etcdir/nginx.conf"
 	if [ -f "$_installed" ]; then
 		tell_status "preserving $_installed"
 		return
@@ -86,8 +135,8 @@ http {
 
 	keepalive_timeout  65;
 
-	set_real_ip_from haproxy;
-	set_real_ip_from haproxy6;
+	set_real_ip_from $(get_jail_ip haproxy);
+	set_real_ip_from $(get_jail_ip6 haproxy);
 	real_ip_header   proxy_protocol;
 	real_ip_recursive on;
 	client_max_body_size 25m;
@@ -97,40 +146,9 @@ http {
 		#server 127.0.0.1:9000;
 	}
 
-	server {
-		listen       80 proxy_protocol;
-		listen  [::]:80 proxy_protocol;
-
-		# serve all Let's Encrypt requests from /data
-		location /.well-known/acme-challenge {
-			root /data;
-			try_files \$uri =404;
-		}
-		location /.well-known/pki-validation {
-			root /data;
-			try_files \$uri =404;
-		}
-
-		# Forbid access to other dotfiles
-		location ~ /\.(?!well-known).* {
-			return 403;
-		}
-
-		include      nginx-locations.conf;
-
-		error_page   500 502 503 504  /50x.html;
-		location = /50x.html {
-			root   /usr/local/www/nginx-dist;
-		}
-	}
+	include /data/etc/nginx/server.d/*.conf;
 }
-
 EO_NGINX_CONF
-
-	sed -i.bak \
-		-e "s/haproxy;/$(get_jail_ip haproxy);/" \
-		-e "s/haproxy6;/$(get_jail_ip6 haproxy);/" \
-		"$_installed" || exit
 }
 
 start_nginx()

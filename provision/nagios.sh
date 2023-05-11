@@ -20,47 +20,44 @@ install_nagios()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/nagios"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
+	# shellcheck disable=2089
+	_NGINX_SERVER='
+		server_name         nagios;
 
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+		auth_basic "Private";
+		auth_basic_user_file /data/etc/.htpasswds;
 
-    server_name         nagios;
+		location / {
+			index  index.php;
+			try_files $uri $uri/ /index.php?$query_string /nagios;
+		}
 
-    auth_basic "Private";
-    auth_basic_user_file /data/etc/.htpasswds;
+		location /nagios {
+			alias /usr/local/www/nagios;
+			index  index.php;
 
-    location / {
-        index  index.php;
-        try_files $uri $uri/ /index.php?$query_string /nagios;
-    }
+			location ~ \.php$ {
+				include /usr/local/etc/nginx/fastcgi_params;
+				fastcgi_param SCRIPT_FILENAME $request_filename;
+				fastcgi_param AUTH_USER $remote_user;
+				fastcgi_param REMOTE_USER $remote_user;
+				fastcgi_pass php;
+			}
 
-    location /nagios {
-        alias /usr/local/www/nagios;
-        index  index.php;
-        location ~ \.php$ {
-            include /usr/local/etc/nginx/fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME $request_filename;
-            fastcgi_param AUTH_USER $remote_user;
-            fastcgi_param REMOTE_USER $remote_user;
-            fastcgi_pass php;
-        }
-        location ~ \.cgi$ {
-            root /usr/local/www/nagios/cgi-bin;
-            rewrite ^/nagios/cgi-bin/(.*)\.cgi /$1.cgi break;
-            include /usr/local/etc/nginx/fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME $request_filename;
-            fastcgi_param AUTH_USER $remote_user;
-            fastcgi_param REMOTE_USER $remote_user;
-            fastcgi_pass unix:/var/run/fcgiwrap/fcgiwrap.sock;
-        }
-    }
-
-EO_NGINX_SERVER
+			location ~ \.cgi$ {
+				root /usr/local/www/nagios/cgi-bin;
+				rewrite ^/nagios/cgi-bin/(.*)\.cgi /$1.cgi break;
+				include /usr/local/etc/nginx/fastcgi_params;
+				fastcgi_param SCRIPT_FILENAME $request_filename;
+				fastcgi_param AUTH_USER $remote_user;
+				fastcgi_param REMOTE_USER $remote_user;
+				fastcgi_pass unix:/var/run/fcgiwrap/fcgiwrap.sock;
+			}
+		}
+'
+	# shellcheck disable=2090
+	export _NGINX_SERVER
+	configure_nginx_server_d nagios
 }
 
 configure_fcgiwrap()

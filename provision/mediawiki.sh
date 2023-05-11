@@ -8,15 +8,18 @@ export JAIL_CONF_EXTRA=""
 mt6-include php
 mt6-include nginx
 
+PHP_VER=82
+MW_VER="139"
+
 install_mediawiki()
 {
 	assure_jail mysql
 
-	install_php 74 "ctype dom fileinfo filter iconv intl gd json mbstring mysqli openssl readline session sockets xml xmlreader zlib"
+	install_php $PHP_VER "ctype dom fileinfo filter iconv intl gd mbstring mysqli readline session sockets xml xmlreader zlib"
 	install_nginx
 
 	stage_pkg_install dialog4ports mysql57-client
-	stage_port_install www/mediawiki135 || exit
+	stage_port_install www/mediawiki$MW_VER || exit
 
 	mkdir -p "$STAGE_MNT/var/cache/mediawiki"
 	chown 80:80 "$STAGE_MNT/var/cache/mediawiki"
@@ -24,77 +27,67 @@ install_mediawiki()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/mediawiki"
-	if [ ! -d "$_datadir/etc" ]; then mkdir "$_datadir/etc"; fi
+	_NGINX_SERVER='
+		server_name  mediawiki;
 
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
+		location = /wiki {
+			rewrite ^/wiki$ /w/index.php?title=Main_Page;
+		}
+		location = /wiki/ {
+			rewrite ^/wiki/$ /w/index.php?title=Main_Page;
+		}
 
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_WIKI'
+		location /wiki/ {
+			alias /usr/local/www/mediawiki;
+			index index.php;
+			try_files $uri $uri/ @mw_rewrite;
+		}
 
-	server_name  mediawiki;
+		location @mw_rewrite {
+			rewrite ^/wiki/$ /w/index.php?title=Main_Page;
+			rewrite ^/wiki/+(.*)$ /w/index.php?title=$1&$args;
+		}
 
-	location = /wiki {
-	    rewrite ^/wiki$ /w/index.php?title=Main_Page;
-	}
-	location = /wiki/ {
-	    rewrite ^/wiki/$ /w/index.php?title=Main_Page;
-	}
+		location ~ ^/w/(.+\.php)$ {
+			alias  /usr/local/www/mediawiki/;
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root$1;
+			fastcgi_pass   php;
+		}
 
-	location /wiki/ {
-	    alias /usr/local/www/mediawiki;
-	    index index.php;
-	    try_files $uri $uri/ @mw_rewrite;
-	}
+		location ^~ /(?:w|wiki)/maintenance/ {
+			return 403;
+		}
 
-	location @mw_rewrite {
-	    rewrite ^/wiki/$ /w/index.php?title=Main_Page;
-	    rewrite ^/wiki/+(.*)$ /w/index.php?title=$1&$args;
-	}
+		location ~* ^/w/(.+\.(?:js|css|png|jpg|jpeg|gif|ico))$ {
+			alias  /usr/local/www/mediawiki/;
+			try_files $1 =404;
+			expires max;
+			log_not_found off;
+		}
 
-	location ~ ^/w/(.+\.php)$ {
-	    alias  /usr/local/www/mediawiki/;
-	    include        /usr/local/etc/nginx/fastcgi_params;
-	    fastcgi_index  index.php;
-	    fastcgi_param  SCRIPT_FILENAME  $document_root$1;
-	    fastcgi_pass   php;
-	}
+		location ~* ^/(?:w|wiki)/.+\.(js|css|png|jpg|jpeg|gif|ico)$ {
+			try_files $uri /w/index.php;
+			expires max;
+			log_not_found off;
+		}
 
-	location ^~ /(?:w|wiki)/maintenance/ {
-	    return 403;
-	}
+		location = /_.gif {
+			expires max;
+			empty_gif;
+		}
 
-	location ~* ^/w/(.+\.(?:js|css|png|jpg|jpeg|gif|ico))$ {
-	    alias  /usr/local/www/mediawiki/;
-	    try_files $1 =404;
-	    expires max;
-	    log_not_found off;
-	}
+		location ^~ ^/(?:wiki|w)/cache/ {
+			deny all;
+		}
 
-	location ~* ^/(?:w|wiki)/.+\.(js|css|png|jpg|jpeg|gif|ico)$ {
-	    try_files $uri /w/index.php;
-	    expires max;
-	    log_not_found off;
-	}
-
-	location = /_.gif {
-	    expires max;
-	    empty_gif;
-	}
-
-	location ^~ ^/(?:wiki|w)/cache/ {
-	    deny all;
-	}
-
-	location / {
-	    try_files $uri $uri/ @rewrite;
-	}
-
-EO_WIKI
-
+		location / {
+			try_files $uri $uri/ @rewrite;
+		}
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d mediawiki
 }
 
 configure_mediawiki()

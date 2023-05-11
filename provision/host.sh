@@ -475,6 +475,14 @@ update_ports_tree()
 		return
 	fi
 
+	if [ -d "/usr/ports/.git" ]; then
+		echo "ports via git detected"
+		cd "/usr/ports/" || return
+		git pull
+		cd - || return
+		return
+	fi
+
 	portsnap fetch || exit
 
 	if [ -d /usr/ports/mail/vpopmail ]; then
@@ -522,7 +530,7 @@ plumb_jail_nic()
 
 	if ! grep -q cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface at startup"
-		sysrc cloned_interfaces=lo1 || exit
+		sysrc cloned_interfaces+=lo1 || exit
 	fi
 
 	local _missing;
@@ -560,8 +568,7 @@ configure_etc_hosts()
 	tell_status "adding /etc/hosts entries"
 	local _hosts
 
-	for _j in $JAIL_ORDERED_LIST;
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		_hosts="$_hosts
 $(get_jail_ip "$_j")		$_j"
 	done

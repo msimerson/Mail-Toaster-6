@@ -100,38 +100,30 @@ install_squirrelmail()
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/squirrelmail"
-	local _conf="etc/nginx-locations.conf"
-	if [ -f "$_datadir/$_conf" ]; then
-		tell_status "preserving /data/$_conf"
-		return
-	fi
+	_NGINX_SERVER='
+		server_name  squirrelmail;
 
-	tell_status "saving /data/$_conf"
-	tee "$_datadir/$_conf" <<'EO_NGINX_SERVER'
+		root   /usr/local/www;
+		index  index.php;
 
-	server_name  squirrelmail;
-	root   /usr/local/www;
-	index  index.php;
+		location / {
+			try_files $uri $uri/ /index.php?$args;
+		}
 
-	location / {
-		try_files $uri $uri/ /index.php?$args;
-	}
+		location ~ \.php$ {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
+			fastcgi_pass   php;
+		}
 
-	location ~ \.php$ {
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name;
-		fastcgi_pass   php;
-	}
-
-	location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
-		expires max;
-		log_not_found off;
-	}
-
-EO_NGINX_SERVER
-
+		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
+			expires max;
+			log_not_found off;
+		}
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d squirrelmail
 }
 
 configure_squirrelmail_local()

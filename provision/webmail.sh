@@ -9,27 +9,32 @@ mt6-include nginx
 
 configure_nginx_server()
 {
-	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
-	mkdir -p "$_nginx_conf" || exit
+	_NGINX_SERVER='
+		server_name  webmail;
 
-	local _datadir="$ZFS_DATA_MNT/webmail"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
+		# serve ACME requests from /data
+		location /.well-known/acme-challenge {
+		  root /data;
+			try_files $uri =404;
+		}
 
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+		location /.well-known/pki-validation {
+			root /data;
+			try_files $uri =404;
+		}
 
-	server_name  webmail;
+		# Forbid access to other dotfiles
+		location ~ /\.(?!well-known).* {
+			return 403;
+		}
 
-	location / {
-		root   /data/htdocs;
-		index  index.html index.htm;
-	}
-
-EO_NGINX_SERVER
-
+		location / {
+			root   /data/htdocs;
+			index  index.html index.htm;
+		}
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d webmail
 }
 
 install_lighttpd()
@@ -84,6 +89,7 @@ install_webmail()
 		install_lighttpd || exit
 	else
 		install_nginx || exit
+		configure_nginx_server
 	fi
 }
 

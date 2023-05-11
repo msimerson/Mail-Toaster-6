@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA=""
 mt6-include php
 mt6-include nginx
 
+PHP_VER="82"
+
 install_snappymail()
 {
 	local _php_modules="curl dom gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
@@ -25,65 +27,59 @@ install_snappymail()
 		stage_make_conf snappymail_UNSET 'mail_snappymail_UNSET=SQLITE3 PGSQL REDIS LDAP'
 	fi
 
-	install_php 82 "$_php_modules" || exit
+	install_php "$PHP_VER" "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing snappymail"
-	# stage_pkg_install snappymail-php82
+	# stage_pkg_install snappymail-php$PHP_VER
 	stage_pkg_install gnupg
 	stage_port_install mail/snappymail || exit
 }
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/snappymail"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
+	# shellcheck disable=SC2089
+	_NGINX_SERVER='
+		server_name  snappymail;
 
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
+		add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
+		add_header X-Content-Type-Options "nosniff" always;
+		add_header X-XSS-Protection "1; mode=block" always;
+		add_header X-Robots-Tag "none" always;
+		add_header X-Download-Options "noopen" always;
+		add_header X-Permitted-Cross-Domain-Policies "none" always;
+		add_header Referrer-Policy "no-referrer" always;
+		add_header X-Frame-Options "SAMEORIGIN" always;
+		fastcgi_hide_header X-Powered-By;
 
-	server_name  snappymail;
+		location /snappymail/ {
+			root   /usr/local/www/snappymail;
+			index  index.php;
+			try_files $uri index.php?$query_string;
+		}
 
-	add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload;" always;
-	add_header X-Content-Type-Options "nosniff" always;
-	add_header X-XSS-Protection "1; mode=block" always;
-	add_header X-Robots-Tag "none" always;
-	add_header X-Download-Options "noopen" always;
-	add_header X-Permitted-Cross-Domain-Policies "none" always;
-	add_header Referrer-Policy "no-referrer" always;
-	add_header X-Frame-Options "SAMEORIGIN" always;
-	fastcgi_hide_header X-Powered-By;
+		location ~ \.php$ {
+			root           /usr/local/www/snappymail;
+			try_files $uri $uri/ /index.php?$query_string;
+			fastcgi_split_path_info ^(.+\.php)(.*)$;
+			fastcgi_keep_conn on;
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+			fastcgi_pass   php;
+		}
 
-	location / {
-		root   /usr/local/www/snappymail;
-		index  index.php;
-		try_files $uri $uri/ /index.php?$query_string;
-	}
+		location ~ /\.ht {
+			deny  all;
+		}
 
-	location ~ \.php$ {
-		root           /usr/local/www/snappymail;
-		try_files $uri $uri/ /index.php?$query_string;
-		fastcgi_split_path_info ^(.+\.php)(.*)$;
-		fastcgi_keep_conn on;
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-		fastcgi_pass   php;
-	}
-
-	location ~ /\.ht {
-		deny  all;
-	}
-
-	location ^~ /data {
-		deny all;
-	}
-
-EO_NGINX_SERVER
-
+		location ^~ /data {
+			deny all;
+		}
+'
+	# shellcheck disable=SC2090
+	export _NGINX_SERVER
+	configure_nginx_server_d snappymail
 }
 
 install_default_json()

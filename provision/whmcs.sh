@@ -21,16 +21,7 @@ install_whmcs()
 
 configure_whmcs_nginx()
 {
-        local _datadir="$ZFS_DATA_MNT/whmcs"
-        if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-            tell_status "preserving $_datadir/etc/nginx-locations.conf"
-            return
-        fi
-
-        tell_status "saving $_datadir/etc/nginx-locations.conf"
-        tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_WHMCS'
-
-        listen       80;
+	_NGINX_SERVER='
         server_name  theartfarm.com www.theartfarm.com;
 
         if ($request_method !~ ^(GET|HEAD|POST)$ ) {
@@ -71,14 +62,9 @@ configure_whmcs_nginx()
         location = /404.html {
             root   /data/html/;
         }
-
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   /usr/local/www/nginx-dist;
-        }
-
-EO_NGINX_WHMCS
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d whmcs
 }
 
 configure_whmcs()

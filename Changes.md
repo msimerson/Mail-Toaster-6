@@ -1,4 +1,31 @@
 
+## FUTURE
+
+refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
+
+## 2022-05
+
+### Feature
+
+Run a local nginx server in proxy mode that caches pkg and freebsd-update files. This has the most potential for time (and bandwidth) savings when managing a bunch of jails, reducing the need to wait for packagesite.pkg to download within each jail.
+
+#### Changes
+
+Currently the nginx config has the http block in /data/etc/nginx.conf and part of the server config in /data/etc/nginx-locations.conf. This lacks the flexibility to have more than one server block. In a nod towards the trend of having local configs in conf.d dirs, this PR does the same for nginx server configs.
+
+- nginx: move nginx configs into /data/etc/nginx/
+- nginx: put server declarations in etc/nginx/server.d
+- ngnix: add configure_nginx_server_d()
+- mt: skip fetching latest provision files when running from git
+    + dev feature, easier to test feature branches
+- haproxy: add send-proxy to nagios backend
+- horde: broken, no more PHP 7.4, needs attention
+- host: support git updates for /usr/ports
+- rainloop: update PHP to 8.1
+- roundcube: install plugins: contextmenu html5_notifier larry
+- mediawiki: bump ver to 1.39, PHP version to 8.2
+
+
 ## 2021-q3
 
 - rename vim-console -> vim

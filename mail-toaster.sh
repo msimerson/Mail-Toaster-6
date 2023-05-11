@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20221219"; }
+mt6_version() { echo "20230507"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
@@ -53,22 +53,24 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
+export TOASTER_MARIADB="0"
+export TOASTER_MSA="haraka"
+export TOASTER_MUNIN=""
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
-export TOASTER_MARIADB="0"
+export TOASTER_NRPE=""
 export TOASTER_PKG_AUDIT="0"
+export TOASTER_PKG_BRANCH="latest"
+export TOASTER_QMHANDLE="0"
+export TOASTER_SENTRY=""
+export TOASTER_USE_TMPFS="0"
+export TOASTER_VPOPMAIL_EXT="0"
+export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
 export ROUNDCUBE_DEFAULT_HOST=""
 export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
 export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export SQUIRREL_SQL="0"
-export TOASTER_NRPE=""
-export TOASTER_MUNIN=""
-export TOASTER_QMHANDLE="0"
-export TOASTER_SENTRY=""
-export TOASTER_MSA="haraka"
-export MAXMIND_LICENSE_KEY=""
-export TOASTER_USE_TMPFS="0"
 
 EO_MT_CONF
 
@@ -103,6 +105,8 @@ mt6_version_check()
 {
 	if [ "$(uname)" != 'FreeBSD' ]; then return; fi
 
+	if [ -d ".git" ]; then echo "v: $(mt6_version)"; return; fi
+
 	local _github
 	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep '^mt6_version(' | cut -f2 -d'"')
 	if [ -z "$_github" ]; then
@@ -136,7 +140,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -146,12 +150,15 @@ export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
-export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export TOASTER_NTP=${TOASTER_NTP:="ntp"}
+export TOASTER_MSA=${TOASTER_MSA:="haraka"}
+export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
+export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
+export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:="0"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
-export TOASTER_NTP=${TOASTER_NTP:="ntp"}
-export TOASTER_MSA=${TOASTER_MSA:="haraka"}
+export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
@@ -334,8 +341,7 @@ get_jail_ip()
 
 	local _octet="$_start"
 
-	for _j in $JAIL_ORDERED_LIST
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		if [ "$1" = "$_j" ]; then
 			echo "$JAIL_NET_PREFIX.$_octet"
 			return
@@ -370,8 +376,7 @@ get_jail_ip6()
 
 	local _octet="$_start"
 
-	for _j in $JAIL_ORDERED_LIST
-	do
+	for _j in $JAIL_ORDERED_LIST; do
 		if [ "$1" = "$_j" ]; then
 			echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
 			return
@@ -542,7 +547,7 @@ create_staged_fs()
 	assure_ip6_addr_is_declared "$1"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-	mount_data "$1" "$STAGE_MNT"
+	mount_data "$1" "$STAGE_MNT" || exit 1
 
 	stage_mount_ports
 	stage_mount_pkg_cache
@@ -870,16 +875,16 @@ mount_data()
 
 	if [ ! -d "$_data_mp" ]; then
 		echo "mkdir -p $_data_mp"
-		mkdir -p "$_data_mp" || exit
+		mkdir -p "$_data_mp" || exit 1
 	fi
 
 	if mount -t nullfs | grep -q "$_data_mp"; then
 		echo "$_data_mp already mounted!"
-		return
+		exit 1
 	fi
 
 	echo "mount_nullfs $_data_mnt $_data_mp"
-	mount_nullfs "$_data_mnt" "$_data_mp" || exit
+	mount_nullfs "$_data_mnt" "$_data_mp" || exit 1
 }
 
 unmount_data()
@@ -959,7 +964,12 @@ fetch_and_exec()
 {
 	if [ ! -d provision ]; then mkdir provision; fi
 
-	fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
+	if [ -d ".git" ]; then
+		tell_status "skipping fetch, running from git"
+	else
+		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
+	fi
+
 	sh "provision/$1.sh"
 }
 
@@ -1020,49 +1030,49 @@ unprovision_filesystem()
 {
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.ready"; then
 		tell_status "destroying $ZFS_JAIL_VOL/$1.ready"
-		zfs destroy "$ZFS_JAIL_VOL/$1.ready"
+		zfs destroy "$ZFS_JAIL_VOL/$1.ready" || return 1
 	fi
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.last"; then
 		tell_status "destroying $ZFS_JAIL_VOL/$1.last"
-		zfs destroy "$ZFS_JAIL_VOL/$1.last"
+		zfs destroy "$ZFS_JAIL_VOL/$1.last"  || return 1
 	fi
 
 	if [ -e "$ZFS_JAIL_VOL/$1/dev/null" ]; then
-		umount -t devfs "$ZFS_JAIL_VOL/$1/dev"
+		umount -t devfs "$ZFS_JAIL_VOL/$1/dev"  || return 1
 	fi
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
 		tell_status "destroying $ZFS_DATA_MNT/$1"
-		unmount_data "$1"
-		zfs destroy "$ZFS_DATA_VOL/$1"
+		unmount_data "$1" || return 1
+		zfs destroy "$ZFS_DATA_VOL/$1" || return 1
 	fi
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1"; then
 		tell_status "destroying $ZFS_JAIL_VOL/$1"
-		zfs destroy "$ZFS_JAIL_VOL/$1"
+		zfs destroy "$ZFS_JAIL_VOL/$1" || return 1
 	fi
 }
 
 unprovision_filesystems()
 {
 	for _j in $JAIL_ORDERED_LIST; do
-		unprovision_filesystem "$_j"
+		unprovision_filesystem "$_j" || return 1
 	done
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL"; then
 		tell_status "destroying $ZFS_JAIL_VOL"
-		zfs destroy "$ZFS_JAIL_VOL"
+		zfs destroy "$ZFS_JAIL_VOL" || return 1
 	fi
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL"; then
 		tell_status "destroying $ZFS_DATA_VOL"
-		zfs destroy "$ZFS_DATA_VOL"
+		zfs destroy "$ZFS_DATA_VOL" || return 1
 	fi
 
 	if zfs_filesystem_exists "$BASE_VOL"; then
 		tell_status "destroying $BASE_VOL"
-		zfs destroy -r "$BASE_VOL"
+		zfs destroy -r "$BASE_VOL" || return 1
 	fi
 }
 
@@ -1097,7 +1107,7 @@ unprovision()
 		fi
 
 		service jail stop stage "$1"
-		unprovision_filesystem "$1"
+		unprovision_filesystem "$1" || return 1
 		unprovision_rc "$1"
 		return
 	fi
@@ -1115,6 +1125,7 @@ unprovision()
 	ipcrm -W
 	unprovision_filesystems
 	unprovision_files
+	echo "done"
 }
 
 add_pf_portmap()
@@ -1142,11 +1153,15 @@ mt6-include()
 		mkdir include || exit
 	fi
 
-	fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
+	if [ -d ".git" ]; then
+		tell_status "skipping include d/l, running from git"
+	else
+		fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
 
-	if [ ! -f "include/$1.sh" ]; then
-		echo "unable to download include/$1.sh"
-		exit
+		if [ ! -f "include/$1.sh" ]; then
+			echo "unable to download include/$1.sh"
+			exit
+		fi
 	fi
 
 	# shellcheck source=include/$.sh disable=SC1091
@@ -1182,14 +1197,21 @@ jail_rename()
 
 configure_pkg_latest()
 {
+	local _pkg_host="pkg.FreeBSD.org"
+
+	if [ -d "$ZFS_DATA_MNT/bsd_cache/pkg" ]; then
+		tell_status "switching pkg to bsd_cache"
+		_pkg_host="pkg"
+	fi
+
 	local REPODIR="$1/usr/local/etc/pkg/repos"
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
-	tee "$REPODIR/FreeBSD.conf" <<'EO_PKG'
+	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
 FreeBSD: {
-  url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest"
+  url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }
 EO_PKG
 }

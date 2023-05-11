@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA=""
 mt6-include php
 mt6-include nginx
 
+PHP_VER=81
+
 install_rainloop()
 {
 	local _php_modules="curl dom iconv pdo_sqlite simplexml xml zlib"
@@ -24,25 +26,17 @@ install_rainloop()
 		stage_make_conf rainloop_UNSET 'mail_rainloop_UNSET=SQLITE PGSQL'
 	fi
 
-	install_php 80 "$_php_modules" || exit
+	install_php $PHP_VER "$_php_modules" || exit
 	install_nginx || exit
 
 	tell_status "installing rainloop"
-	#stage_pkg_install rainloop
+	#stage_pkg_install rainloop-php$PHP_VER
 	stage_port_install mail/rainloop || exit
 }
 
 configure_nginx_server()
 {
-	local _datadir="$ZFS_DATA_MNT/rainloop"
-	if [ -f "$_datadir/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	tell_status "saving /data/etc/nginx-locations.conf"
-	tee "$_datadir/etc/nginx-locations.conf" <<'EO_NGINX_SERVER'
-
+	 _NGINX_SERVER='
 	server_name  rainloop;
 
 	location / {
@@ -62,16 +56,12 @@ configure_nginx_server()
 		fastcgi_pass   php;
 	}
 
-	location ~ /\.ht {
-		deny  all;
-	}
-
 	location ^~ /data {
 		deny all;
 	}
-
-EO_NGINX_SERVER
-
+'
+	export _NGINX_SERVER
+	configure_nginx_server_d rainloop
 }
 
 install_default_ini()
@@ -112,7 +102,7 @@ EO_INI
 set_default_path()
 {
 	local _rl_ver;
-	_rl_ver="$(pkg -j stage info rainloop-php80 | grep Version | awk '{ print $3 }' | cut -f1 -d_)"
+	_rl_ver="$(pkg -j stage info rainloop-php$PHP_VER | grep Version | awk '{ print $3 }' | cut -f1 -d_)"
 	local _rl_root="$STAGE_MNT/usr/local/www/rainloop/rainloop/v/$_rl_ver"
 	tee -a "$_rl_root/include.php" <<'EO_INCLUDE'
 

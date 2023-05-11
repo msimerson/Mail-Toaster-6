@@ -194,7 +194,6 @@ EO_P0F
 		tell_status "enable Haraka p0f plugin"
 		sed -i '' \
 			-e '/^# p0f/ s/# //' \
-			-e '/^# p0f/ s/# //' \
 			"$HARAKA_CONF/plugins"
 	fi
 }
