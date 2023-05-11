@@ -317,7 +317,7 @@ add_jail_nat()
 	if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
 	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
 
-	tell_status "enabling NAT for jails (/etc/pf.conf)"
+	tell_status "setting up the PF firewall and NAT for jails"
 	tee /etc/pf.conf <<EO_PF_RULES
 ## Macros
 
@@ -382,15 +382,12 @@ EO_PF_RULES
 
 	echo; echo "/etc/pf.conf has been installed"; echo
 
-	_pf_loaded=$(kldstat -m pf | grep pf)
-	if [ -n "$_pf_loaded" ]; then
-		pfctl -f /etc/pf.conf 2>/dev/null || exit
-	else
-		kldload pf
-	fi
+	kldstat -q -m pf || kldload pf || exit 1
 
-	sysrc pf_enable=YES
-	/etc/rc.d/pf restart 2>/dev/null || exit
+	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
+	/etc/rc.d/pf restart 2>/dev/null || exit 1
+
+	pfctl -f /etc/pf.conf 2>/dev/null || exit 1
 }
 
 install_jailmanage()
