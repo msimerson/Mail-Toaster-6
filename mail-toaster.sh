@@ -572,6 +572,41 @@ stage_mount_aux_data()
 	esac
 }
 
+enable_bsd_cache()
+{
+	if ! sockstat -j bsd_cache -4 -6 -p 80 -q | grep .; then
+		return
+	fi
+
+	tell_status "enabling bsd_cache"
+
+	local _repo_dir="$ZFS_JAIL_MNT/$stage/usr/local/etc/pkg/repos"
+	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
+
+	tell_status "updating stage pkg"
+	tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+FreeBSD: {
+	enabled: no
+}
+EO_PKG_CONF
+
+	tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+MT6: {
+	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+	enabled: yes
+}
+EO_PKG_MT6
+
+	# cache pkg audit vulnerability db
+	sed -i '' \
+		-e '/^#VULNXML_SITE/ s/^#//' \
+		-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
+		"$ZFS_JAIL_MNT/stage/usr/local/etc/pkg.conf"
+
+	sed -i '' -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
+		"$ZFS_JAIL_MNT/stage/etc/freebsd-update.conf"
+}
+
 start_staged_jail()
 {
 	local _name="$1"
