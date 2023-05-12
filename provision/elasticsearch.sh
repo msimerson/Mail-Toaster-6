@@ -94,6 +94,13 @@ install_elasticsearch()
 install_beats()
 {
 	stage_pkg_install beats8
+	local _xcfg="$STAGE_MNT/usr/local/etc/beats/metricbeat.modules.d/elasticsearch-xpack.yml"
+
+	cp "$STAGE_MNT/usr/local/share/examples/beats/metricbeat.modules.d/elasticsearch-xpack.yml.disabled" "$_xcfg"
+	sed -i '' \
+		-e '/hosts:/ s/localhost/172.16.15.27/' \
+		"$_xcfg"
+
 	stage_exec -c 'cd "$STAGE_MNT/usr/local/etc/beats" && metricbeat modules enable elasticsearch-xpack'
 	stage_sysrc metricbeat_enable=YES
 }
@@ -145,6 +152,9 @@ EO_ES_CONF
 configure_kibana()
 {
 	tell_status "configuring kibana"
+
+	stage_sysrc kibana_syslog_output_flags=YES
+
 	if [ -f "$STAGE_MNT/data/etc/kibana.yml" ]; then
 		tell_status "preserving kibana.yml"
 		return

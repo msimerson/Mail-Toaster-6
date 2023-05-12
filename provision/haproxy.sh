@@ -228,6 +228,7 @@ frontend http-in
 
 	backend www_kibana
 	server kibana $(get_jail_ip elasticsearch):5601
+	http-request replace-uri /kibana/(.*) /\1
 
 EO_HAPROXY_CONF
 }
