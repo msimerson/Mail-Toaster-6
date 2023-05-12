@@ -676,6 +676,9 @@ stage_clear_caches()
 {
 	echo "clearing pkg cache"
 	rm -rf "$STAGE_MNT/var/cache/pkg/*"
+
+	echo "clearing freebsd-update cache"
+	rm -rf "$STAGE_MNT/var/db/freebsd-update/*"
 }
 
 stage_resolv_conf()
@@ -713,7 +716,7 @@ promote_staged_jail()
 	stage_resolv_conf
 	stage_unmount "$1"
 	ipcrm -W
-	#stage_clear_caches
+	stage_clear_caches
 
 	rename_staged_to_ready "$1"
 
