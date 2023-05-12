@@ -4,8 +4,8 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-	mount += \"$ZFS_DATA_MNT/whmcs \$path/data nullfs rw 0 0\";
-	mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+	   mount += \"$ZFS_DATA_MNT/whmcs \$path/data nullfs rw 0 0\";
+	   mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 
 mt6-include php
 mt6-include nginx
@@ -13,7 +13,7 @@ mt6-include nginx
 install_whmcs()
 {
 	stage_pkg_install sudo libmaxminddb
-	install_php 74 "ctype curl filter gd iconv imap json mbstring openssl session soap xml xmlrpc zip zlib"
+	install_php 81 "ctype curl filter gd iconv imap mbstring session soap xml zip zlib"
 	install_nginx whmcs
 
 	stage_port_install devel/ioncube || exit
@@ -22,46 +22,46 @@ install_whmcs()
 configure_whmcs_nginx()
 {
 	_NGINX_SERVER='
-        server_name  theartfarm.com www.theartfarm.com;
+		server_name  theartfarm.com www.theartfarm.com;
 
-        if ($request_method !~ ^(GET|HEAD|POST)$ ) {
-            return 444;
-        }
+		if ($request_method !~ ^(GET|HEAD|POST)$ ) {
+			return 444;
+		}
 
-        if ($http_user_agent ~* LWP::Simple|BBBike|wget|Baiduspider|Jullo) {
-            return 403;
-        }
+		if ($http_user_agent ~* LWP::Simple|BBBike|wget|Baiduspider|Jullo) {
+			return 403;
+		}
 
-        # https://docs.whmcs.com/Nginx_Directory_Access_Restriction
-        location ^~ /vendor/ {
-           deny all;
-           return 403;
-        }
+		# https://docs.whmcs.com/Nginx_Directory_Access_Restriction
+		location ^~ /vendor/ {
+			deny all;
+			return 403;
+		}
 
-        root /data/whmcs/;
-        index  index.php;
+		root /data/whmcs/;
+		index  index.php;
 
-        location /.well-known {
-            alias /data/html/.well-known;
-            try_files $uri $uri/ =404;
-        }
+		location /.well-known {
+			alias /data/html/.well-known;
+			try_files $uri $uri/ =404;
+		}
 
-        location ~ ^/(.+\.php)$ {
-            include        /usr/local/etc/nginx/fastcgi_params;
-            fastcgi_index  index.php;
-            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-            fastcgi_param  HTTPS On;
-            fastcgi_pass   php;
-        }
+		location ~ ^/(.+\.php)$ {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+			fastcgi_param  HTTPS On;
+			fastcgi_pass   php;
+		}
 
-        location / {
-            try_files $uri $uri/ =404;
-        }
+		location / {
+			try_files $uri $uri/ =404;
+		}
 
-        error_page  404              /404.html;
-        location = /404.html {
-            root   /data/html/;
-        }
+		error_page  404              /404.html;
+		location = /404.html {
+			root   /data/html/;
+		}
 '
 	export _NGINX_SERVER
 	configure_nginx_server_d whmcs
@@ -73,6 +73,7 @@ configure_whmcs()
 	configure_nginx whmcs
 
 	mkdir -p "$STAGE_MNT/vendor/whmcs/whmcs"
+	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 	chown -R www:www "$STAGE_MNT/vendor"
 
 	tee -a "$STAGE_MNT/etc/crontab" <<'EO_CRONTAB'

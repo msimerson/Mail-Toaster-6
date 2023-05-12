@@ -116,7 +116,7 @@ frontend http-in
 	acl nictool      path_beg /nictool
 	acl mediawiki    path_beg /wiki
 	acl mediawiki    path_beg /w/
-	acl smf          path_beg /forum
+	acl smf          path_beg /smf
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
 	acl horde        path_beg /horde
