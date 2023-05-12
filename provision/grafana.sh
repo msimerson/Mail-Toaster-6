@@ -27,11 +27,11 @@ configure_grafana()
 		cp "$STAGE_MNT/usr/local/etc/grafana/grafana.ini" "$_gini" || exit
 
 		sed -i '' \
-			-e "/^;domain =/ s/localhost/${TOASTER_HOSTNAME}/" \
+			-e "/^;domain =/ s/^;//; s/localhost/${TOASTER_HOSTNAME}/" \
 			-e '/^data =/ s/\/.*/\/data\/db/' \
 			-e '/^logs =/ s/\/.*/\/data\/logs/' \
 			-e '/^plugins =/ s/\/.*/\/data\/db\/plugins/' \
-			-e "/^;root_url =/ s/= .*/= https:\/\/${TOASTER_HOSTNAME}\/grafana\//" \
+			-e "/^;root_url =/ s/^;//; s/= .*/= https:\/\/${TOASTER_HOSTNAME}\/grafana\//" \
 			"$STAGE_MNT/data/etc/grafana.ini" || exit
 	fi
 
