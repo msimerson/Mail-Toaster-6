@@ -70,7 +70,6 @@ subnet 172.16.0.0 netmask 255.240.0.0 {
 #  option domain-name-servers 10.0.3.1, 8.8.8.8, 8.8.4.4;
 #}
 
-
 EO_DHCP
 
 	fi
