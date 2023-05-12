@@ -632,6 +632,7 @@ start_staged_jail()
 		|| exit
 
 	stage_mount_aux_data "$_name"
+	enable_bsd_cache
 
 	tell_status "updating pkg database"
 	pkg -j stage update
