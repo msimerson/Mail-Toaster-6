@@ -22,7 +22,12 @@ install_smf()
 
 	stage_exec sh -c 'cd /usr/local/www; tar -xzf /data/smf.tar.gz' || exit
 	stage_exec sh -c 'cd /usr/local/www && ln -s SMF-2.1.4 smf'
-	stage_exec sh -c 'cd /usr/local/www/smf; chown www:www attachments avatars cache Packages Packages/installed.list Smileys Themes agreement.txt Settings.php Settings_bak.php' || exit
+
+	for _f in attachments avatars cache Packages Packages/installed.list Smileys Themes agreement.txt Settings.php Settings_bak.php; do
+		if [ -e "$STAGE_MNT/usr/local/www/smf/$_f" ]; then
+			chown www:www "$STAGE_MNT/usr/local/www/smf/$_f" || exit
+		fi
+	done
 
 	stage_pkg_install aspell
 }
