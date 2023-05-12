@@ -65,16 +65,35 @@ install_elasticsearch7()
 	install_beats
 }
 
+install_elasticsearch8()
+{
+	tell_status "installing Elasticsearch"
+	stage_pkg_install elasticsearch8 openjdk11
+	stage_sysrc elasticsearch_java_home=/usr/local/openjdk11
+
+	create_data_dirs
+
+	tell_status "installing kibana"
+	stage_pkg_install kibana8
+
+	mkdir "$STAGE_MNT/usr/local/www/kibana8/config"
+	touch "$STAGE_MNT/usr/local/www/kibana8/config/kibana.yml"
+	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana8"
+
+	install_beats
+}
+
 install_elasticsearch()
 {
 	#install_elasticsearch5
 	#install_elasticsearch6
-	install_elasticsearch7
+	# install_elasticsearch7
+	install_elasticsearch8
 }
 
 install_beats()
 {
-	stage_pkg_install beats7
+	stage_pkg_install beats8
 	stage_exec -c 'cd "$STAGE_MNT/usr/local/etc/beats" && metricbeat modules enable elasticsearch-xpack'
 	stage_sysrc metricbeat_enable=YES
 }
