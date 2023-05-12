@@ -123,6 +123,7 @@ frontend http-in
 	acl prometheus   path_beg /prometheus
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
+	acl kibana		 path_beg /kibana
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
@@ -148,6 +149,7 @@ frontend http-in
 	use_backend www_prometheus   if  prometheus
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
+	use_backend www_kibana       if  kibana
 
 	default_backend www_webmail
 
@@ -223,6 +225,9 @@ frontend http-in
 
 	backend www_nagios
 	server nagios $(get_jail_ip nagios):80 send-proxy-v2
+
+	backend www_kibana
+	server kibana $(get_jail_ip elasticsearch):80
 
 EO_HAPROXY_CONF
 }

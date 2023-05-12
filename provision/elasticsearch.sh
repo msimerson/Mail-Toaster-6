@@ -12,7 +12,7 @@ export JAIL_CONF_EXTRA="
 
 create_data_dirs()
 {
-	for dir in etc db log plugins; do
+	for dir in etc db log plugins run; do
 		if [ ! -d "$STAGE_MNT/data/${dir}" ]; then
 			tell_status "creating $STAGE_MNT/data/${dir}"
 			mkdir "$STAGE_MNT/data/${dir}"
@@ -68,8 +68,8 @@ install_elasticsearch7()
 install_elasticsearch8()
 {
 	tell_status "installing Elasticsearch"
-	stage_pkg_install elasticsearch8 openjdk11
-	stage_sysrc elasticsearch_java_home=/usr/local/openjdk11
+	stage_pkg_install elasticsearch8 openjdk17
+	stage_sysrc elasticsearch_java_home=/usr/local/openjdk17
 
 	create_data_dirs
 
@@ -115,6 +115,9 @@ configure_elasticsearch()
 
 	if [ ! -f "$STAGE_MNT/data/etc/jvm.options" ]; then
 		if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsearch/jvm.options" ]; then
+			tell_status "preserving jvm.options"
+			cp "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/data/etc/"
+		else
 			cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/data/etc/"
 		fi
 	fi
@@ -129,6 +132,9 @@ configure_elasticsearch()
 		-e '/^path.data: / s/var/data/' \
 		-e '/^path.logs: / s/var/data/' \
 		-e '/^path\./ s/\/elasticsearch//' \
+		-e '/^#cluster_name/ s/^#//; s/my-application/mail-toaster/' \
+		-e '/^#node.name/ s/^#//; s/node-1/mt1/' \
+		-e '/^#cluster.initial/ s/^#//; s/node-1/mt1/; s/, "node-2"//' \
 			"$_data_conf"
 
 	tee -a "$_data_conf" <<EO_ES_CONF
