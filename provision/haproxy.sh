@@ -227,7 +227,7 @@ frontend http-in
 	server nagios $(get_jail_ip nagios):80 send-proxy-v2
 
 	backend www_kibana
-	server kibana $(get_jail_ip elasticsearch):80
+	server kibana $(get_jail_ip elasticsearch):5601
 
 EO_HAPROXY_CONF
 }
