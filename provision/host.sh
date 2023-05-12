@@ -333,6 +333,7 @@ table <sshguard> persist
 
 ssh_ports    = "{ 22 }"
 http_ports   = "{ 80 443 }"
+msa_ports    = "{ 465 587 }"
 mta_ports    = "{ 25 465 587 }"
 mua_insecure = "{ 110 143 }"
 mua_ports    = "{ 993 995 }"
@@ -351,6 +352,8 @@ haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
 nat on \$ext_if inet6 from $JAIL_NET6:0/64 to any -> (\$ext_if)
 
+nat-anchor "nat/*"
+
 # Secured POP3 & IMAP traffic to dovecot jail
 rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
@@ -366,6 +369,8 @@ rdr inet6 proto tcp from any to <ext_ip6> port \$mta_ports -> \$haraka_lo6
 # HTTP traffic to HAproxy
 rdr inet  proto tcp from any to <ext_ip4> port \$http_ports -> \$haproxy_lo4
 rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
+
+rdr-anchor "rdr/*"
 
 ## Filtering rules
 
