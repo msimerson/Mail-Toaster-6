@@ -1282,3 +1282,24 @@ assure_jail()
 		exit
 	fi
 }
+
+preserve_file() {
+	# $1 is the jail name
+	# $2 is a path to a file within a jail
+	local _active_cfg="$ZFS_JAIL_MNT/$1/$2"
+	local _stage_cfg="${STAGE_MNT}/$2"
+	if [ -f "$_active_cfg" ]; then
+		tell_status "preserving $_active_cfg"
+		cp "$_active_cfg" "$_stage_cfg" || return 1
+		return
+	fi
+
+	if [ -d "$ZFS_JAIL_MNT/$1.last" ]; then
+		_active_cfg="$ZFS_JAIL_MNT/$1.last/$2"
+		if [ -f "$_active_cfg" ]; then
+			tell_status "preserving $_active_cfg"
+			cp "$_active_cfg" "$_stage_cfg" || return 1
+			return
+		fi
+	fi
+}
