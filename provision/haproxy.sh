@@ -55,6 +55,7 @@ global
 	ssl-default-bind-options no-sslv3 no-tls-tickets
 	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
+	stats socket :9999 level admin expose-fd listeners
 
 defaults
 	mode        http
@@ -268,7 +269,7 @@ for pem in *.pem; do
             -issuer ${pem}.issuer \
             -cert ${pem} \
             -url ${ocsp_url} \
-            -header Host ${ocsp_host} \
+            -header Host=${ocsp_host} \
             -respout ${pem}.ocsp || echo -n ""
 
         UPDATED=$(( $UPDATED + 1 ))
