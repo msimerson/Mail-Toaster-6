@@ -13,22 +13,29 @@ install_grafana()
 
 configure_grafana()
 {
-	if [ ! -d "$STAGE_MNT/data/etc" ]; then
-		mkdir "$STAGE_MNT/data/etc" || exit
-	fi
+	for _d in etc db db/plugins logs; do
+		if [ ! -d "$STAGE_MNT/data/$_d" ]; then
+			tell_status "creating data/$_d dir"
+			mkdir "$STAGE_MNT/data/$_d" || exit
+			chown 904:904 "$STAGE_MNT/data/$_d"
+		fi
+	done
 
-	if [ ! -f "$STAGE_MNT/data/etc/grafana.ini" ]; then
+	local _gini="$STAGE_MNT/data/etc/grafana.ini"
+	if [ ! -f "$_gini" ]; then
 		tell_status "installing default grafana.ini"
-		cp "$STAGE_MNT/usr/local/etc/grafana/grafana.ini" "$STAGE_MNT/data/etc/grafana.ini" || exit
+		cp "$STAGE_MNT/usr/local/etc/grafana/grafana.ini" "$_gini" || exit
+
+		sed -i '' \
+			-e "/^;domain =/ s/localhost/${TOASTER_HOSTNAME}/" \
+			-e '/^data =/ s/\/.*/\/data\/db/' \
+			-e '/^logs =/ s/\/.*/\/data\/logs/' \
+			-e '/^plugins =/ s/\/.*/\/data\/db\/plugins/' \
+			-e "/^;root_url =/ s/= .*/= https:\/\/${TOASTER_HOSTNAME}\/grafana\//" \
+			"$STAGE_MNT/data/etc/grafana.ini" || exit
 	fi
 
 	stage_sysrc grafana_config="/data/etc/grafana.ini"
-
-	if [ ! -d "$STAGE_MNT/data/db" ]; then
-		tell_status "creating grafana data/db dir"
-		mkdir "$STAGE_MNT/data/db" || exit
-		chown 904:904 "$STAGE_MNT/data/db"
-	fi
 
 	tell_status "Enabling Grafana"
 	stage_sysrc grafana_enable=YES
