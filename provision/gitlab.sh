@@ -57,7 +57,7 @@ install_nginx()
 install_gitlab()
 {
 	tell_status "installing GitLab!"
-	stage_exec pkg install -y gitlab nginx
+	stage_exec pkg install -y gitlab-ce nginx
 
 	install_postgresql
 	install_redis
