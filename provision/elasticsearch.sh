@@ -152,6 +152,10 @@ configure_kibana()
 
 	tell_status "installing default kibana.yml"
 	cp "$STAGE_MNT/usr/local/etc/kibana/kibana.yml" "$STAGE_MNT/data/etc/"
+
+	sed -i '' \
+		-e '/^#server.basePath/ s/^#//; s/""/"\/kibana"/' \
+		"$STAGE_MNT/data/etc/kibana.yml" || exit
 }
 
 start_elasticsearch()

@@ -574,7 +574,7 @@ stage_mount_aux_data()
 
 enable_bsd_cache()
 {
-	if ! sockstat -j bsd_cache -4 -6 -p 80 -q | grep .; then
+	if ! sockstat -j bsd_cache -4 -6 -p 80 -q | grep -q .; then
 		return
 	fi
 

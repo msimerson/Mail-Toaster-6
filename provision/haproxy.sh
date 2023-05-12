@@ -13,7 +13,7 @@ install_haproxy()
 		*)	       install_haproxy_pkg;;
 	esac
 
-	tell_status "consider installing hatop for a 'top' style haproxy dashboard"
+	tell_status "PRO TIP: install hatop for a 'top' style haproxy dashboard"
 	#stage_pkg_install hatop
 }
 
