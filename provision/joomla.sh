@@ -25,19 +25,19 @@ install_joomla()
 configure_nginx_server()
 {
 	 _NGINX_SERVER='
-	server_name joomla
+		server_name joomla;
 
-	location / {
-		root   /usr/local/www/joomla3;
-		index  index.php;
-	}
+		location / {
+			root   /usr/local/www/joomla3;
+			index  index.php;
+		}
 
-	location ~  ^/(.+\.php)\$ {
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
-		fastcgi_pass   php;
-	}
+		location ~  ^/(.+\.php)\$ {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  \$document_root/\$1/\$2;
+			fastcgi_pass   php;
+		}
 '
 	export _NGINX_SERVER
 	configure_nginx_server_d joomla
