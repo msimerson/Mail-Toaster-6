@@ -851,6 +851,7 @@ stage_test_running()
 {
 	echo "checking for process $1 in staged jail"
 	pgrep -j stage "$1" || exit
+	echo "ok"
 }
 
 stage_mount_ports()
