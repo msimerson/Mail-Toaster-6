@@ -574,11 +574,13 @@ stage_mount_aux_data()
 
 enable_bsd_cache()
 {
-	# see if cache jail is running
+	# see if jails are running
 	jls | grep -q bsd_cache || return;
 	jls | grep -q dns || return;
-	# assure nginx is available
-	sockstat -j bsd_cache -4 -6 -p 80 -q | grep -q . || return
+
+	# assure services are available
+	sockstat -4 -6 -p 80 -q -j bsd_cache | grep -q . || return
+	sockstat -4 -6 -p 53 -q -j dns | grep . || return
 
 	tell_status "enabling bsd_cache"
 
