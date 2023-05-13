@@ -12,7 +12,7 @@ export JAIL_CONF_EXTRA="
 
 create_data_dirs()
 {
-	for dir in etc db log plugins; do
+	for dir in etc db log plugins run; do
 		if [ ! -d "$STAGE_MNT/data/${dir}" ]; then
 			tell_status "creating $STAGE_MNT/data/${dir}"
 			mkdir "$STAGE_MNT/data/${dir}"
@@ -65,16 +65,42 @@ install_elasticsearch7()
 	install_beats
 }
 
+install_elasticsearch8()
+{
+	tell_status "installing Elasticsearch"
+	stage_pkg_install elasticsearch8 openjdk17
+	stage_sysrc elasticsearch_java_home=/usr/local/openjdk17
+
+	create_data_dirs
+
+	tell_status "installing kibana"
+	stage_pkg_install kibana8
+
+	mkdir "$STAGE_MNT/usr/local/www/kibana8/config"
+	touch "$STAGE_MNT/usr/local/www/kibana8/config/kibana.yml"
+	chown -R 80:80 "$STAGE_MNT/usr/local/www/kibana8"
+
+	install_beats
+}
+
 install_elasticsearch()
 {
 	#install_elasticsearch5
 	#install_elasticsearch6
-	install_elasticsearch7
+	# install_elasticsearch7
+	install_elasticsearch8
 }
 
 install_beats()
 {
-	stage_pkg_install beats7
+	stage_pkg_install beats8
+	local _xcfg="$STAGE_MNT/usr/local/etc/beats/metricbeat.modules.d/elasticsearch-xpack.yml"
+
+	cp "$STAGE_MNT/usr/local/share/examples/beats/metricbeat.modules.d/elasticsearch-xpack.yml.disabled" "$_xcfg"
+	sed -i '' \
+		-e '/hosts:/ s/localhost/172.16.15.27/' \
+		"$_xcfg"
+
 	stage_exec -c 'cd "$STAGE_MNT/usr/local/etc/beats" && metricbeat modules enable elasticsearch-xpack'
 	stage_sysrc metricbeat_enable=YES
 }
@@ -96,6 +122,9 @@ configure_elasticsearch()
 
 	if [ ! -f "$STAGE_MNT/data/etc/jvm.options" ]; then
 		if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsearch/jvm.options" ]; then
+			tell_status "preserving jvm.options"
+			cp "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/data/etc/"
+		else
 			cp "$STAGE_MNT/usr/local/etc/elasticsearch/jvm.options" "$STAGE_MNT/data/etc/"
 		fi
 	fi
@@ -110,6 +139,9 @@ configure_elasticsearch()
 		-e '/^path.data: / s/var/data/' \
 		-e '/^path.logs: / s/var/data/' \
 		-e '/^path\./ s/\/elasticsearch//' \
+		-e '/^#cluster_name/ s/^#//; s/my-application/mail-toaster/' \
+		-e '/^#node.name/ s/^#//; s/node-1/mt1/' \
+		-e '/^#cluster.initial/ s/^#//; s/node-1/mt1/; s/, "node-2"//' \
 			"$_data_conf"
 
 	tee -a "$_data_conf" <<EO_ES_CONF
@@ -120,6 +152,9 @@ EO_ES_CONF
 configure_kibana()
 {
 	tell_status "configuring kibana"
+
+	stage_sysrc kibana_syslog_output_flags=YES
+
 	if [ -f "$STAGE_MNT/data/etc/kibana.yml" ]; then
 		tell_status "preserving kibana.yml"
 		return
@@ -127,6 +162,10 @@ configure_kibana()
 
 	tell_status "installing default kibana.yml"
 	cp "$STAGE_MNT/usr/local/etc/kibana/kibana.yml" "$STAGE_MNT/data/etc/"
+
+	sed -i '' \
+		-e '/^#server.basePath/ s/^#//; s/""/"\/kibana"/' \
+		"$STAGE_MNT/data/etc/kibana.yml" || exit
 }
 
 start_elasticsearch()

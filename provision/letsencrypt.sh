@@ -78,7 +78,7 @@ haproxy_deploy() {
 
 	rm "$_tmp"
 	_debug "restarting haproxy"
-	jexec haproxy service haproxy restart
+	jexec haproxy service haproxy reload
 	return 0
 }
 EO_LE_HAPROXY

@@ -572,6 +572,51 @@ stage_mount_aux_data()
 	esac
 }
 
+enable_bsd_cache()
+{
+	# see if jails are running
+	jls | grep -q bsd_cache || return;
+	jls | grep -q dns || return;
+
+	# assure services are available
+	sockstat -4 -6 -p 80 -q -j bsd_cache | grep -q . || return
+	sockstat -4 -6 -p 53 -q -j dns | grep . || return
+
+	tell_status "enabling bsd_cache"
+
+	tee "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
+nameserver $(get_jail_ip dns)
+nameserver $(get_jail_ip6 dns)
+EO_RESOLV
+
+	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
+	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
+
+	tell_status "updating $_repo_dir/FreeBSD.conf"
+	tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+FreeBSD: {
+	enabled: no
+}
+EO_PKG_CONF
+
+	tell_status "updating $_repo_dir/MT6.conf"
+	tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+MT6: {
+	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+	enabled: yes
+}
+EO_PKG_MT6
+
+	# cache pkg audit vulnerability db
+	sed -i '' \
+		-e '/^#VULNXML_SITE/ s/^#//' \
+		-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
+		"$ZFS_JAIL_MNT/stage/usr/local/etc/pkg.conf"
+
+	sed -i '' -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
+		"$ZFS_JAIL_MNT/stage/etc/freebsd-update.conf"
+}
+
 start_staged_jail()
 {
 	local _name="$1"
@@ -597,6 +642,7 @@ start_staged_jail()
 		|| exit
 
 	stage_mount_aux_data "$_name"
+	enable_bsd_cache
 
 	tell_status "updating pkg database"
 	pkg -j stage update
@@ -676,6 +722,9 @@ stage_clear_caches()
 {
 	echo "clearing pkg cache"
 	rm -rf "$STAGE_MNT/var/cache/pkg/*"
+
+	echo "clearing freebsd-update cache"
+	rm -rf "$STAGE_MNT/var/db/freebsd-update/*"
 }
 
 stage_resolv_conf()
@@ -713,7 +762,7 @@ promote_staged_jail()
 	stage_resolv_conf
 	stage_unmount "$1"
 	ipcrm -W
-	#stage_clear_caches
+	stage_clear_caches
 
 	rename_staged_to_ready "$1"
 
@@ -804,6 +853,7 @@ stage_test_running()
 {
 	echo "checking for process $1 in staged jail"
 	pgrep -j stage "$1" || exit
+	echo "ok"
 }
 
 stage_mount_ports()
@@ -1241,5 +1291,26 @@ assure_jail()
 	if [ -z "$_jid" ]; then
 		echo "jail $1 is required but not available"
 		exit
+	fi
+}
+
+preserve_file() {
+	# $1 is the jail name
+	# $2 is a path to a file within a jail
+	local _active_cfg="$ZFS_JAIL_MNT/$1/$2"
+	local _stage_cfg="${STAGE_MNT}/$2"
+	if [ -f "$_active_cfg" ]; then
+		tell_status "preserving $_active_cfg"
+		cp "$_active_cfg" "$_stage_cfg" || return 1
+		return
+	fi
+
+	if [ -d "$ZFS_JAIL_MNT/$1.last" ]; then
+		_active_cfg="$ZFS_JAIL_MNT/$1.last/$2"
+		if [ -f "$_active_cfg" ]; then
+			tell_status "preserving $_active_cfg"
+			cp "$_active_cfg" "$_stage_cfg" || return 1
+			return
+		fi
 	fi
 }

@@ -8,7 +8,7 @@ export JAIL_CONF_EXTRA=""
 install_jekyll()
 {
 	tell_status "install jekyll"
-	stage_pkg_install ruby ruby26-gems rubygem-jekyll
+	stage_pkg_install ruby rubygem-jekyll
 
 	stage_exec gem install jekyll bundler
 }

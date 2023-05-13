@@ -62,14 +62,14 @@ test_nsd()
 	tell_status "testing nsd"
 	stage_test_running nsd
 
-	stage_listening 53
+	stage_listening 53 2
 	echo "it worked."
 
 	tell_status "testing UDP DNS query"
-	drill    www.example.com @"$(get_jail_ip stage)" || exit
+	drill -Q   www.example.com @"$(get_jail_ip stage)" || exit 1
 
 	tell_status "testing TCP DNS query"
-	drill -t www.example.com @"$(get_jail_ip stage)" || exit
+	drill -Q -t www.example.com @"$(get_jail_ip stage)" || exit 1
 }
 
 base_snapshot_exists || exit

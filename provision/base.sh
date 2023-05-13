@@ -596,6 +596,7 @@ install_base
 stop_jail stage
 umount "$BASE_MNT/dev"
 rm -rf "$BASE_MNT/var/cache/pkg/*"
+rm -rf "$BASE_MNT/var/db/freebsd-update/*"
 echo "zfs snapshot ${BASE_SNAP}"
 zfs snapshot "${BASE_SNAP}" || exit
 add_jail_conf base

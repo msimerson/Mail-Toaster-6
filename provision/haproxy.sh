@@ -13,7 +13,7 @@ install_haproxy()
 		*)	       install_haproxy_pkg;;
 	esac
 
-	tell_status "consider installing hatop for a 'top' style haproxy dashboard"
+	tell_status "PRO TIP: install hatop for a 'top' style haproxy dashboard"
 	#stage_pkg_install hatop
 }
 
@@ -55,6 +55,7 @@ global
 	ssl-default-bind-options no-sslv3 no-tls-tickets
 	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
+	stats socket :9999 level admin expose-fd listeners
 
 defaults
 	mode        http
@@ -115,13 +116,14 @@ frontend http-in
 	acl nictool      path_beg /nictool
 	acl mediawiki    path_beg /wiki
 	acl mediawiki    path_beg /w/
-	acl smf          path_beg /forum
+	acl smf          path_beg /smf
 	acl wordpress    path_beg /wordpress
 	acl stage        path_beg /stage
 	acl horde        path_beg /horde
 	acl prometheus   path_beg /prometheus
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
+	acl kibana       path_beg /kibana
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
@@ -147,6 +149,7 @@ frontend http-in
 	use_backend www_prometheus   if  prometheus
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
+	use_backend www_kibana       if  kibana
 
 	default_backend www_webmail
 
@@ -223,6 +226,10 @@ frontend http-in
 	backend www_nagios
 	server nagios $(get_jail_ip nagios):80 send-proxy-v2
 
+	backend www_kibana
+	server kibana $(get_jail_ip elasticsearch):5601
+	http-request replace-uri /kibana/(.*) /\1
+
 EO_HAPROXY_CONF
 }
 
@@ -268,7 +275,7 @@ for pem in *.pem; do
             -issuer ${pem}.issuer \
             -cert ${pem} \
             -url ${ocsp_url} \
-            -header Host ${ocsp_host} \
+            -header Host=${ocsp_host} \
             -respout ${pem}.ocsp || echo -n ""
 
         UPDATED=$(( $UPDATED + 1 ))

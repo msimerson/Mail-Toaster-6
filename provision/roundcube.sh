@@ -156,28 +156,35 @@ EO_RC_LOCAL
 	configure_nginx_server_d roundcube
 }
 
+install_logo()
+{
+	local _logo_path="$ZFS_DATA_MNT/roundcube/logo.svg"
+	if [ ! -f "$_logo_path" ]; then
+		tell_status "PRO TIP: populate $_logo_path"
+		return;
+	fi
+
+	tell_status "installing custom logo"
+	cp "$_logo_path" "$STAGE_MNT/usr/local/www/roundcube/skins/elastic/images/"
+	cp "$_logo_path" "$STAGE_MNT/usr/local/www/roundcube/skins/larry/images/"
+}
+
 configure_roundcube()
 {
 	configure_php roundcube
 	configure_nginx roundcube
 	configure_nginx_server
 
-	tell_status "installing mime.types"
-	fetch -o "$STAGE_MNT/usr/local/etc/mime.types" \
-		http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
-
 	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
-	local _rcc_conf="${STAGE_MNT}${_local_path}"
-	if [ -f "$ZFS_JAIL_MNT/roundcube.last/$_local_path" ]; then
-		tell_status "preserving $_rcc_conf"
-		cp "$ZFS_JAIL_MNT/roundcube.last/$_local_path" "$_rcc_conf" || exit
-		return
-	fi
+	preserve_file roundcube "$_local_path"
 
-	tell_status "installing default $_rcc_conf"
-	cp "$_rcc_conf.sample" "$_rcc_conf" || exit
+	local _stage_cfg="${STAGE_MNT}${_local_path}"
+	if [ -f "$_stage_cfg" ]; then return; fi
 
-	tell_status "customizing $_rcc_conf"
+	tell_status "installing default $_stage_cfg"
+	cp "$_stage_cfg.sample" "$_stage_cfg" || exit
+
+	tell_status "customizing $_stage_cfg"
 	local _dovecot_ip
 	if  [ -z "$ROUNDCUBE_DEFAULT_HOST" ];
 	then

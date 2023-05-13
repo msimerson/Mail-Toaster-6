@@ -14,7 +14,7 @@ install_gitlab_runner_pkg()
 install_gitlab_runner_port()
 {
 	tell_status "installing GitLab Runner port"
-	stage_pkg_install dialog4ports go
+	stage_pkg_install dialog4ports go go-bindata
 	stage_port_install devel/gitlab-runner || exit
 }
 
@@ -44,27 +44,15 @@ install_docker_freebsd()
 install_gitlab_runner()
 {
 	tell_status "setting up gitlab-runner user"
-	stage_exec pw group add -n gitlab-runner -m
-	stage_exec pw user add -n gitlab-runner -g gitlab-runner -s /usr/local/bin/bash
-	stage_exec mkdir /home/gitlab-runner
-	stage_exec chown gitlab-runner:gitlab-runner /home/gitlab-runner
+	stage_exec pw group add -n gitlab-runner || exit 1
+	stage_exec pw user add -n gitlab-runner -g gitlab-runner -s /usr/local/bin/bash -m || exit 1
+	# stage_exec mkdir /home/gitlab-runner || exit 1
+	stage_exec chown gitlab-runner:gitlab-runner /home/gitlab-runner || exit 1
 	touch "$STAGE_MNT/var/log/gitlab_runner.log"
-	stage_exec chown gitlab-runner:gitlab-runner /var/log/gitlab_runner.log
+	stage_exec chown gitlab-runner:gitlab-runner /var/log/gitlab_runner.log || exit 1
 
 	install_gitlab_runner_pkg
-	# Version:      1.11.1
-	# Git revision: 08a9e6f
-	# Git branch:   9-0-stable
-
-	install_gitlab_runner_port
-	# Version:      9.3.0
-	# Git revision: 3df822b
-	# Git branch:   9-3-stable
-
-	# install_gitlab_runner_latest
-	# Version:      9.4.2
-	# Git revision: 6d06f2e
-	# Git branch:   9-4-stable
+	# install_gitlab_runner_port
 }
 
 configure_gitlab_runner()
@@ -82,9 +70,7 @@ start_gitlab_runner()
 
 test_gitlab_runner()
 {
-	tell_status "testing nothing!"
-
-	echo "it worked"
+	stage_test_running gitlab-runner
 }
 
 base_snapshot_exists || exit

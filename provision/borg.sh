@@ -8,7 +8,7 @@ export JAIL_CONF_EXTRA=""
 install_borg()
 {
 	tell_status "installing borg"
-	stage_pkg_install py37-borgbackup || exit
+	stage_pkg_install py39-borgbackup || exit
 }
 
 configure_borg()

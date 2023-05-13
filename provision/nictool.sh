@@ -16,11 +16,11 @@ install_nt_prereqs()
 	assure_jail mysql
 
 	tell_status "installing NicTool app prerequisites"
-	stage_pkg_install perl5 mysql57-client apache24 ap24-mod_perl2 rsync
+	stage_pkg_install perl5 mysql57-client apache24 ap24-mod_perl2 rsync p5-DBD-mysql
 
 	tell_status "installing tools for NicTool exports"
 	stage_pkg_install daemontools ucspi-tcp djbdns
-	stage_pkg_install knot2
+	stage_pkg_install knot3
 
 	tell_status "setting up svscan"
 	stage_sysrc svscan_enable=YES
