@@ -575,22 +575,29 @@ stage_mount_aux_data()
 enable_bsd_cache()
 {
 	# see if cache jail is running
-	if ! jls | grep -q bsd_cache; then return; fi
+	jls | grep -q bsd_cache || return;
+	jls | grep -q dns || return;
 	# assure nginx is available
-	if ! sockstat -j bsd_cache -4 -6 -p 80 -q | grep -q .; then return; fi
+	sockstat -j bsd_cache -4 -6 -p 80 -q | grep -q . || return
 
 	tell_status "enabling bsd_cache"
 
-	local _repo_dir="$ZFS_JAIL_MNT/$stage/usr/local/etc/pkg/repos"
+	tee "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
+nameserver $(get_jail_ip dns)
+nameserver $(get_jail_ip6 dns)
+EO_RESOLV
+
+	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
-	tell_status "updating stage pkg"
+	tell_status "updating $_repo_dir/FreeBSD.conf"
 	tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
 	enabled: no
 }
 EO_PKG_CONF
 
+	tell_status "updating $_repo_dir/MT6.conf"
 	tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
 MT6: {
 	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",

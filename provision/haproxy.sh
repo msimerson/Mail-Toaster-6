@@ -123,7 +123,7 @@ frontend http-in
 	acl prometheus   path_beg /prometheus
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
-	acl kibana		 path_beg /kibana
+	acl kibana       path_beg /kibana
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
