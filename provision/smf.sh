@@ -74,6 +74,8 @@ configure_smf()
 	if [ -f "$ZFS_DATA_MNT/smf/Settings.php" ]; then
 		tell_status "preserving Settings.php"
 		cp "$ZFS_DATA_MNT/smf/Settings.php" "$STAGE_MNT/usr/local/www/smf/" || exit
+	elif [ -f "$ZFS_JAIL_MNT/smf/usr/local/www/smf/Settings.php" ]; then
+		preserve_file smf /usr/local/www/smf/Settings.php
 	else
 		tell_status "installing sample Settings.php"
 		cp "$STAGE_MNT/usr/local/www/smf/other/Settings.php" "$STAGE_MNT/usr/local/www/smf/" || exit
