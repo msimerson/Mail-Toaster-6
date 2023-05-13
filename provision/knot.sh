@@ -12,10 +12,6 @@ install_knot()
 	tell_status "installing Knot DNS 3"
 	stage_pkg_install knot3 rsync dialog4ports || exit
 
-	if [ ! -d "$STAGE_MNT/data/home" ]; then
-		mkdir -p "$STAGE_MNT/data/home" || exit
-	fi
-
 	install_nrpe
 	install_sentry
 }
@@ -35,6 +31,25 @@ install_nrpe()
 
 configure_knot()
 {
+	for _d in etc home home/knot; do
+		if [ ! -d "$STAGE_MNT/data/$_d" ]; then
+			mkdir "$STAGE_MNT/data/$_d" || exit
+		fi
+	done
+
+	chown -R 553:553 "$STAGE_MNT/data/home/knot"
+
+	local _cfg="$STAGE_MNT/data/etc/knot.conf"
+	if [ -f $_cfg ]; then
+		tell_status "preserving knot.conf"
+	else
+		tell_status "installing default knot.conf"
+		cp "$STAGE_MNT/usr/local/etc/knot/knot.conf.sample" "$_cfg" || exit 1
+		sed -i '' \
+			-e '/^#[[:space:]]*listen:/ s/^#//' \
+			"$_cfg"
+	fi
+
 	stage_sysrc sshd_enable=YES
 	stage_sysrc knot_enable=YES
 	stage_sysrc knot_config=/data/etc/knot.conf
@@ -46,8 +61,7 @@ configure_knot()
 start_knot()
 {
 	tell_status "starting knot daemon"
-	stage_exec service knot start || exit
-	sleep 2
+	stage_exec service knot start || exit 1
 }
 
 test_knot()
@@ -55,14 +69,14 @@ test_knot()
 	tell_status "testing knot"
 	stage_test_running knot
 
-	stage_listening 53
+	stage_listening 53 4 2
 	echo "it worked."
 
 	tell_status "testing UDP DNS query"
-	drill    www.example.com @"$(get_jail_ip stage)" || exit
+	drill -Q   www.example.com @"$(get_jail_ip stage)" || exit 1
 
 	tell_status "testing TCP DNS query"
-	drill -t www.example.com @"$(get_jail_ip stage)" || exit
+	drill -Q -t www.example.com @"$(get_jail_ip stage)" || exit 1
 }
 
 base_snapshot_exists || exit
