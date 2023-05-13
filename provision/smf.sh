@@ -13,8 +13,8 @@ install_smf()
 	install_nginx
 	install_php 81 "filter gd mysqli pdo_mysql session zlib"
 
-	if [ ! -d "$STAGE_MNT/usr/local/www/smf" ]; then
-		mkdir -p "$STAGE_MNT/usr/local/www/smf" || exit
+	if [ ! -d "$STAGE_MNT/usr/local/www" ]; then
+		mkdir -p "$STAGE_MNT/usr/local/www" || exit
 	fi
 
 	fetch -m -o "$STAGE_MNT/data/smf.tar.gz" \
