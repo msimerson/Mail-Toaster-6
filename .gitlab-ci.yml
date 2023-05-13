@@ -30,10 +30,18 @@ host_setup:
     - freebsd
     - ssh
 
-mailservices:
-  stage: mailservices
+dns:
+  stage: dns
   script:
     - sh provision/dns.sh
+    - sh provision/bsd_cache.sh
+  tags:
+    - freebsd
+    - ssh
+
+db:
+  stage: db
+  script:
     - sh provision/mysql.sh
     - sh provision/redis.sh
   tags:
@@ -66,7 +74,7 @@ webmail:
     - sh provision/haproxy.sh
     - sh provision/webmail.sh
     - sh provision/roundcube.sh
-    - sh provision/rainloop.sh
+    - sh provision/snappymail.sh
     - sh provision/squirrelmail.sh
   tags:
     - freebsd
@@ -76,8 +84,6 @@ extras:
   stage: extras
   script:
     - sh provision/spamassassin.sh
-    - sh provision/sqwebmail.sh
-    - sh provision/avg.sh
     - sh provision/elasticsearch.sh
   tags:
     - freebsd
@@ -87,8 +93,8 @@ extras:
 test:
   stage: test
   script:
-    - sh provision/monitor.sh
+    - sh provision/mailtest.sh
   tags:
     - freebsd
     - ssh
-  allow_failure: true
+  allow_failure: false

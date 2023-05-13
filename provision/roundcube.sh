@@ -203,9 +203,9 @@ configure_roundcube()
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
 		-e "/'product_name'/ s|'Roundcube Webmail'|'$ROUNDCUBE_PRODUCT_NAME'|" \
-		"$_rcc_conf" || exit
+		"$_stage_cfg" || exit
 
-	tee -a "$_rcc_conf" <<'EO_RC_ADD'
+	tee -a "$_stage_cfg" <<'EO_RC_ADD'
 
 $config['log_driver'] = 'syslog';
 $config['session_lifetime'] = 30;
@@ -228,7 +228,7 @@ EO_RC_ADD
 	else
 		sed -i.bak \
 			-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/sqlite.db?mode=0646';/" \
-			"$_rcc_conf" || exit
+			"$_stage_cfg" || exit
 
 		if [ ! -f "$ZFS_DATA_MNT/roundcube/sqlite.db" ]; then
 			mkdir -p "$STAGE_MNT/data"
@@ -239,7 +239,7 @@ EO_RC_ADD
 
 	sed -i.bak \
 		-e "/enable_installer/ s/true/false/" \
-		"$_rcc_conf"
+		"$_stage_cfg"
 
 	tell_status "configure the managesieve plugin"
 	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \

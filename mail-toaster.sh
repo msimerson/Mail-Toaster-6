@@ -225,32 +225,23 @@ echo "safe name: $SAFE_NAME"
 
 zfs_filesystem_exists()
 {
-	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1"; then
-		tell_status "$1 filesystem exists"
-		return 0
-	fi
-
-	return 1
+	zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1" || return 1
+	tell_status "$1 filesystem exists"
+	return 0
 }
 
 zfs_snapshot_exists()
 {
-	if zfs list -t snapshot "$1" 2>/dev/null | grep -q "$1"; then
-		echo "$1 snapshot exists"
-		return 0
-	else
-		return 1
-	fi
+	zfs list -t snapshot "$1" 2>/dev/null | grep -q "$1" || return 1
+	echo "$1 snapshot exists"
+	return 0
 }
 
 zfs_mountpoint_exists()
 {
-	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "$1\$"; then
-		echo "$1 mountpoint exists"
-		return 0
-	fi
-
-	return 1
+	zfs list -t filesystem "$1" 2>/dev/null | grep -q "$1\$" || return 1
+	echo "$1 mountpoint exists"
+	return 0
 }
 
 zfs_create_fs()
@@ -1162,15 +1153,8 @@ unprovision()
 		return
 	fi
 
-	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
-
-	if [ -f /etc/jail.conf ]; then
-		for _j in $_reversed; do
-			echo "$_j"
-			service jail stop "$_j"
-			sleep 1
-		done
-	fi
+	service jail stop
+	sleep 1
 
 	ipcrm -W
 	unprovision_filesystems
