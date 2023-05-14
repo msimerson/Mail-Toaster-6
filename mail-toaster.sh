@@ -571,7 +571,7 @@ enable_bsd_cache()
 
 	# assure services are available
 	sockstat -4 -6 -p 80 -q -j bsd_cache | grep -q . || return
-	sockstat -4 -6 -p 53 -q -j dns | grep . || return
+	sockstat -4 -6 -p 53 -q -j dns | grep -q . || return
 
 	tell_status "enabling bsd_cache"
 

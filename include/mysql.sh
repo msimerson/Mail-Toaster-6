@@ -65,3 +65,17 @@ mysql_db_exists()
 	echo "$1 db exists"
 	return 0
 }
+
+mysql_user_exists()
+{
+	local _query="SELECT * FROM mysql.user.WHERE User='$1';"
+	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
+
+	if [ -z "$result" ]; then
+		echo "$1 user does not exist"
+		return 1
+	fi
+
+	echo "$1 user exists"
+	return 0
+}

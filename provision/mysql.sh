@@ -119,11 +119,6 @@ start_mysql()
 
 test_mysql()
 {
-	# if [ -d "$ZFS_DATA_MNT/mysql/mysql" ]; then
-	# 	tell_status "reinstall, skipping tests"
-	# 	return
-	# fi
-
 	tell_status "testing mysql"
 	stage_listening 3306 2
 	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit 1
