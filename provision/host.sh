@@ -343,14 +343,14 @@ haraka_lo4   = "{ $(get_jail_ip  haraka)  }"
 haproxy_lo4  = "{ $(get_jail_ip  haproxy) }"
 
 dovecot_lo6  = "{ $(get_jail_ip6 dovecot) }"
-haraka_lo6   = "{ $(get_jail_ip6 haraka)  }"
+haraka_lo6   = "{ $(get_jail_ip6 haraka) }"
 haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 
 ## Translation rules
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from $JAIL_NET6:0/64 to any -> (\$ext_if)
+nat on \$ext_if inet6 from ! $ext_if to any -> \$ext_if
 
 nat-anchor "nat/*"
 
@@ -413,7 +413,7 @@ set_jail_start_order()
 jail_reverse_shutdown()
 {
 	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" = "11" ]; then
+	if [ "$_fbsd_major" -ge 11 ]; then
 		if grep -q jail_reverse_stop /etc/rc.conf; then
 			return
 		fi
@@ -582,6 +582,7 @@ $(get_jail_ip "$_j")		$_j"
 }
 
 update_host() {
+	sysrc background_fsck=NO
 	update_freebsd
 	configure_pkg_latest ""
 	configure_ntp
