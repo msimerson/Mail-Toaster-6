@@ -307,6 +307,7 @@ exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 mount.devfs;
+devfs_ruleset=5;
 path = "$ZFS_JAIL_MNT/\$name";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
@@ -628,6 +629,7 @@ start_staged_jail()
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		mount.devfs \
+		devfs_ruleset=5 \
 		$JAIL_START_EXTRA \
 		|| exit
 
