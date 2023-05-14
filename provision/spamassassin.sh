@@ -120,7 +120,7 @@ install_spamassassin()
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing mysql deps for spamassassin"
-		stage_pkg_install mysql57-client p5-DBI p5-DBD-mysql
+		stage_pkg_install mysql80-client p5-DBI p5-DBD-mysql
 	fi
 
 	install_spamassassin_data_fs
