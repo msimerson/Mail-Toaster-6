@@ -621,7 +621,7 @@ configure_haraka_access()
 
 	tell_status "whitelisting the staging IP"
 	tee -a "$ACCESS" <<EO_WL
-$(get_jail_ip monitor)
+$(get_jail_ip munin)
 $(get_jail_ip stage)
 EO_WL
 }

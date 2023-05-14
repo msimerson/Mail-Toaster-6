@@ -13,12 +13,8 @@ install_mailtest()
 
 configure_mailtest()
 {
-	echo "yes"
-}
-
-configure_mailtest()
-{
 	tell_status "configuring"
+	echo "yes"
 }
 
 start_mailtest()
