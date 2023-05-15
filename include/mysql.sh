@@ -43,12 +43,12 @@ mysql_query()
 mysql_create_db()
 {
 	if mysql_db_exists "$1"; then
-		tell_status "db '$1' exists in mysql"
+		tell_status "$1 db exists in mysql"
 		return 0
 	fi
 
 	tell_status "creating mysql database $1"
-	echo "CREATE DATABASE $1 CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;" | jexec mysql $(mysql_bin) || return 1
+	echo "CREATE DATABASE $1 CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;" | mysql_query || return 1
 	return 0
 }
 
@@ -68,7 +68,7 @@ mysql_db_exists()
 
 mysql_user_exists()
 {
-	local _query="SELECT * FROM mysql.user WHERE User='$1';"
+	local _query="SELECT * FROM mysql.user WHERE User='$1' AND Host='$2';"
 	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
 
 	if [ -z "$result" ]; then
