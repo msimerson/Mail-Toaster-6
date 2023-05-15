@@ -198,7 +198,7 @@ configure_roundcube()
 		-e "/'smtp_server'/  s/= '.*'/= 'ssl:\/\/$TOASTER_MSA'/" \
 		-e "/'smtp_port'/    s/25;/465;/ ; s/587;/465;/" \
 		-e "/'imap_host'/    s/localhost/$_dovecot_ip/" \
-		-e "/'smtp_host'/    s/localhost:587/= ssl:\/\/$TOASTER_MSA:465/" \
+		-e "/'smtp_host'/    s/localhost:587/ssl:\/\/$TOASTER_MSA:465/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
