@@ -1035,10 +1035,18 @@ install_sentry()
 	fi
 }
 
+provision_mt6()
+{
+	for _j in host base dns bsd_cache mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
+		fetch_and_exec "$_j" || break
+	done
+}
+
 provision()
 {
 	case "$1" in
 		host)   fetch_and_exec "$1"; return;;
+		mt6)    provision_mt6; return;;
 	esac
 
 	if ! get_jail_ip "$1"; then

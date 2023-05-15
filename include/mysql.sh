@@ -68,7 +68,7 @@ mysql_db_exists()
 
 mysql_user_exists()
 {
-	local _query="SELECT * FROM mysql.user.WHERE User='$1';"
+	local _query="SELECT * FROM mysql.user WHERE User='$1';"
 	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
 
 	if [ -z "$result" ]; then
