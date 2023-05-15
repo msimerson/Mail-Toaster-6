@@ -286,12 +286,15 @@ EO_MYSQL_CONF
 		cat "$_f" | sed -e 's/TYPE=MyISAM//' | mysql_query spamassassin || exit
 	done
 
-	for _jail in spamassassin stage;
+	for _jail in spamassassin stage squirrelmail;
 	do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'" \
-				| mysql_query || exit
+			mysql_user_exists spamassassin $_ip \
+                                || echo "CREATE USER 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query \
+                                || exit 1
+			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" \
+				| mysql_query || exit 1
 		done
 	done
 }
