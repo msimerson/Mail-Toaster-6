@@ -127,16 +127,14 @@ install_vpopmail_mysql_grants()
 	local _vpe; _vpe="$STAGE_MNT/usr/local/vpopmail/etc/vpopmail.mysql"
 	if [ ! -f "$_vpe" ]; then
 		echo "ERR: where is $_vpe?"
-		exit
+		exit 1
 	fi
 
 	if ! mysql_db_exists vpopmail; then
 		mysql_create_db vpopmail || mysql_error_warning
 	fi
 
-	if ! mysql_db_exists vpopmail; then
-		return
-	fi
+	mysql_db_exists vpopmail || return
 
 	local _last; _last=$(grep -v ^# "$_vpe" | head -n1 | cut -f4 -d'|')
 	if [ "$_last" != "secret" ]; then
@@ -146,17 +144,24 @@ install_vpopmail_mysql_grants()
 
 	local _vpass; _vpass=$(openssl rand -hex 18)
 
+	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
+	local _ip="${JAIL_NET_PREFIX}.0/24"
+
 	sed -i.bak \
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
 		"$_vpe" || exit
 
-	for _jail in vpopmail stage dovecot sqwebmail; do
+	tell_status "setting up mysql user vpopmail"
+	for _jail in stage vpopmail dovecot sqwebmail; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'${_ip}' IDENTIFIED BY '${_vpass}';" \
-				| mysql_query || exit
+			mysql_user_exists vpopmail $_ip \
+				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query \
+				|| exit 1
+
+			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query || exit
 		done
 	done
 }
@@ -202,9 +207,6 @@ install_vpopmail()
 	install_maildrop
 	install_qqtool
 	install_quota_report
-
-	# stage_exec pw groupadd -n vpopmail -g 89
-	# stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
 
 	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
 	if [ "$_fbsd_major" -gt "12" ]; then

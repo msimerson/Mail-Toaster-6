@@ -128,7 +128,7 @@ frontend http-in
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
 
-	use_backend www_monitor      if  munin
+	use_backend www_munin        if  munin
 	use_backend www_nagios       if  nagios
 	use_backend www_haraka       if  watch
 	use_backend www_vpopmail     if  qmailadmin
@@ -186,8 +186,8 @@ frontend http-in
 	backend www_snappymail
 	server snappymail $(get_jail_ip snappymail):80 send-proxy-v2
 
-	backend www_monitor
-	server monitor $(get_jail_ip monitor):80
+	backend www_munin
+	server munin $(get_jail_ip munin):80
 
 	backend www_rspamd
 	server rspamd $(get_jail_ip rspamd):11334
@@ -213,7 +213,7 @@ frontend http-in
 	server horde $(get_jail_ip horde):80 send-proxy-v2
 
 	backend www_prometheus
-	server monitor $(get_jail_ip prometheus):9090
+	server prometheus $(get_jail_ip prometheus):9090
 	http-request replace-path /prometheus/(.*) /\1
 
 	backend www_grafana

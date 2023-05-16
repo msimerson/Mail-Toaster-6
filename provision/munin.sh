@@ -5,17 +5,6 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
-install_monitor()
-{
-	tell_status "installing swaks"
-	stage_pkg_install swaks p5-Net-SSLeay || exit
-
-
-	install_lighttpd
-	install_nagios
-	install_munin
-}
-
 install_lighttpd()
 {
 	tell_status "installing lighttpd"
@@ -25,23 +14,9 @@ install_lighttpd()
 	chown -R www "$STAGE_MNT/var/spool/lighttpd/sockets"
 }
 
-install_nagios()
-{
-	if [ -z "$TOASTER_NRPE" ]; then
-		echo "TOASTER_NRPE unset, skipping nagios install"
-		return
-	fi
-
-	tell_status "installing nagios & nrpe"
-	stage_pkg_install nagios nrpe3
-}
-
 install_munin()
 {
-	if [ -z "$TOASTER_MUNIN" ]; then
-		echo "TOASTER_MUNIN unset, skipping munin install"
-		return
-	fi
+	install_lighttpd
 
 	tell_status "installing munin"
 	stage_pkg_install munin-node munin-master
@@ -109,6 +84,13 @@ EO_LIGHTTPD_MT6
 
 configure_munin()
 {
+	configure_lighttpd
+
+	tell_status "configuring munin"
+
+	if [ ! -d "$ZFS_DATA_MNT/munin/etc" ]; then
+		mkdir "$ZFS_DATA_MNT/munin/etc"
+	fi
 	if [ -d "$STAGE_MNT/data/etc/munin" ]; then
 		rm -r "$STAGE_MNT/usr/local/etc/munin"
 	else
@@ -116,9 +98,9 @@ configure_munin()
 	fi
 	stage_exec ln -s /data/etc/munin /usr/local/etc/munin
 
-	if [ ! -d "$ZFS_DATA_MNT/monitor/var/munin" ]; then
-		mkdir -p "$ZFS_DATA_MNT/monitor/var/munin"
-		chown -R 842:842 "$ZFS_DATA_MNT/monitor/var/munin"
+	if [ ! -d "$ZFS_DATA_MNT/munin/var/munin" ]; then
+		mkdir -p "$ZFS_DATA_MNT/munin/var/munin"
+		chown -R 842:842 "$ZFS_DATA_MNT/munin/var/munin"
 	fi
 
 	if ! grep -qs ^#graph_strategy "$STAGE_MNT/data/etc/munin/munin.conf" ; then
@@ -143,47 +125,16 @@ configure_munin()
 	stage_sysrc munin_node_config=/data/etc/munin/munin-node.conf
 }
 
-configure_nrpe()
+start_munin()
 {
-	if [ -f "$ZFS_DATA_MNT/monitor/etc/nrpe.cfg" ]; then
-		tell_status "preserving nrpe.cfg"
-		rm "$STAGE_MNT/usr/local/etc/nrpe.cfg"
-	else
-		tell_status "installing default nrpe.cfg"
-		mv "$STAGE_MNT/usr/local/etc/nrpe.cfg" \
-			"$ZFS_DATA_MNT/monitor/etc/nrpe.cfg"
-	fi
-
-	stage_exec ln -s /data/etc/nrpe.cfg /usr/local/etc/nrpe.cfg
-	stage_sysrc nrpe3_enable="YES"
-	stage_sysrc nrpe3_configfile=/data/etc/nrpe.cfg
+	tell_status "starting munin"
+	stage_exec service lighttpd start
+	stage_exec service munin-server start
 }
 
-configure_monitor()
+test_munin()
 {
-	tell_status "configuring monitor"
-	if [ ! -d "$ZFS_DATA_MNT/monitor/etc" ]; then
-		mkdir "$ZFS_DATA_MNT/monitor/etc"
-	fi
-
-	configure_lighttpd
-	if [ -n "$TOASTER_NRPE" ]; then
-		configure_nrpe
-	fi
-
-	if [ -n "$TOASTER_MUNIN" ]; then
-		configure_munin
-	fi
-}
-
-start_monitor()
-{
-	tell_status "starting monitor"
-}
-
-test_monitor()
-{
-	tell_status "testing monitor"
+	tell_status "testing munin"
 
 	local _email _server _pass
 	_email="postmaster@$TOASTER_MAIL_DOMAIN"
@@ -201,10 +152,10 @@ test_monitor()
 }
 
 base_snapshot_exists || exit
-create_staged_fs monitor
-start_staged_jail monitor
-install_monitor
-configure_monitor
-start_monitor
-test_monitor
-promote_staged_jail monitor
+create_staged_fs munin
+start_staged_jail munin
+install_munin
+configure_munin
+start_munin
+test_munin
+promote_staged_jail munin

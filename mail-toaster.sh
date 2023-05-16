@@ -55,7 +55,6 @@ export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
 export TOASTER_MARIADB="0"
 export TOASTER_MSA="haraka"
-export TOASTER_MUNIN=""
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_NRPE=""
@@ -140,7 +139,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail monitor haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx lighttpd apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
@@ -225,32 +224,23 @@ echo "safe name: $SAFE_NAME"
 
 zfs_filesystem_exists()
 {
-	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1"; then
-		tell_status "$1 filesystem exists"
-		return 0
-	fi
-
-	return 1
+	zfs list -t filesystem "$1" 2>/dev/null | grep -q "^$1" || return 1
+	tell_status "$1 filesystem exists"
+	return 0
 }
 
 zfs_snapshot_exists()
 {
-	if zfs list -t snapshot "$1" 2>/dev/null | grep -q "$1"; then
-		echo "$1 snapshot exists"
-		return 0
-	else
-		return 1
-	fi
+	zfs list -t snapshot "$1" 2>/dev/null | grep -q "$1" || return 1
+	echo "$1 snapshot exists"
+	return 0
 }
 
 zfs_mountpoint_exists()
 {
-	if zfs list -t filesystem "$1" 2>/dev/null | grep -q "$1\$"; then
-		echo "$1 mountpoint exists"
-		return 0
-	fi
-
-	return 1
+	zfs list -t filesystem "$1" 2>/dev/null | grep -q "$1\$" || return 1
+	echo "$1 mountpoint exists"
+	return 0
 }
 
 zfs_create_fs()
@@ -317,6 +307,7 @@ exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 mount.devfs;
+devfs_ruleset=5;
 path = "$ZFS_JAIL_MNT/\$name";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
@@ -580,7 +571,7 @@ enable_bsd_cache()
 
 	# assure services are available
 	sockstat -4 -6 -p 80 -q -j bsd_cache | grep -q . || return
-	sockstat -4 -6 -p 53 -q -j dns | grep . || return
+	sockstat -4 -6 -p 53 -q -j dns | grep -q . || return
 
 	tell_status "enabling bsd_cache"
 
@@ -638,6 +629,7 @@ start_staged_jail()
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		mount.devfs \
+		devfs_ruleset=5 \
 		$JAIL_START_EXTRA \
 		|| exit
 
@@ -1043,10 +1035,18 @@ install_sentry()
 	fi
 }
 
+provision_mt6()
+{
+	for _j in host base dns bsd_cache mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
+		fetch_and_exec "$_j" || break
+	done
+}
+
 provision()
 {
 	case "$1" in
 		host)   fetch_and_exec "$1"; return;;
+		mt6)    provision_mt6; return;;
 	esac
 
 	if ! get_jail_ip "$1"; then
@@ -1162,15 +1162,8 @@ unprovision()
 		return
 	fi
 
-	local _reversed; _reversed=$(reverse_list "$JAIL_ORDERED_LIST")
-
-	if [ -f /etc/jail.conf ]; then
-		for _j in $_reversed; do
-			echo "$_j"
-			service jail stop "$_j"
-			sleep 1
-		done
-	fi
+	service jail stop
+	sleep 1
 
 	ipcrm -W
 	unprovision_filesystems

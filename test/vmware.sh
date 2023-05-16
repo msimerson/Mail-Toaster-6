@@ -6,8 +6,8 @@
 #           upgradevm, installTools, checkToolsState, deleteVM, clone
 # vmrun -T fusion start
 
-FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 11.vmwarevm"
-VERSION="12.3-p6"
+FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 13 GitLab Runner.vmwarevm"
+VERSION="13.2p0"
 VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
 GUESTUSER="root"
 GUESTPASS="passWord"
@@ -26,7 +26,10 @@ start()
 
 stop()
 {
-	"$VMRUN" -T fusion stop "$FREEBSD" || _err "start failed"
+	_is_running=$("/Applications/VMware Fusion.app/Contents/Library/vmrun" -T fusion list "/Users/Shared/Virtual Machines/FreeBSD 13 GitLab Runner.vmwarevm" | grep running | awk '{ print $4 }')
+	if [ $_is_running = "1" ]; then
+		"$VMRUN" -T fusion stop "$FREEBSD" || _err "stop failed"
+	fi
 	echo "stopped"
 }
 

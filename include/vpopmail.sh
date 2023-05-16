@@ -10,7 +10,7 @@ install_vpopmail_port()
 		if [ "$TOASTER_MARIADB" = "1" ]; then
 			_vpopmail_deps="$_vpopmail_deps mariadb104-client"
 		else
-			_vpopmail_deps="$_vpopmail_deps mysql57-client"
+			_vpopmail_deps="$_vpopmail_deps mysql80-client"
 		fi
 
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
