@@ -47,16 +47,21 @@ install_zonemta()
 
 configure_zonemta()
 {
-	echo "nothing, yet"
+	stage_exec npm install -g pm2
+	stage_exec pm2 startup
+	stage_sysrc pm2_toor_enable=YES
+	service pm2_toor start
 }
 
 start_zonemta()
 {
 	tell_status "starting zonemta"
-	stage_exec bash -c "cd /data/zone-mta && npm start &"
+	stage_exec bash -c 'cd /data/zone-mta && NODE_ENV=production pm2 start "npm run start" -n zone-mta'
 
 	tell_status "starting zonemta webadmin"
-	stage_exec bash -c "cd /data/admin && npm start &"
+	stage_exec bash -c 'cd /data/admin    && NODE_ENV=production pm2 start "npm run start" -n admin'
+
+	stage_exec pm2 save
 }
 
 test_zonemta()
