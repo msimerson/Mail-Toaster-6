@@ -433,7 +433,7 @@ add_jail_conf_d()
 
 	local _path; _path="$(get_safe_jail_path $1)"
 
-	jail_conf_extra
+	jail_conf_extra $1
 
 	tell_status "creating /etc/jail.conf.d/$1.conf"
 	echo "$(jail_conf_header)
@@ -466,7 +466,7 @@ add_jail_conf()
 	fi
 
 	local _path; _path="$(get_safe_jail_path $1)"
-	jail_conf_extra
+	jail_conf_extra $1
 
 	local _conf; _conf="$1	{${_path}
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
