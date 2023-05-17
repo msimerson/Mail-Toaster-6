@@ -5,8 +5,7 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		allow.sysvipc;
-		allow.mlock;
-		mount += \"$ZFS_DATA_MNT/mongodb \$path/data nullfs rw 0 0\";"
+		allow.mlock;"
 
 install_mongodb()
 {

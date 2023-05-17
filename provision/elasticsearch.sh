@@ -7,8 +7,7 @@ export JAIL_START_EXTRA="enforce_statfs=1"
 export JAIL_CONF_EXTRA="
 		mount.fdescfs;
 		mount.procfs;
-		enforce_statfs = 1;
-		mount += \"$ZFS_DATA_MNT/elasticsearch \$path/data nullfs rw 0 0\";"
+		enforce_statfs = 1;"
 
 create_data_dirs()
 {
