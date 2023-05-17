@@ -210,6 +210,24 @@ set_application_path()
 		"$_appini"
 }
 
+configure_admin_password()
+{
+	_email="postmaster@$TOASTER_MAIL_DOMAIN"
+	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
+	_hash=$(echo "$_pass" | jexec stage /usr/local/bin/php -r 'echo password_hash(stream_get_contents(STDIN), PASSWORD_DEFAULT);')
+
+	if [ -z "$_hash" ]; then
+		echo "no hash"
+		exit 1
+	fi
+
+	echo "hash: $_hash"
+	sed -i '' \
+		-e "/^admin_login/ s:\".*\":\"$_email\":" \
+		-e "/^admin_password/ s:\".*\":\"$_hash\":" \
+		"$STAGE_MNT/data/_data_/_default_/configs/application.ini"
+}
+
 configure_snappymail()
 {
 	configure_php snappymail
@@ -221,6 +239,8 @@ configure_snappymail()
 
 	# for persistent data storage
 	chown -R 80:80 "$ZFS_DATA_MNT/snappymail/"
+
+	#configure_admin_password
 }
 
 start_snappymail()
