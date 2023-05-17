@@ -350,7 +350,7 @@ haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from ! \$ext_if to any -> \$PUBLIC_IP6
+nat on \$ext_if inet6 from ! \$ext_if to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
@@ -385,9 +385,9 @@ EO_PF_RULES
 	kldstat -q -m pf || kldload pf || exit 1
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
-	/etc/rc.d/pf restart 2>/dev/null || exit 1
+	/etc/rc.d/pf restart || exit 1
 
-	pfctl -f /etc/pf.conf 2>/dev/null || exit 1
+	pfctl -f /etc/pf.conf || exit 1
 }
 
 install_jailmanage()
@@ -461,11 +461,12 @@ enable_jails()
 	jail_reverse_shutdown
 	set_jail_start_order
 
-	if grep -sq 'exec' /etc/jail.conf; then
+	if [ -d /etc/jail.conf.d ]; then
+		add_jail_conf stage
 		return
 	fi
 
-	jail_conf_header
+	grep -sq 'exec' /etc/jail.conf || jail_conf_header
 }
 
 update_ports_tree()

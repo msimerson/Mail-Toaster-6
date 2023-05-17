@@ -298,7 +298,7 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
-	cat <<EO_HEAD
+	cat <<EO_JAIL_CONF_HEAD
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
@@ -307,7 +307,8 @@ devfs_ruleset=5;
 path = "$ZFS_JAIL_MNT/\$name";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
-EO_HEAD
+
+EO_JAIL_CONF_HEAD
 }
 
 get_jail_ip()
@@ -411,7 +412,7 @@ get_safe_jail_path()
 }
 
 jail_conf_extra() {
-	if grep -q "$ZFS_DATA_MNT" "$JAIL_CONF_EXTRA"; then
+	if ! echo "$JAIL_CONF_EXTRA" | grep -q "$ZFS_DATA_MNT"; then
 		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
 	fi
@@ -434,13 +435,12 @@ add_jail_conf_d()
 
 	jail_conf_extra
 
-	local _conf; _conf="$1	{${_path}
+	tell_status "creating /etc/jail.conf.d/$1.conf"
+	echo "$(jail_conf_header)
+$1	{${_path}
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
-	}"
-
-	tell_status "creating /etc/jail.conf.d/$1.conf"
-	tee -a /etc/jail.conf.d/$1.conf "$_conf"
+	}" | tee -a /etc/jail.conf.d/$1.conf
 }
 
 add_jail_conf()
@@ -451,13 +451,13 @@ add_jail_conf()
 	fi
 
 	if [ -d /etc/jail.conf.d ]; then
-		add_jail_conf_d
+		add_jail_conf_d $1
 		return
 	fi
 
 	if [ ! -e /etc/jail.conf ]; then
 		tell_status "adding /etc/jail.conf header"
-		tee -a /etc/jail.conf "$(jail_conf_header)"
+		jail_conf_header | tee -a /etc/jail.conf
 	fi
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
@@ -474,7 +474,8 @@ add_jail_conf()
 	}"
 
 	tell_status "adding $1 to /etc/jail.conf"
-	tee -a /etc/jail.conf "\n\t\t$_conf"
+	echo "
+$_conf" | tee -a /etc/jail.conf
 }
 
 add_automount()

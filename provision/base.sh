@@ -5,6 +5,11 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+ifconfig ${JAIL_NET_INTERFACE} 2>&1 | grep -q 'does not exist' && {
+	echo; echo "ERROR: did you run 'provision host' yet?"; echo;
+	exit 1
+}
+
 mt6-include shell
 
 create_base_filesystem()
