@@ -29,6 +29,7 @@ install_zonemta()
 	stage_exec bash -c "cd /data/zone-mta && npm install eslint --save-dev"
 	stage_exec bash -c "cd /data/zone-mta && npm init"
 	stage_exec bash -c "cd /data/zone-mta && npm install --production"
+	stage_exec bash -c "cd /data/zone-mta && npm install zonemta-wildduck --save"
 
 	sed -i '' \
 		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
@@ -51,6 +52,9 @@ configure_zonemta()
 	stage_exec pm2 startup
 	stage_sysrc pm2_toor_enable=YES
 	service pm2_toor start
+
+	tell_status "TODO: configure zonemta-wildduck"
+	echo "https://github.com/nodemailer/zonemta-wildduck"
 }
 
 start_zonemta()
