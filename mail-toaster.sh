@@ -400,49 +400,6 @@ get_reverse_ip6()
 	echo "${_rev_ip}ip6.arpa"
 }
 
-get_safe_jail_path()
-{
-	local _safe; _safe=$(safe_jailname "$1")
-	if [ "$1" != "$_safe" ]; then
-		echo "
-		path = $ZFS_JAIL_MNT/${1};"
-	else
-		echo ""
-	fi
-}
-
-jail_conf_extra() {
-	if ! echo "$JAIL_CONF_EXTRA" | grep -q "$ZFS_DATA_MNT"; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
-	fi
-
-	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
-		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
-	fi
-}
-
-add_jail_conf_d()
-{
-	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
-		tell_status "preserving jail config /etc/jail.conf.d/$1.conf"
-		return
-	fi
-
-	local _path; _path="$(get_safe_jail_path $1)"
-
-	jail_conf_extra $1
-
-	tell_status "creating /etc/jail.conf.d/$1.conf"
-	echo "$(jail_conf_header)
-$1	{${_path}
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
-	}" | tee -a /etc/jail.conf.d/$1.conf
-}
-
 add_jail_conf()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1");
@@ -465,17 +422,57 @@ add_jail_conf()
 		return
 	fi
 
-	local _path; _path="$(get_safe_jail_path $1)"
 	jail_conf_extra $1
 
-	local _conf; _conf="$1	{${_path}
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${_path}${JAIL_CONF_EXTRA}
-	}"
-
 	tell_status "adding $1 to /etc/jail.conf"
-	echo "
-$_conf" | tee -a /etc/jail.conf
+	echo "$1	{$(get_safe_jail_path $1)
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+	}" | tee -a /etc/jail.conf
+}
+
+get_safe_jail_path()
+{
+	local _safe; _safe=$(safe_jailname "$1")
+	if [ "$1" != "$_safe" ]; then
+		echo "
+		path = $ZFS_JAIL_MNT/${1};"
+	else
+		echo ""
+	fi
+}
+
+jail_conf_extra()
+{
+	# if not present, add data mount
+	if ! echo "$JAIL_CONF_EXTRA" | grep -q "$ZFS_DATA_MNT"; then
+		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
+		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
+	fi
+
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
+		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
+		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
+	fi
+}
+
+add_jail_conf_d()
+{
+	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
+		tell_status "preserving jail config /etc/jail.conf.d/$1.conf"
+		return
+	fi
+
+	jail_conf_extra $1
+
+	tell_status "creating /etc/jail.conf.d/$1.conf"
+	echo "$(jail_conf_header)
+
+$1	{$(get_safe_jail_path $1)
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+	}" | tee -a /etc/jail.conf.d/$1.conf
 }
 
 add_automount()
