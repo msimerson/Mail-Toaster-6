@@ -4,8 +4,7 @@
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
-		devfs_ruleset = 7;
-		mount += \"$ZFS_DATA_MNT/haraka \$path/data nullfs rw 0 0\";"
+		devfs_ruleset = 7;"
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 

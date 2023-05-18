@@ -6,8 +6,7 @@ export JAIL_START_EXTRA="devfs_ruleset=7
 		allow.raw_sockets=1"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;
-		allow.raw_sockets = 1;
-		mount += \"$ZFS_DATA_MNT/dhcp \$path/data nullfs rw 0 0\";"
+		allow.raw_sockets = 1;"
 
 install_dhcpd()
 {

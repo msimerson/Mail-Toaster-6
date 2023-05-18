@@ -317,7 +317,7 @@ add_jail_nat()
 	if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
 	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
 
-	tell_status "enabling NAT for jails (/etc/pf.conf)"
+	tell_status "setting up the PF firewall and NAT for jails"
 	tee /etc/pf.conf <<EO_PF_RULES
 ## Macros
 
@@ -350,7 +350,7 @@ haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from ! \$ext_if to any -> \$ext_if
+nat on \$ext_if inet6 from ! \$ext_if to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
@@ -382,15 +382,12 @@ EO_PF_RULES
 
 	echo; echo "/etc/pf.conf has been installed"; echo
 
-	_pf_loaded=$(kldstat -m pf | grep pf)
-	if [ -n "$_pf_loaded" ]; then
-		pfctl -f /etc/pf.conf 2>/dev/null || exit
-	else
-		kldload pf
-	fi
+	kldstat -q -m pf || kldload pf || exit 1
 
-	sysrc pf_enable=YES
-	/etc/rc.d/pf restart 2>/dev/null || exit
+	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
+	/etc/rc.d/pf restart || exit 1
+
+	pfctl -f /etc/pf.conf || exit 1
 }
 
 install_jailmanage()
@@ -464,11 +461,12 @@ enable_jails()
 	jail_reverse_shutdown
 	set_jail_start_order
 
-	if grep -sq 'exec' /etc/jail.conf; then
+	if [ -d /etc/jail.conf.d ]; then
+		add_jail_conf stage
 		return
 	fi
 
-	jail_conf_header
+	grep -sq 'exec' /etc/jail.conf || jail_conf_header
 }
 
 update_ports_tree()

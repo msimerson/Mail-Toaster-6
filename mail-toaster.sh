@@ -298,11 +298,7 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
-	if [ -e /etc/jail.conf ]; then return; fi
-
-	tell_status "adding /etc/jail.conf header"
-	tee -a /etc/jail.conf <<EO_JAIL_CONF_HEAD
-
+	cat <<EO_JAIL_CONF_HEAD
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
@@ -411,40 +407,72 @@ add_jail_conf()
 		fatal_err "can't determine IP for $1"
 	fi
 
-	jail_conf_header
+	if [ -d /etc/jail.conf.d ]; then
+		add_jail_conf_d $1
+		return
+	fi
+
+	if [ ! -e /etc/jail.conf ]; then
+		tell_status "adding /etc/jail.conf header"
+		jail_conf_header | tee -a /etc/jail.conf
+	fi
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
-		tell_status "$1 already in /etc/jail.conf"
-		return;
+		tell_status "preserving $1 config in /etc/jail.conf"
+		return
 	fi
 
-	local _path=""
+	jail_conf_extra $1
+
+	tell_status "adding $1 to /etc/jail.conf"
+	echo "$1	{$(get_safe_jail_path $1)
+		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+	}" | tee -a /etc/jail.conf
+}
+
+get_safe_jail_path()
+{
 	local _safe; _safe=$(safe_jailname "$1")
 	if [ "$1" != "$_safe" ]; then
-		_path="
+		echo "
 		path = $ZFS_JAIL_MNT/${1};"
+	else
+		echo ""
 	fi
+}
 
-	if [ -z "$JAIL_CONF_EXTRA" ]; then
-		JAIL_CONF_EXTRA="
+jail_conf_extra()
+{
+	# if not present, add data mount
+	if ! echo "$JAIL_CONF_EXTRA" | grep -q "$ZFS_DATA_MNT"; then
+		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
 	fi
 
-	local _add_mounts=""
 	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
-		_add_mounts="
+		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
 		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
 	fi
+}
 
-	tell_status "adding $1 to /etc/jail.conf"
-	tee -a /etc/jail.conf <<EO_JAIL_CONF
+add_jail_conf_d()
+{
+	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
+		tell_status "preserving jail config /etc/jail.conf.d/$1.conf"
+		return
+	fi
 
-$1	{
+	jail_conf_extra $1
+
+	tell_status "creating /etc/jail.conf.d/$1.conf"
+	echo "$(jail_conf_header)
+
+$1	{$(get_safe_jail_path $1)
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${_path}${JAIL_CONF_EXTRA}${_add_mounts}
-	}
-EO_JAIL_CONF
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+	}" | tee -a /etc/jail.conf.d/$1.conf
 }
 
 add_automount()
@@ -1145,6 +1173,11 @@ unprovision_rc()
 	tell_status "disabling jail $1 startup"
 	sysrc jail_list-=" $1"
 	sysrc -f /etc/periodic.conf security_status_pkgaudit_jails-=" $1"
+
+	if [ -f /etc/jail.conf.d/$1.conf ]; then
+		tell_status "deleting /etc/jail.conf.d/$1.conf"
+		rm "/etc/jail.conf.d/$1.conf"
+	fi
 }
 
 unprovision()
@@ -1168,6 +1201,7 @@ unprovision()
 	ipcrm -W
 	unprovision_filesystems
 	unprovision_files
+	for _j in $JAIL_ORDERED_LIST; do unprovision_rc "$_j"; done
 	echo "done"
 }
 

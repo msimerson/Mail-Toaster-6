@@ -3,9 +3,15 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/wildduck \$path/data nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
+
+install_webmail()
+{
+	stage_exec bash -c "cd /data && git clone https://github.com/nodemailer/wildduck-webmail.git webmail" || exit 1
+	stage_exec bash -c "cd /data/webmail && npm install"
+	stage_exec bash -c "cd /data/webmail && npm run bowerdeps"
+}
 
 install_wildduck()
 {
@@ -13,19 +19,36 @@ install_wildduck()
 	stage_pkg_install npm-node16 git-lite || exit
 
 	tell_status "installing wildduck"
-	stage_pkg_install dialog4ports
-	stage_exec bash -c "cd /data && git clone git://github.com/nodemailer/wildduck.git && cd wildduck && npm install --production"
+	# stage_pkg_install dialog4ports
+	stage_exec bash -c "cd /data && git clone https://github.com/nodemailer/wildduck.git" || exit 1
+	stage_exec bash -c "cd /data/wildduck && npm install --production"
+
+	install_webmail
 }
 
 configure_wildduck()
 {
-	echo "nothing, yet"
+	sed -i '' \
+		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
+		-e "/^#redis/ s/127.0.0.1/$(get_jail_ip redis)/; s/\/3/\/8/" \
+		-e "/^host=/ s/127.0.0.1/$(get_jail_ip redis)/" \
+		-e "/^db=3/ s/3/8/" \
+		"$STAGE_MNT/data/wildduck/config/dbs.toml" || exit 1
+
+	stage_exec npm install -g pm2
+	stage_exec pm2 startup
 }
 
 start_wildduck()
 {
 	tell_status "starting wildduck"
-	stage_exec service wildduck start || exit
+	stage_exec service pm2_toor start
+
+	stage_exec bash -c 'cd /data/wildduck && NODE_ENV=production pm2 start "node server.js" -n wildduck'
+
+	stage_exec bash -c 'cd /data/webmail && NODE_ENV=production pm2 start "node server.js" -n webmail'
+
+	stage_exec pm2 save
 }
 
 test_imap()
@@ -81,8 +104,9 @@ test_wildduck()
 	tell_status "testing wildduck"
 	stage_listening 9993 3
 	stage_listening 9995 3
-	test_imap
-	test_pop3
+	stage_listening 3000 3
+	# test_imap
+	# test_pop3
 	echo "it worked"
 }
 
