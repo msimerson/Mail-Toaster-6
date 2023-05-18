@@ -36,7 +36,7 @@ dns:
   script:
     - sh provision/dns.sh
 # enabling caching doubles gitlab runner builds (~30 to 60m)
-#   - sh provision/bsd_cache.sh
+    - sh provision/bsd_cache.sh
   tags:
     - freebsd
     - ssh
