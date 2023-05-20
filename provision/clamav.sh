@@ -6,8 +6,51 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/clamav \$path/var/db/clamav nullfs rw 0 0\";"
 
+install_fangfrisch()
+{
+	if [ "$CLAMAV_FANGFRISCH" = "0" ]; then return; fi
+
+	stage_pkg_install python sqlite3 py39-sqlite3 sudo
+	mkdir /usr/local/fangfrisch
+	cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch
+	chown clamav:clamav /usr/local/fangfrisch
+	tee <<EO_FANG_CONF
+[DEFAULT]
+db_url = sqlite:////usr/local/fangfrisch/db.sqlite
+
+# The following settings are optional. Other sections inherit
+# values from DEFAULT and may also overwrite values.
+
+local_directory = /var/db/clamav
+max_size = 5MB
+on_update_exec = clamdscan --reload
+on_update_timeout = 42
+
+[malwarepatrol]
+enabled = yes
+# Replace with your personal Malwarepatrol receipt
+receipt = YOUR-RECEIPT-NUMBER
+
+[sanesecurity]
+enabled = yes
+
+[securiteinfo]
+enabled = yes
+# Replace with your personal SecuriteInfo customer ID
+customer_id = abcdef123456
+
+[urlhaus]
+enabled = yes
+max_size = 2MB
+EO_FANG_CONF
+	sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf initdb
+	sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf refresh
+}
+
 install_clamav_unofficial()
 {
+	if [ "$CLAMAV_UNOFFICIAL" = "0" ]; then return; fi
+
 	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
 		local _es_mess="
 	eXtremeSHOK maintains the ClamAV UNOFFICIAL project at
@@ -117,6 +160,7 @@ install_clamav()
 
 	install_clamav_nrpe
 	install_clamav_unofficial
+	install_fangfrisch
 }
 
 configure_clamd()
