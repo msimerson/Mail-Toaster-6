@@ -8,6 +8,8 @@ export JAIL_CONF_EXTRA="
 
 install_fangfrisch()
 {
+	if [ "$CLAMAV_FANGFRISCH" = "0" ]; then return; fi
+
 	stage_pkg_install python sqlite3 py39-sqlite3 sudo
 	mkdir /usr/local/fangfrisch
 	cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch
@@ -158,6 +160,7 @@ install_clamav()
 
 	install_clamav_nrpe
 	install_clamav_unofficial
+	install_fangfrisch
 }
 
 configure_clamd()
