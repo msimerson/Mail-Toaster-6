@@ -579,8 +579,17 @@ $(get_jail_ip "$_j")		$_j"
 	echo "$_hosts" | tee -a "/etc/hosts"
 }
 
+update_mt6()
+{
+	if [ -d ".git" ]; then
+		git remote update
+		git status -u no
+	fi
+}
+
 update_host() {
 	sysrc background_fsck=NO
+	update_mt6
 	update_freebsd
 	configure_pkg_latest ""
 	configure_ntp
