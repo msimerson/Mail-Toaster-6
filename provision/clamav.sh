@@ -160,7 +160,7 @@ install_clamav()
 
 	install_clamav_nrpe
 	install_clamav_unofficial
-	install_fangfrisch
+	install_clamav_fangfrisch
 }
 
 configure_clamd()
