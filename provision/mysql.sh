@@ -96,6 +96,8 @@ configure_mysql()
 [mysqld]
 innodb_doublewrite = off
 innodb_file_per_table = 1
+innodb_checksum_algorithm = none
+innodb_flush_neighbors = 0
 EO_MY_CNF
 	fi
 

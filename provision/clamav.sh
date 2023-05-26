@@ -6,7 +6,7 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/clamav \$path/var/db/clamav nullfs rw 0 0\";"
 
-install_fangfrisch()
+install_clamav_fangfrisch()
 {
 	if [ "$CLAMAV_FANGFRISCH" = "0" ]; then return; fi
 
@@ -149,8 +149,8 @@ install_clamav_nrpe()
 
 	tell_status "installing clamav nrpe plugin"
 	stage_pkg_install nagios-check_clamav
-	stage_sysrc nrpe3_enable=YES
-	stage_sysrc nrpe3_configfile="/data/etc/nrpe.cfg"
+	stage_sysrc nrpe_enable=YES
+	stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 }
 
 install_clamav()
@@ -160,7 +160,7 @@ install_clamav()
 
 	install_clamav_nrpe
 	install_clamav_unofficial
-	install_fangfrisch
+	install_clamav_fangfrisch
 }
 
 configure_clamd()
@@ -169,24 +169,24 @@ configure_clamd()
 	local _conf="$STAGE_MNT/usr/local/etc/clamd.conf"
 
 	sed -i.bak \
-		-e 's/^#TCPSocket 3310/TCPSocket 3310/' \
-		-e 's/^#LogFacility LOG_MAIL/LogFacility LOG_MAIL/' \
-		-e 's/^#LogSyslog yes/LogSyslog yes/' \
-		-e 's/^LogFile /#LogFile /' \
-		-e 's/^#ExtendedDetectionInfo /ExtendedDetectionInfo /' \
-		-e 's/^#DetectPUA/DetectPUA/' \
-		-e 's/^#DetectBrokenExecutables/DetectBrokenExecutables/' \
-		-e 's/^#StructuredDataDetection/StructuredDataDetection/' \
-		-e 's/^#ArchiveBlockEncrypted no/ArchiveBlockEncrypted yes/' \
-		-e 's/^#OLE2BlockMacros no/OLE2BlockMacros yes/'  \
-		-e 's/^#PhishingSignatures yes/PhishingSignatures yes/' \
-		-e 's/^#PhishingScanURLs yes/PhishingScanURLs yes/' \
-		-e 's/#HeuristicScanPrecedence yes/HeuristicScanPrecedence no/' \
-		-e 's/^#StructuredDataDetection yes/StructuredDataDetection yes/' \
-		-e 's/^#StructuredMinCreditCardCount 5/StructuredMinCreditCardCount 10/' \
-		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 10/' \
-		-e 's/^#StructuredSSNFormatStripped yes/StructuredSSNFormatStripped no/' \
-		-e 's/^#ScanArchive yes/ScanArchive yes/' \
+		-e '/^#TCPSocket/   s/^#//' \
+		-e '/^#LogFacility/ s/^#//' \
+		-e '/^#LogSyslog/   s/^#//; s/no/yes/' \
+		-e '/^LogFile /     s/^L/#L/' \
+		-e '/^#DetectPUA/   s/^#//' \
+		-e '/^#ExtendedDetectionInfo/   s/^#//' \
+		-e '/^#DetectBrokenExecutables/ s/^#//' \
+		-e '/^#StructuredDataDetection/ s/^#//' \
+		-e '/^#ArchiveBlockEncrypted/   s/^#//; s/no/yes/' \
+		-e '/^#OLE2BlockMacros/         s/^#//; s/no/yes/'  \
+		-e '/^#PhishingSignatures yes/  s/^#//' \
+		-e '/^#PhishingScanURLs/        s/^#//' \
+		-e '/^#HeuristicScanPrecedence/ s/^#//; s/yes/no/' \
+		-e '/^#StructuredDataDetection/ s/^#//' \
+		-e '/^#StructuredMinCreditCardCount/ s/^#//; s/5/10/' \
+		-e '/^#StructuredMinSSNCount/        s/^#//; s/5/10/' \
+		-e '/^#StructuredSSNFormatStripped/  s/^#//; s/yes/no/' \
+		-e '/^#ScanArchive/ s/^#//' \
 		"$_conf" || exit
 
 	echo "done"
@@ -198,11 +198,11 @@ configure_freshclam()
 	local _conf="$STAGE_MNT/usr/local/etc/freshclam.conf"
 
 	sed -i.bak \
-		-e 's/^UpdateLogFile /#UpdateLogFile /' \
-		-e 's/^#LogSyslog yes/LogSyslog yes/' \
-		-e 's/^#LogFacility LOG_MAIL/LogFacility LOG_MAIL/' \
-		-e 's/^#SafeBrowsing yes/SafeBrowsing yes/' \
-		-e 's/^#DatabaseMirror db.XY.clamav.net/DatabaseMirror db.us.clamav.net/' \
+		-e '/^UpdateLogFile/  s/^#//' \
+		-e '/^#LogSyslog/ s/^#//' \
+		-e '/^#LogFacility/ s/^#//' \
+		-e '/^#SafeBrowsing/ s/^#//' \
+		-e '/^#DatabaseMirror/ s/^#//; s/XY/us/' \
 		"$_conf" || exit
 
 	echo "done"
@@ -230,7 +230,7 @@ start_clamav()
 test_clamav()
 {
 	echo "testing ClamAV clamd"
-	stage_listening 3310
+	stage_listening 3310 2
 	echo "It works! (clamd is listening)"
 }
 
