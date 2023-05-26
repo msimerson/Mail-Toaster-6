@@ -171,8 +171,8 @@ configure_clamd()
 	sed -i.bak \
 		-e '/^#TCPSocket/   s/^#//' \
 		-e '/^#LogFacility/ s/^#//' \
-		-e '/^#LogSyslog/   s/^#//' \
-		-e '/^LogFile/      s/^L/#L/' \
+		-e '/^#LogSyslog/   s/^#//; s/no/yes/' \
+		-e '/^LogFile /     s/^L/#L/' \
 		-e '/^#DetectPUA/   s/^#//' \
 		-e '/^#ExtendedDetectionInfo/   s/^#//' \
 		-e '/^#DetectBrokenExecutables/ s/^#//' \
