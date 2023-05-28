@@ -21,7 +21,7 @@ export JAIL_CONF_EXTRA='allow.raw_sockets;
 		mount += "fdescfs   $path/compat/linux/dev/fd  fdescfs   rw,linrdlnk 0 0";
 		mount += "linprocfs $path/compat/linux/proc    linprocfs rw  0 0";
 		mount += "linsysfs  $path/compat/linux/sys     linsysfs  rw  0 0";
-		mount += "/tmp      $path/compat/linux/tmp     nullfs    rw  0 0";
+		#mount += "/tmp      $path/compat/linux/tmp     nullfs    rw  0 0";
 		#mount += "/home     $path/compat/linux/home    nullfs    rw  0 0";'
 
 enable_linuxulator()
@@ -50,9 +50,7 @@ install_ubuntu()
 configure_ubuntu()
 {
 	case "$DEBIAN_RELEASE" in
-		bionic)
-		focal)
-		jammy)
+		bionic|focal|jammy)
 			if [ -f "$STAGE_MNT/compat/linux/etc/apt/sources.list" ]; then
 				tell_status "restoring APT sources"
 				tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_SOURCES
