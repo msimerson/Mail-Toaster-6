@@ -3,8 +3,8 @@
 . mail-toaster.sh || exit
 
 # tested with Ubuntu bionic (18), focal (20) and jammy (22)
-# and Debian bullseye
-DEBIAN_RELEASE="bullseye"
+# and Debian bullseye (11)
+DEBIAN_RELEASE="jammy"
 
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
@@ -42,7 +42,7 @@ install_ubuntu()
 {
 	enable_linuxulator
 
-	tell_status "installing $DEBIAN_RELEASE"
+	tell_status "installing (debian|ubuntu) $DEBIAN_RELEASE"
 	stage_pkg_install debootstrap || exit 1
 	stage_exec debootstrap $DEBIAN_RELEASE /compat/linux
 }
