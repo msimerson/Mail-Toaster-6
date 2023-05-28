@@ -2,8 +2,9 @@
 
 . mail-toaster.sh || exit
 
-# tested with bionic (18), focal (20) and jammy (22)
-DEBIAN_RELEASE="jammy"
+# tested with Ubuntu bionic (18), focal (20) and jammy (22)
+# and Debian bullseye
+DEBIAN_RELEASE="bullseye"
 
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
@@ -35,7 +36,6 @@ enable_linuxulator()
 	stage_sysrc linux_enable=YES
 	stage_sysrc linux_mounts_enable=NO
 	stage_exec service linux start
-
 }
 
 install_ubuntu()
@@ -53,14 +53,22 @@ configure_ubuntu()
 		bionic|focal|jammy)
 			if [ -f "$STAGE_MNT/compat/linux/etc/apt/sources.list" ]; then
 				tell_status "restoring APT sources"
-				tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_SOURCES
+				tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_UB_SOURCES
 deb http://archive.ubuntu.com/ubuntu $DEBIAN_RELEASE main universe restricted multiverse
 deb http://security.ubuntu.com/ubuntu/ $DEBIAN_RELEASE-security universe multiverse restricted main
 deb http://archive.ubuntu.com/ubuntu $DEBIAN_RELEASE-backports universe multiverse restricted main
 deb http://archive.ubuntu.com/ubuntu $DEBIAN_RELEASE-updates universe multiverse restricted main
-EO_SOURCES
+EO_UB_SOURCES
 			fi
 			;;
+		bullseye)
+			tell_status "adding APT sources"
+			tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_DEB_SOURCES
+deb http://deb.debian.org/debian $DEBIAN_RELEASE main contrib non-free
+deb http://deb.debian.org/debian-security/ $DEBIAN_RELEASE-security main contrib non-free
+deb http://deb.debian.org/debian $DEBIAN_RELEASE-updates main contrib non-free
+deb http://deb.debian.org/debian $DEBIAN_RELEASE-backports main contrib non-free
+EO_DEB_SOURCES
 	esac
 }
 
