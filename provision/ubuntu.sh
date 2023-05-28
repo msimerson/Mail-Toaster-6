@@ -2,7 +2,8 @@
 
 . mail-toaster.sh || exit
 
-UBUNTU_RELEASE="focal"
+# tested with bionic (18), focal (20) and jammy (22)
+UBUNTU_RELEASE="jammy"
 
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
@@ -25,15 +26,17 @@ export JAIL_CONF_EXTRA='allow.raw_sockets;
 
 install_ubuntu()
 {
-	tell_status "enabling Linux emulation"
+	tell_status "enabling Linux emulation on Host (loads kernel modules)"
 	sysrc linux_enable=YES
 	sysrc linux_mounts_enable=NO
 	service linux start
 
-	tell_status "installing ubuntu"
+	tell_status "enabling Linux emulation in jail"
 	stage_sysrc linux_enable=YES
 	stage_sysrc linux_mounts_enable=NO
 	stage_exec service linux start
+
+	tell_status "installing Ubuntu $UBUNTU_RELEASE"
 	stage_pkg_install debootstrap || exit 1
 	stage_exec debootstrap $UBUNTU_RELEASE /compat/linux
 }
@@ -53,11 +56,23 @@ EO_SOURCES
 
 start_ubuntu()
 {
+	if [ "$UBUNTU_RELEASE" = "bionic" ]; then
+		stage_exec chroot /compat/linux apt remove -y rsyslog
+	fi
+
+	if [ "$UBUNTU_RELEASE" = "jammy" ]; then
+		stage_exec mount -t devfs devfs /compat/linux/dev
+	fi
+
 	tell_status "updating apt"
 	stage_exec chroot /compat/linux apt update || exit 1
 
 	tell_status "updating installed apt packages"
 	stage_exec chroot /compat/linux apt upgrade -y || exit 1
+
+	if [ "$UBUNTU_RELEASE" = "jammy" ]; then
+		stage_exec umount /compat/linux/dev
+	fi
 }
 
 test_ubuntu()
