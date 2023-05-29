@@ -2,20 +2,35 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
-
 create_bridge()
 {
-	ifconfig tap1 create
-	sysctl net.link.tap.up_on_open=1
-	sysrc -f /etc/sysctl.conf net.link.tap.up_on_open=1
-	ifconfig bridge0 create
-	#ifconfig bridge0 addm em0 addm tap1
-	ifconfig bridge0 addm igb0 addm tap0
-	ifconfig bridge0 up
-	#sysrc -f /boot/loader.conf if_bridge_load=YES
-	#sysrc -f /boot/loader.conf if_tap_load=YES
+	if ! grep -q tap.up_on_open /etc/sysctl.conf; then
+		tell_status "setting tap.up_on_open"
+		sysctl net.link.tap.up_on_open=1
+		sysrc -f /etc/sysctl.conf net.link.tap.up_on_open=1
+	fi
+
+	# create a named bridge for bhyve VMs
+	ifconfig bridge bridge-public 2>/dev/null || {
+		tell_status "creating bridge bridge-public"
+		ifconfig bridge create name bridge-public
+		get_public_facing_nic
+		ifconfig bridge-public addm "$PUBLIC_NIC"
+		ifconfig bridge-public up
+	}
+
+	# create tap interface for VM
+	ifconfig tap-ubuntu 2>/dev/null || {
+		tell_status "creating VM tap interface"
+		ifconfig tap create name tap-ubuntu
+		ifconfig bridge-public addm tap-ubuntu
+	}
+
+	if ! grep -q if_bridge_load /boot/loader.conf; then
+		tell_status "enabling bridge & tap load at boot time"
+		sysrc -f /boot/loader.conf if_bridge_load=YES
+		sysrc -f /boot/loader.conf if_tap_load=YES
+	fi
 }
 
 configure_grub()
@@ -61,13 +76,16 @@ install_ubuntu_bhyve_zfs()
 
 install_ubuntu_bhyve()
 {
-	tell_status "installing bhyve"
-	kldstat vmm || kldload vmm || exit 1
-	sysrc -f /boot/loader.conf vmm_load=YES
+	if ! grep -q vmm_load /boot/loader.conf; then
+		tell_status "loading kernel module: vmm"
+		kldstat vmm || kldload vmm || exit 1
+		sysrc -f /boot/loader.conf vmm_load=YES
+	fi
 
 	create_bridge
 	install_ubuntu_bhyve_zfs
 
+	tell_status "installing bhyve"
 	stage_pkg_install bhyve-firmware grub2-bhyve || exit
 	#configure_grub
 
@@ -75,42 +93,27 @@ install_ubuntu_bhyve()
 		-H -P -w \
 		-c 2 -m 1G \
 		-s 0:0,hostbridge \
-		-s 2:0,virtio-net,tap1 \
+		-s 1:0,lpc \
+		-s 2:0,virtio-net,tap-ubuntu \
 		-s 3:0,ahci-cd,/zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso \
 		-s 4:0,virtio-blk,/dev/zvol/zsan/bhyve/ubuntu-guest \
 		-s 29:0,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \
 		-s 30:0,xhci,tablet \
-		-s 31:0,lpc \
 		-l com1,stdio \
 		-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \
 		ubuntu-guest
 }
 
-install_ubuntu_vm()
-{
-	#sysrc vm_enable=”YES”
-	#sysrc vm_dir=”zfs:zsan/bhyve”
-}
+# install_ubuntu_vm()
+# {
+# 	sysrc vm_enable=YES
+# 	sysrc vm_dir=zfs:zsan/bhyve
+# }
 
 install_ubuntu()
 {
-	tell_status "installing ubuntu"
+	# tell_status "installing ubuntu"
 	install_ubuntu_bhyve
-
-	
-	bhyvectl --destroy --vm=ubuntu-guest
-	bhyve -AHP \
-		-s 0,hostbridge \
-		-s 1,lpc \
-		-s 2,virtio-net,tap1 \
-    		-s 3,ahci-cd,/zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso \
-		-s 4,virtio-blk,/dev/zvol/zsan/bhyve/ubuntu-guest \
-		-s 29,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \
-		-s 30,xhci,tablet \
-		-l com1,stdio \
-		-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \
-		-c 4 -m 1024M \
-		ubuntu-guest
 
 	bhyvectl --destroy --vm=ubuntu-guest
 }
@@ -124,13 +127,14 @@ start_ubuntu()
 {
 	tell_status "starting up VM"
 	bhyve -AHP \
+		-c 4 -m 1G \
 		-s 0:0,hostbridge \
 		-s 1:0,lpc \
-		-s 2:0,virtio-net,tap1 \
-		-s 3:0,virtio-blk,./ubuntu-22.img \
-    		-s 4:0,ahci-cd,/zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso \
+		-s 2:0,virtio-net,tap-ubuntu \
+		-s 3:0,virtio-blk,/dev/zvol/zsan/bhyve/ubuntu-guest \
+		-s 4:0,ahci-cd,/zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso \
 		-l com1,stdio \
-		-c 4 -m 1024M \
+		-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \
 		ubuntu-guest
 }
 
