@@ -2,9 +2,7 @@
 
 . mail-toaster.sh || exit
 
-# tested with Ubuntu bionic (18), focal (20) and jammy (22)
-# and Debian bullseye (11)
-DEBIAN_RELEASE="jammy"
+mt6-include linux
 
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
@@ -16,7 +14,6 @@ export JAIL_START_EXTRA="allow.mount
 		enforce_statfs=1
 "
 export JAIL_CONF_EXTRA='allow.raw_sockets;
-		allow.reserved_ports;
 		mount += "devfs     $path/compat/linux/dev     devfs     rw  0 0";
 		mount += "tmpfs     $path/compat/linux/dev/shm tmpfs     rw,size=1g,mode=1777  0 0";
 		mount += "fdescfs   $path/compat/linux/dev/fd  fdescfs   rw,linrdlnk 0 0";
@@ -25,80 +22,24 @@ export JAIL_CONF_EXTRA='allow.raw_sockets;
 		#mount += "/tmp      $path/compat/linux/tmp     nullfs    rw  0 0";
 		#mount += "/home     $path/compat/linux/home    nullfs    rw  0 0";'
 
-enable_linuxulator()
-{
-	tell_status "enabling Linux emulation on Host (loads kernel modules)"
-	sysrc linux_enable=YES
-	sysrc linux_mounts_enable=NO
-	service linux start
-
-	tell_status "enabling Linux emulation in jail"
-	stage_sysrc linux_enable=YES
-	stage_sysrc linux_mounts_enable=NO
-	stage_exec service linux start
-}
-
 install_ubuntu()
 {
-	enable_linuxulator
-
-	tell_status "installing (debian|ubuntu) $DEBIAN_RELEASE"
-	stage_pkg_install debootstrap || exit 1
-	stage_exec debootstrap $DEBIAN_RELEASE /compat/linux
+	install_linux jammy
 }
 
 configure_ubuntu()
 {
-	case "$DEBIAN_RELEASE" in
-		bionic|focal|jammy)
-			if [ -f "$STAGE_MNT/compat/linux/etc/apt/sources.list" ]; then
-				tell_status "restoring APT sources"
-				tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_UB_SOURCES
-deb http://archive.ubuntu.com/ubuntu $DEBIAN_RELEASE main universe restricted multiverse
-deb http://security.ubuntu.com/ubuntu/ $DEBIAN_RELEASE-security universe multiverse restricted main
-deb http://archive.ubuntu.com/ubuntu $DEBIAN_RELEASE-backports universe multiverse restricted main
-deb http://archive.ubuntu.com/ubuntu $DEBIAN_RELEASE-updates universe multiverse restricted main
-EO_UB_SOURCES
-			fi
-			;;
-		bullseye)
-			tell_status "adding APT sources"
-			tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_DEB_SOURCES
-deb http://deb.debian.org/debian $DEBIAN_RELEASE main contrib non-free
-deb http://deb.debian.org/debian-security/ $DEBIAN_RELEASE-security main contrib non-free
-deb http://deb.debian.org/debian $DEBIAN_RELEASE-updates main contrib non-free
-deb http://deb.debian.org/debian $DEBIAN_RELEASE-backports main contrib non-free
-EO_DEB_SOURCES
-	esac
+	tell_status "configuring"
 }
 
 start_ubuntu()
 {
-	case "$DEBIAN_RELEASE" in
-		bionic)
-			stage_exec chroot /compat/linux apt remove -y rsyslog
-			;;
-		jammy)
-			stage_exec mount -t devfs devfs /compat/linux/dev
-			;;
-	esac
-
-	tell_status "updating apt"
-	stage_exec chroot /compat/linux apt update || exit 1
-
-	tell_status "updating installed apt packages"
-	stage_exec chroot /compat/linux apt upgrade -y || exit 1
-
-	case "$DEBIAN_RELEASE" in
-		jammy)
-			stage_exec umount /compat/linux/dev
-			;;
-	esac
+	tell_status "starting CentOS"
 }
 
 test_ubuntu()
 {
-	echo "looks good to me!"
+	tell_status "testing CentOS"
 }
 
 base_snapshot_exists || exit

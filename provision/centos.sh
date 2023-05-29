@@ -2,6 +2,8 @@
 
 . mail-toaster.sh || exit
 
+mt6-include linux
+
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
 		allow.mount.fdescfs
@@ -20,25 +22,9 @@ export JAIL_CONF_EXTRA='allow.raw_sockets;
 		#mount += "/tmp      $path/compat/linux/tmp     nullfs    rw  0 0";
 		#mount += "/home     $path/compat/linux/home    nullfs    rw  0 0";'
 
-enable_linuxulator()
-{
-	tell_status "enabling Linux emulation on Host (loads kernel modules)"
-	sysrc linux_enable=YES
-	sysrc linux_mounts_enable=NO
-	service linux start
-
-	tell_status "enabling Linux emulation in jail"
-	stage_sysrc linux_enable=YES
-	stage_sysrc linux_mounts_enable=NO
-	stage_exec service linux start
-}
-
 install_centos()
 {
-	enable_linuxulator
-
-	tell_status "installing (centos) $DEBIAN_RELEASE"
-	stage_pkg_install linux_base-c7 || exit 1
+	install_linux centos
 }
 
 configure_centos()
