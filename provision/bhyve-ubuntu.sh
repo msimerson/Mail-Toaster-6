@@ -12,7 +12,7 @@ create_bridge()
 
 	# create a named bridge for bhyve VMs
 	ifconfig bridge bridge-public 2>/dev/null || {
-		tell_status "creating bridge bridge-public"
+		tell_status "creating bridge-public"
 		ifconfig bridge create name bridge-public
 		get_public_facing_nic
 		ifconfig bridge-public addm "$PUBLIC_NIC"
@@ -54,7 +54,7 @@ grub> initrd (cd0)/isolinux/initrd.img
 grub> boot
 EO_GRUB
 
-	# within VM
+	# within Ubuntu VM
 	tee -a /etc/default/grub <<EO_DEFAULT_GRUB
 GRUB_CMDLINE_LINUX_DEFAULT=""
 GRUB_TERMINAL='serial console'
