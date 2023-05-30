@@ -4,10 +4,10 @@
 
 create_bridge()
 {
-	if ! grep -q tap.up_on_open /etc/sysctl.conf; then
+	if ! grep -q "tap.up_on_open" /etc/sysctl.conf; then
 		tell_status "setting tap.up_on_open"
 		sysctl net.link.tap.up_on_open=1
-		sysrc -f /etc/sysctl.conf net.link.tap.up_on_open=1
+		echo "net.link.tap.up_on_open=1" >> /etc/sysctl.conf
 	fi
 
 	# create a named bridge for bhyve VMs
@@ -36,8 +36,8 @@ create_bridge()
 configure_grub()
 {
 	tee -a device.map <<EO_DMAP
-(hd0) /dev/zvol/zsan/bhyve/ubuntu-guest
-(cd0) /zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso
+(hd0) /dev/zvol/$ZFS_BHYVE_VOL/bhyve/ubuntu-guest
+(cd0) /$ZFS_BHYVE_VOL/ISO/ubuntu-22.04.2-live-server-amd64.iso
 EO_DMAP
 
 	tell_status "loading the Linux kernel"
@@ -67,11 +67,14 @@ EO_DEFAULT_GRUB
 
 install_ubuntu_bhyve_zfs()
 {
-	# if ...
-	zfs create zsan/bhyve
-	zfs set recordsize=64K zsan/bhyve
-	zfs create -V20G -o volmode=dev zsan/bhyve/ubuntu-guest
-	# fi
+	if ! zfs_filesystem_exists "$ZFS_BHYVE_VOL/bhyve"; then
+		zfs create "$ZFS_BHYVE_VOL/bhyve"
+		zfs set recordsize=64K "$ZFS_BHYVE_VOL/bhyve"
+	fi
+
+	if ! zfs_filesystem_exists "$ZFS_BHYVE_VOL/bhyve/ubuntu-guest"; then
+		zfs create -V20G -o volmode=dev "$ZFS_BHYVE_VOL/bhyve/ubuntu-guest"
+	fi
 }
 
 install_ubuntu_bhyve()
@@ -91,31 +94,30 @@ install_ubuntu_bhyve()
 
 	bhyve \
 		-H -P -w \
-		-c 2 -m 1G \
+		-c 1 -m 1G \
 		-s 0:0,hostbridge \
-		-s 1:0,lpc \
 		-s 2:0,virtio-net,tap-ubuntu \
-		-s 3:0,ahci-cd,/zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso \
-		-s 4:0,virtio-blk,/dev/zvol/zsan/bhyve/ubuntu-guest \
+		-s 3:0,ahci-cd,/$ZFS_BHYVE_VOL/ISO/ubuntu-22.04.2-live-server-amd64.iso \
+		-s 4:0,virtio-blk,/dev/zvol/$ZFS_BHYVE_VOL/bhyve/ubuntu-guest \
 		-s 29:0,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \
 		-s 30:0,xhci,tablet \
-		-l com1,stdio \
+		-s 31:0,lpc \
 		-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \
+		-l com1,stdio \
 		ubuntu-guest
-}
 
-# install_ubuntu_vm()
-# {
-# 	sysrc vm_enable=YES
-# 	sysrc vm_dir=zfs:zsan/bhyve
-# }
+	# -s 29:0,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \  (VNC)
+	# -s 30:0,xhci,tablet \  (sync mouse with host)
+	# -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CSM.fd \ (BIOS)
+	# -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \     (UEFI)
+
+	bhyvectl --destroy --vm=ubuntu-guest
+}
 
 install_ubuntu()
 {
 	# tell_status "installing ubuntu"
 	install_ubuntu_bhyve
-
-	bhyvectl --destroy --vm=ubuntu-guest
 }
 
 configure_ubuntu()
@@ -129,13 +131,18 @@ start_ubuntu()
 	bhyve -AHP \
 		-c 4 -m 1G \
 		-s 0:0,hostbridge \
-		-s 1:0,lpc \
 		-s 2:0,virtio-net,tap-ubuntu \
-		-s 3:0,virtio-blk,/dev/zvol/zsan/bhyve/ubuntu-guest \
-		-s 4:0,ahci-cd,/zsan/ISO/ubuntu-22.04.2-live-server-amd64.iso \
+		-s 4:0,virtio-blk,/dev/zvol/$ZFS_BHYVE_VOL/bhyve/ubuntu-guest \
+		-s 29:0,fbuf,tcp=0.0.0.0:5900,w=800,h=600 \
+		-s 30:0,xhci,tablet \
+		-s 31:0,lpc \
 		-l com1,stdio \
 		-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \
 		ubuntu-guest
+
+	# Desktop versions of Windows require a CD/DVD device, can be an empty file created with touch(1).
+
+	bhyvectl --destroy --vm=ubuntu-guest
 }
 
 test_ubuntu()
@@ -143,11 +150,11 @@ test_ubuntu()
 	echo "hrmm, how to test?"
 }
 
-base_snapshot_exists || exit
-create_staged_fs ubuntu
-start_staged_jail ubuntu
+#base_snapshot_exists || exit
+#create_staged_fs ubuntu-guest
+#start_staged_jail ubuntu-guest
 install_ubuntu
 configure_ubuntu
-start_ubuntu
-test_ubuntu
-promote_staged_jail ubuntu
+#start_ubuntu
+#test_ubuntu
+#promote_staged_jail ubuntu-guest
