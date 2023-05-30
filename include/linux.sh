@@ -76,6 +76,9 @@ install_linux()
 
 	case "$1" in
 		bionic|focal|jammy|bullseye) install_apt_updates ;;
+	esac
+
+	case "$1" in
 		jammy) stage_exec umount /compat/linux/dev ;;
 	esac
 }

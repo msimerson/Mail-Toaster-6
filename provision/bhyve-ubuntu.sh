@@ -108,6 +108,7 @@ install_ubuntu_bhyve()
 
 	# -s 29:0,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \  (VNC)
 	# -s 30:0,xhci,tablet \  (sync mouse with host)
+	# -s <slot>,virtio-input,/dev/input/eventX   (keyboard/mouse events)
 	# -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CSM.fd \ (BIOS)
 	# -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \     (UEFI)
 
