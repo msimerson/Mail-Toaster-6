@@ -325,57 +325,23 @@ ext_if="$PUBLIC_NIC"
 table <ext_ip4> { $PUBLIC_IP4 }
 table <ext_ip6> { $PUBLIC_IP6 }
 
-# to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-table <allow_insecure> { }
-
 table <bruteforce> persist
 table <sshguard> persist
-
-ssh_ports    = "{ 22 }"
-http_ports   = "{ 80 443 }"
-msa_ports    = "{ 465 587 }"
-mta_ports    = "{ 25 465 587 }"
-mua_insecure = "{ 110 143 }"
-mua_ports    = "{ 993 995 }"
-
-dovecot_lo4  = "{ $(get_jail_ip  dovecot) }"
-haraka_lo4   = "{ $(get_jail_ip  haraka)  }"
-haproxy_lo4  = "{ $(get_jail_ip  haproxy) }"
-
-dovecot_lo6  = "{ $(get_jail_ip6 dovecot) }"
-haraka_lo6   = "{ $(get_jail_ip6 haraka) }"
-haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
 
 ## Translation rules
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from ! \$ext_if to any -> <ext_ip6>
+nat on \$ext_if inet6 from lo1 to any -> <ext_ip6>
 
 nat-anchor "nat/*"
-
-# Secured POP3 & IMAP traffic to dovecot jail
-rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
-
-# POP3 & IMAP from insecure IPs
-rdr inet  proto tcp from <allow_insecure> to <ext_ip4> port \$mua_insecure -> \$dovecot_lo4
-rdr inet6 proto tcp from <allow_insecure> to <ext_ip6> port \$mua_insecure -> \$dovecot_lo6
-
-# SMTP traffic to the Haraka jail
-rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port \$mta_ports -> \$haraka_lo6
-
-# HTTP traffic to HAproxy
-rdr inet  proto tcp from any to <ext_ip4> port \$http_ports -> \$haproxy_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
 
 rdr-anchor "rdr/*"
 
 ## Filtering rules
 
-block in quick inet  proto tcp from <sshguard> to any port \$ssh_ports
-block in quick inet6 proto tcp from <sshguard> to any port \$ssh_ports
+block in quick inet  proto tcp from <sshguard> to any port { 22 }
+block in quick inet6 proto tcp from <sshguard> to any port { 22 }
 
 block in quick from <bruteforce>
 EO_PF_RULES

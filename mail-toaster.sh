@@ -449,7 +449,7 @@ get_safe_jail_path()
 jail_conf_extra()
 {
 	# if not present, add data mount
-	if ! echo "$JAIL_CONF_EXTRA" | grep -q "$ZFS_DATA_MNT"; then
+	if ! echo "$JAIL_CONF_EXTRA" | grep -q "mount += \"$ZFS_DATA_MNT/$1"; then
 		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
 		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
 	fi
@@ -507,11 +507,13 @@ add_automount()
 stop_jail()
 {
 	local _safe; _safe=$(safe_jailname "$1")
-	echo "service jail stop $_safe"
-	service jail stop "$_safe"
+	if jls -j $_safe -d | grep -q $_safe; then
+		echo "service jail stop $_safe"
+		service jail stop "$_safe"
 
-	echo "jail -r $_safe"
-	jail -r "$_safe" 2>/dev/null
+		echo "jail -r $_safe"
+		jail -r "$_safe" 2>/dev/null
+	fi
 }
 
 stage_unmount()
@@ -1209,23 +1211,22 @@ unprovision()
 	echo "done"
 }
 
-add_pf_portmap()
+store_config()
 {
-	if grep -q "$2" /etc/pf.conf; then
-		echo "NOTICE: PF rules for $2 exist, skipping"
-		return
+	# $1 - path to config file, STDIN is file contents
+	if [ ! -d "$(dirname $1)" ]; then
+		tell_status "creating $(dirname $1)"
+		mkdir -p "$(dirname $1)" || exit 1
 	fi
 
-	tell_status "adding redirection rules for $2"
-	sed -i.bak \
-		-e "/^## Filtering rules/ c\\
-rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")\\
-rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
-\\
-## Filtering rules" \
-		/etc/pf.conf || exit
+	cat - > "$1.dist" || exit 1
 
-	pfctl -f /etc/pf.conf || exit
+	if [ -f "$1" ]; then
+		tell_status "preserving $1"
+	else
+		tell_status "saving $1"
+		cp "$1.dist" "$1" || exit 1
+	fi
 }
 
 mt6-include()
