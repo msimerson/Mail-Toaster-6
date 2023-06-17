@@ -24,7 +24,7 @@ configure_rsnapshot()
 
 		if [ ! -f "$_pdir/$p/rsnapshot" ]; then
 			tell_status "installing $p periodic task"
-			tee "$_pdir/$p/rsnapshot" <<EO_RSNAP
+			store_config "$_pdir/$p/rsnapshot" <<EO_RSNAP
 /usr/local/bin/rsnapshot -c /data/etc/rsnapshot.conf $p
 EO_RSNAP
             chmod 755 "$_pdir/$p/rsnapshot"

@@ -46,13 +46,8 @@ install_haproxy_libressl()
 configure_haproxy_dot_conf()
 {
 	local _data_cf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
-	if [ -f "$_data_cf" ]; then
-		tell_status "preserving $_data_cf"
-		return
-	fi
 
-	tell_status "configuring MT6 default haproxy"
-	tee "$_data_cf" <<EO_HAPROXY_CONF
+	store_config "$_data_cf" <<EO_HAPROXY_CONF
 global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit

@@ -618,7 +618,6 @@ EO_RESOLV
 	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
-	tell_status "updating $_repo_dir/FreeBSD.conf"
 	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
 	enabled: no

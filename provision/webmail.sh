@@ -57,7 +57,7 @@ configure_lighttpd()
 		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
 		"$_lighttpd_conf"
 
-	tee "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
+	store_config "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
 server.modules += ( "mod_alias" )
 
 alias.url = (
@@ -95,8 +95,7 @@ install_webmail()
 
 install_index()
 {
-	tell_status "installing index.html"
-	tee "$_htdocs/index.html" <<'EO_INDEX'
+	store_config "$_htdocs/index.html" <<'EO_INDEX'
 <html>
 <head>
  <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>
@@ -292,8 +291,7 @@ configure_webmail()
 	install_index
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
-		tell_status "installing robots.txt"
-		tee "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
+		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
 User-agent: *
 Disallow: /
 EO_ROBOTS_TXT

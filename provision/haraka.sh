@@ -104,7 +104,7 @@ configure_haraka_syslog()
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
 		if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
-			tee "$HARAKA_CONF/smtp.ini" <<EO_DLF
+			store_config "$HARAKA_CONF/smtp.ini" <<EO_DLF
 daemon_log_file=/dev/null
 EO_DLF
 		else
@@ -113,7 +113,7 @@ EO_DLF
 		fi
 	fi
 
-	tee "$HARAKA_CONF/log.reader.ini" <<EO_LRC
+	store_config "$HARAKA_CONF/log.reader.ini" <<EO_LRC
 [log]
 file=/var/log/maillog
 EO_LRC
@@ -126,7 +126,7 @@ always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
 	fi
 
 	# send Haraka logs to haraka's /var/log so log-reader can access them
-	tee "$STAGE_MNT/etc/syslog.conf" <<EO_SYSLOG
+	store_config "$STAGE_MNT/etc/syslog.conf" <<EO_SYSLOG
 mail.info					/var/log/maillog
 #*.*			@syslog
 EO_SYSLOG
@@ -187,7 +187,7 @@ configure_haraka_p0f()
 	install_p0f
 
 	if ! grep -qs ^socket_path "$HARAKA_CONF/p0f.ini"; then
-		tee "$HARAKA_CONF/p0f.ini" <<EO_P0F
+		store_config "$HARAKA_CONF/p0f.ini" <<EO_P0F
 [main]
 socket_path=/tmp/.p0f_socket
 EO_P0F

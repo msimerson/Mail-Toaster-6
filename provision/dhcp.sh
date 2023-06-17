@@ -44,9 +44,8 @@ EO_PF_RDR
 		mkdir -p "$ZFS_DATA_MNT/dhcp/db" || exit
 	fi
 
-	if [ ! -f "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" ]; then
-		get_public_ip
-		tee -a "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" <<EO_DHCP
+	get_public_ip
+	store_config "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" <<EO_DHCP
 option domain-name "$TOASTER_MAIL_DOMAIN";
 # option domain-name-servers $PUBLIC_IP4;
 
@@ -78,7 +77,6 @@ subnet 172.16.0.0 netmask 255.240.0.0 {
 
 EO_DHCP
 
-	fi
 }
 
 start_dhcpd()

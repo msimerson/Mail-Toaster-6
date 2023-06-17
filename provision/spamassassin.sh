@@ -105,7 +105,7 @@ install_spamassassin_razor()
 		mkdir "$STAGE_MNT/etc/newsyslog.conf.d" || exit
 	fi
 
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent" <<EO_RAZOR
+	store_config "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent" <<EO_RAZOR
 /var/log/razor-agent.log    600 5   1000 *  Z
 EO_RAZOR
 }
@@ -135,7 +135,7 @@ configure_spamassassin_redis_bayes()
 	fi
 
 	tell_status "configuring redis backed bayes"
-	echo "
+	store_config "$_sa_etc/redis-bayes.cf" <<EO_BAYES
 use_bayes               1
 use_bayes_rules         1
 allow_user_rules	1
@@ -159,7 +159,7 @@ bayes_ignore_header X-Spam-Checker-Version
 bayes_ignore_header X-Spam-Tests
 bayes_ignore_header X-Spam-Spammy
 bayes_ignore_header X-Spam-Hammy
-    " | tee "$_sa_etc/redis-bayes.cf"
+EO_BAYES
 }
 
 configure_geoip()

@@ -28,7 +28,7 @@ configure_redis()
 	fi
 
 	tell_status "add Redis address, for default Lua modules backend"
-	tee "$RSPAMD_ETC/local.d/redis.conf" <<EO_REDIS
+	store_config "$RSPAMD_ETC/local.d/redis.conf" <<EO_REDIS
 	servers = "$(get_jail_ip redis):6379";
 	db    = "5";
 EO_REDIS
@@ -36,7 +36,7 @@ EO_REDIS
 
 configure_dcc() {
 	tell_status "enabling DCC"
-	tee "$RSPAMD_ETC/local.d/dcc.conf" <<EO_DCC
+	store_config "$RSPAMD_ETC/local.d/dcc.conf" <<EO_DCC
 	enabled = true;
 	servers = $(get_jail_ip dcc):1025;
 	timeout = 5s;
@@ -52,7 +52,7 @@ configure_phishing()
 	fi
 
 	tell_status "enabling phish detection"
-	tee "$RSPAMD_ETC/local.d/phishing.conf" <<EO_PHISH
+	store_config "$RSPAMD_ETC/local.d/phishing.conf" <<EO_PHISH
 	openphish_enabled = true;
 	phishtank_enabled = true;
 EO_PHISH
@@ -98,7 +98,7 @@ configure_stats()
 	fi
 
 	tell_status "add Redis address, for Bayes stats"
-	tee "$RSPAMD_ETC/override.d/statistic.conf"  << EO_RSPAMD_STAT
+	store_config "$RSPAMD_ETC/override.d/statistic.conf"  << EO_RSPAMD_STAT
 	classifier "bayes" {
 
 		tokenizer {
@@ -134,7 +134,7 @@ configure_logging()
 {
 	if [ "$RSPAMD_SYSLOG" = "1" ]; then
 		tell_status "configuring syslog logging"
-		tee "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
+		store_config "$RSPAMD_ETC/local.d/logging.inc" <<EO_SYSLOG
 type = "syslog";
 facility = "LOG_MAIL";
 level = "notice";
@@ -147,14 +147,14 @@ EO_SYSLOG
 
 configure_surbl()
 {
-	tee "$RSPAMD_ETC/local.d/surbl.conf" <<EO_SURBL
+	store_config "$RSPAMD_ETC/local.d/surbl.conf" <<EO_SURBL
 redirector_hosts_map = "/usr/local/etc/rspamd/redirectors.inc";
 EO_SURBL
 }
 
 configure_worker()
 {
-	tee "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
+	store_config "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
 	bind_socket = "*:11333";
 	count = 4;
 EO_WORKER
@@ -164,7 +164,7 @@ configure_controller()
 {
 	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "postmaster@${TOASTER_MAIL_DOMAIN}")
 
-	tee "$RSPAMD_ETC/local.d/worker-controller.inc" <<EO_CONTROLLER
+	store_config "$RSPAMD_ETC/local.d/worker-controller.inc" <<EO_CONTROLLER
 password = "$(jexec stage rspamadm pw -p "$_pass")";
 secure_ip = $(get_jail_ip dovecot);
 secure_ip = $(get_jail_ip6 dovecot);

@@ -49,13 +49,7 @@ install_dovecot()
 configure_dovecot_local_conf() {
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 
-	if [ -f "$_localconf" ]; then
-		tell_status "preserving $_localconf"
-		return
-	fi
-
-	tell_status "installing $_localconf"
-	tee "$_localconf" <<'EO_DOVECOT_LOCAL'
+	store_config "$_localconf" <<'EO_DOVECOT_LOCAL'
 #mail_debug = yes
 listen = *, ::
 auth_verbose=yes
@@ -239,7 +233,7 @@ configure_dovecot_sql_conf()
 		# shellcheck disable=SC2034
 		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
-		tee "$_sqlconf" <<EO_DOVECOT_SQL
+		store_config "$_sqlconf" <<EO_DOVECOT_SQL
   driver = mysql
   default_pass_scheme = PLAIN
   connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail
@@ -394,7 +388,7 @@ configure_sieve_report_ham()
 		return
 	fi
 
-	tee "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM'
+	store_config "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM'
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
 
 if environment :matches "imap.mailbox" "*" {
@@ -418,7 +412,7 @@ configure_sieve_report_spam()
 		return
 	fi
 
-	tee "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM'
+	store_config "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM'
 # https://wiki2.dovecot.org/Pigeonhole/Sieve
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
 

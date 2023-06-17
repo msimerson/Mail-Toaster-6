@@ -85,19 +85,13 @@ configure_nginx_server()
 install_default_json()
 {
 	local _rlconfdir="$ZFS_DATA_MNT/snappymail/_data_/_default_"
-	local _djson="$_rlconfdir/domains/default.json"
-	if [ -f "$_djson" ]; then
-		tell_status "preserving default.json"
-		return
-	fi
-
 	if [ ! -d "$_rlconfdir/domains" ]; then
 		tell_status "creating default/domains dir"
 		mkdir -p "$_rlconfdir/domains" || exit
 	fi
 
-	tell_status "installing domains/default.json"
-	tee -a "$_djson" <<EO_JSON
+	local _djson="$_rlconfdir/domains/default.json"
+	store_config "$_djson" <<EO_JSON
 {
     "name": "*",
     "IMAP": {
