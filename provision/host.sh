@@ -415,28 +415,25 @@ enable_jails()
 
 update_ports_tree()
 {
-	tell_status "updating FreeBSD ports tree"
-
 	if [ ! -t 0 ]; then
 		echo "Not interactive, it's on you to update the ports tree!"
 		return
 	fi
 
 	if [ -d "/usr/ports/.git" ]; then
-		echo "updating ports with git"
+		tell_status "updating FreeBSD ports tree (git)"
 		cd "/usr/ports/" || return
 		git pull
 		cd - || return
-		return
-	fi
-
-	echo "updating ports with portsnap"
-	portsnap fetch || exit
-
-	if [ -d /usr/ports/mail/vpopmail ]; then
-		portsnap update || portsnap extract || exit
 	else
-		portsnap extract || exit
+		tell_status "updating FreeBSD ports tree (portsnap)"
+		portsnap fetch || exit
+
+		if [ -d /usr/ports/mail/vpopmail ]; then
+			portsnap update || portsnap extract || exit
+		else
+			portsnap extract || exit
+		fi
 	fi
 }
 
