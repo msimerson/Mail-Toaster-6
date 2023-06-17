@@ -506,14 +506,15 @@ add_automount()
 
 stop_jail()
 {
+	tell_status "stopping jail $1"
 	local _safe; _safe=$(safe_jailname "$1")
-	if jls -j $_safe -d | grep -q $_safe; then
+	if jls -j $_safe -d 2>/dev/null | grep -q $_safe; then
 		echo "service jail stop $_safe"
 		service jail stop "$_safe"
-
-		echo "jail -r $_safe"
-		jail -r "$_safe" 2>/dev/null
 	fi
+
+	echo "jail -r $_safe"
+	jail -r "$_safe" 2>/dev/null
 }
 
 stage_unmount()

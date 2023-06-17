@@ -445,13 +445,14 @@ update_ports_tree()
 	fi
 
 	if [ -d "/usr/ports/.git" ]; then
-		echo "ports via git detected"
+		echo "updating ports with git"
 		cd "/usr/ports/" || return
 		git pull
 		cd - || return
 		return
 	fi
 
+	echo "updating ports with portsnap"
 	portsnap fetch || exit
 
 	if [ -d /usr/ports/mail/vpopmail ]; then
@@ -485,7 +486,7 @@ update_freebsd()
 	fi
 
 	tell_status "upgrading installed FreeBSD packages"
-	pkg upgrade
+	pkg upgrade -y
 
 	update_ports_tree
 }
