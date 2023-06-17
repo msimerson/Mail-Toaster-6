@@ -244,8 +244,7 @@ configure_base()
 
 install_periodic_conf()
 {
-	tell_status "installing /etc/periodic.conf"
-	tee "$BASE_MNT/etc/periodic.conf" <<EO_PERIODIC
+	store_config "$BASE_MNT/etc/periodic.conf" <<EO_PERIODIC
 # periodic.conf tuned for periodic inside jails
 # increase the signal, decrease the noise
 

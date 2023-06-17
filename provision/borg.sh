@@ -23,8 +23,7 @@ configure_borg()
 		fi
 
 		if [ ! -f "$_pdir/$p/borg" ]; then
-			tell_status "installing $p periodic task"
-			tee "$_pdir/$p/borg" <<EO_RSNAP
+			store_config "$_pdir/$p/borg" <<EO_RSNAP
 /usr/local/bin/borg -c /data/etc/borg.conf $p
 EO_RSNAP
             chmod 755 "$_pdir/$p/borg"

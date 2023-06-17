@@ -34,7 +34,7 @@ create_default_config()
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
 	echo "creating mail-toaster.conf with defaults"
-	tee mail-toaster.conf <<EO_MT_CONF
+	store_config mail-toaster.conf <<EO_MT_CONF
 export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
@@ -610,7 +610,7 @@ enable_bsd_cache()
 
 	tell_status "enabling bsd_cache"
 
-	tee "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
+	store_config "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
 nameserver $(get_jail_ip dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
@@ -619,14 +619,13 @@ EO_RESOLV
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
 	tell_status "updating $_repo_dir/FreeBSD.conf"
-	tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
 	enabled: no
 }
 EO_PKG_CONF
 
-	tell_status "updating $_repo_dir/MT6.conf"
-	tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+	store_config "$_repo_dir/MT6.conf" <<EO_PKG_MT6
 MT6: {
 	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
 	enabled: yes
@@ -1225,7 +1224,7 @@ store_config()
 	if [ -f "$1" ]; then
 		tell_status "preserving $1"
 	else
-		tell_status "saving $1"
+		tell_status "installing $1"
 		cp "$1.dist" "$1" || exit 1
 	fi
 }
@@ -1292,7 +1291,7 @@ configure_pkg_latest()
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
-	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
+	store_config "$REPODIR/FreeBSD.conf" <<EO_PKG
 FreeBSD: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }

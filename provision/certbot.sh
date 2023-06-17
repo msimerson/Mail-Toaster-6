@@ -10,7 +10,7 @@ install_certbot()
 
 install_deploy_haproxy()
 {
-	tee "$_deploy/deploy/haproxy" <<'EO_LE_HAPROXY_DEPLOY'
+	store_config "$_deploy/deploy/haproxy" <<'EO_LE_HAPROXY_DEPLOY'
 #!/usr/bin/env python3.8
 
 import os

@@ -72,12 +72,7 @@ update_sendmail()
 
 install_periodic_conf()
 {
-	if [ -f /etc/periodic.conf ]; then
-		return
-	fi
-
-	tell_status "installing /etc/periodic.conf"
-	tee -a /etc/periodic.conf <<EO_PERIODIC
+	store_config /etc/periodic.conf <<EO_PERIODIC
 # older versions of FreeBSD bark b/c these are defined in
 # /etc/defaults/periodic.conf and do not exist. Hush.
 daily_local=""
@@ -296,21 +291,6 @@ on all your IP addresses!"
 
 add_jail_nat()
 {
-	if grep -qs bruteforce /etc/pf.conf; then
-		# this is an upgrade / reinstall
-		if grep -qs ext_ip6 /etc/pf.conf; then
-			tell_status "preserving pf.conf settings"
-			return
-		fi
-
-		# MT6 without IPv6 rules
-		if [ ! -f "/etc/pf.conf-$(date +%Y.%m.%d)" ]; then
-			# only back up once per day
-			tell_status "Backing up /etc/pf.conf"
-			cp /etc/pf.conf "/etc/pf.conf-$(date +%Y.%m.%d)" || exit
-		fi
-	fi
-
 	get_public_ip
 	get_public_ip ipv6
 
@@ -318,7 +298,7 @@ add_jail_nat()
 	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
 
 	tell_status "setting up the PF firewall and NAT for jails"
-	tee /etc/pf.conf <<EO_PF_RULES
+	store_config "/etc/pf.conf" <<EO_PF_RULES
 ## Macros
 
 ext_if="$PUBLIC_NIC"
@@ -345,8 +325,6 @@ block in quick inet6 proto tcp from <sshguard> to any port { 22 }
 
 block in quick from <bruteforce>
 EO_PF_RULES
-
-	echo; echo "/etc/pf.conf has been installed"; echo
 
 	kldstat -q -m pf || kldload pf || exit 1
 

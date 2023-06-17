@@ -135,14 +135,14 @@ update_existing_jails()
 
 		local _repo_dir="$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg/repos"
 		if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
-		tell_status "updating jail $_j pkg"
-		tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+
+		store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
 	enabled: no
 }
 EO_PKG_CONF
 
-		tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+		store_config "$_repo_dir/MT6.conf" <<EO_PKG_MT6
 MT6: {
 	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
 	enabled: yes
