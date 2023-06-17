@@ -347,6 +347,8 @@ install_base()
 	disable_root_password
 	install_periodic_conf
 	install_vimrc
+
+	tell_status "updating packages in base jail"
 	stage_exec pkg upgrade -y
 }
 
