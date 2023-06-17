@@ -11,10 +11,11 @@ install_clamav_fangfrisch()
 	if [ "$CLAMAV_FANGFRISCH" = "0" ]; then return; fi
 
 	stage_pkg_install python sqlite3 py39-sqlite3 sudo
-	mkdir /usr/local/fangfrisch
-	cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch
-	chown clamav:clamav /usr/local/fangfrisch
-	tee <<EO_FANG_CONF
+	_fdir="$STAGE_MNT/usr/local/fangfrisch"
+	mkdir "$_fdir"
+	stage_exec cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch
+	stage_exec chown -R clamav:clamav /usr/local/fangfrisch
+	store_config "$_fdir" <<EO_FANG_CONF
 [DEFAULT]
 db_url = sqlite:////usr/local/fangfrisch/db.sqlite
 
@@ -43,8 +44,8 @@ customer_id = abcdef123456
 enabled = yes
 max_size = 2MB
 EO_FANG_CONF
-	sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf initdb
-	sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf refresh
+	stage_exec sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf initdb
+	stage_exec sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf refresh
 }
 
 install_clamav_unofficial()
@@ -87,8 +88,7 @@ install_clamav_unofficial()
 
 	if [ -f "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" ]; then
 		tell_status "preserving user.conf"
-		cp "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" \
-			"$_conf/" || exit
+		cp "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" "$_conf/" || exit
 		echo "done"
 	else
 		tell_status "completing user configuration"
