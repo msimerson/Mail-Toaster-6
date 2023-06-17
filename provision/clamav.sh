@@ -13,9 +13,9 @@ install_clamav_fangfrisch()
 	stage_pkg_install python sqlite3 py39-sqlite3 sudo
 	_fdir="$STAGE_MNT/usr/local/fangfrisch"
 	mkdir "$_fdir"
-	stage_exec cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch
+	stage_exec sh -c "cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch" || exit 1
 	stage_exec chown -R clamav:clamav /usr/local/fangfrisch
-	store_config "$_fdir" <<EO_FANG_CONF
+	store_config "$_fdir/fangfrisch.conf" <<EO_FANG_CONF
 [DEFAULT]
 db_url = sqlite:////usr/local/fangfrisch/db.sqlite
 
@@ -44,8 +44,8 @@ customer_id = abcdef123456
 enabled = yes
 max_size = 2MB
 EO_FANG_CONF
-	stage_exec sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf initdb
-	stage_exec sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf refresh
+	stage_exec sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf initdb || exit 1
+	stage_exec sudo -u clamav -- fangfrisch --conf /usr/local/fangfrisch/fangfrisch.conf refresh || exit 1
 }
 
 install_clamav_unofficial()
