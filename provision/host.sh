@@ -332,7 +332,7 @@ table <sshguard> persist
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from lo1 to any -> <ext_ip6>
+nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
