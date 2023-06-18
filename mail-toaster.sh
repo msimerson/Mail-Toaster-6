@@ -546,7 +546,7 @@ assure_data_volume_mount_is_declared()
 		if ! grep -qs "^$1" "$_cnf"; then return; fi
 	elif [ -f /etc/jail.conf ]; then
 		_cnf="/etc/jail.conf"
-		if ! grep -qs "^$1" "/etc/jail.conf"; then return; fi
+		if ! grep -qs "^$1" "$_cnf"; then return; fi
 	fi
 
 	if grep -qs "data/$1" "$_cnf"; then
@@ -562,6 +562,16 @@ assure_data_volume_mount_is_declared()
 	echo "	mount += \"/data/$1 $_mp nullfs rw 0 0\";"
 	echo
 	exit
+}
+
+install_pfrule()
+{
+	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
+		mkdir "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
+	fi
+	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" \
+		"$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
+	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
 }
 
 create_staged_fs()
@@ -582,12 +592,7 @@ create_staged_fs()
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT" || exit 1
 
-	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
-		mkdir "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
-	fi
-	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" \
-		"$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
-	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
+	install_pfrule
 
 	stage_mount_ports
 	stage_mount_pkg_cache

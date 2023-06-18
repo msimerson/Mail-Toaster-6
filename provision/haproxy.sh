@@ -2,12 +2,8 @@
 
 . mail-toaster.sh || exit
 
-_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
-
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		exec.created = 'pfctl -a rdr/haproxy -f $_pf_etc/rdr.conf';
-		exec.poststop = 'pfctl -a rdr/haproxy -F all';"
+export JAIL_CONF_EXTRA=""
 
 install_haproxy()
 {
@@ -337,6 +333,7 @@ configure_haproxy()
 		mkdir "$STAGE_MNT/var/run/haproxy"
 	fi
 
+	_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip  haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)

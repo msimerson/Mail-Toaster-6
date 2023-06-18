@@ -2,14 +2,10 @@
 
 . mail-toaster.sh || exit
 
-_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
-
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";
-		exec.created = '$_pf_etc/pfrule.sh load';
-		exec.poststop = '$_pf_etc/pfrule.sh unload';"
+		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail
 
@@ -523,6 +519,8 @@ configure_sieve()
 
 configure_dovecot_pf()
 {
+	_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
+
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_INSECURE
 # 10.0.0.0/8
 # 192.168.0.0/16

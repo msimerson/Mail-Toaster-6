@@ -2,12 +2,8 @@
 
 . mail-toaster.sh || exit
 
-_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
-
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
-		exec.created = 'pfctl -a rdr/haraka -f $_pf_etc/rdr.conf';
-		exec.poststop = 'pfctl -a rdr/haraka -F all';
 		devfs_ruleset = 7;"
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
@@ -718,6 +714,7 @@ configure_haraka()
 	configure_haraka_dcc
 	configure_haraka_spf
 
+	_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF
 rdr inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
 rdr inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)
