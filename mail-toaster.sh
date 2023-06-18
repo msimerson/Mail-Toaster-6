@@ -204,8 +204,8 @@ if [ "$(uname)" = 'FreeBSD' ]; then
 fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-11.0-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-11.0-RELEASE@p3
+# host OS version, ex: base-13.0-RELEASE and the snapshot name will be the OS
+# patch level, ex: base-13.0-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -476,6 +476,8 @@ add_jail_conf_d()
 $1	{$(get_safe_jail_path $1)
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+		exec.created = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load\";
+		exec.poststop = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload\";
 	}" | tee -a /etc/jail.conf.d/$1.conf
 }
 
@@ -536,13 +538,18 @@ cleanup_staged_fs()
 
 assure_data_volume_mount_is_declared()
 {
-	if ! grep -qs "^$1" /etc/jail.conf; then
-		# config for this jail hasn't been created. It's created
-		# when the data FS is provisioned.
-		return
+	_cnf="/etc/jail.conf.d/$1.conf"
+
+	# config for this jail might not be created yet
+	# (created when the data FS is provisioned)
+	if [ -f "$_cnf" ]; then
+		if ! grep -qs "^$1" "$_cnf"; then return; fi
+	elif [ -f /etc/jail.conf ]; then
+		_cnf="/etc/jail.conf"
+		if ! grep -qs "^$1" "/etc/jail.conf"; then return; fi
 	fi
 
-	if grep -qs "data/$1" /etc/jail.conf; then
+	if grep -qs "data/$1" "$_cnf"; then
 		# data fs mountpoint already declared
 		return
 	fi
@@ -574,6 +581,12 @@ create_staged_fs()
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT" || exit 1
+
+	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
+		mkdir "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
+	fi
+	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
+	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
 
 	stage_mount_ports
 	stage_mount_pkg_cache
@@ -1040,7 +1053,7 @@ fetch_and_exec()
 	if [ ! -d provision ]; then mkdir provision; fi
 
 	if [ -d ".git" ]; then
-		tell_status "skipping fetch, running from git"
+		tell_status "running from git, skipping fetch"
 	else
 		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
 	fi
