@@ -2,14 +2,10 @@
 
 . mail-toaster.sh || exit
 
-_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
-
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";
-		exec.created = 'pfctl -a rdr/haproxy -f $_pf_etc/rdr.conf';
-		exec.poststop = 'pfctl -a rdr/haproxy -F all';"
+		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail
 
@@ -49,13 +45,7 @@ install_dovecot()
 configure_dovecot_local_conf() {
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 
-	if [ -f "$_localconf" ]; then
-		tell_status "preserving $_localconf"
-		return
-	fi
-
-	tell_status "installing $_localconf"
-	tee "$_localconf" <<'EO_DOVECOT_LOCAL'
+	store_config "$_localconf" <<'EO_DOVECOT_LOCAL'
 #mail_debug = yes
 listen = *, ::
 auth_verbose=yes
@@ -239,7 +229,7 @@ configure_dovecot_sql_conf()
 		# shellcheck disable=SC2034
 		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
-		tee "$_sqlconf" <<EO_DOVECOT_SQL
+		store_config "$_sqlconf" <<EO_DOVECOT_SQL
   driver = mysql
   default_pass_scheme = PLAIN
   connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail
@@ -394,7 +384,7 @@ configure_sieve_report_ham()
 		return
 	fi
 
-	tee "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM'
+	store_config "$SIEVE_DIR/report-ham.sieve" <<'EO_REPORT_HAM'
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
 
 if environment :matches "imap.mailbox" "*" {
@@ -418,7 +408,7 @@ configure_sieve_report_spam()
 		return
 	fi
 
-	tee "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM'
+	store_config "$SIEVE_DIR/report-spam.sieve" <<'EO_REPORT_SPAM'
 # https://wiki2.dovecot.org/Pigeonhole/Sieve
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
 
@@ -529,9 +519,16 @@ configure_sieve()
 
 configure_dovecot_pf()
 {
+	_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
+
+	store_config "$_pf_etc/rdr.conf" <<EO_PF_INSECURE
+# 10.0.0.0/8
+# 192.168.0.0/16
+EO_PF_INSECURE
+
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 # to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-table <insecure_mua> from $_pf_etc/insecure_mua
+table <insecure_mua> persist file "$_pf_etc/insecure_mua"
 
 rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> $(get_jail_ip  dovecot)
 rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> $(get_jail_ip6 dovecot)

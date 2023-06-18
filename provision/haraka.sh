@@ -2,12 +2,8 @@
 
 . mail-toaster.sh || exit
 
-_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
-
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
-		exec.created = 'pfctl -a rdr/haraka -f $_pf_etc/rdr.conf';
-		exec.poststop = 'pfctl -a rdr/haraka -F all';
 		devfs_ruleset = 7;"
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
@@ -104,7 +100,7 @@ configure_haraka_syslog()
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
 		if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
-			tee "$HARAKA_CONF/smtp.ini" <<EO_DLF
+			store_config "$HARAKA_CONF/smtp.ini" <<EO_DLF
 daemon_log_file=/dev/null
 EO_DLF
 		else
@@ -113,7 +109,7 @@ EO_DLF
 		fi
 	fi
 
-	tee "$HARAKA_CONF/log.reader.ini" <<EO_LRC
+	store_config "$HARAKA_CONF/log.reader.ini" <<EO_LRC
 [log]
 file=/var/log/maillog
 EO_LRC
@@ -126,7 +122,7 @@ always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
 	fi
 
 	# send Haraka logs to haraka's /var/log so log-reader can access them
-	tee "$STAGE_MNT/etc/syslog.conf" <<EO_SYSLOG
+	store_config "$STAGE_MNT/etc/syslog.conf" <<EO_SYSLOG
 mail.info					/var/log/maillog
 #*.*			@syslog
 EO_SYSLOG
@@ -187,7 +183,7 @@ configure_haraka_p0f()
 	install_p0f
 
 	if ! grep -qs ^socket_path "$HARAKA_CONF/p0f.ini"; then
-		tee "$HARAKA_CONF/p0f.ini" <<EO_P0F
+		store_config "$HARAKA_CONF/p0f.ini" <<EO_P0F
 [main]
 socket_path=/tmp/.p0f_socket
 EO_P0F
@@ -718,6 +714,7 @@ configure_haraka()
 	configure_haraka_dcc
 	configure_haraka_spf
 
+	_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF
 rdr inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
 rdr inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)

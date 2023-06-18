@@ -34,7 +34,7 @@ create_default_config()
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
 	echo "creating mail-toaster.conf with defaults"
-	tee mail-toaster.conf <<EO_MT_CONF
+	store_config mail-toaster.conf <<EO_MT_CONF
 export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
@@ -204,8 +204,8 @@ if [ "$(uname)" = 'FreeBSD' ]; then
 fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-11.0-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-11.0-RELEASE@p3
+# host OS version, ex: base-13.0-RELEASE and the snapshot name will be the OS
+# patch level, ex: base-13.0-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -476,6 +476,8 @@ add_jail_conf_d()
 $1	{$(get_safe_jail_path $1)
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+		exec.created = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load\";
+		exec.poststop = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload\";
 	}" | tee -a /etc/jail.conf.d/$1.conf
 }
 
@@ -536,13 +538,18 @@ cleanup_staged_fs()
 
 assure_data_volume_mount_is_declared()
 {
-	if ! grep -qs "^$1" /etc/jail.conf; then
-		# config for this jail hasn't been created. It's created
-		# when the data FS is provisioned.
-		return
+	_cnf="/etc/jail.conf.d/$1.conf"
+
+	# config for this jail might not be created yet
+	# (created when the data FS is provisioned)
+	if [ -f "$_cnf" ]; then
+		if ! grep -qs "^$1" "$_cnf"; then return; fi
+	elif [ -f /etc/jail.conf ]; then
+		_cnf="/etc/jail.conf"
+		if ! grep -qs "^$1" "$_cnf"; then return; fi
 	fi
 
-	if grep -qs "data/$1" /etc/jail.conf; then
+	if grep -qs "data/$1" "$_cnf"; then
 		# data fs mountpoint already declared
 		return
 	fi
@@ -555,6 +562,16 @@ assure_data_volume_mount_is_declared()
 	echo "	mount += \"/data/$1 $_mp nullfs rw 0 0\";"
 	echo
 	exit
+}
+
+install_pfrule()
+{
+	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
+		mkdir "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
+	fi
+	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" \
+		"$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
+	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
 }
 
 create_staged_fs()
@@ -574,6 +591,8 @@ create_staged_fs()
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT" || exit 1
+
+	install_pfrule
 
 	stage_mount_ports
 	stage_mount_pkg_cache
@@ -610,7 +629,7 @@ enable_bsd_cache()
 
 	tell_status "enabling bsd_cache"
 
-	tee "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
+	store_config "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
 nameserver $(get_jail_ip dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
@@ -618,15 +637,13 @@ EO_RESOLV
 	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
-	tell_status "updating $_repo_dir/FreeBSD.conf"
-	tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
 	enabled: no
 }
 EO_PKG_CONF
 
-	tell_status "updating $_repo_dir/MT6.conf"
-	tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+	store_config "$_repo_dir/MT6.conf" <<EO_PKG_MT6
 MT6: {
 	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
 	enabled: yes
@@ -1042,7 +1059,7 @@ fetch_and_exec()
 	if [ ! -d provision ]; then mkdir provision; fi
 
 	if [ -d ".git" ]; then
-		tell_status "skipping fetch, running from git"
+		tell_status "running from git, skipping fetch"
 	else
 		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
 	fi
@@ -1066,7 +1083,7 @@ install_sentry()
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios sentry plugin"
 		stage_pkg_install nagios-plugins || exit
-		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master/contrib/check_sentry
+		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry $TOASTER_SRC_URL/contrib/check_sentry
 	fi
 }
 
@@ -1225,7 +1242,7 @@ store_config()
 	if [ -f "$1" ]; then
 		tell_status "preserving $1"
 	else
-		tell_status "saving $1"
+		tell_status "installing $1"
 		cp "$1.dist" "$1" || exit 1
 	fi
 }
@@ -1292,7 +1309,7 @@ configure_pkg_latest()
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
-	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
+	store_config "$REPODIR/FreeBSD.conf" <<EO_PKG
 FreeBSD: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }

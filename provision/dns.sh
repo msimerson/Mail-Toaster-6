@@ -55,7 +55,7 @@ install_access_conf()
 {
 	if [ ! -f "$ZFS_DATA_MNT/dns/access.conf" ]; then
 		tell_status "installing access.conf"
-		tee "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
+		store_config "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
@@ -77,7 +77,7 @@ install_local_conf()
 		tell_status "installing unbound/mt6-local.conf"
 	fi
 
-	tee "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
+	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
 	   $(get_mt6_data)
@@ -111,15 +111,12 @@ include: "/data/mt6-local.conf" \
 enable_control()
 {
 	tell_status "configuring unbound-control"
-	if [ -d "$ZFS_DATA_MNT/dns/control" ]; then
-		tell_status "preserving unbound control"
-		return
+	if [ ! -d "$ZFS_DATA_MNT/dns/control" ]; then
+		tell_status "creating $ZFS_DATA_MNT/dns/control"
+		mkdir "$ZFS_DATA_MNT/dns/control" || exit
 	fi
 
-	tell_status "creating $ZFS_DATA_MNT/dns/control"
-	mkdir "$ZFS_DATA_MNT/dns/control" || exit
-
-	tee -a "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+	store_config "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 

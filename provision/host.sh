@@ -72,12 +72,7 @@ update_sendmail()
 
 install_periodic_conf()
 {
-	if [ -f /etc/periodic.conf ]; then
-		return
-	fi
-
-	tell_status "installing /etc/periodic.conf"
-	tee -a /etc/periodic.conf <<EO_PERIODIC
+	store_config /etc/periodic.conf <<EO_PERIODIC
 # older versions of FreeBSD bark b/c these are defined in
 # /etc/defaults/periodic.conf and do not exist. Hush.
 daily_local=""
@@ -296,21 +291,6 @@ on all your IP addresses!"
 
 add_jail_nat()
 {
-	if grep -qs bruteforce /etc/pf.conf; then
-		# this is an upgrade / reinstall
-		if grep -qs ext_ip6 /etc/pf.conf; then
-			tell_status "preserving pf.conf settings"
-			return
-		fi
-
-		# MT6 without IPv6 rules
-		if [ ! -f "/etc/pf.conf-$(date +%Y.%m.%d)" ]; then
-			# only back up once per day
-			tell_status "Backing up /etc/pf.conf"
-			cp /etc/pf.conf "/etc/pf.conf-$(date +%Y.%m.%d)" || exit
-		fi
-	fi
-
 	get_public_ip
 	get_public_ip ipv6
 
@@ -318,7 +298,7 @@ add_jail_nat()
 	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
 
 	tell_status "setting up the PF firewall and NAT for jails"
-	tee /etc/pf.conf <<EO_PF_RULES
+	store_config "/etc/pf.conf" <<EO_PF_RULES
 ## Macros
 
 ext_if="$PUBLIC_NIC"
@@ -328,7 +308,7 @@ table <ext_ip6> { $PUBLIC_IP6 }
 table <bruteforce> persist
 table <sshguard> persist
 
-## Translation rules
+## Translation / NAT
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
@@ -336,17 +316,22 @@ nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
+## Redirection
+
 rdr-anchor "rdr/*"
 
 ## Filtering rules
 
+# block everything by default. Be careful!
+#block in log on \$ext_if
+
+block in quick from <bruteforce>
+
 block in quick inet  proto tcp from <sshguard> to any port { 22 }
 block in quick inet6 proto tcp from <sshguard> to any port { 22 }
 
-block in quick from <bruteforce>
+anchor "allow/*"
 EO_PF_RULES
-
-	echo; echo "/etc/pf.conf has been installed"; echo
 
 	kldstat -q -m pf || kldload pf || exit 1
 
@@ -437,28 +422,25 @@ enable_jails()
 
 update_ports_tree()
 {
-	tell_status "updating FreeBSD ports tree"
-
 	if [ ! -t 0 ]; then
 		echo "Not interactive, it's on you to update the ports tree!"
 		return
 	fi
 
 	if [ -d "/usr/ports/.git" ]; then
-		echo "updating ports with git"
+		tell_status "updating FreeBSD ports tree (git)"
 		cd "/usr/ports/" || return
 		git pull
 		cd - || return
-		return
-	fi
-
-	echo "updating ports with portsnap"
-	portsnap fetch || exit
-
-	if [ -d /usr/ports/mail/vpopmail ]; then
-		portsnap update || portsnap extract || exit
 	else
-		portsnap extract || exit
+		tell_status "updating FreeBSD ports tree (portsnap)"
+		portsnap fetch || exit
+
+		if [ -d /usr/ports/mail/vpopmail ]; then
+			portsnap update || portsnap extract || exit
+		else
+			portsnap extract || exit
+		fi
 	fi
 }
 

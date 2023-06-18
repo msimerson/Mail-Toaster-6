@@ -88,7 +88,7 @@ install_horde_mysql()
 
 	local _horde_dir="$STAGE_MNT/usr/local/www/horde/config"
 
-	tee   "$_horde_dir/conf.php" << EO_HORDE_CONF
+	store_config "$_horde_dir/conf.php" << EO_HORDE_CONF
 	<?php
 
 	\$conf['vhosts'] = false;
@@ -222,7 +222,7 @@ install_horde_mysql()
 
 EO_HORDE_CONF
 
-	tee  -a "$_horde_dir/prefs.php" << 'EO_HORDE_PREFS'
+	store_config -a "$_horde_dir/prefs.php" << 'EO_HORDE_PREFS'
 	$_prefs['initial_application']['value'] = 'imp';
 EO_HORDE_PREFS
 
@@ -246,7 +246,7 @@ configure_horde_imp()
 
 	local _horde_imp_dir="$STAGE_MNT/usr/local/www/horde/imp/config"
 
-	tee  "$_horde_imp_dir/conf.php" << 'EO_HORDE_IMP_CONF'
+	store_config "$_horde_imp_dir/conf.php" << 'EO_HORDE_IMP_CONF'
 	<?php
 	/* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
 	// $Id: 48bf0b4cc99e7941b4432a29e70e145b8d654cc7 $
@@ -283,7 +283,7 @@ configure_horde_ingo()
 {
 	local _horde_ingo="$STAGE_MNT/usr/local/www/horde/ingo/config"
 
-	tee "$_horde_ingo/conf.php" << 'EO_INGO_CONF'
+	store_config "$_horde_ingo/conf.php" << 'EO_INGO_CONF'
 	<?php
 	/* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
 	// $Id: 48142d13ef06c07f56427fe5b43981631bdbfdb0 $
@@ -296,7 +296,7 @@ configure_horde_ingo()
 	/* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 EO_INGO_CONF
 
-	tee "$_horde_ingo/hooks.php" << 'EO_INGO_HOOKS'
+	store_config "$_horde_ingo/hooks.php" << 'EO_INGO_HOOKS'
 	<?php
 	class Ingo_Hooks
 	{
@@ -327,7 +327,7 @@ EO_INGO_CONF
 EO_INGO_HOOKS
 
 
-	tee "$_horde_ingo/backends.local.php" << EO_INGO_BACKEND
+	store_config "$_horde_ingo/backends.local.php" << EO_INGO_BACKEND
 	<?php
 
 	/* IMAP Example */

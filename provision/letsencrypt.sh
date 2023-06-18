@@ -11,7 +11,7 @@ install_letsencrypt()
 
 install_deploy_haproxy()
 {
-	tee "$_deploy/haproxy" <<'EO_LE_HAPROXY'
+	store_config "$_deploy/haproxy" <<'EO_LE_HAPROXY'
 #!/bin/sh
 
 has_differences() {
@@ -86,7 +86,7 @@ EO_LE_HAPROXY
 
 install_deploy_dovecot()
 {
-	tee "$_deploy/dovecot" <<'EO_LE_DOVECOT'
+	store_config "$_deploy/dovecot" <<'EO_LE_DOVECOT'
 #!/bin/sh
 
 assure_file() {
@@ -162,7 +162,7 @@ EO_LE_DOVECOT
 
 install_deploy_haraka()
 {
-	tee "$_deploy/haraka" <<'EO_LE_HARAKA'
+	store_config "$_deploy/haraka" <<'EO_LE_HARAKA'
 #!/bin/sh
 
 assure_file() {
@@ -247,7 +247,7 @@ EO_LE_HARAKA
 
 install_deploy_mysql()
 {
-	tee "$_deploy/mysql" <<'EO_LE_MYSQL'
+	store_config "$_deploy/mysql" <<'EO_LE_MYSQL'
 #!/bin/sh
 
 assure_file() {
@@ -333,7 +333,7 @@ EO_LE_MYSQL
 
 install_deploy_mailtoaster()
 {
-	tee "$_deploy/mailtoaster" <<'EO_LE_MT'
+	store_config "$_deploy/mailtoaster" <<'EO_LE_MT'
 #!/usr/local/bin/bash
 
 #domain keyfile certfile cafile fullchain

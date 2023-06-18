@@ -76,7 +76,7 @@ configure_nginx_with_path()
 		_uri_path="/wpn"
 	fi
 
-	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_WP_NGINX'
+	store_config "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_WP_NGINX'
 
 	server_name     wordpress;
 	index		index.php;

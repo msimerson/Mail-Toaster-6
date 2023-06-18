@@ -110,7 +110,7 @@ install_nictool_server() {
 install_apache_setup()
 {
 	_htcnf="$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf"
-	tee "$_htcnf" <<EO_NICTOOL_APACHE24
+	store_config "$_htcnf" <<EO_NICTOOL_APACHE24
 LoadModule perl_module libexec/apache24/mod_perl.so
 PerlRequire /usr/local/nictool/client/lib/nictoolclient.conf
 
