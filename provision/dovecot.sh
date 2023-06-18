@@ -2,14 +2,14 @@
 
 . mail-toaster.sh || exit
 
-_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
+_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";
-		exec.created = 'pfctl -a rdr/haproxy -f $_pf_etc/rdr.conf';
-		exec.poststop = 'pfctl -a rdr/haproxy -F all';"
+		exec.created = '$_pf_etc/pfrule.sh load';
+		exec.poststop = '$_pf_etc/pfrule.sh unload';"
 
 mt6-include vpopmail
 
@@ -523,9 +523,14 @@ configure_sieve()
 
 configure_dovecot_pf()
 {
+	store_config "$_pf_etc/rdr.conf" <<EO_PF_INSECURE
+# 10.0.0.0/8
+# 192.168.0.0/16
+EO_PF_INSECURE
+
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 # to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-table <insecure_mua> from $_pf_etc/insecure_mua
+table <insecure_mua> persist file "$_pf_etc/insecure_mua"
 
 rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> $(get_jail_ip  dovecot)
 rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> $(get_jail_ip6 dovecot)

@@ -308,7 +308,7 @@ table <ext_ip6> { $PUBLIC_IP6 }
 table <bruteforce> persist
 table <sshguard> persist
 
-## Translation rules
+## Translation / NAT
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
@@ -316,14 +316,21 @@ nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
+## Redirection
+
 rdr-anchor "rdr/*"
 
 ## Filtering rules
 
+# block everything by default. Be careful!
+#block in log on \$ext_if
+
+block in quick from <bruteforce>
+
 block in quick inet  proto tcp from <sshguard> to any port { 22 }
 block in quick inet6 proto tcp from <sshguard> to any port { 22 }
 
-block in quick from <bruteforce>
+anchor "allow/*"
 EO_PF_RULES
 
 	kldstat -q -m pf || kldload pf || exit 1
