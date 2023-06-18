@@ -585,7 +585,8 @@ create_staged_fs()
 	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
 		mkdir "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
 	fi
-	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
+	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" \
+		"$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
 	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
 
 	stage_mount_ports
@@ -1077,7 +1078,7 @@ install_sentry()
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios sentry plugin"
 		stage_pkg_install nagios-plugins || exit
-		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master/contrib/check_sentry
+		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry $TOASTER_SRC_URL/contrib/check_sentry
 	fi
 }
 
