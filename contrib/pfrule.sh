@@ -17,6 +17,8 @@ usage() {
 }
 
 for _f in "$_etcpath"/*.conf; do
+    [ -f "$_f" ] || continue
+
     _anchor=$(basename $_f .conf)  # nat, rdr, allow
     _jailname=$(basename "$(dirname "$(dirname $_etcpath)")")
 

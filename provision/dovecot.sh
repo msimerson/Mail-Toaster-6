@@ -521,7 +521,7 @@ configure_dovecot_pf()
 {
 	_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
 
-	store_config "$_pf_etc/rdr.conf" <<EO_PF_INSECURE
+	store_config "$_pf_etc/insecure_mua" <<EO_PF_INSECURE
 # 10.0.0.0/8
 # 192.168.0.0/16
 EO_PF_INSECURE
@@ -535,6 +535,12 @@ rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> $(get_jail_ip6 dov
 
 rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> $(get_jail_ip  dovecot)
 rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> $(get_jail_ip6 dovecot)
+EO_PF_RDR
+
+	store_config "$_pf_etc/allow.conf" <<EO_PF_RDR
+mua_ports = "{ 110 143 993 995 }"
+table <mua_servers> persist { $(get_jail_ip dovecot), $(get_jail_ip6 dovecot) }
+pass in quick proto tcp from any to <mua_servers> port $mua_ports
 EO_PF_RDR
 }
 
