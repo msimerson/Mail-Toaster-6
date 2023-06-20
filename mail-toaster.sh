@@ -547,6 +547,8 @@ assure_data_volume_mount_is_declared()
 	elif [ -f /etc/jail.conf ]; then
 		_cnf="/etc/jail.conf"
 		if ! grep -qs "^$1" "$_cnf"; then return; fi
+	else
+		return
 	fi
 
 	if grep -qs "data/$1" "$_cnf"; then
@@ -566,8 +568,10 @@ assure_data_volume_mount_is_declared()
 
 install_pfrule()
 {
+	tell_status "setting up etc/pf.conf.d"
+
 	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
-		mkdir "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
+		mkdir -p "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
 	fi
 	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" \
 		"$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
@@ -629,7 +633,7 @@ enable_bsd_cache()
 
 	tell_status "enabling bsd_cache"
 
-	store_config "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
+	store_config "$STAGE_MNT/etc/resolv.conf" "overwrite" <<EO_RESOLV
 nameserver $(get_jail_ip dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
@@ -1231,19 +1235,19 @@ unprovision()
 
 store_config()
 {
-	# $1 - path to config file, STDIN is file contents
+	# $1 - path to config file, $2 - overwrite, STDIN is file contents
 	if [ ! -d "$(dirname $1)" ]; then
 		tell_status "creating $(dirname $1)"
 		mkdir -p "$(dirname $1)" || exit 1
 	fi
 
-	cat - > "$1.dist" || exit 1
+	cat - > "$1.mt6" || exit 1
 
-	if [ -f "$1" ]; then
-		tell_status "preserving $1"
-	else
+	if [ ! -f "$1" ] || [ -n "$2" ]; then
 		tell_status "installing $1"
-		cp "$1.dist" "$1" || exit 1
+		cp "$1.mt6" "$1" || exit 1
+	else
+		tell_status "preserving $1"
 	fi
 }
 
@@ -1309,7 +1313,7 @@ configure_pkg_latest()
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
-	store_config "$REPODIR/FreeBSD.conf" <<EO_PKG
+	store_config "$REPODIR/FreeBSD.conf" "overwrite" <<EO_PKG
 FreeBSD: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }

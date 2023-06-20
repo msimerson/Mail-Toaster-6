@@ -49,7 +49,7 @@ EO_BASH_PROFILE
 configure_bourne_shell()
 {
 	tell_status "customizing bourne shell prompt"
-	store_config "$1/etc/profile.d/toaster.sh" <<'EO_BOURNE_SHELL'
+	tee -a "$1/etc/profile.d/toaster.sh" <<'EO_BOURNE_SHELL'
 alias h='fc -l'
 alias j=jobs
 alias m=$PAGER

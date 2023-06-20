@@ -540,7 +540,7 @@ EO_PF_RDR
 	store_config "$_pf_etc/allow.conf" <<EO_PF_RDR
 mua_ports = "{ 110 143 993 995 }"
 table <mua_servers> persist { $(get_jail_ip dovecot), $(get_jail_ip6 dovecot) }
-pass in quick proto tcp from any to <mua_servers> port $mua_ports
+pass in quick proto tcp from any to <mua_servers> port \$mua_ports
 EO_PF_RDR
 }
 
