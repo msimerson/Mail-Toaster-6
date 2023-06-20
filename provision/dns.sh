@@ -53,9 +53,7 @@ get_mt6_data()
 
 install_access_conf()
 {
-	if [ ! -f "$ZFS_DATA_MNT/dns/access.conf" ]; then
-		tell_status "installing access.conf"
-		store_config "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
+	store_config "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
@@ -64,20 +62,11 @@ install_access_conf()
 	   access-control: $JAIL_NET6::/64 allow
 
 EO_UNBOUND_ACCESS
-	else
-		tell_status "preserving access.conf"
-	fi
 }
 
 install_local_conf()
 {
-	if [ -f "$ZFS_DATA_MNT/dns/mt6-local.conf" ]; then
-		tell_status "updating unbound/mt6-local.conf"
-	else
-		tell_status "installing unbound/mt6-local.conf"
-	fi
-
-	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
+	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
 	   $(get_mt6_data)
@@ -116,7 +105,7 @@ enable_control()
 		mkdir "$ZFS_DATA_MNT/dns/control" || exit
 	fi
 
-	store_config "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+	tee -a "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 

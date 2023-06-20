@@ -105,7 +105,7 @@ install_spamassassin_razor()
 		mkdir "$STAGE_MNT/etc/newsyslog.conf.d" || exit
 	fi
 
-	store_config "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent" <<EO_RAZOR
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent" <<EO_RAZOR
 /var/log/razor-agent.log    600 5   1000 *  Z
 EO_RAZOR
 }

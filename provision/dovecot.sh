@@ -4,7 +4,6 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/dovecot \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail
@@ -229,7 +228,7 @@ configure_dovecot_sql_conf()
 		# shellcheck disable=SC2034
 		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
-		store_config "$_sqlconf" <<EO_DOVECOT_SQL
+		store_config "$_sqlconf" "overwrite" <<EO_DOVECOT_SQL
   driver = mysql
   default_pass_scheme = PLAIN
   connect = host=mysql user=vpopmail password=$_vpass dbname=vpopmail

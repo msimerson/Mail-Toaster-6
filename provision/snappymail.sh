@@ -91,7 +91,7 @@ install_default_json()
 	fi
 
 	local _djson="$_rlconfdir/domains/default.json"
-	store_config "$_djson" <<EO_JSON
+	store_config "$_djson" "overwrite" <<EO_JSON
 {
     "name": "*",
     "IMAP": {

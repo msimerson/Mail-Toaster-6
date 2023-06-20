@@ -95,7 +95,7 @@ install_webmail()
 
 install_index()
 {
-	store_config "$_htdocs/index.html" <<'EO_INDEX'
+	store_config "$_htdocs/index.html" "overwrite" <<'EO_INDEX'
 <html>
 <head>
  <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>

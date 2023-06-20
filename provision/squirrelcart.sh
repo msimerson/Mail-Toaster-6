@@ -109,7 +109,7 @@ configure_squirrelcart_cron()
 	fi
 
 	tell_status "installing periodic cron task"
-	store_config "$_perdir/squirrelcart" <<EO_SQ_CRON
+	tee "$_perdir/squirrelcart" <<EO_SQ_CRON
 #!/bin/sh
 /usr/local/bin/php /usr/local/www/squirrelcart/squirrelcart/cron.php
 EO_SQ_CRON

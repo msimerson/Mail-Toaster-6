@@ -39,7 +39,7 @@ write_pass_to_conf()
 	fi
 
 	local _my_cnf="$STAGE_MNT/root/.my.cnf"
-	store_config "$_my_cnf" <<EO_MY_CNF
+	tee "$_my_cnf" <<EO_MY_CNF
 [client]
 user = root
 password = $TOASTER_MYSQL_PASS

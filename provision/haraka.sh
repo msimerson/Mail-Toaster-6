@@ -109,7 +109,7 @@ EO_DLF
 		fi
 	fi
 
-	store_config "$HARAKA_CONF/log.reader.ini" <<EO_LRC
+	store_config "$HARAKA_CONF/log.reader.ini" "overwrite" <<EO_LRC
 [log]
 file=/var/log/maillog
 EO_LRC
@@ -122,7 +122,7 @@ always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
 	fi
 
 	# send Haraka logs to haraka's /var/log so log-reader can access them
-	store_config "$STAGE_MNT/etc/syslog.conf" <<EO_SYSLOG
+	store_config "$STAGE_MNT/etc/syslog.conf" "overwrite" <<EO_SYSLOG
 mail.info					/var/log/maillog
 #*.*			@syslog
 EO_SYSLOG
@@ -183,7 +183,7 @@ configure_haraka_p0f()
 	install_p0f
 
 	if ! grep -qs ^socket_path "$HARAKA_CONF/p0f.ini"; then
-		store_config "$HARAKA_CONF/p0f.ini" <<EO_P0F
+		store_config "$HARAKA_CONF/p0f.ini" "overwrite" <<EO_P0F
 [main]
 socket_path=/tmp/.p0f_socket
 EO_P0F

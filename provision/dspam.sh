@@ -64,7 +64,7 @@ configure_dspam()
 
 	configure_dspam_mysql
 
-	store_config "$_etc/dspam.conf" <<EO_DSPAM_MYSQL
+	tee -a "$_etc/dspam.conf" <<EO_DSPAM_MYSQL
 MySQLServer             $(get_jail_ip mysql)
 MySQLUser               dspam
 MySQLPass               $_dpass
