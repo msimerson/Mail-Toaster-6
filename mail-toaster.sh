@@ -228,8 +228,8 @@ if [ "$(uname)" = 'FreeBSD' ]; then
 fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-13.0-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-13.0-RELEASE@p3
+# host OS version, eg: base-13.0-RELEASE and the snapshot name will be the OS
+# patch level, eg: base-13.0-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -855,7 +855,7 @@ stage_pkg_install()
 
 stage_port_install()
 {
-	# $1 is the port directory (ex: mail/dovecot)
+	# $1 is the port directory (eg: mail/dovecot)
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
 
@@ -1005,6 +1005,8 @@ mount_data()
 
 unmount_data()
 {
+	# $1 is ZFS fs (eg: /data/mysql)
+	# $2 is FS mountpoint (eg: /jails/mysql/data)
 	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
 
 	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
@@ -1026,7 +1028,6 @@ data_mountpoint()
 
 	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
-		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
 		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
 	esac
 

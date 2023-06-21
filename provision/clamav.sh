@@ -208,21 +208,22 @@ configure_clamd()
 
 configure_freshclam()
 {
-	tell_status "configuring freshclam"
-
 	local _conf="$STAGE_MNT/data/etc/freshclam.conf"
-	if [ ! -f "$_conf" ]; then
+	if [ -f "$_conf" ]; then
+		tell_status "freshclam already configured"
+	else
+		tell_status "configuring freshclam"
 		cp "$STAGE_MNT/usr/local/etc/freshclam.conf" "$_conf"
-	fi
 
-	sed -i.bak \
-		-e 's/DatabaseDirectory \/var\/db\/clamav/DatabaseDirectory \/data\/db/' \
-		-e 's/^UpdateLogFile \/var\/log\/clamav/UpdateLogFile \/data\/log/' \
-		-e 's/^#LogSyslog/LogSyslog/' \
-		-e 's/^#LogFacility/LogFacility/' \
-		-e 's/^#SafeBrowsing/SafeBrowsing/' \
-		-e 's/^#DatabaseMirror/DatabaseMirror/; s/XY/us/' \
-		"$_conf" || exit
+		sed -i.bak \
+			-e 's/DatabaseDirectory \/var\/db\/clamav/DatabaseDirectory \/data\/db/' \
+			-e 's/^UpdateLogFile \/var\/log\/clamav/UpdateLogFile \/data\/log/' \
+			-e 's/^#LogSyslog/LogSyslog/' \
+			-e 's/^#LogFacility/LogFacility/' \
+			-e 's/^#SafeBrowsing/SafeBrowsing/' \
+			-e 's/^#DatabaseMirror/DatabaseMirror/; s/XY/us/' \
+			"$_conf" || exit
+	fi
 
 	echo "done"
 	sed -i '' \

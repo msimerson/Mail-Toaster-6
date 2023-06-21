@@ -149,7 +149,7 @@ enable_security_periodic()
 	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
 
-auto_remove="vim-console"
+auto_remove="vim-console vim-lite"
 for _pkg in $auto_remove;
 do
   /usr/sbin/pkg delete "$_pkg"
@@ -327,6 +327,12 @@ install_vimrc()
 	fi
 
 	fetch -m -o "$_vimdir/vimrc" https://raw.githubusercontent.com/nandalopes/vim-for-server/main/vimrc
+	sed -i '' \
+		-e 's/^syntax on/" syntax on/' \
+		-e 's/^colorscheme/" colorscheme/' \
+		-e 's/^set number/" set number/' \
+		-e 's/^set relativenumber/" set relativenumber/' \
+		"$_vimdir/vimrc"
 }
 
 install_base()

@@ -3,11 +3,18 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/mysql \$path/var/db/mysql nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 install_db_server()
 {
+	for _d in etc db; do
+		_path="$STAGE_MNT/data/$_d"
+		if [ ! -d "$_path" ]; then
+			mkdir "$_path" || exit 1
+			chown 88:88 "$_path"
+		fi
+	done
+
 	# Check if MariaDB needs to be installed
 	if [ "$TOASTER_MARIADB" = "1" ]; then
 		install_mariadb
@@ -49,6 +56,8 @@ EO_MY_CNF
 
 configure_mysql_keys()
 {
+	local _dbdir="$ZFS_DATA_MNT/mysql/db"
+
 	if [ ! -f "$_dbdir/private_key.pem" ]; then
 		tell_status "enabling sha256_password support"
 		openssl genrsa -out "$_dbdir/private_key.pem" 2048
@@ -82,7 +91,6 @@ configure_mysql_root_password()
 configure_mysql()
 {
 	tell_status "configuring mysql"
-	stage_sysrc mysql_optfile="/var/db/mysql/my.cnf"
 	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
 		sed -i '' \
 			-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
@@ -91,39 +99,41 @@ configure_mysql()
 		# cp "$STAGE_MNT/usr/local/etc/mysql/my.cnf" "$STAGE_MNT/data/etc/my.cnf"
 	fi
 
-	preserve_file /etc/my.cnf
+	stage_sysrc mysql_enable=YES
+	stage_sysrc mysql_dbdir="/data/db"
+	stage_sysrc mysql_optfile="/data/etc/extra.cnf"
 
-	local _dbdir="$ZFS_DATA_MNT/mysql"
-	if [ ! -d "$_dbdir" ]; then mkdir "$_dbdir" || exit 1; fi
+	local _dbdir="$ZFS_DATA_MNT/mysql/db"
 
-	local _my_cnf="$_dbdir/my.cnf"
-	if [ ! -f "$_my_cnf" ]; then
-		tell_status "installing $_my_cnf"
-		tee -a "$_my_cnf" <<EO_MY_CNF
+	local _my_cnf="$STAGE_MNT/data/etc/extra.cnf"
+	store_config "$_my_cnf" <<EO_MY_CNF
 [mysqld]
+datadir                         = /data/db
+innodb_data_home_dir            = /data/db
+innodb_log_group_home_dir       = /data/db
+
 innodb_doublewrite = off
 innodb_file_per_table = 1
 innodb_checksum_algorithm = none
 innodb_flush_neighbors = 0
 EO_MY_CNF
-	fi
-
-	configure_mysql_keys
-	configure_mysql_root_password
 }
 
 start_mysql()
 {
-	tell_status "starting mysql"
-	stage_sysrc mysql_enable=YES
 
-	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
-		# update, mysql jail exists, unmount the data dir, two mysql's
+	tell_status "starting mysql"
+
+	if [ -d "$ZFS_JAIL_MNT/mysql/data/db/mysql" ]; then
+		# mysql jail exists, unmount the data dir as two mysql's
 		# cannot access the data concurrently
+		tell_status "unmounting live mysql data FS"
 		unmount_data mysql
 	fi
 
 	stage_exec service mysql-server start || exit
+	configure_mysql_root_password
+	configure_mysql_keys
 }
 
 test_mysql()
@@ -145,7 +155,7 @@ base_snapshot_exists || exit
 create_staged_fs mysql
 start_staged_jail mysql
 install_db_server
-start_mysql
 configure_mysql
+start_mysql
 test_mysql
 promote_staged_jail mysql
