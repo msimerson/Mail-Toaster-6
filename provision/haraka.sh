@@ -49,7 +49,7 @@ install_geoip_dbs()
 
 	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+		mount += \"$ZFS_DATA_MNT/geoip/db \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 }
 
 add_devfs_rule()

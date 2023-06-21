@@ -200,7 +200,6 @@ configure_clamd()
 
 	echo "done"
 
-	stage_sysrc	clamav_clamd_flags="-c /data/etc/clamd.conf"
 	sed -i '' \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
@@ -226,7 +225,6 @@ configure_freshclam()
 		"$_conf" || exit
 
 	echo "done"
-	stage_sysrc clamav_freshclam_flags="--config-file=/data/etc/freshclam.conf --datadir=/data/db"
 	sed -i '' \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
@@ -246,9 +244,11 @@ start_clamav()
 
 	tell_status "starting ClamAV daemons"
 	stage_sysrc clamav_clamd_enable=YES
+	stage_sysrc clamav_clamd_flags="-c /data/etc/clamd.conf"
 	stage_exec service clamav-clamd start
 
 	stage_sysrc clamav_freshclam_enable=YES
+	stage_sysrc clamav_freshclam_flags="--config-file=/data/etc/freshclam.conf --datadir=/data/db"
 	stage_exec service clamav-freshclam start
 }
 

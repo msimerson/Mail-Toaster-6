@@ -3,8 +3,7 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 preflight_check() {
 	if [ -z "$MAXMIND_LICENSE_KEY" ]; then
@@ -30,6 +29,11 @@ install_geoip_mm_mirror()
 
 install_geoip()
 {
+	for _d in etc db; do
+		_path="$STAGE_MNT/data/$_d"
+		[ -d "$_path" ] || mkdir "$_path"
+	done
+
 	if [ "$GEOIP_UPDATER" = "geoipupdate" ]; then
 		install_geoip_geoipupdate
 	else
@@ -41,6 +45,7 @@ configure_geoip_geoipupdate()
 {
 	tee "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO
 #!/bin/sh
+export MAXMIND_DB_DIR=/data/db/
 /usr/local/bin/geoipupdate
 EO_GEO
 }
@@ -49,6 +54,7 @@ configure_geoip_mm_mirror()
 {
 	tee "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO_MM
 #!/bin/sh
+export MAXMIND_DB_DIR=/data/db/
 export MAXMIND_LICENSE_KEY="$MAXMIND_LICENSE_KEY"
 /usr/local/bin/node /usr/local/lib/node_modules/maxmind-geolite-mirror
 EO_GEO_MM
@@ -82,16 +88,16 @@ start_geoip()
 	if [ "$GEOIP_UPDATER" = "geoipupdate" ]; then
 		stage_exec /usr/local/bin/geoipupdate
 	else
-		stage_exec /usr/local/bin/maxmind-geolite-mirror
+		stage_exec env MAXMIND_DB_DIR=/data/db/ /usr/local/bin/maxmind-geolite-mirror
 	fi
 }
 
 test_geoip()
 {
 	echo "testing geoip..."
-	stage_exec ls /usr/local/share/GeoIP
+	stage_exec ls /data/db/
 
-	test -f "$STAGE_MNT/usr/local/share/GeoIP/GeoLite2-Country.mmdb" || exit
+	test -f "$STAGE_MNT/data/db/GeoLite2-Country.mmdb" || exit
 	echo "it worked"
 }
 
