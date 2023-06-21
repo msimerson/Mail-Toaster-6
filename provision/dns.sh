@@ -102,10 +102,9 @@ include: "/data/mt6-local.conf" \
 
 enable_control()
 {
-	tell_status "configuring unbound-control"
-	if [ ! -d "$ZFS_DATA_MNT/dns/control" ]; then
-		tell_status "creating $ZFS_DATA_MNT/dns/control"
-		mkdir "$ZFS_DATA_MNT/dns/control" || exit
+	if [ -d "$ZFS_DATA_MNT/dns/control" ]; then
+		tell_status "preserving unbound-control"
+		return
 	fi
 
 	tee "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF

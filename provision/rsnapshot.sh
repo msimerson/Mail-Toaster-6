@@ -27,7 +27,7 @@ configure_rsnapshot()
 			tee "$_pdir/$p/rsnapshot" <<EO_RSNAP
 /usr/local/bin/rsnapshot -c /data/etc/rsnapshot.conf $p
 EO_RSNAP
-            chmod 755 "$_pdir/$p/rsnapshot"
+			chmod 755 "$_pdir/$p/rsnapshot"
 		fi
 	done
 
@@ -47,7 +47,7 @@ EO_RSNAP
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$ZFS_DATA_MNT/rsnapshot/ssh/*" "$STAGE_MNT/root/.ssh"
+		cp "$ZFS_DATA_MNT/rsnapshot/ssh/*" "$STAGE_MNT/root/.ssh" || exit 1
 	fi
 }
 
