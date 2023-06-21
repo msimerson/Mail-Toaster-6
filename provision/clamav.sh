@@ -3,8 +3,7 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/clamav \$path/var/db/clamav nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
 
 install_clamav_fangfrisch()
 {
@@ -158,6 +157,12 @@ install_clamav()
 	stage_pkg_install clamav || exit
 	echo "done"
 
+	for _d in etc db log; do
+		_path="$STAGE_MNT/data/$_d"
+		[ -d "$_path" ] || mkdir "$_path"
+	done
+	stage_exec chown clamav:clamav /data/log /data/db
+
 	install_clamav_nrpe
 	install_clamav_unofficial
 	install_clamav_fangfrisch
@@ -166,46 +171,66 @@ install_clamav()
 configure_clamd()
 {
 	tell_status "configuring clamd"
-	local _conf="$STAGE_MNT/usr/local/etc/clamd.conf"
+	local _conf="$STAGE_MNT/data/etc/clamd.conf"
+	if [ ! -f "$_conf" ]; then
+		cp "$STAGE_MNT/usr/local/etc/clamd.conf" "$_conf"
+	fi
 
 	sed -i.bak \
-		-e '/^#TCPSocket/   s/^#//' \
-		-e '/^#LogFacility/ s/^#//' \
-		-e '/^#LogSyslog/   s/^#//; s/no/yes/' \
-		-e '/^LogFile /     s/^L/#L/' \
-		-e '/^#DetectPUA/   s/^#//' \
-		-e '/^#ExtendedDetectionInfo/   s/^#//' \
-		-e '/^#DetectBrokenExecutables/ s/^#//' \
-		-e '/^#StructuredDataDetection/ s/^#//' \
-		-e '/^#ArchiveBlockEncrypted/   s/^#//; s/no/yes/' \
-		-e '/^#OLE2BlockMacros/         s/^#//; s/no/yes/'  \
-		-e '/^#PhishingSignatures yes/  s/^#//' \
-		-e '/^#PhishingScanURLs/        s/^#//' \
-		-e '/^#HeuristicScanPrecedence/ s/^#//; s/yes/no/' \
-		-e '/^#StructuredDataDetection/ s/^#//' \
-		-e '/^#StructuredMinCreditCardCount/ s/^#//; s/5/10/' \
-		-e '/^#StructuredMinSSNCount/        s/^#//; s/5/10/' \
-		-e '/^#StructuredSSNFormatStripped/  s/^#//; s/yes/no/' \
-		-e '/^#ScanArchive/ s/^#//' \
+		-e 's/^#TCPSocket/TCPSocket/' \
+		-e 's/^#LogFacility/LogFacility/' \
+		-e 's/^#LogSyslog no/LogSyslog yes/' \
+		-e 's/LogFile \/var\/log\/clamav/LogFile \/data\/log/' \
+		-e 's/^#DetectPUA/DetectPUA/' \
+		-e 's/DatabaseDirectory \/var\/db\/clamav/DatabaseDirectory \/data\/db/' \
+		-e 's/^#ExtendedDetectionInfo/ExtendedDetectionInfo/' \
+		-e 's/^#DetectBrokenExecutables/DetectBrokenExecutables/' \
+		-e 's/^#StructuredDataDetection/StructuredDataDetection/' \
+		-e 's/^#ArchiveBlockEncrypted no/ArchiveBlockEncrypted yes/' \
+		-e 's/^#OLE2BlockMacros no/OLE2BlockMacros yes/' \
+		-e 's/^#PhishingSignatures /PhishingSignatures /' \
+		-e 's/^#PhishingScanURLs/PhishingScanURLs/' \
+		-e 's/^#HeuristicScanPrecedence yes/HeuristicScanPrecedence no/' \
+		-e 's/^#StructuredDataDetection/StructuredDataDetection/' \
+		-e 's/^#StructuredMinCreditCardCount 5/StructuredMinCreditCardCount 10/' \
+		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 10/' \
+		-e 's/^#StructuredSSNFormatStripped yes/StructuredSSNFormatStripped no/' \
+		-e '/^#ScanArchive/ s/^#ScanArchive/ScanArchive/' \
 		"$_conf" || exit
 
 	echo "done"
+
+	stage_sysrc	clamav_clamd_flags="-c /data/etc/clamd.conf"
+	sed -i '' \
+		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
+		-e 's/\/var\/db\/clamav/\/data\/db/g' \
+		"$STAGE_MNT/usr/local/etc/rc.d/clamav-clamd"
 }
 
 configure_freshclam()
 {
 	tell_status "configuring freshclam"
-	local _conf="$STAGE_MNT/usr/local/etc/freshclam.conf"
+
+	local _conf="$STAGE_MNT/data/etc/freshclam.conf"
+	if [ ! -f "$_conf" ]; then
+		cp "$STAGE_MNT/usr/local/etc/freshclam.conf" "$_conf"
+	fi
 
 	sed -i.bak \
-		-e '/^UpdateLogFile/  s/^#//' \
-		-e '/^#LogSyslog/ s/^#//' \
-		-e '/^#LogFacility/ s/^#//' \
-		-e '/^#SafeBrowsing/ s/^#//' \
-		-e '/^#DatabaseMirror/ s/^#//; s/XY/us/' \
+		-e 's/DatabaseDirectory \/var\/db\/clamav/DatabaseDirectory \/data\/db/' \
+		-e 's/^UpdateLogFile \/var\/log\/clamav/UpdateLogFile \/data\/log/' \
+		-e 's/^#LogSyslog/LogSyslog/' \
+		-e 's/^#LogFacility/LogFacility/' \
+		-e 's/^#SafeBrowsing/SafeBrowsing/' \
+		-e 's/^#DatabaseMirror/DatabaseMirror/; s/XY/us/' \
 		"$_conf" || exit
 
 	echo "done"
+	stage_sysrc clamav_freshclam_flags="--config-file=/data/etc/freshclam.conf --datadir=/data/db"
+	sed -i '' \
+		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
+		-e 's/\/var\/db\/clamav/\/data\/db/g' \
+		"$STAGE_MNT/usr/local/etc/rc.d/clamav-freshclam"
 }
 
 configure_clamav()
@@ -217,7 +242,7 @@ configure_clamav()
 start_clamav()
 {
 	tell_status "downloading virus definition databases"
-	stage_exec freshclam
+	stage_exec freshclam --config-file=/data/etc/freshclam.conf --datadir=/data/db
 
 	tell_status "starting ClamAV daemons"
 	stage_sysrc clamav_clamd_enable=YES

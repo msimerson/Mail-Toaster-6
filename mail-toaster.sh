@@ -1026,7 +1026,6 @@ data_mountpoint()
 
 	case "$1" in
 		avg )       echo "$_base_dir/data/avg"; return ;;
-		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
 		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
 		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
 		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
