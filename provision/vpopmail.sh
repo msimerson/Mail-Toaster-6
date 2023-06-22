@@ -6,7 +6,7 @@ export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+		mount += \"$ZFS_DATA_MNT/vpopmail/home \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail
 mt6-include mysql
@@ -95,9 +95,6 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 
-	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
-		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
-	fi
 	stage_port_install mail/qmailadmin || exit
 
 	install_lighttpd
@@ -202,6 +199,13 @@ install_quota_report()
 
 install_vpopmail()
 {
+	for _d in etc home; do
+		_path="$STAGE_MNT/data/$_d"
+		if [ ! -d "$_path" ]; then
+			mkdir "$_path" || exit 1
+		fi
+	done
+
 	install_qmail
 	configure_qmail
 	install_maildrop
@@ -242,7 +246,7 @@ configure_vpopmail()
 	stage_pkg_install p5-Package-Constants
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
+	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
 		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 "$TOASTER_MAIL_DOMAIN"
 	fi

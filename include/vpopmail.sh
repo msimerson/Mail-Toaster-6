@@ -67,7 +67,7 @@ install_qmail()
 
 	for _cdir in control users
 	do
-		local _vmdir="$ZFS_DATA_MNT/vpopmail/qmail-${_cdir}"
+		local _vmdir="$ZFS_DATA_MNT/vpopmail/home/qmail-${_cdir}"
 		if [ ! -d "$_vmdir" ]; then
 			tell_status "creating $_vmdir"
 			mkdir -p "$_vmdir" || exit
@@ -87,7 +87,7 @@ install_qmail()
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 
 	tell_status "setting qmail hostname to $TOASTER_HOSTNAME"
-	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/qmail-control/me"
+	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/home/qmail-control/me"
 
 	if grep -qs ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
 		tell_status "copying qmail port options from existing vpopmail jail"
