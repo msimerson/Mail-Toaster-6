@@ -44,6 +44,14 @@ alias h="history 200"
 alias ll="ls -alFG"
 PS1="$(whoami)@$(hostname -s):\\w # "
 EO_BASH_PROFILE
+
+	if ! grep -qs profile /root/.profile; then
+		sed -i '' '/^HOME/i \
+. /etc/profile\
+\
+' \
+		/root/.profile
+	fi
 }
 
 configure_bourne_shell()
