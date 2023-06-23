@@ -41,28 +41,24 @@ export HISTIGNORE="&:[bf]g:exit"
 shopt -s histappend
 shopt -s cdspell
 alias h="history 200"
-alias ll="ls -alFG"
-PS1="$(whoami)@$(hostname -s):\\w # "
 EO_BASH_PROFILE
 
-	if ! grep -qs profile /root/.profile; then
-		sed -i '' '/^HOME/i \
-. /etc/profile\
-\
-' \
-		/root/.profile
+	if ! grep -qs profile "$1"; then
+		tee -a "$1" <<EO_INCL
+. /etc/profile
+EO_INCL
 	fi
 }
 
 configure_bourne_shell()
 {
-	tell_status "customizing bourne shell prompt"
-	tee -a "$1/etc/profile.d/toaster.sh" <<'EO_BOURNE_SHELL'
+	_f="$1/etc/profile.d/toaster.sh"
+	if ! grep -qs ^PS1 "$_f"; then
+		tell_status "customizing bourne shell prompt"
+		tee -a "$_f" <<'EO_BOURNE_SHELL'
 alias h='fc -l'
-alias j=jobs
 alias m=$PAGER
 alias ll="ls -alFG"
-alias l='ls -l'
 alias g='egrep -i'
 
 PS1="$(whoami)@$(hostname -s):\\w "
@@ -71,6 +67,13 @@ case $(id -u) in
     *) PS1="${PS1}$ ";;
 esac
 EO_BOURNE_SHELL
+	fi
+
+	if ! grep -qs profile "/root/.profile"; then
+		tee -a "/root/.profile" <<EO_INCL
+. /etc/profile
+EO_INCL
+	fi
 }
 
 configure_csh_shell()
