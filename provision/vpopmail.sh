@@ -6,6 +6,7 @@ export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
+		mount += \"$ZFS_DATA_MNT/vpopmail \$path/data nullfs rw 0 0\";
 		mount += \"$ZFS_DATA_MNT/vpopmail/home \$path/usr/local/vpopmail nullfs rw 0 0\";"
 
 mt6-include vpopmail

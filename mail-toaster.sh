@@ -450,10 +450,9 @@ add_jail_conf()
 		return
 	fi
 
-	jail_conf_extra $1
-
 	tell_status "adding $1 to /etc/jail.conf"
 	echo "$1	{$(get_safe_jail_path $1)
+		mount.fstab = \"$ZFS_DATA_MNT/$1/etc/fstab\";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
 	}" | tee -a /etc/jail.conf
@@ -470,21 +469,6 @@ get_safe_jail_path()
 	fi
 }
 
-jail_conf_extra()
-{
-	# if not present, add data mount
-	if ! echo "$JAIL_CONF_EXTRA" | grep -q "mount += \"$ZFS_DATA_MNT/$1"; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
-	fi
-
-	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
-		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
-	fi
-}
-
 add_jail_conf_d()
 {
 	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
@@ -492,12 +476,11 @@ add_jail_conf_d()
 		return
 	fi
 
-	jail_conf_extra $1
-
 	tell_status "creating /etc/jail.conf.d/$1.conf"
 	echo "$(jail_conf_header)
 
 $1	{$(get_safe_jail_path $1)
+		mount.fstab = \"$ZFS_DATA_MNT/$1/etc/fstab\";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
 		exec.created = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load\";
@@ -602,6 +585,42 @@ install_pfrule()
 	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
 }
 
+install_fstab()
+{
+	if [ ! -d "$STAGE_MNT/data/etc" ]; then
+		mkdir "$STAGE_MNT/data/etc" || exit 1
+	fi
+
+	_fstab="$ZFS_DATA_MNT/$1/etc/fstab"
+	if ! grep -q '$path/data' "$_fstab"; then
+		tell_status "adding data mount to fstab"
+		tee -a "$_fstab" <<EO_FSTAB_DATA
+$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0
+EO_FSTAB_DATA
+	fi
+
+	case "$1" in
+		vpopmail|dovecot|horde|sqwebmail)
+			if ! grep -qs '/usr/local/vpopmail' "$_fstab"; then
+				tell_status "adding vpopmail home to fstab"
+				tee -a "$_fstab" <<EO_FSTAB
+$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/usr/local/vpopmail nullfs rw 0 0
+EO_FSTAB
+			fi
+			;;
+	esac
+
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		if ! grep -q '$path/tmp' "$_fstab"; then
+			tell_status "adding tmpfs to fstab"
+			tee -a "$_fstab" <<EO_FSTAB_TMP
+tmpfs \$path/tmp     tmpfs rw,mode=01777,noexec,nosuid 0 0
+tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0
+EO_FSTAB_TMP
+		fi
+	fi
+}
+
 create_staged_fs()
 {
 	cleanup_staged_fs "$1"
@@ -620,6 +639,7 @@ create_staged_fs()
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	mount_data "$1" "$STAGE_MNT" || exit 1
 
+	install_fstab
 	install_pfrule
 
 	stage_mount_ports
@@ -709,6 +729,7 @@ start_staged_jail()
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
 		mount.devfs \
+		mount.fstab="$ZFS_DATA_MNT/$_name/etc/fstab" \
 		devfs_ruleset=5 \
 		$JAIL_START_EXTRA \
 		|| exit
