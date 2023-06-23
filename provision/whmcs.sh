@@ -2,9 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-	   mount += \"$ZFS_DATA_MNT/geoip/db \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
+export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP nullfs rw 0 0"
 
 mt6-include php
 mt6-include nginx
@@ -72,7 +70,6 @@ configure_whmcs()
 	configure_nginx whmcs
 
 	mkdir -p "$STAGE_MNT/vendor/whmcs/whmcs"
-	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 	chown -R www:www "$STAGE_MNT/vendor"
 
 	tee -a "$STAGE_MNT/etc/crontab" <<'EO_CRONTAB'
@@ -98,6 +95,7 @@ test_whmcs()
 
 base_snapshot_exists || exit
 create_staged_fs whmcs
+mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 start_staged_jail
 install_whmcs
 configure_whmcs

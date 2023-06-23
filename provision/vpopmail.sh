@@ -4,10 +4,7 @@
 
 export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/data nullfs rw 0 0\";
-		mount += \"$ZFS_DATA_MNT/vpopmail/home \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 mt6-include mysql
@@ -200,13 +197,6 @@ install_quota_report()
 
 install_vpopmail()
 {
-	for _d in etc home; do
-		_path="$STAGE_MNT/data/$_d"
-		if [ ! -d "$_path" ]; then
-			mkdir "$_path" || exit 1
-		fi
-	done
-
 	install_qmail
 	configure_qmail
 	install_maildrop
@@ -274,6 +264,11 @@ test_vpopmail()
 
 base_snapshot_exists || exit
 create_staged_fs vpopmail
+
+mkdir -p "$STAGE_MNT/usr/local/vpopmail" \
+	"$ZFS_DATA_MNT/vpopmail/home" \
+	"$ZFS_DATA_MNT/vpopmail/etc"
+
 start_staged_jail vpopmail
 install_vpopmail
 configure_vpopmail

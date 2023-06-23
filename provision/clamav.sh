@@ -2,9 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
-
 install_clamav_fangfrisch()
 {
 	if [ "$CLAMAV_FANGFRISCH" = "0" ]; then return; fi

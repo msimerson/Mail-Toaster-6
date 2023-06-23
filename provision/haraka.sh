@@ -5,6 +5,7 @@
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;"
+export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP nullfs rw 0 0"
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 
@@ -46,10 +47,6 @@ install_geoip_dbs()
 		tell_status "enabling Haraka geoip plugin"
 		sed -i.bak -e '/^# geoip/ s/# //' "$HARAKA_CONF/plugins"
 	fi
-
-	mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
-	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/geoip/db \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 }
 
 add_devfs_rule()
@@ -641,8 +638,7 @@ EO_DCC
 
 configure_haraka_spf()
 {
-	if grep -qv '^;' "$HARAKA_CONF/spf.ini";
-	then
+	if grep -qs '^;' "$HARAKA_CONF/spf.ini"; then
 		tell_status "spf.ini already configured"
 	else
 		tell_status "configuring SPF [relay]context=myself"
@@ -756,6 +752,7 @@ preinstall_checks() {
 
 preinstall_checks
 create_staged_fs haraka
+mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 add_devfs_rule
 start_staged_jail haraka
 install_haraka

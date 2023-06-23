@@ -2,9 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
-
 install_db_server()
 {
 	for _d in etc db; do

@@ -2,8 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
 
 mt6-include mysql
 
@@ -168,9 +167,6 @@ configure_geoip()
 		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
 		return
 	fi
-
-	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/geoip/db \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 }
 
 configure_spamassassin()
@@ -323,6 +319,7 @@ test_spamassassin()
 
 base_snapshot_exists || exit
 create_staged_fs spamassassin
+mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 start_staged_jail spamassassin
 install_spamassassin
 configure_spamassassin

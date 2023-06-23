@@ -2,10 +2,12 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
                 mount.fdescfs;
                 mount.procfs;"
+# TODO: test
+# export JAIL_FSTAB="fdescfs /jails/unifi/dev/fd fdescfs rw 0 0
+# proc     /jails/unifi/proc   procfs  rw 0 0"
 
 install_unifi()
 {

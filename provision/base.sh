@@ -2,9 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
-
 ifconfig ${JAIL_NET_INTERFACE} 2>&1 | grep -q 'does not exist' && {
 	echo; echo "ERROR: did you run 'provision host' yet?"; echo;
 	exit 1
@@ -53,6 +50,8 @@ install_freebsd()
 	else
 		stage_fbsd_package base "$BASE_MNT"
 	fi
+
+	touch "$BASE_MNT/etc/fstab"
 }
 
 install_ssmtp()
@@ -211,6 +210,13 @@ WRKDIRPREFIX?=/tmp/portbuild
 EO_MAKE_CONF
 }
 
+configure_fstab() {
+	if [ ! -d "$BASE_MNT/data/etc" ]; then
+		mkdir -p "$BASE_MNT/data/etc" || exit 1
+	fi
+	touch "$BASE_MNT/data/etc/fstab"
+}
+
 configure_base()
 {
 	if [ ! -d "$BASE_MNT/usr/ports" ]; then
@@ -242,6 +248,7 @@ configure_base()
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
+	configure_fstab
 }
 
 install_periodic_conf()

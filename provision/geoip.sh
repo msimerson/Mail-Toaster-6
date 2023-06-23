@@ -2,9 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
-
 preflight_check() {
 	if [ -z "$MAXMIND_LICENSE_KEY" ]; then
 		echo "ERROR: edit mail-toaster.conf and set MAXMIND_LICENSE_KEY"
