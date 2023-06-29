@@ -254,6 +254,11 @@ configure_dhparams()
 
 install_sshguard()
 {
+	if pkg info -e sshguard; then
+		tell_status "sshguard installed"
+		return
+	fi
+
 	tell_status "installing sshguard"
 	pkg install -y sshguard
 
@@ -265,7 +270,7 @@ install_sshguard()
 
 	tell_status "starting sshguard"
 	sysrc sshguard_enable=YES
-	# service sshguard start
+	service sshguard start
 }
 
 check_timezone()
@@ -336,7 +341,9 @@ EO_PF_RULES
 	kldstat -q -m pf || kldload pf || exit 1
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
-	/etc/rc.d/pf restart || exit 1
+	if ! /etc/rc.d/pf status | grep -q Enabled; then
+		/etc/rc.d/pf start || exit 1
+	fi
 
 	pfctl -f /etc/pf.conf || exit 1
 }
