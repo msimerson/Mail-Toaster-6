@@ -83,6 +83,13 @@ configure_mysql()
 {
 	tell_status "configuring mysql"
 	stage_sysrc mysql_optfile="/var/db/mysql/my.cnf"
+	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
+		sed -i '' \
+			-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
+			"$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+		# enable this when mysql port adds config setting to rc.d script
+		# cp "$STAGE_MNT/usr/local/etc/mysql/my.cnf" "$STAGE_MNT/data/etc/my.cnf"
+	fi
 
 	preserve_file /etc/my.cnf
 

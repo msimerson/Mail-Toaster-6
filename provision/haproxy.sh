@@ -180,6 +180,7 @@ frontend http-in
 
 	backend www_snappymail
 	server snappymail $(get_jail_ip snappymail):80 send-proxy-v2
+	http-response del-header X-Frame-Options
 
 	backend www_munin
 	server munin $(get_jail_ip munin):80

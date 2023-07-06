@@ -171,6 +171,23 @@ constrain_sshd_to_host()
 	service sshd restart
 }
 
+sshd_reorder()
+{
+	_file="/usr/local/etc/rc.d/sshd_recorder"
+	if [ -x "$_file" ]; then return; fi
+
+	tell_status "starting sshd earlier"
+	tee "$_file" <<EO_SSHD_REORDER
+#!/bin/sh
+# start up sshd earlier, particularly before jails
+# see https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=190447
+
+# PROVIDE: sshd_reorder
+# REQUIRE: LOGIN sshd
+EO_SSHD_REORDER
+	chmod 755 "$_file"
+}
+
 update_openssl_defaults()
 {
 	if grep -q commonName_default /etc/ssl/openssl.cnf; then
@@ -254,6 +271,11 @@ configure_dhparams()
 
 install_sshguard()
 {
+	if pkg info -e sshguard; then
+		tell_status "sshguard installed"
+		return
+	fi
+
 	tell_status "installing sshguard"
 	pkg install -y sshguard
 
@@ -265,7 +287,7 @@ install_sshguard()
 
 	tell_status "starting sshguard"
 	sysrc sshguard_enable=YES
-	# service sshguard start
+	service sshguard start
 }
 
 check_timezone()
@@ -336,7 +358,9 @@ EO_PF_RULES
 	kldstat -q -m pf || kldload pf || exit 1
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
-	/etc/rc.d/pf restart || exit 1
+	if ! /etc/rc.d/pf status | grep -q Enabled; then
+		/etc/rc.d/pf start || exit 1
+	fi
 
 	pfctl -f /etc/pf.conf || exit 1
 }
@@ -536,6 +560,7 @@ update_host() {
 	update_sendmail
 	install_periodic_conf
 	constrain_sshd_to_host
+	sshd_reorder
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
