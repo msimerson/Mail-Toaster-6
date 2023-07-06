@@ -171,6 +171,20 @@ constrain_sshd_to_host()
 	service sshd restart
 }
 
+sshd_reorder()
+{
+	# see https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=190447
+
+	_file="/usr/local/etc/rc.d/sshd_recorder"
+	tee "$_file" <<EO_SSHD_REORDER
+#!/bin/sh
+
+# PROVIDE: sshd_reorder
+# REQUIRE: LOGIN sshd
+EO_SSHD_REORDER
+	chmod 755 "$_file"
+}
+
 update_openssl_defaults()
 {
 	if grep -q commonName_default /etc/ssl/openssl.cnf; then
@@ -543,6 +557,7 @@ update_host() {
 	update_sendmail
 	install_periodic_conf
 	constrain_sshd_to_host
+	sshd_reorder
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
