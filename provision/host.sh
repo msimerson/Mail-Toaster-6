@@ -173,11 +173,14 @@ constrain_sshd_to_host()
 
 sshd_reorder()
 {
-	# see https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=190447
-
 	_file="/usr/local/etc/rc.d/sshd_recorder"
+	if [ -x "$_file" ]; then return; fi
+
+	tell_status "starting sshd earlier"
 	tee "$_file" <<EO_SSHD_REORDER
 #!/bin/sh
+# start up sshd earlier, particularly before jails
+# see https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=190447
 
 # PROVIDE: sshd_reorder
 # REQUIRE: LOGIN sshd
