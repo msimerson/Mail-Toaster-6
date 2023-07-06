@@ -162,29 +162,29 @@ EO_LE_DOVECOT
 
 install_deploy_haraka()
 {
-	store_config "$_deploy/haraka" <<'EO_LE_HARAKA'
+	store_config "$_deploy/haraka" <<EO_LE_HARAKA
 #!/bin/sh
 
 assure_file() {
 
-	if [ ! -s "$1" ]; then
-		_err "File doesn't exist: $1"
+	if [ ! -s "\$1" ]; then
+		_err "File doesn't exist: \$1"
 		return 1
 	fi
 
-	_debug "file exists: $1"
+	_debug "file exists: \$1"
 	return 0
 }
 
 has_differences() {
 
-	if [ ! -f "$2" ]; then
-		_debug "non-existent, deploying: $2"
+	if [ ! -f "\$2" ]; then
+		_debug "non-existent, deploying: \$2"
 		return 0
 	fi
 
-	if diff -q "$1" "$2"; then
-		_debug "file contents identical, skip deploy of $2"
+	if diff -q "\$1" "\$2"; then
+		_debug "file contents identical, skip deploy of \$2"
 		return 1
 	fi
 
@@ -193,14 +193,14 @@ has_differences() {
 }
 
 install_file() {
-	cp "$1" "$2" || return 1
+	cp "\$1" "\$2" || return 1
 
-	if [ ! -s "$2" ]; then
-		_err "install to $2 failed"
+	if [ ! -s "\$2" ]; then
+		_err "install to \$2 failed"
 		return 1
 	fi
 
-	_debug "installed as $2"
+	_debug "installed as \$2"
 	return 0
 }
 
@@ -208,34 +208,39 @@ install_file() {
 
 #domain keyfile certfile cafile fullchain
 haraka_deploy() {
-	_cdomain="$1"
-	_ckey="$2"
-	_ccert="$3"
-	_cca="$4"
-	_cfullchain="$5"
+	_cdomain="\$1"
+	_ckey="\$2"
+	_ccert="\$3"
+	_cca="\$4"
+	_cfullchain="\$5"
 
-	assure_file "$_ccert" || return 2
+	assure_file "\$_ccert" || return 2
 	_h_conf="/data/haraka/config"
 
-	if [ ! -d "$_h_conf" ]; then
-		_debug "missing config dir: $_h_conf"
+	if [ ! -d "\$_h_conf" ]; then
+		_debug "missing config dir: \$_h_conf"
 		return 0
 	fi
 
-	if [ -d "$_h_conf/tls" ]; then
-		local _tmp="/tmp/${_cdomain}.pem"
-		cat $_ckey $_cfullchain > $_tmp
-		assure_file "$_tmp" || return 1
+	if [ -d "\$_h_conf/tls" ]; then
+		local _tmp="/tmp/\${_cdomain}.pem"
+		cat \$_ckey \$_cfullchain > \$_tmp
+		assure_file "\$_tmp" || return 1
 
-		local _installed="$_h_conf/tls/${_cdomain}.pem"
-		has_differences "$_tmp" "$_installed" || return 0
-		install_file "$_tmp" "$_installed" || return 1
-		rm $_tmp
+		local _installed="\$_h_conf/tls/\${_cdomain}.pem"
+		has_differences "\$_tmp" "\$_installed" || return 0
+		install_file "\$_tmp" "\$_installed" || return 1
+		rm \$_tmp
+
+		if [ "\$_cdomain" = "$TOASTER_HOSTNAME" ]; then
+			install_file "\$_ckey" "\$_h_conf/tls_key.pem" || return 1
+			install_file "\$_cfullchain" "\$_h_conf/tls_cert.pem" || return 1
+		fi
 	else
-		local _installed="$_h_conf/tls_cert.pem"
-		has_differences "$_cfullchain" "$_installed" || return 0
-		install_file "$_cfullchain" "$_installed" || return 1
-		install_file "$_ckey" "$_h_conf/tls_key.pem" || return 1
+		local _installed="\$_h_conf/tls_cert.pem"
+		has_differences "\$_cfullchain" "\$_installed" || return 0
+		install_file "\$_cfullchain" "\$_installed" || return 1
+		install_file "\$_ckey" "\$_h_conf/tls_key.pem" || return 1
 	fi
 
 	_debug "restarting haraka"
