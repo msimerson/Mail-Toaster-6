@@ -8,9 +8,10 @@ export JAIL_CONF_EXTRA="
 
 mt6-include vpopmail
 
-allow_sysvipc_stage(){
+allow_sysvipc_stage()
+{
     tell_status "allow sysvipc for the staged jail"
-    jail -m jid=stage allow.sysvipc=1
+    jail -m name=stage allow.sysvipc=1
 }
 
 install_dovecot()
