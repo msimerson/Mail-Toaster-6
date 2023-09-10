@@ -105,7 +105,7 @@ enable_control()
 		mkdir "$ZFS_DATA_MNT/dns/control" || exit
 	fi
 
-	tee -a "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+	tee "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 
