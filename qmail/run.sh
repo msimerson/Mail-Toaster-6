@@ -217,6 +217,7 @@ case "$1" in
     then
       if [ -x /var/qmail/bin/qmail-newu ]
       then
+        /var/qmail/users/assign
         echo "Reloaded /var/qmail/users/assign."
       fi
     fi
