@@ -158,6 +158,7 @@ install_clamav()
 		_path="$STAGE_MNT/data/$_d"
 		[ -d "$_path" ] || mkdir "$_path"
 	done
+
 	stage_exec chown clamav:clamav /data/log /data/db
 
 	install_clamav_nrpe
@@ -250,6 +251,16 @@ start_clamav()
 	stage_exec service clamav-freshclam start
 }
 
+migrate_clamav_dbs()
+{
+	for _suffix in cvd dat; do
+		for _db in $STAGE_MNT/data/*.$_suffix; do
+			echo "mv $_db $STAGE_MNT/data/db/"
+			mv "$_db" "$STAGE_MNT/data/db/"
+		done
+	done
+}
+
 test_clamav()
 {
 	echo "testing ClamAV clamd"
@@ -264,4 +275,5 @@ install_clamav
 configure_clamav
 start_clamav
 test_clamav
+migrate_clamav_dbs
 promote_staged_jail clamav
