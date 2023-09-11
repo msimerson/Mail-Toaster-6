@@ -49,10 +49,11 @@ configure_postfix()
 	stage_sysrc postfix_enable=YES
 	stage_exec postconf -e "myhostname = postfix.$TOASTER_HOSTNAME"
 	stage_exec postconf -e 'smtp_use_tls=yes'
-	stage_exec postconf -e 'smtp_tls_security_level = may'
+	stage_exec postconf -e 'smtp_tls_security_level = encrypt'
+	stage_exec postconf -e 'smtp_tls_wrappermode = yes'
 	stage_exec postconf -e "mynetworks = ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK}"
 
-	if [ -f "$ZFS_DATA_MNT/etc/sasl_passwd" ]; then
+	if [ -f "$ZFS_DATA_MNT/postfix/etc/sasl_passwd" ]; then
 		stage_exec postmap /data/etc/sasl_passwd
 		stage_exec postconf -e 'smtp_sasl_auth_enable = yes'
 		stage_exec postconf -e 'smtp_sasl_password_maps = hash:/data/etc/sasl_passwd'
@@ -61,6 +62,11 @@ configure_postfix()
 	if [ -n "$TOASTER_NRPE" ]; then
 		stage_sysrc nrpe_enable=YES
 		stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
+	fi
+
+	if [ -f "$ZFS_DATA_MNT/postfix/etc/transport" ]; then
+		stage_exec postmap /data/etc/transport
+		stage_exec postconf -e 'transport_maps = hash:/data/etc/transport'
 	fi
 
 	for _f in master main
@@ -74,7 +80,10 @@ configure_postfix()
 	if [ -f "$ZFS_JAIL_MNT/postfix/etc/aliases" ]; then
 		tell_status "preserving /etc/aliases"
 		cp "$ZFS_JAIL_MNT/postfix/etc/aliases" "$STAGE_MNT/etc/aliases"
-		stage_exec newaliases
+		stage_exec /usr/bin/newaliases
+	elif [ -f "$ZFS_DATA_MNT/postfix/etc/aliases" ]; then
+		cp "$ZFS_DATA_MNT/postfix/etc/aliases" "$STAGE_MNT/etc/aliases"
+		stage_exec /usr/bin/newaliases
 	fi
 
 	if [ ! -f "$ZFS_JAIL_MNT/usr/local/etc/mail/mailer.conf" ]; then
