@@ -254,7 +254,7 @@ start_clamav()
 migrate_clamav_dbs()
 {
 	for _suffix in cvd dat; do
-		for _db in $STAGE_MNT/data/*.$_suffix; do
+		for _db in "$STAGE_MNT"/data/*."$_suffix"; do
 			echo "mv $_db $STAGE_MNT/data/db/"
 			mv "$_db" "$STAGE_MNT/data/db/"
 		done

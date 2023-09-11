@@ -31,6 +31,12 @@ install_geoip()
 		[ -d "$_path" ] || mkdir "$_path"
 	done
 
+	for _suffix in mmdb dat; do
+		for _db in "$STAGE_MNT"/data/*."$_suffix"; do
+			mv "$_db" "$STAGE_MNT/data/db"
+		done
+	done
+
 	if [ "$GEOIP_UPDATER" = "geoipupdate" ]; then
 		install_geoip_geoipupdate
 	else
