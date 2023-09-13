@@ -15,6 +15,30 @@ get_random_ip6net()
 	echo "fd7a:e5cd:1fc1:$(dec_to_hex "$RAND16"):dead:beef:cafe"
 }
 
+tell_status()
+{
+	echo; echo "   ***   $1   ***"; echo
+	sleep 1
+}
+
+store_config()
+{
+	# $1 - path to config file, $2 - overwrite, STDIN is file contents
+	if [ ! -d "$(dirname $1)" ]; then
+		tell_status "creating $(dirname $1)"
+		mkdir -p "$(dirname $1)" || exit 1
+	fi
+
+	cat - > "$1.mt6" || exit 1
+
+	if [ ! -f "$1" ] || [ -n "$2" ]; then
+		tell_status "installing $1"
+		cp "$1.mt6" "$1" || exit 1
+	else
+		tell_status "preserving $1"
+	fi
+}
+
 create_default_config()
 {
 	local _HOSTNAME
@@ -747,12 +771,6 @@ rename_ready_to_active()
 	zfs rename "$ZFS_JAIL_VOL/${1}.ready" "$ZFS_JAIL_VOL/$1" || exit
 }
 
-tell_status()
-{
-	echo; echo "   ***   $1   ***"; echo
-	sleep 1
-}
-
 tell_settings()
 {
 	echo; echo "   ***   Configured $1 settings:"
@@ -1231,24 +1249,6 @@ unprovision()
 	unprovision_files
 	for _j in $JAIL_ORDERED_LIST; do unprovision_rc "$_j"; done
 	echo "done"
-}
-
-store_config()
-{
-	# $1 - path to config file, $2 - overwrite, STDIN is file contents
-	if [ ! -d "$(dirname $1)" ]; then
-		tell_status "creating $(dirname $1)"
-		mkdir -p "$(dirname $1)" || exit 1
-	fi
-
-	cat - > "$1.mt6" || exit 1
-
-	if [ ! -f "$1" ] || [ -n "$2" ]; then
-		tell_status "installing $1"
-		cp "$1.mt6" "$1" || exit 1
-	else
-		tell_status "preserving $1"
-	fi
 }
 
 mt6-include()
