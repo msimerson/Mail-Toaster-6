@@ -253,7 +253,23 @@ start_clamav()
 
 migrate_clamav_dbs()
 {
-	for _suffix in cvd dat; do
+	if [ ! -f "$ZFS_DATA_MNT/clamav/daily.cld" ]; then
+		# no clamav dbs or already migrated
+		return
+	fi
+
+	local _confirm_msg="
+	clamav db migration required. Choosing yes will:
+
+	1. stop the running clamav jail
+	2. move the clamav dbs into 'data/db'
+	3. promote this newly build clamav jail
+
+	Proceed?
+	"
+	dialog --yesno "$_confirm_msg" 13 70 || return
+
+	for _suffix in cdb cld cvd dat fp ftm hsb ldb ndb yara; do
 		for _db in "$STAGE_MNT"/data/*."$_suffix"; do
 			echo "mv $_db $STAGE_MNT/data/db/"
 			mv "$_db" "$STAGE_MNT/data/db/"
