@@ -601,7 +601,7 @@ install_fstab()
 	echo "/var/cache/pkg     $STAGE_MNT/var/cache/pkg   nullfs rw  0  0" | tee -a "$_fstab.stage"
 
 	if [ ! -d "$ZFS_DATA_MNT/stage/etc" ]; then
-		mkdir "$ZFS_DATA_MNT/stage/etc" || exit 1
+		mkdir -p "$ZFS_DATA_MNT/stage/etc" || exit 1
 	fi
 	cp "$_fstab.stage" "$ZFS_DATA_MNT/stage/etc/fstab" || exit 1
 }
@@ -674,9 +674,12 @@ start_staged_jail()
 {
 	local _name="$1"
 	local _path="$2"
+	local _fstab="$ZFS_DATA_MNT/$_name/etc/fstab.stage"
 
 	if [ -z "$_name" ]; then _name="$SAFE_NAME"; fi
 	if [ -z "$_path" ]; then _path="$STAGE_MNT"; fi
+
+	if [ "$_name" = "base" ]; then _fstab="$BASE_MNT/data/etc/fstab"; fi
 
 	tell_status "stage jail $_name startup"
 
@@ -690,7 +693,7 @@ start_staged_jail()
 		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		mount.fstab="$ZFS_DATA_MNT/$_name/etc/fstab.stage" \
+		mount.fstab="$_fstab" \
 		devfs_ruleset=5 \
 		$JAIL_START_EXTRA \
 		|| exit
