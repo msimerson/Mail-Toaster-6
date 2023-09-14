@@ -228,8 +228,8 @@ if [ "$(uname)" = 'FreeBSD' ]; then
 fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, eg: base-13.0-RELEASE and the snapshot name will be the OS
-# patch level, eg: base-13.0-RELEASE@p3
+# host OS version, eg: base-13.2-RELEASE and the snapshot name will be the OS
+# patch level, eg: base-13.2-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -600,6 +600,7 @@ install_fstab()
 	echo "/usr/ports         $STAGE_MNT/usr/ports       nullfs rw  0  0" | tee -a "$_fstab.stage"
 	echo "/var/cache/pkg     $STAGE_MNT/var/cache/pkg   nullfs rw  0  0" | tee -a "$_fstab.stage"
 
+	# copy staged fstab into place for jail shutdown
 	if [ ! -d "$ZFS_DATA_MNT/stage/etc" ]; then
 		mkdir -p "$ZFS_DATA_MNT/stage/etc" || exit 1
 	fi
