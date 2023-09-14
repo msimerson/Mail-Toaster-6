@@ -262,6 +262,37 @@ test_vpopmail()
 	echo "it worked"
 }
 
+migrate_vpopmail_home()
+{
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains" ]; then
+		# no vpopmail data or data already migrated
+		return
+	fi
+
+	local _confirm_msg="
+	vpopmail data migration required. Choosing yes will:
+
+	1. stop the running dovecot and vpopmail jails
+	2. move the vpopmail data into a 'home' subdirectory
+	3. promote this newly build vpopmail jail
+
+	You will need to provision a new dovecot jail before POP3/IMAP services are restored.
+
+	Proceed?
+	"
+	dialog --yesno "$_confirm_msg" 13 70 || return
+
+	service jail stop dovecot vpopmail
+
+	for _d in bin domains include qmail-control doc etc lib qmail-users; do
+		echo "mv $ZFS_DATA_MNT/vpopmail/$_d $ZFS_DATA_MNT/vpopmail/home/"
+		mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
+	done
+
+	mkdir "$ZFS_DATA_MNT/vpopmail/etc"
+	mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
+}
+
 base_snapshot_exists || exit
 create_staged_fs vpopmail
 
@@ -274,4 +305,5 @@ install_vpopmail
 configure_vpopmail
 start_vpopmail
 test_vpopmail
+migrate_vpopmail_home
 promote_staged_jail vpopmail
