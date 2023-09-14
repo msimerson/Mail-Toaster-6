@@ -173,7 +173,7 @@ constrain_sshd_to_host()
 
 sshd_reorder()
 {
-	_file="/usr/local/etc/rc.d/sshd_recorder"
+	_file="/usr/local/etc/rc.d/sshd_reorder"
 	if [ -x "$_file" ]; then return; fi
 
 	tell_status "starting sshd earlier"
@@ -184,6 +184,8 @@ sshd_reorder()
 
 # PROVIDE: sshd_reorder
 # REQUIRE: LOGIN sshd
+# BEFORE: jail
+
 EO_SSHD_REORDER
 	chmod 755 "$_file"
 }
