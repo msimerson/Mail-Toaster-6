@@ -31,12 +31,6 @@ install_geoip()
 		[ -d "$_path" ] || mkdir "$_path"
 	done
 
-	for _suffix in mmdb dat; do
-		for _db in "$STAGE_MNT"/data/*."$_suffix"; do
-			mv "$_db" "$STAGE_MNT/data/db"
-		done
-	done
-
 	if [ "$GEOIP_UPDATER" = "geoipupdate" ]; then
 		install_geoip_geoipupdate
 	else
@@ -104,6 +98,33 @@ test_geoip()
 	echo "it worked"
 }
 
+migrate_geoip_dbs()
+{
+	if [ ! -f "$ZFS_DATA_MNT/geoip/GeoLite2-Country.mmdb" ]; then
+		# no geoip data or data already migrated
+		return
+	fi
+
+	local _confirm_msg="
+	geoip data migration required. Choosing yes will:
+
+	1. stop the running geoip, spamassassin, and haraka jails
+	2. move the geoip data into a 'db' subdirectory
+	3. promote the newly build geoip jail
+
+	You will need to provision new spamassassin and haraka jails.
+
+	Proceed?
+	"
+	dialog --yesno "$_confirm_msg" 13 70 || return
+
+	for _suffix in mmdb dat; do
+		for _db in "$DATA_MNT"/geoip/*."$_suffix"; do
+			mv "$_db" "$DATA_MNT/geoip/db"
+		done
+	done
+}
+
 preflight_check
 base_snapshot_exists || exit
 create_staged_fs geoip
@@ -112,4 +133,5 @@ install_geoip
 configure_geoip
 start_geoip
 test_geoip
+migrate_geoip_dbs
 promote_staged_jail geoip
