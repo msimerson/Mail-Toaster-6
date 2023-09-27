@@ -57,8 +57,8 @@ install_roundcube_mysql()
 		for _jail in roundcube stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
-				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" \
-					| mysql_query || exit
+				echo "CREATE USER IF NOT EXISTS 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" | mysql_query || exit 1
+				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}';" | mysql_query || exit 1
 			done
 		done
 

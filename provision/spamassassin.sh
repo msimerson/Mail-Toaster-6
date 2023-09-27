@@ -285,11 +285,8 @@ EO_MYSQL_CONF
 	do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			mysql_user_exists spamassassin $_ip \
-                                || echo "CREATE USER 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query \
-                                || exit 1
-			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" \
-				| mysql_query || exit 1
+			echo "CREATE USER IF NOT EXISTS 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query || exit 1
+			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" | mysql_query || exit 1
 		done
 	done
 }

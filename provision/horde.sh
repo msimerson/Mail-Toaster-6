@@ -229,8 +229,8 @@ EO_HORDE_PREFS
 		for _jail in horde stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
-				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" \
-					| mysql_query || exit
+				echo "CREATE USER IF NOT EXISTS 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" | mysql_query || exit 1
+				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}';" | mysql_query || exit 1
 			done
 		done
 	fi
