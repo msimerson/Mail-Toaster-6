@@ -141,6 +141,19 @@ test_mysql()
 	echo "it worked"
 }
 
+migrate_mysql_dbs()
+{
+	if [ -f "$ZFS_DATA_MNT/mysql/mysql.err" ]; then
+		echo "
+	HALT: mysql data migration required.
+
+	See https://github.com/msimerson/Mail-Toaster-6/wiki/Updating
+
+		"
+		exit 1
+	fi
+}
+
 if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
 	tell_status "installing MySQL"
 else
@@ -155,4 +168,5 @@ install_db_server
 configure_mysql
 start_mysql
 test_mysql
+migrate_mysql_dbs
 promote_staged_jail mysql
