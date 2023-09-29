@@ -78,8 +78,8 @@ install_qmailadmin()
 	tell_status "installing qmailadmin"
 	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man
 	stage_make_conf mail_qmailadmin_ '
-mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
-mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
+mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA TRIVIAL_PASSWORD USER_INDEX
+mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 '
 
 	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" ]; then
@@ -280,7 +280,7 @@ migrate_vpopmail_home()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || return
+	dialog --yesno "$_confirm_msg" 13 70 || exit
 
 	service jail stop dovecot vpopmail
 
