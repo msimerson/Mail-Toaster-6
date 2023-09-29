@@ -144,9 +144,12 @@ install_clamav_nrpe()
 	fi
 
 	tell_status "installing clamav nrpe plugin"
-	stage_pkg_install nagios-check_clamav
-	stage_sysrc nrpe_enable=YES
-	stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
+	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
+		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
+
+	if [ -f /usr/local/etc/nrpe.cfg ] && ! grep -q check_clamav_signatures; then
+		tee -a /usr/local/etc/nrpe.cfg 'command[check_clamav]=/usr/local/bin/sudo /usr/sbin/jexec clamav /data/check_clamav_signatures -p /data/db'
+	fi
 }
 
 install_clamav()
@@ -269,6 +272,8 @@ migrate_clamav_dbs()
 	"
 	dialog --yesno "$_confirm_msg" 13 70 || return
 
+	service jail stop clamav
+
 	for _suffix in cdb cld cvd dat fp ftm hsb ldb ndb yara; do
 		for _db in "$STAGE_MNT"/data/*."$_suffix"; do
 			echo "mv $_db $STAGE_MNT/data/db/"
@@ -289,7 +294,7 @@ create_staged_fs clamav
 start_staged_jail clamav
 install_clamav
 configure_clamav
+migrate_clamav_dbs
 start_clamav
 test_clamav
-migrate_clamav_dbs
 promote_staged_jail clamav
