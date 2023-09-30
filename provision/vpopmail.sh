@@ -12,7 +12,9 @@ mt6-include mysql
 install_maildrop()
 {
 	tell_status "installing maildrop"
-	stage_pkg_install maildrop
+	# stage_pkg_install maildrop
+	stage_pkg_install libidn
+	stage_port_install maildrop
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
@@ -24,6 +26,7 @@ install_maildrop()
 	tell_status "setting permissions on mailfilter files"
 	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
 	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
+
 }
 
 install_lighttpd()
@@ -269,18 +272,48 @@ migrate_vpopmail_home()
 		return
 	fi
 
-	local _confirm_msg="
-	vpopmail data migration required. Choosing yes will:
+	echo "
+	WARNING: vpopmail data migration required. Migration requires that you
+	         manually perform the following steps:
 
 	1. stop the running dovecot and vpopmail jails
+
+		   service jail stop dovecot vpopmail
+
 	2. move the vpopmail data into a 'home' subdirectory
-	3. promote this newly build vpopmail jail
 
-	You will need to provision a new dovecot jail before POP3/IMAP services are restored.
+           cd /data/vpopmail
+           mkdir home
+           mv bin doc domains etc include lib qmail-control qmail-users home/
 
-	Proceed?
+    3. edit /etc/jail.conf per this diff:
+
+# diff -u /etc/jail.conf.bak /etc/jail.conf
+--- /etc/jail.conf.bak	2023-09-29 18:18:38.958413000 -0400
++++ /etc/jail.conf	2023-09-29 18:18:46.394384000 -0400
+@@ -17,14 +17,15 @@
+ vpopmail	{
+ 		ip4.addr = 172.16.15.8;
+ 		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:0008;
+-		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
++		mount += "/data/vpopmail $path/data nullfs rw 0 0";
++		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
+ 	}
+ 
+ dovecot	{
+ 		ip4.addr = 172.16.15.15;
+ 		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:000f;
+ 		mount += "/data/dovecot $path/data nullfs rw 0 0";
+-		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
++		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
+ 	}
+ 
+	4. start the dovecot and vpopmail jails
+
+		   service jail start vpopmail dovecot
+
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || exit
+	exit
 
 	service jail stop dovecot vpopmail
 
@@ -289,10 +322,19 @@ migrate_vpopmail_home()
 		mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
 	done
 
-	mkdir "$ZFS_DATA_MNT/vpopmail/etc"
-	mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/etc" ]; then
+		mkdir "$ZFS_DATA_MNT/vpopmail/etc"
+	fi
+
+	if [ -d "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" ]; then
+		mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
+	fi
+
+	# TODO: patch fstab mounts in /etc/jail.conf
+	service jail stop dovecot vpopmail
 }
 
+migrate_vpopmail_home
 base_snapshot_exists || exit
 create_staged_fs vpopmail
 
@@ -305,5 +347,4 @@ install_vpopmail
 configure_vpopmail
 start_vpopmail
 test_vpopmail
-migrate_vpopmail_home
 promote_staged_jail vpopmail
