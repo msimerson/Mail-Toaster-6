@@ -315,23 +315,23 @@ migrate_vpopmail_home()
 	"
 	exit
 
-	service jail stop dovecot vpopmail
+	# service jail stop dovecot vpopmail
 
-	for _d in bin domains include qmail-control doc etc lib qmail-users; do
-		echo "mv $ZFS_DATA_MNT/vpopmail/$_d $ZFS_DATA_MNT/vpopmail/home/"
-		mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
-	done
+	# for _d in bin domains include qmail-control doc etc lib qmail-users; do
+	# 	echo "mv $ZFS_DATA_MNT/vpopmail/$_d $ZFS_DATA_MNT/vpopmail/home/"
+	# 	mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
+	# done
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/etc" ]; then
-		mkdir "$ZFS_DATA_MNT/vpopmail/etc"
-	fi
+	# if [ ! -d "$ZFS_DATA_MNT/vpopmail/etc" ]; then
+	# 	mkdir "$ZFS_DATA_MNT/vpopmail/etc"
+	# fi
 
-	if [ -d "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" ]; then
-		mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
-	fi
+	# if [ -d "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" ]; then
+	# 	mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
+	# fi
 
-	# TODO: patch fstab mounts in /etc/jail.conf
-	service jail stop dovecot vpopmail
+	# # TODO: patch fstab mounts in /etc/jail.conf
+	# service jail stop dovecot vpopmail
 }
 
 migrate_vpopmail_home

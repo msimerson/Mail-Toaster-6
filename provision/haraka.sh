@@ -230,8 +230,8 @@ tmpdir=/data/avg/spool
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
 		tell_status "adding avg data FS to Haraka jail"
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/avg \$path/data/avg nullfs rw 0 0\";"
+		JAIL_FSTAB="$JAIL_FSTAB
+$ZFS_DATA_MNT/avg   $ZFS_JAIL_MNT/haraka/data/avg nullfs rw 0 0"
 
 		if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
 			tell_status "update tmpdir in avg.ini"

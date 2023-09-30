@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=SC2044
 for _f in $(find /data/vpopmail/ -type f -name .qmail); do
 
 	# ignore files that don't specify maildrop
