@@ -245,12 +245,7 @@ $ZFS_DATA_MNT/avg   $ZFS_JAIL_MNT/haraka/data/avg nullfs rw 0 0"
 	fi
 
 	if ! grep -q ^avg "$HARAKA_CONF/plugins"; then
-		if ! jls | grep -qs avg; then
-			echo "AVG not running, not enabling"
-			return
-		fi
-
-		if ! jls | grep -qs avg; then
+		if ! jls -j avg | grep -qs avg; then
 			echo "AVG not running, not enabling"
 			return
 		fi

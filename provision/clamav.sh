@@ -270,7 +270,7 @@ migrate_clamav_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || return
+	dialog --yesno "$_confirm_msg" 13 70 || exit
 
 	service jail stop clamav
 

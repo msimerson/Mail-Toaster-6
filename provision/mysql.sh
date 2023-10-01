@@ -118,7 +118,6 @@ EO_MY_CNF
 
 start_mysql()
 {
-
 	tell_status "starting mysql"
 
 	if [ -d "$ZFS_JAIL_MNT/mysql/data/db/mysql" ]; then
@@ -148,9 +147,26 @@ migrate_mysql_dbs()
 	HALT: mysql data migration required.
 
 	See https://github.com/msimerson/Mail-Toaster-6/wiki/Updating
-
 		"
 		exit 1
+	fi
+
+	if jls -j mysql | grep -qs mysql; then
+		echo "mysql jail is running"
+
+		_my_ver=$(pkg -j mysql info | grep mysql | grep server | cut -f1 -d' ' | cut -d- -f3)
+		if [ -n "$_my_ver" ]; then
+			_major=$(echo "$_my_ver" | cut -f1 -d'.')
+			if [ "$_major" -lt "8" ]; then
+				echo "
+	HALT: mysql upgrade to version 8 required.
+
+	See https://github.com/msimerson/Mail-Toaster-6/wiki/Updating
+				"
+				exit 1
+
+			fi
+		fi
 	fi
 }
 

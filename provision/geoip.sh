@@ -112,7 +112,10 @@ migrate_geoip_dbs()
 	2. move the geoip data into a 'db' subdirectory
 	3. promote the newly build geoip jail
 
-	You will need to provision new spamassassin and haraka jails.
+	Then, for the spamassassin and haraka jails, you will need to do one of:
+
+		- update the mountpoint for the geoip db directory in jail.conf
+		- provision new jails
 
 	Proceed?
 	"
@@ -129,11 +132,11 @@ migrate_geoip_dbs()
 
 preflight_check
 base_snapshot_exists || exit
+migrate_geoip_dbs
 create_staged_fs geoip
 start_staged_jail geoip
 install_geoip
 configure_geoip
 start_geoip
 test_geoip
-migrate_geoip_dbs
 promote_staged_jail geoip
