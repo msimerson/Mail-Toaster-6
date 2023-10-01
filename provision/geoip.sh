@@ -119,7 +119,7 @@ migrate_geoip_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 18 70 || exit
+	dialog --yesno "$_confirm_msg" 19 70 || exit
 
 	service jail stop geoip spamassassin haraka
 
