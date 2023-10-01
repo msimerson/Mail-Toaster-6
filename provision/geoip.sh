@@ -119,13 +119,18 @@ migrate_geoip_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || exit
+	dialog --yesno "$_confirm_msg" 18 70 || exit
 
 	service jail stop geoip spamassassin haraka
 
+	for _d in etc db; do
+		_path="$ZFS_DATA_MNT/geoip/$_d"
+		[ -d "$_path" ] || mkdir "$_path"
+	done
+
 	for _suffix in mmdb dat; do
 		for _db in "$ZFS_DATA_MNT"/geoip/*."$_suffix"; do
-			mv "$_db" "$ZFS_DATA_MNT/geoip/db"
+			mv "$_db" "$ZFS_DATA_MNT/geoip/db/"
 		done
 	done
 }
