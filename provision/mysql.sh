@@ -25,7 +25,7 @@ install_mysql()
 install_mariadb()
 {
 	tell_status "installing mariadb"
-	stage_pkg_install mariadb104-server || exit 1
+	stage_pkg_install mariadb1011-server || exit 1
 }
 
 write_pass_to_conf()
