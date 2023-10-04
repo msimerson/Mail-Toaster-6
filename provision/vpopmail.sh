@@ -4,9 +4,7 @@
 
 export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 mt6-include mysql
@@ -14,7 +12,9 @@ mt6-include mysql
 install_maildrop()
 {
 	tell_status "installing maildrop"
-	stage_pkg_install maildrop
+	# stage_pkg_install maildrop
+	stage_pkg_install libidn
+	stage_port_install maildrop
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
@@ -26,6 +26,7 @@ install_maildrop()
 	tell_status "setting permissions on mailfilter files"
 	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
 	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
+
 }
 
 install_lighttpd()
@@ -80,8 +81,8 @@ install_qmailadmin()
 	tell_status "installing qmailadmin"
 	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man
 	stage_make_conf mail_qmailadmin_ '
-mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
-mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
+mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA TRIVIAL_PASSWORD USER_INDEX
+mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 '
 
 	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" ]; then
@@ -95,9 +96,6 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 
-	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
-		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
-	fi
 	stage_port_install mail/qmailadmin || exit
 
 	install_lighttpd
@@ -242,7 +240,7 @@ configure_vpopmail()
 	stage_pkg_install p5-Package-Constants
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
+	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "ATTN: Your postmaster password is..."
 		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 "$TOASTER_MAIL_DOMAIN"
 	fi
@@ -267,8 +265,83 @@ test_vpopmail()
 	echo "it worked"
 }
 
+migrate_vpopmail_home()
+{
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains" ]; then
+		# no vpopmail data or data already migrated
+		return
+	fi
+
+	echo "
+	WARNING: vpopmail data migration required. Migration requires that you
+	         manually perform the following steps:
+
+	1. stop the running dovecot and vpopmail jails
+
+		   service jail stop dovecot vpopmail
+
+	2. move the vpopmail data into a 'home' subdirectory
+
+           cd /data/vpopmail
+           mkdir home
+           mv bin doc domains etc include lib qmail-control qmail-users home/
+
+    3. edit /etc/jail.conf per this diff:
+
+# diff -u /etc/jail.conf.bak /etc/jail.conf
+--- /etc/jail.conf.bak	2023-09-29 18:18:38.958413000 -0400
++++ /etc/jail.conf	2023-09-29 18:18:46.394384000 -0400
+@@ -17,14 +17,15 @@
+ vpopmail	{
+ 		ip4.addr = 172.16.15.8;
+ 		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:0008;
+-		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
++		mount += "/data/vpopmail $path/data nullfs rw 0 0";
++		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
+ 	}
+ 
+ dovecot	{
+ 		ip4.addr = 172.16.15.15;
+ 		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:000f;
+ 		mount += "/data/dovecot $path/data nullfs rw 0 0";
+-		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
++		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
+ 	}
+ 
+	4. start the dovecot and vpopmail jails
+
+		   service jail start vpopmail dovecot
+
+	"
+	exit
+
+	# service jail stop dovecot vpopmail
+
+	# for _d in bin domains include qmail-control doc etc lib qmail-users; do
+	# 	echo "mv $ZFS_DATA_MNT/vpopmail/$_d $ZFS_DATA_MNT/vpopmail/home/"
+	# 	mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
+	# done
+
+	# if [ ! -d "$ZFS_DATA_MNT/vpopmail/etc" ]; then
+	# 	mkdir "$ZFS_DATA_MNT/vpopmail/etc"
+	# fi
+
+	# if [ -d "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" ]; then
+	# 	mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
+	# fi
+
+	# # TODO: patch fstab mounts in /etc/jail.conf
+	# service jail stop dovecot vpopmail
+}
+
+migrate_vpopmail_home
 base_snapshot_exists || exit
 create_staged_fs vpopmail
+
+mkdir -p "$STAGE_MNT/usr/local/vpopmail" \
+	"$ZFS_DATA_MNT/vpopmail/home" \
+	"$ZFS_DATA_MNT/vpopmail/etc"
+
 start_staged_jail vpopmail
 install_vpopmail
 configure_vpopmail

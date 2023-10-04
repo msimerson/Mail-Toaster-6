@@ -2,8 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
 
 mt6-include mysql
 
@@ -168,9 +167,6 @@ configure_geoip()
 		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
 		return
 	fi
-
-	JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/geoip \$path/usr/local/share/GeoIP nullfs ro 0 0\";"
 }
 
 configure_spamassassin()
@@ -289,11 +285,8 @@ EO_MYSQL_CONF
 	do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			mysql_user_exists spamassassin $_ip \
-                                || echo "CREATE USER 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query \
-                                || exit 1
-			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" \
-				| mysql_query || exit 1
+			echo "CREATE USER IF NOT EXISTS 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query || exit 1
+			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" | mysql_query || exit 1
 		done
 	done
 }
@@ -323,6 +316,7 @@ test_spamassassin()
 
 base_snapshot_exists || exit
 create_staged_fs spamassassin
+mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 start_staged_jail spamassassin
 install_spamassassin
 configure_spamassassin

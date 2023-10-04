@@ -43,10 +43,8 @@ configure_dspam_mysql()
 	for _jail in dspam stage; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "CREATE USER dspam@'${_ip}' IDENTIFIED BY '${_dpass}';" \
-				| mysql_query || exit
-			echo "GRANT ALL PRIVILEGES ON dspam.* to dspam@'${_ip}';" \
-				| mysql_query || exit
+			echo "CREATE USER IF NOT EXISTS 'dspam'@'${_ip}' IDENTIFIED BY '${_dpass}';" | mysql_query || exit 1
+			echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'${_ip}';" | mysql_query || exit 1
 		done
 	done
 }

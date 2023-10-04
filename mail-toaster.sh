@@ -228,8 +228,8 @@ if [ "$(uname)" = 'FreeBSD' ]; then
 fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-13.0-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-13.0-RELEASE@p3
+# host OS version, eg: base-13.2-RELEASE and the snapshot name will be the OS
+# patch level, eg: base-13.2-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -330,7 +330,6 @@ jail_conf_header()
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
-mount.devfs;
 devfs_ruleset=5;
 path = "$ZFS_JAIL_MNT/\$name";
 interface = $JAIL_NET_INTERFACE;
@@ -450,10 +449,9 @@ add_jail_conf()
 		return
 	fi
 
-	jail_conf_extra $1
-
 	tell_status "adding $1 to /etc/jail.conf"
 	echo "$1	{$(get_safe_jail_path $1)
+		mount.fstab = \"$ZFS_DATA_MNT/$1/etc/fstab\";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
 	}" | tee -a /etc/jail.conf
@@ -470,21 +468,6 @@ get_safe_jail_path()
 	fi
 }
 
-jail_conf_extra()
-{
-	# if not present, add data mount
-	if ! echo "$JAIL_CONF_EXTRA" | grep -q "mount += \"$ZFS_DATA_MNT/$1"; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
-	fi
-
-	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
-		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
-	fi
-}
-
 add_jail_conf_d()
 {
 	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
@@ -492,12 +475,11 @@ add_jail_conf_d()
 		return
 	fi
 
-	jail_conf_extra $1
-
 	tell_status "creating /etc/jail.conf.d/$1.conf"
 	echo "$(jail_conf_header)
 
 $1	{$(get_safe_jail_path $1)
+		mount.fstab = \"$ZFS_DATA_MNT/$1/etc/fstab\";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
 		exec.created = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load\";
@@ -545,11 +527,21 @@ stop_jail()
 
 stage_unmount()
 {
-	stage_unmount_dev
-	unmount_ports "$STAGE_MNT"
-	unmount_pkg_cache
-	unmount_data "$1"
-	stage_unmount_aux_data "$1"
+	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
+		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+		umount "$_fs"
+	done
+
+	# repeat, as sometimes a nested fs will prevent first try from success
+	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
+		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+		umount "$_fs"
+	done
+
+	if mount -t devfs | grep -q "$STAGE_MNT/dev"; then
+		echo "umount $STAGE_MNT/dev"
+		umount "$STAGE_MNT/dev" || exit 1
+	fi
 }
 
 cleanup_staged_fs()
@@ -560,46 +552,59 @@ cleanup_staged_fs()
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
-assure_data_volume_mount_is_declared()
-{
-	_cnf="/etc/jail.conf.d/$1.conf"
-
-	# config for this jail might not be created yet
-	# (created when the data FS is provisioned)
-	if [ -f "$_cnf" ]; then
-		if ! grep -qs "^$1" "$_cnf"; then return; fi
-	elif [ -f /etc/jail.conf ]; then
-		_cnf="/etc/jail.conf"
-		if ! grep -qs "^$1" "$_cnf"; then return; fi
-	else
-		return
-	fi
-
-	if grep -qs "data/$1" "$_cnf"; then
-		# data fs mountpoint already declared
-		return
-	fi
-
-	local _mp; _mp=$(data_mountpoint "$1" "\$path")
-	tell_status "roadblock: UPGRADE action required"
-	echo
-	echo "You MUST add this line to the $1 section in /etc/jail.conf to continue:"
-	echo
-	echo "	mount += \"/data/$1 $_mp nullfs rw 0 0\";"
-	echo
-	exit
-}
-
 install_pfrule()
 {
 	tell_status "setting up etc/pf.conf.d"
 
-	if [ ! -d "$STAGE_MNT/data/etc/pf.conf.d" ]; then
-		mkdir -p "$STAGE_MNT/data/etc/pf.conf.d" || exit 1
+	_dir="$ZFS_DATA_MNT/$1/etc/pf.conf.d"
+	if [ ! -d "$_dir" ]; then
+		mkdir -p "$_dir" || exit 1
 	fi
-	fetch -m -o "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" \
-		"$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
-	chmod 755 "$STAGE_MNT/data/etc/pf.conf.d/pfrule.sh" || exit 1
+	fetch -m -o "$_dir/pfrule.sh" "$TOASTER_SRC_URL/contrib/pfrule.sh" || exit 1
+	chmod 755 "$_dir/pfrule.sh" || exit 1
+}
+
+install_fstab()
+{
+	_data_mount="$ZFS_DATA_MNT/$1"
+	_jail_mount="$ZFS_JAIL_MNT/$1"
+	_fstab="$ZFS_DATA_MNT/$1/etc/fstab"
+
+	if [ ! -d "$_data_mount/etc" ]; then
+		mkdir "$_data_mount/etc" || exit 1
+	fi
+
+	tell_status "writing data mount to $_fstab"
+	echo "# Device                Mountpoint      FStype  Options         Dump    Pass#" | tee "$_fstab" || exit 1
+	echo "$_data_mount       $_jail_mount/data nullfs  rw   0  0" | tee -a "$_fstab"
+	echo "devfs               $_jail_mount/dev  devfs   rw   0  0" | tee -a "$_fstab"
+
+	if [ -n "$JAIL_FSTAB" ]; then
+		tell_status "appending JAIL_FSTAB to fstab"
+		echo "$JAIL_FSTAB" | tee -a "$_fstab" || exit 1
+	fi
+
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		if ! grep -q "$_jail_mount/tmp" "$_fstab"; then
+			tell_status "adding tmpfs to fstab"
+			echo "tmpfs $_jail_mount/tmp     tmpfs rw,mode=01777,noexec,nosuid  0  0" | tee -a "$_fstab"
+			echo "tmpfs $_jail_mount/var/run tmpfs rw,mode=01755,noexec,nosuid  0  0" | tee -a "$_fstab"
+		fi
+	fi
+
+	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $ZFS_JAIL_MNT/stage|" \
+		"$_fstab" > \
+		"$_fstab.stage" || exit 1
+
+	tell_status "appending pkg & ports to fstab.stage"
+	echo "/usr/ports         $STAGE_MNT/usr/ports       nullfs rw  0  0" | tee -a "$_fstab.stage"
+	echo "/var/cache/pkg     $STAGE_MNT/var/cache/pkg   nullfs rw  0  0" | tee -a "$_fstab.stage"
+
+	# copy staged fstab into place for jail shutdown
+	if [ ! -d "$ZFS_DATA_MNT/stage/etc" ]; then
+		mkdir -p "$ZFS_DATA_MNT/stage/etc" || exit 1
+	fi
+	cp "$_fstab.stage" "$ZFS_DATA_MNT/stage/etc/fstab" || exit 1
 }
 
 create_staged_fs()
@@ -610,39 +615,22 @@ create_staged_fs()
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
 
+	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
+		tell_status "creating $ZFS_JAIL_MNT/stage/data"
+		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
+	fi
+
 	stage_sysrc hostname="$1"
 	sed -i '' -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
 
-	assure_data_volume_mount_is_declared "$1"
 	assure_ip6_addr_is_declared "$1"
+	stage_resolv_conf
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-	mount_data "$1" "$STAGE_MNT" || exit 1
-
-	install_pfrule
-
-	stage_mount_ports
-	stage_mount_pkg_cache
+	install_fstab $1
+	install_pfrule $1
 	echo
-}
-
-stage_unmount_aux_data()
-{
-	case "$1" in
-		spamassassin)  unmount_data geoip ;;
-		haraka)        unmount_data geoip ;;
-		whmcs )        unmount_data geoip ;;
-	esac
-}
-
-stage_mount_aux_data()
-{
-	case "$1" in
-		spamassassin )  mount_data geoip ;;
-		haraka )        mount_data geoip ;;
-		whmcs )         mount_data geoip ;;
-	esac
 }
 
 enable_bsd_cache()
@@ -692,9 +680,12 @@ start_staged_jail()
 {
 	local _name="$1"
 	local _path="$2"
+	local _fstab="$ZFS_DATA_MNT/$_name/etc/fstab.stage"
 
 	if [ -z "$_name" ]; then _name="$SAFE_NAME"; fi
 	if [ -z "$_path" ]; then _path="$STAGE_MNT"; fi
+
+	if [ "$_name" = "base" ]; then _fstab="$BASE_MNT/data/etc/fstab"; fi
 
 	tell_status "stage jail $_name startup"
 
@@ -708,12 +699,11 @@ start_staged_jail()
 		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		mount.devfs \
+		mount.fstab="$_fstab" \
 		devfs_ruleset=5 \
 		$JAIL_START_EXTRA \
 		|| exit
 
-	stage_mount_aux_data "$_name"
 	enable_bsd_cache
 
 	tell_status "updating pkg database"
@@ -795,8 +785,9 @@ stage_clear_caches()
 
 stage_resolv_conf()
 {
+	jls | grep -q dns || return;
 	tell_status "configuring DNS for local recursor"
-	echo "nameserver $(get_jail_ip dns)" > "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip  dns)" >  "$STAGE_MNT/etc/resolv.conf"
 	echo "nameserver $(get_jail_ip6 dns)" >> "$STAGE_MNT/etc/resolv.conf"
 }
 
@@ -825,7 +816,6 @@ promote_staged_jail()
 	seed_pkg_audit
 	tell_status "promoting jail $1"
 	stop_jail stage
-	stage_resolv_conf
 	stage_unmount "$1"
 	ipcrm -W
 	stage_clear_caches
@@ -833,8 +823,6 @@ promote_staged_jail()
 	rename_staged_to_ready "$1"
 
 	stop_jail "$1"
-	unmount_data "$1" "$ZFS_JAIL_MNT/$1"
-	unmount_ports "$ZFS_JAIL_MNT/$1"
 
 	rename_active_to_last "$1"
 	rename_ready_to_active "$1"
@@ -855,7 +843,7 @@ stage_pkg_install()
 
 stage_port_install()
 {
-	# $1 is the port directory (ex: mail/dovecot)
+	# $1 is the port directory (eg: mail/dovecot)
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
 
@@ -922,32 +910,6 @@ stage_test_running()
 	echo "ok"
 }
 
-stage_mount_ports()
-{
-	echo "mount $STAGE_MNT/usr/ports"
-	mount_nullfs /usr/ports "$STAGE_MNT/usr/ports" || exit
-}
-
-stage_mount_pkg_cache()
-{
-	echo "mount $STAGE_MNT/var/cache/pkg"
-	mount_nullfs /var/cache/pkg "$STAGE_MNT/var/cache/pkg" || exit
-}
-
-unmount_ports()
-{
-	if [ ! -d "$1/usr/ports/mail" ]; then
-		return
-	fi
-
-	if ! mount -t nullfs | grep -q "$1"; then
-		return
-	fi
-
-	echo "unmount $1/usr/ports"
-	umount "$1/usr/ports" || exit
-}
-
 unmount_pkg_cache()
 {
 	if ! mount -t nullfs | grep -q "$STAGE_MNT/var/cache/pkg"; then
@@ -977,71 +939,18 @@ stage_fbsd_package()
 	echo "done"
 }
 
-mount_data()
-{
-	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
-
-	if ! zfs_filesystem_exists "$_data_vol"; then
-		echo "no $_data_vol to mount"
-		return
-	fi
-
-	local _data_mnt; _data_mnt="$ZFS_DATA_MNT/$1"
-	local _data_mp;  _data_mp=$(data_mountpoint "$1" "$2")
-
-	if [ ! -d "$_data_mp" ]; then
-		echo "mkdir -p $_data_mp"
-		mkdir -p "$_data_mp" || exit 1
-	fi
-
-	if mount -t nullfs | grep -q "$_data_mp"; then
-		echo "$_data_mp already mounted!"
-		exit 1
-	fi
-
-	echo "mount_nullfs $_data_mnt $_data_mp"
-	mount_nullfs "$_data_mnt" "$_data_mp" || exit 1
-}
-
 unmount_data()
 {
+	# $1 is ZFS fs (eg: /data/mysql)
 	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
 
 	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
 
-	local _data_mp=; _data_mp=$(data_mountpoint "$1" "$2")
-
-	if mount -t nullfs | grep "$_data_mp"; then
-		echo "unmount data fs $_data_mp"
+	local _data_mp="$STAGE_MNT/data"
+	if mount -t nullfs | grep -q "$_data_mp"; then
+		tell_status "unmounting data fs $_data_mp"
 		umount -t nullfs "$_data_mp"
 	fi
-}
-
-data_mountpoint()
-{
-	local _base_dir="$2"
-	if [ -z "$_base_dir" ]; then
-		_base_dir="$STAGE_MNT"  # default to stage
-	fi
-
-	case "$1" in
-		avg )       echo "$_base_dir/data/avg"; return ;;
-		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
-		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
-		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
-		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
-	esac
-
-	echo "$_base_dir/data"
-}
-
-stage_unmount_dev()
-{
-	if ! mount -t devfs | grep -q "$STAGE_MNT/dev"; then
-		return
-	fi
-	echo "umount $STAGE_MNT/dev"
-	umount "$STAGE_MNT/dev" || exit
 }
 
 get_public_facing_nic()
@@ -1118,6 +1027,10 @@ provision_mt6()
 
 provision()
 {
+	for _var in JAIL_START_EXTRA JAIL_CONF_EXTRA JAIL_FSTAB; do
+		unset "$_var"
+	done
+
 	case "$1" in
 		host)   fetch_and_exec "$1"; return;;
 		mt6)    provision_mt6; return;;

@@ -2,10 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-# shellcheck disable=2016
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/horde/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include php
 mt6-include nginx
@@ -232,8 +229,8 @@ EO_HORDE_PREFS
 		for _jail in horde stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
-				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" \
-					| mysql_query || exit
+				echo "CREATE USER IF NOT EXISTS 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" | mysql_query || exit 1
+				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}';" | mysql_query || exit 1
 			done
 		done
 	fi

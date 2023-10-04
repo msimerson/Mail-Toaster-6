@@ -2,16 +2,14 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 
 allow_sysvipc_stage()
 {
     tell_status "allow sysvipc for the staged jail"
-    jail -m name=stage allow.sysvipc=1
+    jail -m name=stage allow.sysvipc=1 || exit 1
 }
 
 install_dovecot()
@@ -26,9 +24,6 @@ install_dovecot()
 	tell_status "creating vpopmail user & group"
 	stage_exec pw groupadd -n vpopmail -g 89
 	stage_exec pw useradd -n vpopmail -s /nonexistent -d /usr/local/vpopmail -u 89 -g 89 -m -h-
-
-	tell_status "mounting shared vpopmail fs"
-	mount_data vpopmail
 
 	if [ "$TLS_LIBRARY" = "libressl" ]; then
 		echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
@@ -227,7 +222,7 @@ configure_dovecot_sql_conf()
 		local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
 
 		# shellcheck disable=SC2034
-		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
 		store_config "$_sqlconf" "overwrite" <<EO_DOVECOT_SQL
   driver = mysql
@@ -642,6 +637,7 @@ test_dovecot()
 
 base_snapshot_exists || exit
 create_staged_fs dovecot
+mkdir -p "$STAGE_MNT/usr/local/vpopmail"
 start_staged_jail dovecot
 allow_sysvipc_stage
 install_dovecot
@@ -649,5 +645,4 @@ configure_dovecot
 stage_resolv_conf
 start_dovecot
 test_dovecot
-unmount_data vpopmail
 promote_staged_jail dovecot

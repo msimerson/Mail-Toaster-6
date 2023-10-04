@@ -2,9 +2,6 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
-
 install_haproxy()
 {
 	case "$TLS_LIBRARY" in
