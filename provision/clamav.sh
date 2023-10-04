@@ -143,12 +143,20 @@ install_clamav_nrpe()
 		return
 	fi
 
+	tell_status "installing nagios plugin (includes check_clamd)"
+	stage_pkg_install nagios-plugins
+
 	tell_status "installing clamav nrpe plugin"
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
+	sed -i.bak -e '/^CLAM_LIB_DIR/ s|=.*$|=/data/db|' "$ZFS_DATA_MNT/clamav/check_clamav_signatures"
+	chmod 755 "$ZFS_DATA_MNT/clamav/check_clamav_signatures"
 
-	if [ -f /usr/local/etc/nrpe.cfg ] && ! grep -q check_clamav_signatures; then
-		tee -a /usr/local/etc/nrpe.cfg 'command[check_clamav]=/usr/local/bin/sudo /usr/sbin/jexec clamav /data/check_clamav_signatures -p /data/db'
+	if [ -f /usr/local/etc/nrpe.cfg ]; then
+		if ! grep -q check_clamav_signatures /usr/local/etc/nrpe.cfg; then
+			echo 'command[check_clamav]=/usr/local/bin/sudo /usr/sbin/jexec clamav /data/check_clamav_signatures -p /data/db' \
+				| tee -a /usr/local/etc/nrpe.cfg
+		fi
 	fi
 }
 
@@ -272,12 +280,16 @@ migrate_clamav_dbs()
 	"
 	dialog --yesno "$_confirm_msg" 13 70 || exit
 
+	if [ ! -d "$ZFS_DATA_MNT/clamav/db" ]; then
+		mkdir "$ZFS_DATA_MNT/clamav/db" || exit 1
+	fi
+
 	service jail stop clamav
 
 	for _suffix in cdb cld cvd dat fp ftm hsb ldb ndb yara; do
-		for _db in "$STAGE_MNT"/data/*."$_suffix"; do
-			echo "mv $_db $STAGE_MNT/data/db/"
-			mv "$_db" "$STAGE_MNT/data/db/"
+		for _db in "$ZFS_DATA_MNT"/clamav/*."$_suffix"; do
+			echo "mv $_db $ZFS_DATA_MNT/clamav/db/"
+			mv "$_db" "$ZFS_DATA_MNT/clamav/db/"
 		done
 	done
 }
@@ -290,11 +302,11 @@ test_clamav()
 }
 
 base_snapshot_exists || exit
+migrate_clamav_dbs
 create_staged_fs clamav
 start_staged_jail clamav
 install_clamav
 configure_clamav
-migrate_clamav_dbs
 start_clamav
 test_clamav
 promote_staged_jail clamav
