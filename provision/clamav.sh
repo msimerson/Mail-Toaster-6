@@ -149,7 +149,11 @@ install_clamav_nrpe()
 	tell_status "installing clamav nrpe plugin"
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
-	sed -i.bak -e '/^CLAM_LIB_DIR/ s|=.*$|=/data/db|' "$ZFS_DATA_MNT/clamav/check_clamav_signatures"
+	sed -i.bak \
+		-e 's|^#!/usr/bin/env bash|#!/usr/local/bin/bash\
+PATH="$PATH:/usr/local/bin"|' \
+		-e '/^CLAM_LIB_DIR/ s|=.*$|=/data/db|' \
+		"$ZFS_DATA_MNT/clamav/check_clamav_signatures"
 	chmod 755 "$ZFS_DATA_MNT/clamav/check_clamav_signatures"
 
 	if [ -f /usr/local/etc/nrpe.cfg ]; then
