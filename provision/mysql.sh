@@ -178,11 +178,11 @@ else
 fi
 
 base_snapshot_exists || exit
+migrate_mysql_dbs
 create_staged_fs mysql
 start_staged_jail mysql
 install_db_server
 configure_mysql
 start_mysql
 test_mysql
-migrate_mysql_dbs
 promote_staged_jail mysql
