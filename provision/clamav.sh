@@ -158,7 +158,7 @@ PATH="$PATH:/usr/local/bin"|' \
 
 	if [ -f /usr/local/etc/nrpe.cfg ]; then
 		if ! grep -q check_clamav_signatures /usr/local/etc/nrpe.cfg; then
-			echo 'command[check_clamav]=/usr/local/bin/sudo /usr/sbin/jexec clamav /data/check_clamav_signatures -p /data/db' \
+			echo 'command[check_clamav]=/usr/local/bin/sudo jexec clamav /data/check_clamav_signatures -p /data/db' \
 				| tee -a /usr/local/etc/nrpe.cfg
 		fi
 	fi
