@@ -12,14 +12,14 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node16 gmake python3 pkgconf git-lite || exit
+	stage_pkg_install npm-node18 gmake pkgconf git-lite || exit
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash || exit
 	fi
-	export PYTHON=/usr/local/bin/python3
-	stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
-	stage_exec npm install -g --omit=dev node-gyp || exit
+	# export PYTHON=/usr/local/bin/python3
+	# stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
+	# stage_exec npm install -g --omit=dev node-gyp || exit
 
 	# Workaround for NPM bug https://github.com/npm/cli/issues/2610
 	stage_exec bash -c 'git config --global url."https://github.com/".insteadOf git@github.com:'
