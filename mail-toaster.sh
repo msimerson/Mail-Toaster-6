@@ -922,7 +922,12 @@ unmount_pkg_cache()
 
 freebsd_release_url_base()
 {
-	echo "$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$FBSD_REL_VER"
+	_major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
+	if [ "$_major_ver" -lt "13" ]; then
+		echo "http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases"
+	else
+		echo "ftp://ftp.freebsd.org/pub/FreeBSD/releases"
+	fi
 }
 
 stage_fbsd_package()
@@ -930,8 +935,9 @@ stage_fbsd_package()
 	local _dest="$2"
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
-	tell_status "downloading $(freebsd_release_url_base)/$1.txz"
-	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
+	_file_uri="$(freebsd_release_url_base)/$(uname -m)/$FBSD_REL_VER/$1.txz"
+	tell_status "downloading $_file_uri"
+	fetch -m "$_file_uri" || exit
 	echo "done"
 
 	tell_status "extracting FreeBSD package $1.tgz to $_dest"
