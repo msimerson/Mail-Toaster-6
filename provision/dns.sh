@@ -81,10 +81,13 @@ tweak_unbound_conf()
 	sed -i.bak \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
-		-e '/# use-syslog/      s/# //' \
-		-e '/# chroot: /        s/# //; s/".*"/""/' \
-		-e '/# hide-identity: / s/# //; s/no/yes/' \
-		-e '/# hide-version: /  s/# //; s/no/yes/' \
+		-e '/# use-syslog/s/# //' \
+		-e '/# chroot: /s/# //' \
+		-e '/chroot: /s/".*"/""/' \
+		-e '/# hide-identity: /s/# //' \
+		-e '/hide-identity: /s/no/yes/' \
+		-e '/# hide-version: /s/# //' \
+		-e '/hide-version: /s/no/yes/' \
 		-e '/# access-control: ::ffff:127.*/ a\ 
 include: "/data/access.conf" \
 ' \
