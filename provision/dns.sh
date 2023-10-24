@@ -176,21 +176,13 @@ test_unbound()
 
 switch_host_resolver()
 {
-	if [ ! -f /etc/resolv.conf.orig ]; then
-		cp /etc/resolv.conf /etc/resolv.conf.orig
-	fi
+	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
 
-	if ! grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf;
-	then
-		echo "switching host resolver to dns jail"
-		echo "nameserver $(get_jail_ip dns)
+	echo "switching host resolver to dns jail"
+	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns) $(get_jail_ip6 dns)"
+	echo "nameserver $(get_jail_ip dns)
 nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
-		sysrc -f /etc/resolvconf.conf name_servers="\"$(get_jail_ip dns) $(get_jail_ip6 dns)\""
-		sysrc -f /etc/resolvconf.conf resolvconf=NO
-		# echo "nameserver $(get_jail_ip dns)" > /etc/resolv.conf
-		# echo "nameserver $(get_jail_ip6 dns)" >> /etc/resolv.conf
-		# cat /etc/resolv.conf.orig >> /etc/resolv.conf
-	fi
+	sysrc -f /etc/resolvconf.conf resolvconf=NO
 }
 
 base_snapshot_exists || exit
