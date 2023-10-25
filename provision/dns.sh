@@ -81,10 +81,13 @@ tweak_unbound_conf()
 	sed -i.bak \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
-		-e '/# use-syslog/      s/# //' \
-		-e '/# chroot: /        s/# //; s/".*"/""/' \
-		-e '/# hide-identity: / s/# //; s/no/yes/' \
-		-e '/# hide-version: /  s/# //; s/no/yes/' \
+		-e '/# use-syslog/s/# //' \
+		-e '/# chroot: /s/# //' \
+		-e '/chroot: /s/".*"/""/' \
+		-e '/# hide-identity: /s/# //' \
+		-e '/hide-identity: /s/no/yes/' \
+		-e '/# hide-version: /s/# //' \
+		-e '/hide-version: /s/no/yes/' \
 		-e '/# access-control: ::ffff:127.*/ a\ 
 include: "/data/access.conf" \
 ' \
@@ -171,6 +174,17 @@ test_unbound()
 	echo "it worked."
 }
 
+switch_host_resolver()
+{
+	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
+
+	echo "switching host resolver to dns jail"
+	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns) $(get_jail_ip6 dns)"
+	echo "nameserver $(get_jail_ip dns)
+nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
+	sysrc -f /etc/resolvconf.conf resolvconf=NO
+}
+
 base_snapshot_exists || exit
 create_staged_fs dns
 start_staged_jail dns
@@ -179,15 +193,4 @@ configure_unbound
 start_unbound
 test_unbound
 promote_staged_jail dns
-
-if [ ! -f /etc/resolv.conf.orig ]; then
-	cp /etc/resolv.conf /etc/resolv.conf.orig
-fi
-
-if ! grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf;
-then
-	echo "switching host resolver to $(get_jail_ip dns)"
-	echo "nameserver $(get_jail_ip dns)" > /etc/resolv.conf
-	echo "nameserver $(get_jail_ip6 dns)" >> /etc/resolv.conf
-	cat /etc/resolv.conf.orig >> /etc/resolv.conf
-fi
+switch_host_resolver
