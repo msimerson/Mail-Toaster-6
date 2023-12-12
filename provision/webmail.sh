@@ -110,8 +110,8 @@ install_index()
     'webmail'     : '',
     'roundcube'   : '/roundcube/',
     'snappymail'  : '/snappymail/',
-    'rainloop'    : '/rainloop/',
-    'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
+    // 'rainloop'    : '/rainloop/',
+    // 'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
     'squirrelmail': '/squirrelmail/src/webmail.php',
   }
   const adminPaths = {
@@ -120,7 +120,7 @@ install_index()
     'rspamd'    : '/rspamd/',
     'watch'     : '/watch/',
     'snappymail': '/snappymail/?admin',
-    'rainloop'  : '/rainloop/?admin',
+    // 'rainloop'  : '/rainloop/?admin',
   }
   const statsPaths = {
     'statistics': '',
@@ -215,9 +215,9 @@ body {
                <option value=webmail>Webmail</option>
                <option value=roundcube>Roundcube</option>
                <option value=snappymail>Snappymail</option>
-               <option value=squirrelmail>Squirrelmail</option>
-               <option value=rainloop>Rainloop</option>
-               <option value=sqwebmail>Sqwebmail</option>
+               <!--<option value=squirrelmail>Squirrelmail</option>-->
+               <!--<option value=rainloop>Rainloop</option>-->
+               <!--<option value=sqwebmail>Sqwebmail</option>-->
            </select>
        </a>
        </li>
@@ -228,7 +228,7 @@ body {
                <option value=rspamd>Rspamd</option>
                <option value=watch>Haraka Watch</option>
                <option value=snappymail>Snappymail Admin</option>
-               <option value=rainloop>Rainloop Admin</option>
+               <!--<option value=rainloop>Rainloop Admin</option>-->
            </select>
        </a>
        </li>
