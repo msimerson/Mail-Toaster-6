@@ -71,7 +71,7 @@ vm_setup() {
 	chpass -s sh root
 	echo 'autoboot_delay="1"' >> /boot/loader.conf
 
-	if !grep -q PermitRootLogin /etc/rc.conf; then
+	if ! grep -q PermitRootLogin /etc/rc.conf; then
 		sysrc sshd_flags+=" -o PermitRootLogin=without-password"
 	fi
 	service sshd restart
