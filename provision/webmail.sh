@@ -112,7 +112,7 @@ install_index()
     'snappymail'  : '/snappymail/',
     // 'rainloop'    : '/rainloop/',
     // 'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
-    'squirrelmail': '/squirrelmail/src/webmail.php',
+    // 'squirrelmail': '/squirrelmail/src/webmail.php',
   }
   const adminPaths = {
     'admin'     : '',
