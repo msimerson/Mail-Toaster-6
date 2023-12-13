@@ -71,7 +71,9 @@ vm_setup() {
 	chpass -s sh root
 	echo 'autoboot_delay="1"' >> /boot/loader.conf
 
-	sed -i '' -e '/^#PermitRootLogin/ s/#//; s/no/without-password/' /etc/ssh/sshd_config
+	if !grep -q PermitRootLogin /etc/rc.conf; then
+		sysrc sshd_flags+=" -o PermitRootLogin=without-password"
+	fi
 	service sshd restart
 
 	for d in usr/src var/audit var/crash var/mail var/tmp; do

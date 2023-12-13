@@ -134,8 +134,8 @@ EO_PERIODIC
 
 constrain_sshd_to_host()
 {
-	if grep -q ^ListenAddress /etc/ssh/sshd_config; then
-		tell_status "preserving sshd_config ListenAddress"
+	if grep -q ListenAddress /etc/rc.conf; then
+		tell_status "preserving sshd_flags ListenAddress"
 		return
 	fi
 
@@ -146,7 +146,6 @@ constrain_sshd_to_host()
 
 	get_public_ip
 	get_public_ip ipv6
-	local _sshd_conf="/etc/ssh/sshd_config"
 
 	local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
@@ -155,18 +154,17 @@ constrain_sshd_to_host()
 	Your public IPs are detected as $PUBLIC_IP4
 		and $PUBLIC_IP6
 
-	May I update $_sshd_conf?
+	May I update your sshd config?
 	"
 	dialog --yesno "$_confirm_msg" 13 70 || return
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sed -i.bak -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
+	sysrc sshd_flags+=" -o ListenAddress=$PUBLIC_IP4"
 	if [ -n "$PUBLIC_IP6" ]; then
-		sed -i.bak6 -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
+		sysrc sshd_flags+=" -o ListenAddress=$PUBLIC_IP6"
 	fi
 
-	grep ^Listen /etc/ssh/sshd_config
 	service sshd configtest || exit
 	service sshd restart
 }
