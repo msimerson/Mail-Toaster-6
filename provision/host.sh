@@ -160,12 +160,12 @@ constrain_sshd_to_host()
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sysrc sshd_flags+=" -o ListenAddress=$PUBLIC_IP4"
+	sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP4"
 	if [ -n "$PUBLIC_IP6" ]; then
-		sysrc sshd_flags+=" -o ListenAddress=$PUBLIC_IP6"
+		sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP6"
 	fi
 
-	service sshd configtest || exit
+	service sshd configtest || exit 1
 	service sshd restart
 }
 
