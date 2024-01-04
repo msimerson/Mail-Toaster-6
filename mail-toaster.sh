@@ -187,21 +187,30 @@ export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 
+# shellcheck disable=2009
+if ps -o args= -p "$$" | grep csh; then
+	echo; echo "ERROR: switch to sh or bash"; return 1; exit 1;
+fi
+echo "shell: $SHELL"
+
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
 fi
 
 usage()
 {
-	if [ -n "$1" ]; then echo; echo "ERROR: missing required $1"; echo; fi
+	if [ -n "$1" ]; then echo; echo "ERROR: invalid $1"; echo; fi
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
-	exit
 }
-if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage TOASTER_HOSTNAME; fi
+if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
+	usage TOASTER_HOSTNAME; return 1; exit 1
+fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
-if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage TOASTER_MAIL_DOMAIN; fi
+if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
+	usage TOASTER_MAIL_DOMAIN; return 1; exit 1
+fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"
 
 if [ -z "$JAIL_NET6" ]; then
@@ -210,10 +219,6 @@ if [ -z "$JAIL_NET6" ]; then
 	export JAIL_NET6
 fi
 echo "IPv6 jail network: $JAIL_NET6"
-
-# shellcheck disable=2009
-if ps -o args= -p "$$" | grep csh; then usage; fi
-echo "shell: $SHELL"
 
 # little below here should need customizing. If so, consider opening
 # an issue or PR at https://github.com/msimerson/Mail-Toaster-6
