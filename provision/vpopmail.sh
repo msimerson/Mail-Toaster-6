@@ -2,7 +2,7 @@
 
 . mail-toaster.sh || exit
 
-export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
+export VPOPMAIL_OPTIONS_SET=""
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
