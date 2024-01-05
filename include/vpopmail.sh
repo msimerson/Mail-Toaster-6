@@ -1,8 +1,10 @@
 #!/bin/sh
 
 
-install_vpopmail_port()
+install_vpopmail_deps()
 {
+	tell_status "install vpopmail deps"
+
 	local _vpopmail_deps="gmake gettext ucspi-tcp netqmail fakeroot"
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
@@ -12,7 +14,40 @@ install_vpopmail_port()
 		else
 			_vpopmail_deps="$_vpopmail_deps mysql80-client"
 		fi
+	fi
 
+	stage_pkg_install $_vpopmail_deps
+}
+
+install_vpopmail_source()
+{
+
+
+	install_vpopmail_deps
+	stage_pkg_install automake
+
+	tell_status "installing vpopmail from sources"
+
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/src" ]; then
+		mkdir "$ZFS_DATA_MNT/vpopmail/src" || exit 1
+	fi
+
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/src/vpopmail" ]; then
+		git clone https://github.com/brunonymous/vpopmail.git "$ZFS_DATA_MNT/vpopmail/src/vpopmail" || exit 1
+	fi
+
+	stage_exec sh -c 'cd /data/src/vpopmail; aclocal' || exit 1
+	stage_exec sh -c 'cd /data/src/vpopmail; CFLAGS="-fcommon" ./configure --enable-auth-module=mysql --disable-users-big-dir --enable-valias --enable-logging=y' || exit 1
+	stage_exec sh -c 'cd /data/src/vpopmail; make install' || exit 1
+}
+
+install_vpopmail_port()
+{
+	install_vpopmail_deps
+	stage_pkg_install portconfig
+
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		tell_status "adding mysql dependency"
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
 		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
 	fi
@@ -37,9 +72,6 @@ mail_vpopmail_SET=$VPOPMAIL_OPTIONS_SET
 mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 "
 	fi
-
-	tell_status "install vpopmail deps"
-	stage_pkg_install $_vpopmail_deps
 
 	if ! grep -qs ^CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
 		# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=257672
