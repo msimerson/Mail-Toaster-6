@@ -34,8 +34,12 @@ install_vpopmail_source()
 		git clone https://github.com/brunonymous/vpopmail.git "$ZFS_DATA_MNT/vpopmail/src/vpopmail" || exit 1
 	fi
 
+	_conf_args="--disable-users-big-dir --enable-valias --enable-logging=y"
+	if [ "$TOASTER_MYSQL" = "1" ]; then _conf_args="$_conf_args --enable-auth-module=mysql"; fi
+	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then _conf_args="$_conf_args --enable-qmail-ext"; fi
+
 	stage_exec sh -c 'cd /data/src/vpopmail; aclocal' || exit 1
-	stage_exec sh -c 'cd /data/src/vpopmail; CFLAGS="-fcommon" ./configure --enable-auth-module=mysql --disable-users-big-dir --enable-valias --enable-logging=y' || exit 1
+	stage_exec sh -c "cd /data/src/vpopmail; CFLAGS=\"-fcommon\" ./configure $_conf_args" || exit 1
 	stage_exec sh -c 'cd /data/src/vpopmail; make install' || exit 1
 }
 
@@ -48,6 +52,11 @@ install_vpopmail_port()
 		tell_status "adding mysql dependency"
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
 		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
+	fi
+
+	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then
+		tell_status "adding qmail extensions"
+		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET QMAIL_EXT"
 	fi
 
 	local _installed_opts="$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_vpopmail/options"
