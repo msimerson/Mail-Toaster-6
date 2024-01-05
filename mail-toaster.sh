@@ -189,6 +189,7 @@ export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 
 # shellcheck disable=2009
 if ps -o args= -p "$$" | grep csh; then
+	# shellcheck disable=2317
 	echo; echo "ERROR: switch to sh or bash"; return 1; exit 1;
 fi
 echo "shell: $SHELL"
@@ -204,11 +205,13 @@ usage()
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 }
 if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
+	# shellcheck disable=2317
 	usage TOASTER_HOSTNAME; return 1; exit 1
 fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
 if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
+	# shellcheck disable=2317
 	usage TOASTER_MAIL_DOMAIN; return 1; exit 1
 fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"

@@ -21,8 +21,6 @@ install_vpopmail_deps()
 
 install_vpopmail_source()
 {
-
-
 	install_vpopmail_deps
 	stage_pkg_install automake
 
