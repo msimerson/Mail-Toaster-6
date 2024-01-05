@@ -203,11 +203,13 @@ usage()
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 }
+# shellcheck disable=2317
 if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
 	usage TOASTER_HOSTNAME; return 1; exit 1
 fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
+# shellcheck disable=2317
 if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
 	usage TOASTER_MAIL_DOMAIN; return 1; exit 1
 fi
