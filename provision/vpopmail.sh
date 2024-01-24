@@ -164,6 +164,11 @@ install_vpopmail_mysql_grants()
 	done
 }
 
+install_vpopmail_mysql_aliastable()
+{
+	echo "CREATE TABLE IF NOT EXISTS `aliasdomains` (`alias` varchar(100) NOT NULL, `domain` varchar(100) NOT NULL, PRIMARY KEY (`alias`));" | mysql_query vpopmail || return 1
+}
+
 install_vpop_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
@@ -218,6 +223,7 @@ install_vpopmail()
 	install_vpopmail_source
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
+		install_vpopmail_mysql_aliastable
 	fi
 
 	install_qmailadmin

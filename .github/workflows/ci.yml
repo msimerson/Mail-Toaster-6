@@ -1,6 +1,12 @@
 name: CI Tests
 
-on: [ push, pull_request ]
+on:
+  push:
+    tags-ignore:
+      - 'v*' # avoid rerun on release
+  pull_request:
+    branches:
+      - master
 
 jobs:
   shellcheck:
