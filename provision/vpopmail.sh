@@ -166,7 +166,7 @@ install_vpopmail_mysql_grants()
 
 install_vpopmail_mysql_aliastable()
 {
-	echo "CREATE TABLE IF NOT EXISTS 'aliasdomains' ('alias' varchar(100) NOT NULL, 'domain' varchar(100) NOT NULL, PRIMARY KEY ('alias'));" | mysql_query vpopmail || return 1
+	echo "CREATE TABLE IF NOT EXISTS aliasdomains (alias varchar(100) NOT NULL, domain varchar(100) NOT NULL, PRIMARY KEY (alias));" | mysql_query vpopmail || return 1
 }
 
 install_vpop_nrpe()
