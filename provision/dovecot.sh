@@ -232,10 +232,10 @@ configure_dovecot_sql_conf()
   password_query = SELECT \\
     CONCAT(v.pw_name, '@', v.pw_domain) AS user \\
     ,v.pw_clear_passwd AS password \\
-    ,v.pw_dir AS userdb_home, \\
-    89 AS userdb_uid, \\
-    89 AS userdb_gid, \\
-    CONCAT('*:bytes=', REPLACE(SUBSTRING_INDEX(v.pw_shell, 'S', 1), 'NOQUOTA', '0')) AS userdb_quota_rule \\
+    ,v.pw_dir AS userdb_home \\
+    ,89 AS userdb_uid \\
+    ,89 AS userdb_gid \\
+    ,CONCAT('*:bytes=', REPLACE(SUBSTRING_INDEX(v.pw_shell, 'S', 1), 'NOQUOTA', '0')) AS userdb_quota_rule \\
     FROM vpopmail v \\
       LEFT JOIN aliasdomains a ON a.alias='%d' \\
     WHERE v.pw_name = '%n' \\
