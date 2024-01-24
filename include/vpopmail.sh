@@ -35,7 +35,7 @@ install_vpopmail_source()
 	fi
 
 	_conf_args="--disable-users-big-dir --enable-logging=y --enable-md5-passwords"
-	if [ "$TOASTER_MYSQL" = "1" ]; then _conf_args="$_conf_args --enable-auth-module=mysql --enable-valias"; fi
+	if [ "$TOASTER_MYSQL" = "1" ]; then _conf_args="$_conf_args --enable-auth-module=mysql --enable-valias --enable-sql-aliasdomains"; fi
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then _conf_args="$_conf_args --enable-qmail-ext"; fi
 	if [ "$TOASTER_VPOPMAIL_CLEAR" = "1" ]; then _conf_args="$_conf_args --enable-clear-passwd"; fi
 
