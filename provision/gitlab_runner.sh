@@ -14,7 +14,7 @@ install_gitlab_runner_pkg()
 install_gitlab_runner_port()
 {
 	tell_status "installing GitLab Runner port"
-	stage_pkg_install dialog4ports go go-bindata
+	stage_pkg_install go go-bindata
 	stage_port_install devel/gitlab-runner || exit
 }
 

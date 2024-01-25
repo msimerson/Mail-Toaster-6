@@ -8,7 +8,7 @@ export JAIL_CONF_EXTRA=""
 install_tinydns()
 {
 	tell_status "installing djbdns"
-	stage_pkg_install rsync dialog4ports daemontools || exit
+	stage_pkg_install rsync daemontools || exit
 
 	if [ ! -d "$STAGE_MNT/data/home" ]; then
 		mkdir "$STAGE_MNT/data/home" || exit

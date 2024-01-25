@@ -10,7 +10,7 @@ mt6-include user
 install_nsd()
 {
 	tell_status "installing NSD"
-	stage_pkg_install nsd rsync dialog4ports || exit
+	stage_pkg_install nsd rsync || exit
 
 	if [ ! -d "$STAGE_MNT/data/home/nsd" ]; then
 		mkdir -p "$STAGE_MNT/data/home/nsd" || exit

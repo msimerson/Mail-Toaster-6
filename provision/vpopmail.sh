@@ -2,31 +2,52 @@
 
 . mail-toaster.sh || exit
 
-export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
+export VPOPMAIL_OPTIONS_SET=""
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 mt6-include mysql
 
+install_maildrop_port()
+{
+	stage_make_conf mail_maildrop_ "
+mail_maildrop_UNSET=DOCS
+"
+	# libidn is needed for 3.0.x versions
+	stage_pkg_install courier-unicode libidn2 pcre pcre2 perl5
+
+	sed -i '' \
+		-e 's/3\.[0-9]\.[0-9]/3.1.0/' \
+		/usr/ports/mail/maildrop/Makefile
+
+	if ! grep -qs 3.1.0 /usr/ports/mail/maildrop/distinfo; then
+		tee -a /usr/ports/mail/maildrop/distinfo <<EO_MAILDROP_310
+SHA256 (maildrop-3.1.0.tar.bz2) = b6000075de1d4ffd0d1e7dc3127bc06c04bf1244b00bae853638150823094fec
+SIZE (maildrop-3.1.0.tar.bz2) = 2154698
+EO_MAILDROP_310
+	fi
+
+	export BATCH=${BATCH:="1"}
+	stage_port_install mail/maildrop || exit 1
+}
+
 install_maildrop()
 {
 	tell_status "installing maildrop"
 	# stage_pkg_install maildrop
-	stage_pkg_install libidn
-	stage_port_install maildrop
+	install_maildrop_port
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit 1
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
-	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
-	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit 1
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit 1
 
 	tell_status "setting permissions on mailfilter files"
-	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
-	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
-
+	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit 1
+	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit 1
 }
 
 install_lighttpd()
@@ -79,7 +100,7 @@ EO_LIGHTTPD
 install_qmailadmin()
 {
 	tell_status "installing qmailadmin"
-	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man
+	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man portconfig
 	stage_make_conf mail_qmailadmin_ '
 mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA TRIVIAL_PASSWORD USER_INDEX
 mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
@@ -105,7 +126,7 @@ install_vqadmin()
 {
 	tell_status "installing vqadmin"
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
-	stage_port_install mail/vqadmin || exit
+	stage_port_install mail/vqadmin || exit 1
 }
 
 mysql_error_warning()
@@ -164,6 +185,11 @@ install_vpopmail_mysql_grants()
 	done
 }
 
+install_vpopmail_mysql_aliastable()
+{
+	echo "CREATE TABLE IF NOT EXISTS aliasdomains (alias varchar(100) NOT NULL, domain varchar(100) NOT NULL, PRIMARY KEY (alias));" | mysql_query vpopmail || return 1
+}
+
 install_vpop_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
@@ -214,9 +240,11 @@ install_vpopmail()
 	tell_status "installing vpopmail package"
 	stage_pkg_install vpopmail || exit
 
-	install_vpopmail_port
+	# install_vpopmail_port
+	install_vpopmail_source
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
+		install_vpopmail_mysql_aliastable
 	fi
 
 	install_qmailadmin

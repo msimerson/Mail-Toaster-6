@@ -38,7 +38,6 @@ install_dcc_port_options()
 install_dcc()
 {
 	install_dcc_port_options
-	stage_pkg_install dialog4ports
 
 	tell_status "install dcc"
 	stage_port_install mail/dcc-dccd || exit

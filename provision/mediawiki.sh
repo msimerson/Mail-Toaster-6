@@ -18,7 +18,7 @@ install_mediawiki()
 	install_php $PHP_VER "ctype dom fileinfo filter iconv intl gd mbstring mysqli readline session sockets xml xmlreader zlib"
 	install_nginx
 
-	stage_pkg_install dialog4ports mysql80-client
+	stage_pkg_install mysql80-client
 	stage_port_install www/mediawiki$MW_VER || exit
 
 	mkdir -p "$STAGE_MNT/var/cache/mediawiki"

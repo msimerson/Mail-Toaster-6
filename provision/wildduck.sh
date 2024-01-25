@@ -19,7 +19,6 @@ install_wildduck()
 	stage_pkg_install npm-node16 git-lite || exit
 
 	tell_status "installing wildduck"
-	# stage_pkg_install dialog4ports
 	stage_exec bash -c "cd /data && git clone https://github.com/nodemailer/wildduck.git" || exit 1
 	stage_exec bash -c "cd /data/wildduck && npm install --production"
 

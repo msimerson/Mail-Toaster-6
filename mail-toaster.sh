@@ -87,6 +87,7 @@ export TOASTER_PKG_BRANCH="latest"
 export TOASTER_QMHANDLE="0"
 export TOASTER_SENTRY=""
 export TOASTER_USE_TMPFS="0"
+export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
 export CLAMAV_FANGFRISCH="0"
 export CLAMAV_UNOFFICIAL="0"
@@ -179,6 +180,7 @@ export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
+export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:="1"}
 export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:="0"}
 export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:="0"}
 export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:="0"}
@@ -187,7 +189,7 @@ export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
 
-# shellcheck disable=2009
+# shellcheck disable=2009,2317
 if ps -o args= -p "$$" | grep csh; then
 	echo; echo "ERROR: switch to sh or bash"; return 1; exit 1;
 fi
@@ -203,11 +205,13 @@ usage()
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 }
+# shellcheck disable=2317
 if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
 	usage TOASTER_HOSTNAME; return 1; exit 1
 fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
+# shellcheck disable=2317
 if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
 	usage TOASTER_MAIL_DOMAIN; return 1; exit 1
 fi
@@ -849,6 +853,10 @@ stage_pkg_install()
 stage_port_install()
 {
 	# $1 is the port directory (eg: mail/dovecot)
+
+	jexec "$SAFE_NAME" pkg install -y pkgconf portconfig
+	# portconfig replaces dialog4ports (as of Oct 2023)
+
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
 

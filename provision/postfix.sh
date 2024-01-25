@@ -12,7 +12,7 @@ if [ -f "$_dkim_private_key" ]; then _has_dkim=1; fi
 install_postfix()
 {
 	tell_status "installing postfix"
-	stage_pkg_install postfix-sasl opendkim dialog4ports || exit
+	stage_pkg_install postfix-sasl opendkim || exit
 
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios-plugins"

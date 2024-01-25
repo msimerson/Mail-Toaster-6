@@ -32,7 +32,7 @@ install_sqwebmail()
 {
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing mysql client libs (for vpopmail)"
-		stage_pkg_install mysql80-client dialog4ports
+		stage_pkg_install mysql80-client
 	fi
 
 	install_qmail
