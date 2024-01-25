@@ -28,6 +28,7 @@ SIZE (maildrop-3.1.0.tar.bz2) = 2154698
 EO_MAILDROP_310
 	fi
 
+	export BATCH=${BATCH:="1"}
 	stage_port_install mail/maildrop || exit 1
 }
 
