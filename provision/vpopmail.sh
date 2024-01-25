@@ -11,7 +11,7 @@ mt6-include mysql
 
 install_maildrop_port()
 {
-	stage_make_conf mail_vpopmail_ "
+	stage_make_conf mail_maildrop_ "
 mail_maildrop_UNSET=DOCS
 "
 	# libidn is needed for 3.0.x versions
