@@ -246,7 +246,7 @@ else
 
     ##
     # check to make sure the message was delivered
-    # returncode 77 means that out maildir was overquota - bounce mail
+    # returncode 77 means that the maildir was over quota - bounce mail
     ##
     if( $RETURNCODE == 77)
     {

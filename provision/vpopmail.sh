@@ -12,19 +12,30 @@ mt6-include mysql
 install_maildrop_port()
 {
 	stage_make_conf mail_vpopmail_ "
-mail_maildrop_SET=
 mail_maildrop_UNSET=DOCS
 "
-	# libidn is for older 3.0.x versions
-	stage_pkg_install courier-unicode libidn libidn2 pcre pcre2 perl5
+	# libidn is needed for 3.0.x versions
+	stage_pkg_install courier-unicode libidn2 pcre pcre2 perl5
+
+	sed -i '' \
+		-e 's/3\.[0-9]\.[0-9]/3.1.0/' \
+		/usr/ports/mail/maildrop/Makefile
+
+	if ! grep -qs 3.1.0 /usr/ports/mail/maildrop/distinfo; then
+		tee -a /usr/ports/mail/maildrop/distinfo <<EO_MAILDROP_310
+SHA256 (maildrop-3.1.0.tar.bz2) = b6000075de1d4ffd0d1e7dc3127bc06c04bf1244b00bae853638150823094fec
+SIZE (maildrop-3.1.0.tar.bz2) = 2154698
+EO_MAILDROP_310
+	fi
+
 	stage_port_install mail/maildrop || exit 1
 }
 
 install_maildrop()
 {
 	tell_status "installing maildrop"
-	stage_pkg_install maildrop
-	# install_maildrop_port
+	# stage_pkg_install maildrop
+	install_maildrop_port
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit 1
