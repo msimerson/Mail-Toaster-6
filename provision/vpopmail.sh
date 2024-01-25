@@ -12,9 +12,9 @@ mt6-include mysql
 install_maildrop()
 {
 	tell_status "installing maildrop"
-	# stage_pkg_install maildrop
-	stage_pkg_install libidn libidn2 pcre perl5
-	stage_port_install mail/maildrop || exit 1
+	stage_pkg_install maildrop
+	# stage_pkg_install courier-unicode libidn libidn2 pcre pcre2 perl5
+	# stage_port_install mail/maildrop || exit 1
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit 1
