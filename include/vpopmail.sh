@@ -93,7 +93,7 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 	fi
 
 	tell_status "installing vpopmail port with custom options"
-	stage_exec make -C /usr/ports/mail/vpopmail build deinstall install clean
+	stage_port_install mail/vpopmail
 }
 
 install_qmail()
@@ -143,5 +143,5 @@ install_qmail()
 mail_qmail_UNSET=RCDLINK
 '
 	fi
-	# stage_exec make -C /usr/ports/mail/qmail deinstall install clean
+	#stage_port_install mail/qmail
 }

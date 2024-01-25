@@ -36,7 +36,7 @@ install_sought_rules() {
 install_spamassassin_port()
 {
 	tell_status "install SpamAssassin from ports (w/opts)"
-	stage_pkg_install dialog4ports p5-Encode-Detect p5-Test-NoWarnings || exit
+	stage_pkg_install p5-Encode-Detect p5-Test-NoWarnings || exit
 
 	local _SA_OPTS="DCC DKIM DOCS RAZOR SPF_QUERY GNUPG_NONE"
 	if [    "$TOASTER_MYSQL" = "1" ]; then _SA_OPTS="MYSQL $_SA_OPTS"; fi

@@ -11,8 +11,6 @@ install_sphinxsearch()
 	stage_pkg_install sphinxsearch || exit
 	stage_make_conf textproc_sphinxsearch   'textproc_sphinxsearch_SET=ID64'
 
-	stage_pkg_install dialog4ports || exit
-
 	tell_status "Compiling Sphinx search"
 
 	export BATCH=${BATCH:="1"}

@@ -30,7 +30,6 @@ install_dovecot()
 	fi
 
 	tell_status "building dovecot"
-	stage_pkg_install dialog4ports
 
 	export BATCH=${BATCH:="1"}
 	stage_port_install mail/dovecot || exit 1

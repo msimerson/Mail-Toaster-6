@@ -13,7 +13,7 @@ install_minecraft()
 	stage_pkg_install openjdk17 || exit
 
 	tell_status "installing minecraft"
-	stage_pkg_install tmux dialog4ports zip || exit
+	stage_pkg_install tmux zip || exit
 	stage_make_conf games_minecraft-server 'games_minecraft-server_SET=DAEMON
 games_minecraft-server_UNSET=STANDALONE'
 	# export BATCH=${BATCH:="1"}
