@@ -9,12 +9,22 @@ export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/
 mt6-include vpopmail
 mt6-include mysql
 
+install_maildrop_port()
+{
+	stage_make_conf mail_vpopmail_ "
+mail_maildrop_SET=
+mail_maildrop_UNSET=DOCS
+"
+	# libidn is for older 3.0.x versions
+	stage_pkg_install courier-unicode libidn libidn2 pcre pcre2 perl5
+	stage_port_install mail/maildrop || exit 1
+}
+
 install_maildrop()
 {
 	tell_status "installing maildrop"
 	stage_pkg_install maildrop
-	# stage_pkg_install courier-unicode libidn libidn2 pcre pcre2 perl5
-	# stage_port_install mail/maildrop || exit 1
+	# install_maildrop_port
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit 1
