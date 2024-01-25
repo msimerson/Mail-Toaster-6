@@ -14,19 +14,18 @@ install_maildrop()
 	tell_status "installing maildrop"
 	# stage_pkg_install maildrop
 	stage_pkg_install libidn
-	stage_port_install maildrop
+	stage_port_install mail/maildrop || exit 1
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit 1
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
-	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
-	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit 1
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit 1
 
 	tell_status "setting permissions on mailfilter files"
-	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
-	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
-
+	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit 1
+	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit 1
 }
 
 install_lighttpd()
@@ -105,7 +104,7 @@ install_vqadmin()
 {
 	tell_status "installing vqadmin"
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
-	stage_port_install mail/vqadmin || exit
+	stage_port_install mail/vqadmin || exit 1
 }
 
 mysql_error_warning()
