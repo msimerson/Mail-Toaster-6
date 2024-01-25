@@ -47,7 +47,6 @@ install_vpopmail_source()
 install_vpopmail_port()
 {
 	install_vpopmail_deps
-	stage_pkg_install portconfig
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "adding mysql dependency"
