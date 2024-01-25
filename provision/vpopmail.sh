@@ -13,7 +13,7 @@ install_maildrop()
 {
 	tell_status "installing maildrop"
 	# stage_pkg_install maildrop
-	stage_pkg_install libidn libidn2 perl5
+	stage_pkg_install libidn libidn2 pcre perl5
 	stage_port_install mail/maildrop || exit 1
 
 	tell_status "installing maildrop filter file"
