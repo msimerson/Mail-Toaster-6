@@ -854,7 +854,8 @@ stage_port_install()
 {
 	# $1 is the port directory (eg: mail/dovecot)
 
-	jexec "$SAFE_NAME" pkg install -y pkgconf dialog4ports
+	jexec "$SAFE_NAME" pkg install -y pkgconf portconfig
+	# portconfig replaces dialog4ports (as of Oct 2024)
 
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
