@@ -131,6 +131,7 @@ update_existing_jails()
 {
 	tell_status "configuring all jails to use bsd_cache"
 	for _j in $JAIL_ORDERED_LIST; do
+		if [ "$_j" = "bsd_cache" ]; then continue; fi
 		if [ ! -d "$ZFS_JAIL_MNT/$_j/etc" ]; then continue; fi
 
 		local _repo_dir="$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg/repos"
@@ -151,8 +152,7 @@ EO_PKG_MT6
 
 		# cache pkg audit vulnerability db
 		sed -i '' \
-			-e '/^#VULNXML_SITE/ s/^#//' \
-			-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
+			-e '/^#VULNXML_SITE/ s/^#//; s/vuxml.freebsd.org/vulnxml/' \
 			"$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg.conf"
 
 		sed -i '' -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \

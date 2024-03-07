@@ -18,7 +18,7 @@ install_geoip_geoipupdate()
 install_geoip_mm_mirror()
 {
 	tell_status "install maxmind-geolite-mirror"
-	stage_pkg_install npm-node16 || exit
+	stage_pkg_install npm-node20 || exit
 	stage_exec npm set user 0
 	stage_exec npm set -g unsafe-perm true
 	stage_exec npm install -g maxmind-geolite-mirror || exit

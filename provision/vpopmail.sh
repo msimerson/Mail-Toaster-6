@@ -300,7 +300,7 @@ migrate_vpopmail_home()
 		return
 	fi
 
-	echo "
+	echo '
 	WARNING: vpopmail data migration required. Migration requires that you
 	         manually perform the following steps:
 
@@ -308,7 +308,7 @@ migrate_vpopmail_home()
 
 		   service jail stop dovecot vpopmail
 
-	2. move the vpopmail data into a 'home' subdirectory
+	2. move the vpopmail data into a "home" subdirectory
 
            cd /data/vpopmail
            mkdir home
@@ -340,7 +340,7 @@ migrate_vpopmail_home()
 
 		   service jail start vpopmail dovecot
 
-	"
+	'
 	exit
 
 	# service jail stop dovecot vpopmail
