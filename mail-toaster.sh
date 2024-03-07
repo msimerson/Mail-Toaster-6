@@ -1039,7 +1039,7 @@ install_sentry()
 
 provision_mt6()
 {
-	for _j in host base dns bsd_cache mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
+	for _j in host base dns mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
 		fetch_and_exec "$_j" || break
 	done
 }

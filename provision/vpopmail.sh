@@ -117,6 +117,7 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 
+	stage_port_install devel/gmake || exit
 	stage_port_install mail/qmailadmin || exit
 
 	install_lighttpd
@@ -300,7 +301,7 @@ migrate_vpopmail_home()
 		return
 	fi
 
-	echo "
+	echo '
 	WARNING: vpopmail data migration required. Migration requires that you
 	         manually perform the following steps:
 
@@ -308,7 +309,7 @@ migrate_vpopmail_home()
 
 		   service jail stop dovecot vpopmail
 
-	2. move the vpopmail data into a 'home' subdirectory
+	2. move the vpopmail data into a "home" subdirectory
 
            cd /data/vpopmail
            mkdir home
@@ -340,7 +341,7 @@ migrate_vpopmail_home()
 
 		   service jail start vpopmail dovecot
 
-	"
+	'
 	exit
 
 	# service jail stop dovecot vpopmail
