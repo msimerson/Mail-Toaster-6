@@ -12,7 +12,7 @@ PHP_VER="82"
 
 install_snappymail()
 {
-	local _php_modules="ctype curl dom gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
+	local _php_modules="ctype curl dom fileinfo gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
 
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "using sqlite DB backend"
