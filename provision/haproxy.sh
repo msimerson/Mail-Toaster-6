@@ -97,6 +97,7 @@ frontend http-in
 	acl qmailadmin   path_beg /qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/vqadmin
+	acl qmailadmin   path_beg /images/vqadmin
 	acl sqwebmail    path_beg /sqwebmail
 	acl sqwebmail    path_beg /cgi-bin/sqwebmail
 	acl isoqlog      path_beg /isoqlog

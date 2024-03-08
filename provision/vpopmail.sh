@@ -75,13 +75,16 @@ extforward.forwarder = (
      "$(get_jail_ip6 haproxy)"  => "trust",
 )
 
+#auth.backend                   = "plain"
 auth.backend                   = "htdigest"
-auth.backend.htdigest.userfile = "/usr/local/etc/WebUsers"
+auth.backend.plain.userfile    = "/data/etc/WebUsers.plain"
+auth.backend.htdigest.userfile = "/data/etc/WebUsers.digest"
 
 auth.require   = ( "/cgi-bin/vqadmin" =>
                      (
+                         #"method"  => "basic",
                          "method"  => "digest",
-                         "realm"   => "Admins Only",
+                         "realm"   => "vqadmin",
                          "require" => "valid-user"
                       ),
                  )
@@ -125,9 +128,12 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 
 install_vqadmin()
 {
+	if [ "$TOASTER_VQADMIN" != "1" ]; then return; fi
+
 	tell_status "installing vqadmin"
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
 	stage_port_install mail/vqadmin || exit 1
+	stage_exec ln /usr/local/www/cgi-bin/vqadmin/html/en-us /usr/local/www/cgi-bin/vqadmin/html/en-US
 }
 
 mysql_error_warning()
@@ -249,6 +255,7 @@ install_vpopmail()
 	fi
 
 	install_qmailadmin
+	install_vqadmin
 	install_vpop_nrpe
 }
 
