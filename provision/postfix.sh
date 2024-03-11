@@ -16,7 +16,7 @@ install_postfix()
 
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios-plugins"
-		stage_pkg_install nagios-plugins || exit
+		stage_pkg_install nrpe nagios-plugins || exit
 	fi
 }
 
@@ -73,7 +73,7 @@ configure_postfix()
 	do
 		if [ -f "$ZFS_DATA_MNT/postfix/etc/$_f.cf" ]; then
 			tell_status "preserving /usr/local/etc/postfix/$_f.cf"
-			cp "$ZFS_DATA_MNT/postfix/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
+			cp "$ZFS_DATA_MNT/postfix/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/" || exit 1
 		fi
 	done
 
@@ -88,7 +88,7 @@ configure_postfix()
 
 	if [ ! -f "$ZFS_JAIL_MNT/usr/local/etc/mail/mailer.conf" ]; then
 		if [ ! -d "$ZFS_JAIL_MNT/usr/local/etc/mail" ]; then
-			mkdir "$ZFS_JAIL_MNT/usr/local/etc/mail"
+			mkdir "$ZFS_JAIL_MNT/usr/local/etc/mail" || exit 1
 		fi
 		stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
 	fi

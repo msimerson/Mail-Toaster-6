@@ -5,14 +5,13 @@
 export JAIL_CONF_EXTRA="
                 mount.fdescfs;
                 mount.procfs;"
-# TODO: test
-# export JAIL_FSTAB="fdescfs /jails/unifi/dev/fd fdescfs rw 0 0
-# proc     /jails/unifi/proc   procfs  rw 0 0"
+export JAIL_FSTAB="fdescfs /jails/unifi/dev/fd fdescfs rw 0 0
+proc     /jails/unifi/proc   procfs  rw 0 0"
 
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install mongodb36 openjdk11 snappyjava gmake || exit
+	stage_pkg_install mongodb44 openjdk11 snappyjava gmake || exit
 
 	tell_status "installing Unifi"
 	stage_port_install net-mgmt/unifi7 || exit
