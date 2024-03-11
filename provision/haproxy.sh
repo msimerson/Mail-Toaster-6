@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 install_haproxy()
 {
@@ -17,23 +19,23 @@ install_haproxy()
 install_haproxy_pkg()
 {
 	tell_status "installing haproxy"
-	stage_pkg_install haproxy || exit 1
+	stage_pkg_install haproxy
 }
 
 install_haproxy_openssl()
 {
 	tell_status "compiling haproxy against openssl $TLS_LIBRARY"
 	echo "DEFAULT_VERSIONS+=ssl=$TLS_LIBRARY" >> "$STAGE_MNT/etc/make.conf"
-	stage_pkg_install pcre gmake "$TLS_LIBRARY" || exit 1
-	stage_port_install net/haproxy || exit 1
+	stage_pkg_install pcre gmake "$TLS_LIBRARY"
+	stage_port_install net/haproxy
 }
 
 install_haproxy_libressl()
 {
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
-	stage_pkg_install pcre gmake libressl || exit 1
-	stage_port_install net/haproxy || exit 1
+	stage_pkg_install pcre gmake libressl
+	stage_port_install net/haproxy
 }
 
 configure_haproxy_dot_conf()
@@ -293,17 +295,17 @@ configure_haproxy_tls()
 	if [ ! -f "$STAGE_MNT/etc/ssl/private/server.pem" ]; then
 		tell_status "concatenating TLS key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit 1
+			> "$STAGE_MNT/etc/ssl/private/server.pem"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl" ]; then
 		tell_status "creating /data/ssl"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl" || exit 1
+		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl.d" ]; then
 		tell_status "creating /data/ssl.d"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d" || exit 1
+		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d"
 	fi
 
 	if [ ! -d "$STAGE_MNT/usr/local/etc/periodic/daily" ]; then
@@ -316,7 +318,7 @@ configure_haproxy()
 {
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc" ]; then
 		tell_status "creating /data/etc"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/etc" || exit
+		mkdir -p "$ZFS_DATA_MNT/haproxy/etc"
 	fi
 
 	configure_haproxy_dot_conf
@@ -336,6 +338,11 @@ configure_haproxy()
 	store_config "$_pf_etc/rdr.conf" <<EO_PF
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip  haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
+EO_PF
+
+	store_config "$_pf_etc/allow.conf" <<EO_PF
+pass in quick inet  proto tcp from any to <ext_ip4> port { 80 443 }
+pass in quick inet6 proto tcp from any to <ext_ip6> port { 80 443 }
 EO_PF
 
 	configure_haproxy_tls

@@ -1,19 +1,18 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
 
-ifconfig ${JAIL_NET_INTERFACE} 2>&1 | grep -q 'does not exist' && {
-	echo; echo "ERROR: did you run 'provision host' yet?"; echo;
-	exit 1
-}
+. mail-toaster.sh
 
 mt6-include shell
+mt6-include mta
+mt6-include editor
 
 create_base_filesystem()
 {
 	if [ -e "$BASE_MNT/dev/null" ]; then
 		echo "unmounting $BASE_MNT/dev"
-		umount "$BASE_MNT/dev" || exit
+		umount "$BASE_MNT/dev"
 	fi
 
 	if zfs_filesystem_exists "$BASE_VOL"; then
@@ -51,33 +50,7 @@ install_freebsd()
 		stage_fbsd_package base "$BASE_MNT"
 	fi
 
-	touch "$BASE_MNT/etc/fstab"
-}
-
-install_ssmtp()
-{
-	tell_status "installing ssmtp"
-	stage_pkg_install ssmtp || exit
-
-	tell_status "configuring ssmtp"
-	cp "$BASE_MNT/usr/local/etc/ssmtp/revaliases.sample" \
-	   "$BASE_MNT/usr/local/etc/ssmtp/revaliases" || exit
-
-	sed -e "/^root=/ s/postmaster/$TOASTER_ADMIN_EMAIL/" \
-		-e "/^mailhub=/ s/=mail/=$TOASTER_MSA/" \
-		-e "/^rewriteDomain=/ s/=\$/=$TOASTER_MAIL_DOMAIN/" \
-		-e '/^#FromLineOverride=YES/ s/#//' \
-		"$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf.sample" \
-		> "$BASE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
-
-	tee "$BASE_MNT/etc/mail/mailer.conf" <<EO_MAILER_CONF
-sendmail	/usr/local/sbin/ssmtp
-send-mail	/usr/local/sbin/ssmtp
-mailq		/usr/local/sbin/ssmtp
-newaliases	/usr/local/sbin/ssmtp
-hoststat	/usr/bin/true
-purgestat	/usr/bin/true
-EO_MAILER_CONF
+	configure_fstab
 }
 
 configure_syslog()
@@ -115,7 +88,7 @@ disable_root_password()
 	# prevent a nightly email notice about the empty root password
 	tell_status "disabling passwordless root account"
 	sed -i.bak -e 's/^root::/root:*:/' "$BASE_MNT/etc/master.passwd"
-	stage_exec pwd_mkdb /etc/master.passwd || exit
+	stage_exec pwd_mkdb /etc/master.passwd
 }
 
 disable_cron_jobs()
@@ -132,7 +105,7 @@ disable_cron_jobs()
 		-e '/^1.*adjkerntz/ s/^1/#1/'  \
 		-e '/^\*.*entropy/  s/^\*/#*/' \
 		-e '/^\*.*atrun/    s/^\*/#*/' \
-		"$BASE_MNT/etc/crontab" || exit
+		"$BASE_MNT/etc/crontab"
 
 	echo "done"
 }
@@ -145,7 +118,7 @@ enable_security_periodic()
 	fi
 
 	tell_status "setting up auto package security"
-	tee "$_daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
+	cat <<'EO_PKG_SECURITY' > "$_daily/auto_security_upgrades"
 #!/bin/sh
 
 auto_remove="vim-console vim-lite"
@@ -191,10 +164,10 @@ configure_tls_dhparams()
 	if [ ! -f "$DHP" ]; then
 		# for upgrade compatibilty
 		tell_status "Generating a 2048 bit $DHP"
-		openssl dhparam -out "$DHP" 2048 || exit
+		openssl dhparam -out "$DHP" 2048
 	fi
 
-	cp "$DHP" "$BASE_MNT/etc/ssl/dhparam.pem" || exit
+	cp "$DHP" "$BASE_MNT/etc/ssl/dhparam.pem"
 }
 
 configure_make_conf() {
@@ -211,23 +184,29 @@ EO_MAKE_CONF
 }
 
 configure_fstab() {
-	if [ ! -d "$BASE_MNT/data/etc" ]; then
-		mkdir -p "$BASE_MNT/data/etc" || exit 1
+	local _sub_dir=${1:-""}
+	local _etc_path="$BASE_MNT/${_sub_dir}etc"
+	if [ ! -d "$_etc_path" ]; then
+		mkdir -p "$_etc_path"
 	fi
-	touch "$BASE_MNT/data/etc/fstab"
+
+	tee "$_etc_path/fstab" <<EO_FSTAB
+# Device                Mountpoint      FStype  Options         Dump    Pass#
+devfs                   $BASE_MNT/dev  devfs   rw              0       0
+EO_FSTAB
 }
 
 configure_base()
 {
 	if [ ! -d "$BASE_MNT/usr/ports" ]; then
-		mkdir "$BASE_MNT/usr/ports" || exit
+		mkdir "$BASE_MNT/usr/ports"
 	fi
 
 	tell_status "adding base jail resolv.conf"
-	cp /etc/resolv.conf "$BASE_MNT/etc" || exit
+	cp /etc/resolv.conf "$BASE_MNT/etc"
 
 	tell_status "setting base jail timezone (to hosts)"
-	cp /etc/localtime "$BASE_MNT/etc" || exit
+	cp /etc/localtime "$BASE_MNT/etc"
 
 	configure_make_conf
 
@@ -237,7 +216,6 @@ configure_base()
 		hostname=base \
 		cron_flags='$cron_flags -J 15' \
 		syslogd_flags="-s -cc" \
-		sendmail_enable=NONE \
 		update_motd=NO
 
 	configure_pkg_latest "$BASE_MNT"
@@ -248,7 +226,7 @@ configure_base()
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
-	configure_fstab
+	configure_fstab "data/"
 }
 
 install_periodic_conf()
@@ -325,27 +303,10 @@ monthly_show_badconfig="YES"
 EO_PERIODIC
 }
 
-install_vimrc()
-{
-	tell_status "installing a jail-wide vimrc"
-	local _vimdir="$BASE_MNT/usr/local/etc/vim"
-	if [ ! -d "$_vimdir" ]; then
-		mkdir -p "$_vimdir" || exit
-	fi
-
-	fetch -m -o "$_vimdir/vimrc" https://raw.githubusercontent.com/nandalopes/vim-for-server/main/vimrc
-	sed -i '' \
-		-e 's/^syntax on/" syntax on/' \
-		-e 's/^colorscheme/" colorscheme/' \
-		-e 's/^set number/" set number/' \
-		-e 's/^set relativenumber/" set relativenumber/' \
-		"$_vimdir/vimrc"
-}
-
 install_base()
 {
 	tell_status "installing packages desired in every jail"
-	stage_pkg_install pkg vim-tiny ca_root_nss || exit
+	stage_pkg_install $TOASTER_BASE_PKGS
 
 	stage_exec newaliases
 
@@ -356,29 +317,42 @@ install_base()
 		configure_zsh_shell "$BASE_MNT"
 	fi
 
-	install_ssmtp
+	configure_mta "$BASE_MNT"
 	disable_root_password
 	install_periodic_conf
-	install_vimrc
+	configure_editor "$BASE_MNT"
 
 	tell_status "updating packages in base jail"
 	stage_exec pkg upgrade -y
 }
 
+assure_jail_nic()
+{
+	tell_status "assure_jail_nic: $JAIL_NET_INTERFACE exists"
+
+	if ifconfig ${JAIL_NET_INTERFACE} 2>&1 | grep -q 'does not exist'; then
+		echo; echo "ERROR: did you run 'provision host' yet?"; echo;
+		exit 1
+	else
+		echo "ok"
+	fi
+}
+
+assure_jail_nic
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
-jail -r stage 2>/dev/null
+stop_jail stage
 create_base_filesystem
 install_freebsd
 freebsd_update
 configure_base
-start_staged_jail base "$BASE_MNT" || exit
+start_staged_jail base "$BASE_MNT"
 install_base
 stop_jail stage
 if [ -e "$BASE_MNT/dev/null" ]; then umount "$BASE_MNT/dev"; fi
 rm -rf "$BASE_MNT/var/cache/pkg/*"
 rm -rf "$BASE_MNT/var/db/freebsd-update/*"
 echo "zfs snapshot ${BASE_SNAP}"
-zfs snapshot "${BASE_SNAP}" || exit
+zfs snapshot "${BASE_SNAP}"
 add_jail_conf base
 
 proclaim_success base

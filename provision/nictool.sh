@@ -29,7 +29,7 @@ install_nt_prereqs()
 
 install_nt_from_git()
 {
-	stage_pkg_install git-lite || exit
+	stage_pkg_install git-tiny || exit
 	cd "$STAGE_MNT/usr/local" || exit
 	stage_exec git clone --depth=1 https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
 	stage_pkg_install p5-App-Cpanminus

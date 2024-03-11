@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
@@ -12,27 +14,27 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node18 gmake pkgconf git-lite || exit
+	stage_pkg_install npm-node18 gmake pkgconf git-tiny
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
-		stage_pkg_install bash || exit
+		stage_pkg_install bash
 	fi
 	# export PYTHON=/usr/local/bin/python3
 	# stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
-	# stage_exec npm install -g --omit=dev node-gyp || exit
+	# stage_exec npm install -g --omit=dev node-gyp
 
 	# Workaround for NPM bug https://github.com/npm/cli/issues/2610
 	stage_exec bash -c 'git config --global url."https://github.com/".insteadOf git@github.com:'
 	stage_exec bash -c 'git config --global url."https://".insteadOf git://'
 
 	tell_status "installing Haraka"
-	stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git" || exit
+	stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git"
 
 	local _plugins="ws express"
 	for _p in log-reader dmarc-perl; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
-	stage_exec rm /data/package.json
+	stage_exec bash -c "if [ -f /data/package.json ]; then rm /data/package.json; fi"
 	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
 }
 
@@ -76,12 +78,12 @@ install_p0f()
 	tell_status "installing p0f startup file"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 	local _start="$STAGE_MNT/usr/local/etc/rc.d/p0f"
-	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start" || exit
-	chmod 755 "$_start" || exit
+	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start"
+	chmod 755 "$_start"
 
 	get_public_facing_nic
 	if [ "$PUBLIC_NIC" != "bce1" ]; then
-		sed -i '' -e "s/ bce1 / $PUBLIC_NIC /" "$_start" || exit
+		sed -i '' -e "s/ bce1 / $PUBLIC_NIC /" "$_start"
 	fi
 
 	stage_sysrc p0f_enable=YES
@@ -219,7 +221,7 @@ relay_reject_threshold=7
 
 configure_haraka_avg()
 {
-	mkdir -p "$STAGE_MNT/data/avg/spool" || exit
+	mkdir -p "$STAGE_MNT/data/avg/spool"
 
 	tell_status "configuring Haraka avg plugin"
 	if ! grep -qs ^host "$HARAKA_CONF/avg.ini"; then
@@ -345,7 +347,7 @@ configure_haraka_rspamd()
 		tell_status "configure Haraka rspamd plugin"
 		echo "host = $(get_jail_ip rspamd)
 add_headers = always
-" | tee -a "$HARAKA_CONF/rspamd.ini" || exit
+" | tee -a "$HARAKA_CONF/rspamd.ini"
 	fi
 
 	if ! grep -qs ^rspamd "$HARAKA_CONF/plugins"; then
@@ -353,7 +355,7 @@ add_headers = always
 		# shellcheck disable=1004
 		sed -i '' -e '/spamassassin$/a\
 rspamd
-' "$HARAKA_CONF/plugins" || exit
+' "$HARAKA_CONF/plugins"
 	fi
 }
 
@@ -361,7 +363,7 @@ configure_haraka_watch()
 {
 	if ! grep -qs ^watch "$HARAKA_CONF/plugins"; then
 		tell_status "enabling watch plugin"
-		echo 'watch' >> "$HARAKA_CONF/plugins" || exit
+		echo 'watch' >> "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/watch.ini" ]; then
@@ -381,7 +383,7 @@ configure_haraka_smtp_ini()
 		-e 's/^;daemonize=true/daemonize=true/' \
 		-e 's/^;daemon_pid_file/daemon_pid_file/' \
 		-e 's/^;daemon_log_file/daemon_log_file/' \
-		"$HARAKA_CONF/smtp.ini" || exit
+		"$HARAKA_CONF/smtp.ini"
 }
 
 configure_haraka_plugins()
@@ -459,7 +461,7 @@ configure_haraka_dkim()
 
 	if [ ! -d "$HARAKA_CONF/dkim/$TOASTER_MAIL_DOMAIN" ]; then
 		tell_status "generating DKIM keys"
-		cd "$HARAKA_CONF/dkim" || exit
+		cd "$HARAKA_CONF/dkim"
 		sh dkim_key_gen.sh "$TOASTER_MAIL_DOMAIN"
 		cat "$HARAKA_CONF/dkim/$TOASTER_MAIL_DOMAIN/dns"
 
@@ -597,7 +599,7 @@ configure_haraka_log_rotation()
 	enable_newsyslog
 
 	tell_status "configuring haraka.log rotation"
-	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d" || exit
+	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
 	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.log" <<EO_HARAKA
 /var/log/haraka.log			644  7	   *	@T00  JC
 EO_HARAKA
@@ -647,7 +649,7 @@ EO_SPF_RELAY
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
-	stage_exec haraka -i /data || exit
+	stage_exec haraka -i /data
 
 	tell_status "configuring Haraka"
 	echo 'LOGINFO' > "$HARAKA_CONF/loglevel"
@@ -724,10 +726,10 @@ start_haraka()
 	sysrc -f "$STAGE_MNT/etc/rc.conf" haraka_flags='-c /data'
 
 	if [ ! -d "$HARAKA_CONF/queue" ]; then
-		mkdir -p "$HARAKA_CONF/queue" || exit
+		mkdir -p "$HARAKA_CONF/queue"
 	fi
 
-	stage_exec service haraka start || exit
+	stage_exec service haraka start
 }
 
 test_haraka()
@@ -737,7 +739,7 @@ test_haraka()
 }
 
 preinstall_checks() {
-	base_snapshot_exists || exit
+	base_snapshot_exists || exit 1
 
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/redis"; then
 		tell_status "FATAL: redis jail required but not provisioned."

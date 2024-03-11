@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 install_clamav_fangfrisch()
 {
@@ -9,7 +11,7 @@ install_clamav_fangfrisch()
 	stage_pkg_install python sqlite3 py39-sqlite3 sudo
 	_fdir="/usr/local/fangfrisch"
 	stage_exec mkdir "$_fdir"
-	stage_exec bash -c 'cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch' || exit 1
+	stage_exec bash -c 'cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch'
 	stage_exec chown -R clamav:clamav $_fdir
 	store_config "${STAGE_MNT}${_fdir}/fangfrisch.conf" <<EO_FANG_CONF
 [DEFAULT]
@@ -40,8 +42,8 @@ customer_id = abcdef123456
 enabled = yes
 max_size = 2MB
 EO_FANG_CONF
-	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf initdb || exit 1
-	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf refresh || exit 1
+	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf initdb
+	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf refresh
 }
 
 install_clamav_unofficial()
@@ -72,19 +74,19 @@ install_clamav_unofficial()
 	stage_pkg_install gnupg1 rsync bind-tools gtar
 	fetch -m -o "$STAGE_MNT/tmp/" \
 	  "https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz"
-	tar -xz -C "$STAGE_MNT/tmp/" -f "$STAGE_MNT/tmp/$CLAMAV_UV.tar.gz" || exit
+	tar -xz -C "$STAGE_MNT/tmp/" -f "$STAGE_MNT/tmp/$CLAMAV_UV.tar.gz"
 
 	local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-$CLAMAV_UV"
 	local _conf="$STAGE_MNT/etc/clamav-unofficial-sigs"
 
 	tell_status "installing config files"
-	mkdir -p "$_conf" || exit
-	cp -r "$_dist/config/" "$_conf/" || exit
-	cp "$_conf/os/os.freebsd.conf" "$_conf/os.conf" || exit
+	mkdir -p "$_conf"
+	cp -r "$_dist/config/" "$_conf/"
+	cp "$_conf/os/os.freebsd.conf" "$_conf/os.conf"
 
 	if [ -f "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" ]; then
 		tell_status "preserving user.conf"
-		cp "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" "$_conf/" || exit
+		cp "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" "$_conf/"
 		echo "done"
 	else
 		tell_status "completing user configuration"
@@ -106,10 +108,10 @@ install_clamav_unofficial()
 	tell_status "installing clamav-unofficial-sigs.sh"
 	local _sigs_sh="$_dist/clamav-unofficial-sigs.sh"
 	sed -i.bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' "$_sigs_sh"
-	chmod 755 "$_sigs_sh" || exit
-	cp "$_sigs_sh" "$STAGE_MNT/usr/local/bin" || exit
+	chmod 755 "$_sigs_sh"
+	cp "$_sigs_sh" "$STAGE_MNT/usr/local/bin"
 
-	mkdir -p "$STAGE_MNT/var/log/clamav-unofficial-sigs" || exit
+	mkdir -p "$STAGE_MNT/var/log/clamav-unofficial-sigs"
 	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh --install-cron
 	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh --install-logrotate
 	stage_exec /usr/local/bin/clamav-unofficial-sigs.sh --install-man
@@ -166,7 +168,7 @@ PATH="$PATH:/usr/local/bin"|' \
 
 install_clamav()
 {
-	stage_pkg_install clamav || exit
+	stage_pkg_install clamav
 	echo "done"
 
 	for _d in etc db log; do
@@ -209,7 +211,7 @@ configure_clamd()
 		-e 's/^#StructuredMinSSNCount 5/StructuredMinSSNCount 10/' \
 		-e 's/^#StructuredSSNFormatStripped yes/StructuredSSNFormatStripped no/' \
 		-e '/^#ScanArchive/ s/^#ScanArchive/ScanArchive/' \
-		"$_conf" || exit
+		"$_conf"
 
 	echo "done"
 
@@ -235,7 +237,7 @@ configure_freshclam()
 			-e 's/^#LogFacility/LogFacility/' \
 			-e 's/^#SafeBrowsing/SafeBrowsing/' \
 			-e 's/^#DatabaseMirror/DatabaseMirror/; s/XY/us/' \
-			"$_conf" || exit
+			"$_conf"
 	fi
 
 	echo "done"
@@ -282,10 +284,10 @@ migrate_clamav_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || exit
+	dialog --yesno "$_confirm_msg" 13 70
 
 	if [ ! -d "$ZFS_DATA_MNT/clamav/db" ]; then
-		mkdir "$ZFS_DATA_MNT/clamav/db" || exit 1
+		mkdir "$ZFS_DATA_MNT/clamav/db"
 	fi
 
 	service jail stop clamav
@@ -305,7 +307,7 @@ test_clamav()
 	echo "It works! (clamd is listening)"
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 migrate_clamav_dbs
 create_staged_fs clamav
 start_staged_jail clamav

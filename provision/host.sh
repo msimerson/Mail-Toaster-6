@@ -1,11 +1,14 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
 mt6-include shell
+mt6-include mta
 
 configure_ntp()
 {
@@ -34,7 +37,7 @@ configure_ntpd()
 	fi
 
 	tell_status "enabling NTPd"
-	sysrc ntpd_enable=YES || exit
+	sysrc ntpd_enable=YES
 	sysrc ntpd_sync_on_start=YES
 	/etc/rc.d/ntpd restart
 }
@@ -56,18 +59,6 @@ update_syslogd()
 	tell_status "configuring syslog to accept messages from jails"
 	sysrc syslogd_flags="$_sysflags"
 	service syslogd restart
-}
-
-update_sendmail()
-{
-	if grep -q ^sendmail_enable /etc/rc.conf; then
-		tell_status "preserving sendmail config"
-		return
-	fi
-
-	tell_status "disable sendmail network listening"
-	sysrc sendmail_enable=NO
-	service sendmail onestop
 }
 
 install_periodic_conf()
@@ -165,14 +156,17 @@ constrain_sshd_to_host()
 		sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP6"
 	fi
 
-	service sshd configtest || exit 1
+	service sshd configtest
 	service sshd restart
 }
 
 sshd_reorder()
 {
 	_file="/usr/local/etc/rc.d/sshd_reorder"
-	if [ -x "$_file" ]; then return; fi
+	if [ -x "$_file" ]; then
+		tell_status "preserving sshd_reorder"
+		return
+	fi
 
 	tell_status "starting sshd earlier"
 	tee "$_file" <<EO_SSHD_REORDER
@@ -266,7 +260,7 @@ configure_dhparams()
 	fi
 
 	tell_status "Generating a 2048 bit dhparams file"
-	openssl dhparam -out "$DHP" 2048 || exit
+	openssl dhparam -out "$DHP" 2048
 }
 
 install_sshguard()
@@ -293,7 +287,7 @@ install_sshguard()
 check_timezone()
 {
 	if [ ! -e "/etc/localtime" ]; then
-		tzsetup || exit
+		tzsetup
 	fi
 }
 
@@ -302,8 +296,7 @@ check_global_listeners()
 	tell_status "checking for host listeners on all IPs"
 
 	if sockstat -L -4 | grep -E '\*:[0-9]' | grep -v 123; then
-		echo "oops!, you should not having anything listening
-on all your IP addresses!"
+		echo "oops!, you should not having anything listening on all your IP addresses!"
 		if [ -t 0 ]; then exit 2; fi
 
 		echo "Not interactive, continuing anyway."
@@ -355,14 +348,14 @@ block in quick inet6 proto tcp from <sshguard> to any port { 22 }
 anchor "allow/*"
 EO_PF_RULES
 
-	kldstat -q -m pf || kldload pf || exit 1
+	kldstat -q -m pf || kldload pf
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
 	if ! /etc/rc.d/pf status | grep -q Enabled; then
-		/etc/rc.d/pf start || exit 1
+		/etc/rc.d/pf start
 	fi
 
-	pfctl -f /etc/pf.conf || exit 1
+	pfctl -f /etc/pf.conf
 }
 
 install_jailmanage()
@@ -458,12 +451,12 @@ update_ports_tree()
 		cd - || return
 	else
 		tell_status "updating FreeBSD ports tree (portsnap)"
-		portsnap fetch || exit
+		portsnap fetch
 
 		if [ -d /usr/ports/mail/vpopmail ]; then
-			portsnap update || portsnap extract || exit
+			portsnap update || portsnap extract
 		else
-			portsnap extract || exit
+			portsnap extract
 		fi
 	fi
 }
@@ -484,7 +477,7 @@ update_freebsd()
 	freebsd-update fetch install
 
 	tell_status "updating FreeBSD pkg collection"
-	pkg update || exit
+	pkg update
 
 	if ! pkg info -e ca_root_nss; then
 		tell_status "install CA root certs, so https URLs work"
@@ -506,14 +499,12 @@ plumb_jail_nic()
 
 	if ! grep -q cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface at startup"
-		sysrc cloned_interfaces+=lo1 || exit
+		sysrc cloned_interfaces+=lo1
 	fi
 
-	local _missing;
-	_missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
-	if [ -n "$_missing" ]; then
+	if ifconfig lo1 2>&1 | grep -q 'does not exist'; then
 		tell_status "plumb lo1 interface"
-		ifconfig lo1 create || exit
+		ifconfig lo1 create
 	fi
 }
 
@@ -521,14 +512,12 @@ assign_syslog_ip()
 {
 	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
 		tell_status "adding syslog IP to lo1"
-		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0" || exit
+		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0"
 	fi
 
-	local _present
-	_present=$(ifconfig lo1 2>&1 | grep "$JAIL_NET_PREFIX.1 ")
-	if [ -z "$_present" ]; then
+	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET_PREFIX.1 "; then
 		echo "assigning $JAIL_NET_PREFIX.1 to lo1"
-		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0 || exit
+		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0
 	fi
 }
 
@@ -549,7 +538,7 @@ configure_etc_hosts()
 $(get_jail_ip "$_j")		$_j"
 	done
 
-	echo "$_hosts" | tee -a "/etc/hosts"
+	echo "$_hosts" >> "/etc/hosts"
 }
 
 update_host() {
@@ -557,7 +546,7 @@ update_host() {
 	update_freebsd
 	configure_pkg_latest ""
 	configure_ntp
-	update_sendmail
+	configure_mta
 	install_periodic_conf
 	constrain_sshd_to_host
 	sshd_reorder

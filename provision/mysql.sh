@@ -1,13 +1,15 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 install_db_server()
 {
 	for _d in etc db; do
 		_path="$STAGE_MNT/data/$_d"
 		if [ ! -d "$_path" ]; then
-			mkdir "$_path" || exit 1
+			mkdir "$_path"
 			chown 88:88 "$_path"
 		fi
 	done
@@ -23,13 +25,13 @@ install_db_server()
 install_mysql()
 {
 	tell_status "installing mysql"
-	stage_pkg_install mysql80-server || exit 1
+	stage_pkg_install mysql80-server
 }
 
 install_mariadb()
 {
 	tell_status "installing mariadb"
-	stage_pkg_install mariadb1011-server || exit 1
+	stage_pkg_install mariadb1011-server
 }
 
 write_pass_to_conf()
@@ -37,7 +39,7 @@ write_pass_to_conf()
 	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
 		sed -i '' \
 			-e "/^export TOASTER_MYSQL_PASS=/ s|=\"\"|=\"$TOASTER_MYSQL_PASS\"|" \
-			mail-toaster.conf || exit
+			mail-toaster.conf
 	else
 		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
 	fi
@@ -80,7 +82,7 @@ configure_mysql_root_password()
 
 	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" \
 		|| echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
-			| stage_exec mysql -u root || exit 1
+			| stage_exec mysql -u root
 
 	write_pass_to_conf
 }
@@ -127,7 +129,7 @@ start_mysql()
 		unmount_data mysql
 	fi
 
-	stage_exec service mysql-server start || exit
+	stage_exec service mysql-server start
 	configure_mysql_root_password
 	configure_mysql_keys
 }
@@ -136,7 +138,7 @@ test_mysql()
 {
 	tell_status "testing mysql"
 	stage_listening 3306 2
-	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit 1
+	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS"
 	echo "it worked"
 }
 
@@ -177,7 +179,7 @@ else
 	exit
 fi
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 migrate_mysql_dbs
 create_staged_fs mysql
 start_staged_jail mysql

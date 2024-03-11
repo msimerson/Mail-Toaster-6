@@ -80,15 +80,15 @@ configure_postfix()
 	if [ -f "$ZFS_JAIL_MNT/postfix/etc/aliases" ]; then
 		tell_status "preserving /etc/aliases"
 		cp "$ZFS_JAIL_MNT/postfix/etc/aliases" "$STAGE_MNT/etc/aliases"
-		stage_exec /usr/bin/newaliases
+		stage_exec /usr/local/bin/newaliases
 	elif [ -f "$ZFS_DATA_MNT/postfix/etc/aliases" ]; then
 		cp "$ZFS_DATA_MNT/postfix/etc/aliases" "$STAGE_MNT/etc/aliases"
-		stage_exec /usr/bin/newaliases
+		stage_exec /usr/local/bin/newaliases
 	fi
 
-	if [ ! -f "$ZFS_JAIL_MNT/usr/local/etc/mail/mailer.conf" ]; then
-		if [ ! -d "$ZFS_JAIL_MNT/usr/local/etc/mail" ]; then
-			mkdir "$ZFS_JAIL_MNT/usr/local/etc/mail" || exit 1
+	if [ ! -f "$STAGE_MNT/usr/local/etc/mail/mailer.conf" ]; then
+		if [ ! -d "$STAGE_MNT/usr/local/etc/mail" ]; then
+			mkdir -p "$STAGE_MNT/usr/local/etc/mail"
 		fi
 		stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
 	fi

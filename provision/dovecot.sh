@@ -1,7 +1,10 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
 
+. mail-toaster.sh
+
+export JAIL_START_EXTRA="allow.sysvipc=1"
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
@@ -9,13 +12,13 @@ mt6-include vpopmail
 allow_sysvipc_stage()
 {
     tell_status "allow sysvipc for the staged jail"
-    jail -m name=stage allow.sysvipc=1 || exit 1
+    jail -m name=stage allow.sysvipc=1
 }
 
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql80-client || exit
+	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql80-client
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=MYSQL LIBWRAP EXAMPLES'
@@ -32,8 +35,8 @@ install_dovecot()
 	tell_status "building dovecot"
 
 	export BATCH=${BATCH:="1"}
-	stage_port_install mail/dovecot || exit 1
-	stage_port_install mail/dovecot-pigeonhole || exit 1
+	stage_port_install mail/dovecot
+	stage_port_install mail/dovecot-pigeonhole
 }
 
 configure_dovecot_local_conf() {
@@ -264,10 +267,10 @@ configure_example_config()
 	fi
 
 	tell_status "installing example config files"
-	cp -R "$STAGE_MNT/usr/local/etc/dovecot/example-config/" "$_dcdir/" || exit
+	cp -R "$STAGE_MNT/usr/local/etc/dovecot/example-config/" "$_dcdir/"
 	sed -i.bak \
 		-e 's/^#listen = \*, ::/listen = \*/' \
-		"$_dcdir/dovecot.conf" || exit
+		"$_dcdir/dovecot.conf"
 }
 
 configure_system_auth()
@@ -281,7 +284,7 @@ configure_system_auth()
 	tell_status "disabling auth-system"
 	sed -i.bak \
 		-e '/^\!include auth-system/ s/\!/#!/' \
-		"$_authconf" || exit
+		"$_authconf"
 }
 
 configure_vsz_limit()
@@ -319,13 +322,13 @@ configure_tls_certs()
 
 	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
 	if [ ! -d "$_ssldir/certs" ]; then
-		mkdir -p "$_ssldir/certs" || exit
-		chmod 644 "$_ssldir/certs" || exit
+		mkdir -p "$_ssldir/certs"
+		chmod 644 "$_ssldir/certs"
 	fi
 
 	if [ ! -d "$_ssldir/private" ]; then
-		mkdir "$_ssldir/private" || exit
-		chmod 644 "$_ssldir/private" || exit
+		mkdir "$_ssldir/private"
+		chmod 644 "$_ssldir/private"
 	fi
 
 	local _installed_crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
@@ -335,18 +338,18 @@ configure_tls_certs()
 	fi
 
 	tell_status "installing dovecot TLS certificates"
-	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
 	# sunset after Dovecot 2.3 released
-	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
 	# /sunset
-	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem" || exit
+	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 }
 
 configure_postfix_with_sasl()
 {
 	# ignore this, it doesn't exist. Yet. Maybe not ever. It's one way to
 	# configure a MSA with dovecot auth.
-	stage_pkg_install postfix || exit
+	stage_pkg_install postfix
 
 	stage_exec postconf -e "relayhost = $TOASTER_MSA"
 	stage_exec postconf -e 'smtpd_sasl_type = dovecot'
@@ -358,10 +361,10 @@ configure_postfix_with_sasl()
 	stage_exec postconf -e 'smtp_tls_security_level = may'
 
 	for _s in 512 1024 2048; do
-		openssl dhparam -out /tmp/dh$_s.tmp $_s || exit
-		chmod 644 /tmp/dh${_s}.tmp || exit
-		mv /tmp/dh${_s}.tmp "$STAGE_MNT/usr/local/etc/postfix/dh${_s}.pem" || exit
-		stage_exec postconf -e "smtpd_tls_dh${_s}_param_file = \${config_directory}/dh${_s}.pem" || exit
+		openssl dhparam -out /tmp/dh$_s.tmp $_s
+		chmod 644 /tmp/dh${_s}.tmp
+		mv /tmp/dh${_s}.tmp "$STAGE_MNT/usr/local/etc/postfix/dh${_s}.pem"
+		stage_exec postconf -e "smtpd_tls_dh${_s}_param_file = \${config_directory}/dh${_s}.pem"
 	done
 
 	stage_sysrc postfix_enable="YES"
@@ -370,7 +373,7 @@ configure_postfix_with_sasl()
 
 compile_sieve()
 {
-	stage_exec /usr/local/bin/sievec -c /data/etc/dovecot.conf "/usr/local/lib/dovecot/sieve/$1" || exit
+	stage_exec /usr/local/bin/sievec -c /data/etc/dovecot.conf "/usr/local/lib/dovecot/sieve/$1"
 }
 
 configure_sieve_report_ham()
@@ -425,7 +428,7 @@ configure_sieve_learn_rspamd()
 	tee "$SIEVE_DIR/learn-ham-rspamd.sh" <<EO_RSPAM_LEARN_HAM
 exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
 EO_RSPAM_LEARN_HAM
-	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh" || exit
+	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh"
 
 	if ! grep rspamd "$SIEVE_DIR/report-ham.sieve"; then
 		tell_status "enabling rspamd learning in report-ham.sieve"
@@ -439,7 +442,7 @@ EO_REPORT_HAM_RSPAMD
 	tee "$SIEVE_DIR/learn-spam-rspamd.sh" <<EO_RSPAM_LEARN_SPAM
 exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
 EO_RSPAM_LEARN_SPAM
-	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh" || exit
+	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh"
 
 	if ! grep rspamd "$SIEVE_DIR/report-spam.sieve"; then
 		tell_status "enabling rspamd learning in report-spam.sieve"
@@ -460,14 +463,14 @@ configure_sieve_learn_spamassassin()
 	if [ ! -x "$ZFS_DATA_MNT/dovecot/bin/spamc" ]; then
 		tell_status "copying spamc into /data/bin"
 		cp "$ZFS_JAIL_MNT/spamassassin/usr/local/bin/spamc" \
-			"$ZFS_DATA_MNT/dovecot/bin/spamc" || exit
+			"$ZFS_DATA_MNT/dovecot/bin/spamc"
 	fi
 
 	tell_status "creating learn-ham-sa.sh"
 	tee "$SIEVE_DIR/learn-ham-sa.sh" <<EO_RSPAM_LEARN_HAM
 exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=ham -u \${1}
 EO_RSPAM_LEARN_HAM
-	chmod +x "$SIEVE_DIR/learn-ham-sa.sh" || exit
+	chmod +x "$SIEVE_DIR/learn-ham-sa.sh"
 
 	if ! grep learn-ham-sa "$SIEVE_DIR/report-ham.sieve"; then
 		tell_status "enabling spamassassin learning in report-ham.sieve"
@@ -481,7 +484,7 @@ EO_REPORT_HAM_SA
 	tee "$SIEVE_DIR/learn-spam-sa.sh" <<EO_RSPAM_LEARN_SPAM
 exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=spam -u \${1}
 EO_RSPAM_LEARN_SPAM
-	chmod +x "$SIEVE_DIR/learn-spam-sa.sh" || exit
+	chmod +x "$SIEVE_DIR/learn-spam-sa.sh"
 
 	if ! grep learn-spam-sa "$SIEVE_DIR/report-spam.sieve"; then
 		tell_status "enabling spamassassin learning in report-spam.sieve"
@@ -496,7 +499,7 @@ configure_sieve()
 {
 	SIEVE_DIR="$STAGE_MNT/usr/local/lib/dovecot/sieve"
 	if [ ! -d "$SIEVE_DIR" ]; then
-		mkdir "$SIEVE_DIR" || exit
+		mkdir "$SIEVE_DIR"
 	fi
 
 	local _lc="$ZFS_DATA_MNT/dovecot/etc/local.conf"
@@ -547,7 +550,7 @@ configure_dovecot()
 		if [ ! -d "$_dcdir" ]; then
 			tell_status "creating $_dcdir"
 			echo "mkdir $_dcdir"
-			mkdir "$_dcdir" || exit
+			mkdir "$_dcdir"
 		fi
 	done
 
@@ -568,21 +571,18 @@ start_dovecot()
 	tell_status "starting dovecot"
 	stage_sysrc dovecot_enable=YES
 	stage_sysrc dovecot_config="/data/etc/dovecot.conf"
-	stage_exec service dovecot start || exit
+	stage_exec service dovecot start
 }
 
-test_imap()
+test_imap_empty()
 {
-	pkg install -y empty
+	pkg info | grep -q ^empty || pkg install -y empty
 
-	POST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
-	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
-	rm -f in out
-
-	echo "testing IMAP AUTH as $POST_USER"
+	if [ -f in ]; then rm -f in; fi
+	if [ -f out ]; then rm -f out; fi
 
 	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 143
-	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):993"
+	empty -v -f -i in -o out openssl s_client -quiet -verify_quiet -crlf -connect "$(get_jail_ip stage):993"
 	if [ ! -e out ]; then exit; fi
 	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS"$'\n'
 	empty -v -w -i out -o in "Logged in"         $'. LIST \"\" \"*\"\n'
@@ -601,13 +601,36 @@ test_imap()
 	fi
 }
 
-test_pop3()
+test_imap_openssl()
 {
-	pkg install -y empty
+	openssl s_client -quiet -verify_quiet -crlf -connect "$(get_jail_ip stage):993" <<EOF
+. login $POST_USER $POST_PASS
+. LIST "" "*"
+. SELECT INBOX
+. LOGOUT
+EOF
+}
 
-	POST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
-	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
-	rm -f in out
+test_imap_curl()
+{
+	# shellcheck disable=SC2001
+	curl -k -v --login-options 'AUTH=PLAIN' "imaps://$(echo $POST_USER | sed -e 's/@/%40/'):${POST_PASS}@dovecot/"
+}
+
+test_imap()
+{
+	echo "testing IMAP AUTH as $POST_USER"
+	test_imap_curl
+	# test_imap_openssl
+	# test_imap_empty
+}
+
+test_pop3_empty()
+{
+	pkg info | grep -q ^empty || pkg install -y empty
+
+	if [ -f in ]; then rm -f in; fi
+	if [ -f out ]; then rm -f out; fi
 
 	echo "testing POP3 AUTH as $POST_USER"
 
@@ -625,11 +648,21 @@ test_pop3()
 	fi
 }
 
+test_pop3()
+{
+	# shellcheck disable=SC2001
+	curl -k -v --login-options 'AUTH=PLAIN' "pop3s://$(echo $POST_USER | sed -e 's/@/%40/'):${POST_PASS}@stage/"
+}
+
 test_dovecot()
 {
 	tell_status "testing dovecot"
 	stage_listening 993 3
 	stage_listening 995 3
+
+	POST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
+	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
+
 	test_imap
 	test_pop3
 	echo "it worked"

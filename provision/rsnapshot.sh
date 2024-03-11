@@ -47,7 +47,7 @@ EO_RSNAP
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$ZFS_DATA_MNT/rsnapshot/ssh/*" "$STAGE_MNT/root/.ssh" || exit 1
+		cp "$ZFS_DATA_MNT/rsnapshot/ssh/"* "$STAGE_MNT/root/.ssh/" || exit 1
 	fi
 }
 

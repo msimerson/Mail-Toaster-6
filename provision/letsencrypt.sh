@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 install_letsencrypt()
 {
