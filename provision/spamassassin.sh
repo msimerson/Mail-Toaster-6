@@ -40,12 +40,12 @@ install_spamassassin_port()
 	tell_status "install SpamAssassin from ports (w/opts)"
 	stage_pkg_install p5-Encode-Detect p5-Test-NoWarnings
 
-	local _SA_OPTS="DCC DKIM DOCS RAZOR SPF_QUERY GNUPG_NONE"
+	local _SA_OPTS="AS_ROOT DCC DKIM RAZOR SPF_QUERY GNUPG_NONE"
 	if [    "$TOASTER_MYSQL" = "1" ]; then _SA_OPTS="MYSQL $_SA_OPTS"; fi
 	if [ -n "$MAXMIND_LICENSE_KEY" ]; then _SA_OPTS="RELAY_COUNTRY $_SA_OPTS"; fi
 
 	stage_make_conf mail_spamassassin_SET "mail_spamassassin_SET=$_SA_OPTS"
-	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=SSL GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
+	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=DOCS SSL GNUPG GNUPG2 PYZOR DMARC PGSQL RLIMIT'
 	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
 	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
 	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
