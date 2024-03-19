@@ -614,7 +614,7 @@ EOF
 test_imap_curl()
 {
 	# shellcheck disable=SC2001
-	curl -k -v --login-options 'AUTH=PLAIN' "imaps://$(echo $POST_USER | sed -e 's/@/%40/'):${POST_PASS}@dovecot/"
+	curl -k -v --login-options 'AUTH=PLAIN' "imaps://$(echo $POST_USER | sed -e 's/@/%40/'):${POST_PASS}@stage/"
 }
 
 test_imap()
