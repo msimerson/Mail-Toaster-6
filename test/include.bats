@@ -6,45 +6,45 @@ setup() {
 
 @test "./include/djb.sh" {
   run ./include/djb.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/editor.sh" {
   run ./include/editor.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/mta.sh" {
   run ./include/mta.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/mysql.sh" {
   run ./include/mysql.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/nginx.sh" {
   run ./include/nginx.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/php.sh" {
   run ./include/php.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/shell.sh" {
   run ./include/shell.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/user.sh" {
   run ./include/user.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "./include/vpopmail.sh" {
   run ./include/vpopmail.sh
-  [ "$status" -eq 0 ]
+  assert_success
 }
