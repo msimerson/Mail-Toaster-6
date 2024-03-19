@@ -172,5 +172,3 @@ start_tinydns()
 	tell_status "starting dns daemons"
 	stage_exec service svscan start
 }
-
-exit 0
