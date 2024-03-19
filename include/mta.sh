@@ -21,7 +21,15 @@ configure_mta()
 
 enable_sendmail()
 {
-	sysrc -f "$_base/etc/rc.conf" sendmail_enable=YES sendmail_outbound_enable=YES
+	local _sysrc="sysrc -f $_base/etc/rc.conf"
+
+	if [ "$($_sysrc -n sendmail_enable)" != "YES" ]; then
+		$_sysrc sendmail_enable=YES
+	fi
+
+	if [ "$($_sysrc -n sendmail_outbound_enable)" != "YES" ]; then
+		$_sysrc sendmail_outbound_enable=YES
+	fi
 
 	if jail_is_running stage; then
 		stage_exec service sendmail start
@@ -42,7 +50,15 @@ disable_sendmail()
 		if pgrep -j none sendmail; then service sendmail onestop; fi
 	fi
 
-	sysrc -f "$_base/etc/rc.conf" sendmail_enable=NONE sendmail_outbound_enable=NONE
+	local _sysrc="sysrc -f $_base/etc/rc.conf"
+
+	if [ "$($_sysrc -n sendmail_enable)" != "NONE" ]; then
+		$_sysrc sendmail_enable=NONE
+	fi
+
+	if [ "$($_sysrc -n sendmail_outbound_enable)" != "NO" ]; then
+		$_sysrc sendmail_outbound_enable=NO
+	fi
 }
 
 set_root_alias()
