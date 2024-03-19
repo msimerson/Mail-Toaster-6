@@ -37,7 +37,7 @@ foreach my $domain ( `$vpopdir/bin/vdominfo -n` ) {
     foreach my $user ( `$vpopdir/bin/vuserinfo -n -D $domain` ) {
         chomp $user;
 
-# Get quota/info for user
+        # Get quota/info for user
         my $info    = `$vpopdir/bin/vuserinfo $user\@$domain`;
         my ($dir)   = $info =~ m/dir:\s+(.*)/;
         my ($name)  = $info =~ m/comment\/gecos:\s+(.*)/;
