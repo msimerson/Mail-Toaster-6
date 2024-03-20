@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 preflight_check() {
 	if [ -z "$MAXMIND_LICENSE_KEY" ]; then
@@ -12,16 +14,14 @@ preflight_check() {
 install_geoip_geoipupdate()
 {
 	tell_status "install geoipupdate"
-	stage_pkg_install geoipupdate || exit
+	stage_pkg_install geoipupdate
 }
 
 install_geoip_mm_mirror()
 {
 	tell_status "install maxmind-geolite-mirror"
-	stage_pkg_install npm-node20 || exit
-	stage_exec npm set user 0
-	stage_exec npm set -g unsafe-perm true
-	stage_exec npm install -g maxmind-geolite-mirror || exit
+	stage_pkg_install npm-node20
+	stage_exec npm install -g maxmind-geolite-mirror
 }
 
 install_geoip()
@@ -94,7 +94,7 @@ test_geoip()
 	echo "testing geoip..."
 	stage_exec ls /data/db/
 
-	test -f "$STAGE_MNT/data/db/GeoLite2-Country.mmdb" || exit
+	test -f "$STAGE_MNT/data/db/GeoLite2-Country.mmdb"
 	echo "it worked"
 }
 
@@ -119,7 +119,7 @@ migrate_geoip_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 19 70 || exit
+	dialog --yesno "$_confirm_msg" 19 70 || return
 
 	service jail stop geoip spamassassin haraka
 
@@ -136,7 +136,7 @@ migrate_geoip_dbs()
 }
 
 preflight_check
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 migrate_geoip_dbs
 create_staged_fs geoip
 start_staged_jail geoip

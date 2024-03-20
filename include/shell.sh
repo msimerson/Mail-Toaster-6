@@ -41,6 +41,7 @@ export HISTIGNORE="&:[bf]g:exit"
 shopt -s histappend
 shopt -s cdspell
 alias h="history 200"
+alias ll="ls -alFG"
 EO_BASH_PROFILE
 
 	if ! grep -qs profile "$1"; then
@@ -66,6 +67,13 @@ case $(id -u) in
     0) PS1="${PS1}# ";;
     *) PS1="${PS1}$ ";;
 esac
+
+jexecl() {
+  if   [ -z "$1" ]; then /usr/sbin/jexec;
+  elif [ -n "$2" ]; then /usr/sbin/jexec ${@:1};
+  else /usr/sbin/jexec $1 login -f -h $(hostname) root;
+  fi
+}
 EO_BOURNE_SHELL
 	fi
 

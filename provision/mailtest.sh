@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
@@ -10,7 +12,7 @@ export JAIL_CONF_EXTRA="
 install_mailtest()
 {
 	tell_status "installing swaks"
-	stage_pkg_install swaks p5-Net-SSLeay || exit 1
+	stage_pkg_install swaks p5-Net-SSLeay
 }
 
 configure_mailtest()
@@ -34,11 +36,11 @@ test_mailtest()
 	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
 
 	tell_status "sending an email to $_email"
-	stage_exec swaks -from "$_email" -to "$_email" -server "$_server" -timeout 50 || exit 1
+	stage_exec swaks -from "$_email" -to "$_email" -server "$_server" -timeout 50
 
 	tell_status "sending a TLS encrypted and authenticated email"
 	stage_exec swaks -from "$_email" -to "$_email" -server "$_server" -timeout 50 \
-		-tls -au "$_email" -ap "$_pass" || exit 1
+		-tls -au "$_email" -ap "$_pass"
 
 	echo "it worked"
 }

@@ -2,19 +2,17 @@
 
 . mail-toaster.sh || exit
 
-export JAIL_CONF_EXTRA="
-                mount.fdescfs;
-                mount.procfs;"
-export JAIL_FSTAB="fdescfs /jails/unifi/dev/fd fdescfs rw 0 0
-proc     /jails/unifi/proc   procfs  rw 0 0"
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="fdescfs $ZFS_JAIL_MNT/unifi/dev/fd fdescfs rw 0 0
+proc     $ZFS_JAIL_MNT/unifi/proc   procfs  rw 0 0"
 
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install mongodb44 openjdk11 snappyjava gmake || exit
+	stage_pkg_install mongodb44 openjdk17 snappyjava gmake || exit
 
 	tell_status "installing Unifi"
-	stage_port_install net-mgmt/unifi7 || exit
+	stage_port_install net-mgmt/unifi8 || exit
 
 	tell_status "Enable UniFi"
 	stage_sysrc unifi_enable=YES

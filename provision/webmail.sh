@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
@@ -86,9 +88,9 @@ EO_LIGHTTPD_MT6
 install_webmail()
 {
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		install_lighttpd || exit
+		install_lighttpd
 	else
-		install_nginx || exit
+		install_nginx
 		configure_nginx_server
 	fi
 }
@@ -273,9 +275,9 @@ EO_INDEX
 configure_webmail()
 {
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		configure_lighttpd || exit
+		configure_lighttpd
 	else
-		configure_nginx webmail || exit
+		configure_nginx webmail
 		configure_nginx_server
 	fi
 

@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export VPOPMAIL_OPTIONS_SET=""
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
@@ -29,7 +31,7 @@ EO_MAILDROP_310
 	fi
 
 	export BATCH=${BATCH:="1"}
-	stage_port_install mail/maildrop || exit 1
+	stage_port_install mail/maildrop
 }
 
 install_maildrop()
@@ -39,15 +41,15 @@ install_maildrop()
 	install_maildrop_port
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit 1
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt"
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
-	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit 1
-	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit 1
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
 
 	tell_status "setting permissions on mailfilter files"
-	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit 1
-	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit 1
+	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter"
+	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter"
 }
 
 install_lighttpd()
@@ -120,8 +122,8 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 
-	stage_port_install devel/gmake || exit
-	stage_port_install mail/qmailadmin || exit
+	stage_port_install devel/autoconf
+	stage_port_install mail/qmailadmin
 
 	install_lighttpd
 }
@@ -132,7 +134,7 @@ install_vqadmin()
 
 	tell_status "installing vqadmin"
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
-	stage_port_install mail/vqadmin || exit 1
+	stage_port_install mail/vqadmin
 	stage_exec ln /usr/local/www/cgi-bin/vqadmin/html/en-us /usr/local/www/cgi-bin/vqadmin/html/en-US
 }
 
@@ -177,17 +179,17 @@ install_vpopmail_mysql_grants()
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
-		"$_vpe" || exit
+		"$_vpe"
 
 	tell_status "setting up mysql user vpopmail"
 	for _jail in stage vpopmail dovecot sqwebmail; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			mysql_user_exists vpopmail $_ip \
-				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query \
-				|| exit 1
+				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query
 
-			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query || exit
+
+			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query
 		done
 	done
 }
@@ -220,9 +222,9 @@ install_quota_report()
 	_qr="$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
 
 	tell_status "installing quota_report"
-	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
-	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report" || exit
-	chmod 755 "$_qr" || exit
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
+	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
+	chmod 755 "$_qr"
 
 	sed -i '' \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
@@ -245,10 +247,12 @@ install_vpopmail()
 	fi
 
 	tell_status "installing vpopmail package"
-	stage_pkg_install vpopmail || exit
+	stage_pkg_install vpopmail
 
-	# install_vpopmail_port
-	install_vpopmail_source
+	stage_port_install devel/gmake
+
+	install_vpopmail_port
+	#install_vpopmail_source
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
 		install_vpopmail_mysql_aliastable
@@ -277,8 +281,9 @@ configure_vpopmail()
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
 	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
-		tell_status "ATTN: Your postmaster password is..."
-		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 "$TOASTER_MAIL_DOMAIN"
+		local _ppass; _ppass=$(openssl rand -base64 12)
+		tell_status "ATTN: Your postmaster password is: $_ppass"
+		stage_exec /usr/local/vpopmail/bin/vadddomain "$TOASTER_MAIL_DOMAIN" "$_ppass"
 	fi
 }
 
@@ -371,7 +376,7 @@ migrate_vpopmail_home()
 }
 
 migrate_vpopmail_home
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs vpopmail
 
 mkdir -p "$STAGE_MNT/usr/local/vpopmail" \

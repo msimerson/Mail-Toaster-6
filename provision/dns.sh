@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
@@ -9,7 +11,7 @@ export JAIL_CONF_EXTRA="
 install_unbound()
 {
 	tell_status "installing unbound"
-	stage_pkg_install unbound || exit
+	stage_pkg_install unbound
 }
 
 get_mt6_data()
@@ -97,7 +99,7 @@ include: "/data/mt6-local.conf" \
 		-e '/^remote-control:/ a\ 
 	include: "/data/control.conf" \
 ' \
-		"$UNBOUND_DIR/unbound.conf" || exit
+		"$UNBOUND_DIR/unbound.conf"
 }
 
 enable_control()
@@ -107,6 +109,10 @@ enable_control()
 		return
 	fi
 
+	tell_status "creating $ZFS_DATA_MNT/dns/control"
+	mkdir "$ZFS_DATA_MNT/dns/control"
+
+	tell_status "configuring unbound-control"
 	tee "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
@@ -131,10 +137,10 @@ configure_unbound()
 	UNBOUND_DIR="$STAGE_MNT/usr/local/etc/unbound"
 	UNBOUND_LOCAL=""
 
-	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf" || exit
+	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf"
 	if [ -f 'unbound.conf.local' ]; then
 		tell_status "moving unbound.conf.local to data volume"
-		mv unbound.conf.local "$ZFS_DATA_MNT/dns/" || exit
+		mv unbound.conf.local "$ZFS_DATA_MNT/dns/"
 	fi
 
 	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
@@ -154,7 +160,7 @@ start_unbound()
 {
 	tell_status "starting unbound"
 	stage_sysrc unbound_enable=YES
-	stage_exec service unbound start || exit
+	stage_exec service unbound start
 }
 
 test_unbound()
@@ -166,7 +172,7 @@ test_unbound()
 	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 
 	# test if we get an answer
-	stage_exec host dns || exit
+	stage_exec host dns
 
 	# set it back to production value
 	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
@@ -184,7 +190,7 @@ nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
 	sysrc -f /etc/resolvconf.conf resolvconf=NO
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs dns
 start_staged_jail dns
 install_unbound

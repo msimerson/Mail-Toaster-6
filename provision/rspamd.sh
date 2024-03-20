@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
@@ -10,7 +12,7 @@ RSPAMD_ETC="$STAGE_MNT/usr/local/etc/rspamd"
 install_rspamd()
 {
 	tell_status "installing rspamd"
-	stage_pkg_install rspamd || exit
+	stage_pkg_install rspamd
 
 	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
 		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
@@ -212,7 +214,7 @@ test_rspamd()
 	echo "it worked"
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs rspamd
 start_staged_jail rspamd
 install_rspamd
