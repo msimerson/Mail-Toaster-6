@@ -1,11 +1,9 @@
 #!/bin/sh
 
-# bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20231004"; }
+# bump version when a change in this file effects provision scripts
+mt6_version() { echo "20240319"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
-
-sed_replacement_quote() { printf "%s" "$1" | sed -E 's,([&\\/]),\\\1,g'; }
 
 get_random_ip6net()
 {
@@ -820,7 +818,7 @@ rename_ready_to_active()
 
 tell_settings()
 {
-	echo; echo "   ***   Configured $1 settings:"
+	echo; echo "   ***   Configured $1 settings:   ***"; echo
 	set | grep "^$1_"
 	echo
 	sleep 2
@@ -1352,6 +1350,24 @@ preserve_file() {
 			return
 		fi
 	fi
+}
+
+get_random_pass()
+{
+	local _pass_len=${1-:"14"}
+
+	# Password Entropy = log2(charset_len ^pass_len)
+
+	if [ -z "$2" ]; then
+		# default, good, limited by base64 charset
+		openssl rand -base64 $(echo "$_pass_len + 4" | bc) | head -c "$_pass_len"
+	else
+		# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
+		# more entropy with 94 ASCII chars but special chars are often problematic
+		LC_ALL=C tr -dc '[:graph:]' </dev/urandom | head -c "$_pass_len"
+	fi
+
+	echo
 }
 
 onexit() { while caller $((n++)); do :; done; }

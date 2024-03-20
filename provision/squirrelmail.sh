@@ -137,7 +137,7 @@ configure_squirrelmail_local()
 	if [ -n "$sqpass" ]; then
 		tell_status "preserving squirrelmail mysql password: $sqpass"
 	else
-		sqpass=$(openssl rand -hex 18)
+		sqpass=$(get_random_pass 18)
 		tell_status "generating squirremail mysql password: $sqpass"
 	fi
 

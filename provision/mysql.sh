@@ -76,7 +76,7 @@ configure_mysql_root_password()
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
 		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
 
-		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
+		TOASTER_MYSQL_PASS=$(get_random_pass 15)
 		export TOASTER_MYSQL_PASS
 	fi
 

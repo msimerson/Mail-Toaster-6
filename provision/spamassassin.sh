@@ -241,7 +241,7 @@ configure_spamassassin_mysql()
 	if [ -f "$_sa_etc/sql.cf" ]; then return; fi
 
 	tell_status "configuring MySQL for SpamAssassin (SASQL, Bayes, AWL)"
-	local _my_pass; _my_pass=$(openssl rand -hex 18)
+	local _my_pass; _my_pass=$(get_random_pass 18)
 
 	tee -a "$_sa_etc/sql.cf" <<EO_MYSQL_CONF
 	# Users scores is useful with the Squirrelmail SASQL plugin
