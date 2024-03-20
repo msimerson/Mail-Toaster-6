@@ -151,7 +151,7 @@ mt6_version_check
 config
 
 # Required settings
-export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
+export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit 1
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
 
@@ -574,12 +574,7 @@ install_pfrule()
 {
 	tell_status "setting up etc/pf.conf.d"
 
-	_dir="$ZFS_DATA_MNT/$1/etc/pf.conf.d"
-	if [ ! -d "$_dir" ]; then
-		mkdir -p "$_dir" || exit 1
-	fi
-
-	cat <<'EO_PF_RULE' > "$_dir/pfrule.sh"
+	store_exec "$_dir/pfrule.sh" <<'EO_PF_RULE'
 #!/bin/sh
 
 # pfrule.sh
@@ -616,7 +611,6 @@ done
 
 exit
 EO_PF_RULE
-	chmod 755 "$_dir/pfrule.sh"
 }
 
 install_fstab()
@@ -1377,6 +1371,18 @@ get_random_pass()
 	fi
 
 	echo
+}
+
+store_exec()
+{
+	# $1 - path to file, STDIN is file contents
+	if [ ! -d "$(dirname $1)" ]; then
+		tell_status "creating $(dirname $1)"
+		mkdir -p "$(dirname $1)" || exit 1
+	fi
+
+	cat - > "$1" || exit 1
+	chmod 755 "$1"
 }
 
 onexit() { while caller $((n++)); do :; done; }
