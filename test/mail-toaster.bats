@@ -57,9 +57,16 @@ setup() {
   assert_output --partial "Success! A new 'test' jail is provisioned"
 }
 
-@test "get_random_pass" {
-  run get_random_pass 15
-  assert_success
+@test "get_random_pass (len 20)" {
+  run get_random_pass 20
   echo "# $output" >&3
-  #assert_output --partial ""
+  assert_success
+  assert_equal ${#output} 20
+}
+
+@test "get_random_pass (default len 14)" {
+  run get_random_pass
+  echo "# $output" >&3
+  assert_success
+  assert_equal ${#output} 14
 }

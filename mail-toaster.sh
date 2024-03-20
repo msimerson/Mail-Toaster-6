@@ -934,30 +934,39 @@ stage_exec()
 	jexec "$SAFE_NAME" "$@"
 }
 
+port_is_listening()
+{
+	local _port=${1:-"25"}
+	local _jail=${2:-"stage"}
+
+	if [ -n "$(sockstat -l -q -4 -6 -p "$_port" -j "$_jail")" ]; then
+		true
+	else
+		false
+	fi
+}
+
 stage_listening()
 {
-	echo "checking for port $1 listener in staged jail"
+	local _port=${1:-"25"}
+	local _max_tries=${2:-"3"}
+	local _sleep=${3:-"1"}
+	local _try=0
 
-	local _max_tries=${2:-"1"}
-	local _tries=0
-	local _listening=""
-	local _sleep="$3"
-	if [ -z "$_sleep" ]; then _sleep=1; fi
+	echo; echo -n "checking for port $_port listening in staged jail..."
 
-	until [ -n "$_listening" ]; do
-		_tries=$((_tries + 1))
+	until port_is_listening "$_port"; do
+		_try=$((_try + 1))
 
-		if [ "$_tries" -gt "$_max_tries" ]; then
-			echo "port $1 is NOT listening"
-			exit
+		if [ "$_try" -gt "$_max_tries" ]; then
+			echo "FAILED"
+			exit 1
 		fi
-		echo "	checking port $1"
-		_listening=$(sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO)
+		echo -n "."
 		sleep "$_sleep"
 	done
 
-	echo
-	echo "Success! Port $1 is listening"
+	echo "OK"; echo
 }
 
 stage_test_running()
@@ -1354,7 +1363,7 @@ preserve_file() {
 
 get_random_pass()
 {
-	local _pass_len=${1-:"14"}
+	local _pass_len=${1:-"14"}
 
 	# Password Entropy = log2(charset_len ^pass_len)
 
