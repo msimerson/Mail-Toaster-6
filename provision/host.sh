@@ -304,6 +304,15 @@ check_global_listeners()
 	fi
 }
 
+pf_bruteforce_expire()
+{
+	store_exec /usr/local/etc/periodic/security/pf_bruteforce_expire <<EO_PF_EXPIRE
+#!/bin/sh
+# expire after 7 days
+/sbin/pfctl -t bruteforce -T expire 604800
+EO_PF_EXPIRE
+}
+
 add_jail_nat()
 {
 	get_public_ip
@@ -342,8 +351,11 @@ rdr-anchor "rdr/*"
 
 block in quick from <bruteforce>
 
-block in quick inet  proto tcp from <sshguard> to any port { 22 }
-block in quick inet6 proto tcp from <sshguard> to any port { 22 }
+block in quick proto tcp from <sshguard> to any port ssh
+
+pass  in quick on \$ext_if proto tcp to port ssh \
+        flags S/SA synproxy state \
+        (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 
 anchor "allow/*"
 EO_PF_RULES
@@ -356,6 +368,8 @@ EO_PF_RULES
 	else
 		/sbin/pfctl -f /etc/pf.conf
 	fi
+
+	pf_bruteforce_expire
 }
 
 install_jailmanage()
