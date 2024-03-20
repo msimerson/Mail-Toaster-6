@@ -1360,7 +1360,7 @@ get_random_pass()
 
 	if [ -z "$2" ]; then
 		# default, good, limited by base64 charset
-		openssl rand -base64 $(echo "$_pass_len + 4" | bc) | head -c "$_pass_len"
+		openssl rand -base64 "$(echo "$_pass_len + 4" | bc)" | head -c "$_pass_len"
 	else
 		# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
 		# more entropy with 94 ASCII chars but special chars are often problematic

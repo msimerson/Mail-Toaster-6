@@ -56,3 +56,10 @@ setup() {
   assert_success
   assert_output --partial "Success! A new 'test' jail is provisioned"
 }
+
+@test "get_random_pass" {
+  run get_random_pass 15
+  assert_success
+  echo "# $output" >&3
+  #assert_output --partial ""
+}
