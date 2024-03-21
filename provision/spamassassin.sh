@@ -4,7 +4,7 @@ set -e
 
 . mail-toaster.sh
 
-export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+export JAIL_FSTAB=""
 
 mt6-include mysql
 
@@ -169,6 +169,16 @@ configure_geoip()
 		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
 		return
 	fi
+
+	local _fstab="$ZFS_DATA_MNT/spamassassin/etc/fstab"
+	for _f in "$_fstab" "${_fstab}.stage"; do
+		if ! grep -qs GeoIP "$_f"; then
+			tell_status "adding GeoIP volume to $_f"
+			tee -a "$_f" <<EO_GEOIP
+$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0
+EO_GEOIP
+		fi
+	done
 }
 
 configure_spamassassin()
