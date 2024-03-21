@@ -574,7 +574,7 @@ install_pfrule()
 {
 	tell_status "setting up etc/pf.conf.d"
 
-	store_exec "$_dir/pfrule.sh" <<'EO_PF_RULE'
+	store_exec "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh" <<'EO_PF_RULE'
 #!/bin/sh
 
 # pfrule.sh
@@ -1381,6 +1381,7 @@ store_exec()
 		mkdir -p "$(dirname $1)" || exit 1
 	fi
 
+	tell_status "installing $1"
 	cat - > "$1" || exit 1
 	chmod 755 "$1"
 }
