@@ -1341,7 +1341,7 @@ preserve_file() {
 
 	if [ -f "$_active_cfg" ]; then
 		tell_status "preserving $_active_cfg"
-		cp "$_active_cfg" "$_stage_cfg" || return 1
+		cp -p "$_active_cfg" "$_stage_cfg" || return 1
 		return
 	fi
 
@@ -1349,7 +1349,7 @@ preserve_file() {
 		_active_cfg="$ZFS_JAIL_MNT/$_jail_name.last/$_file_path"
 		if [ -f "$_active_cfg" ]; then
 			tell_status "preserving $_active_cfg"
-			cp "$_active_cfg" "$_stage_cfg" || return 1
+			cp -p "$_active_cfg" "$_stage_cfg" || return 1
 			return
 		fi
 	fi
