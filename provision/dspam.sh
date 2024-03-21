@@ -38,7 +38,7 @@ configure_dspam_mysql()
 		return
 	fi
 
-	_dpass=$(openssl rand -hex 18)
+	_dpass=$(get_random_pass 18)
 
 	for _jail in dspam stage; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");

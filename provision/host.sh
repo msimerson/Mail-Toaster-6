@@ -138,7 +138,8 @@ constrain_sshd_to_host()
 	get_public_ip
 	get_public_ip ipv6
 
-	local _confirm_msg="
+	if [ -t 0 ]; then
+		local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
@@ -147,7 +148,8 @@ constrain_sshd_to_host()
 
 	May I update your sshd config?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || return
+		dialog --yesno "$_confirm_msg" 13 70 || return
+	fi
 
 	tell_status "Limiting SSHd to host IP address"
 
@@ -304,13 +306,22 @@ check_global_listeners()
 	fi
 }
 
+pf_bruteforce_expire()
+{
+	store_exec /usr/local/etc/periodic/security/pf_bruteforce_expire <<EO_PF_EXPIRE
+#!/bin/sh
+# expire after 7 days
+/sbin/pfctl -t bruteforce -T expire 604800
+EO_PF_EXPIRE
+}
+
 add_jail_nat()
 {
 	get_public_ip
 	get_public_ip ipv6
 
-	if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
-	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
+	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
+	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
 
 	tell_status "setting up the PF firewall and NAT for jails"
 	store_config "/etc/pf.conf" <<EO_PF_RULES
@@ -342,8 +353,11 @@ rdr-anchor "rdr/*"
 
 block in quick from <bruteforce>
 
-block in quick inet  proto tcp from <sshguard> to any port { 22 }
-block in quick inet6 proto tcp from <sshguard> to any port { 22 }
+block in quick proto tcp from <sshguard> to any port ssh
+
+pass  in quick on \$ext_if proto tcp to port ssh \
+        flags S/SA synproxy state \
+        (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 
 anchor "allow/*"
 EO_PF_RULES
@@ -351,11 +365,13 @@ EO_PF_RULES
 	kldstat -q -m pf || kldload pf
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
-	if ! /etc/rc.d/pf status | grep -q Enabled; then
+	if ! /sbin/pfctl -s Running; then
 		/etc/rc.d/pf start
+	else
+		/sbin/pfctl -f /etc/pf.conf
 	fi
 
-	pfctl -f /etc/pf.conf
+	pf_bruteforce_expire
 }
 
 install_jailmanage()

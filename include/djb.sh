@@ -40,7 +40,7 @@ install_djbdns_source()
 {
 	tell_status "installing djbdns + IPv6 from source"
 
-	store_config "$STAGE_MNT/usr/src/djb.sh" "overwrite" <<EO_DJBDNS_INSTALLER
+	store_exec "$STAGE_MNT/usr/src/djb.sh" <<EO_DJBDNS_INSTALLER
 #!/bin/sh
 
 set -e
@@ -83,7 +83,7 @@ configure_tinydns4()
 {
 	tell_status "creating tinydns server"
 	stage_exec tinydns-conf tinydns bin /var/service/tinydns "$(get_jail_ip stage)"
-	store_config "$STAGE_MNT/var/service/tinydns/run" "overwrite" <<EO_TINYDNS_RUN
+	store_exec "$STAGE_MNT/var/service/tinydns/run" <<EO_TINYDNS_RUN
 #!/bin/sh
 
 # logging enabled
@@ -102,7 +102,7 @@ configure_tinydns6()
 {
 	tell_status "creating tinydns IPv6 server"
 	stage_exec tinydns-conf tinydns bin /var/service/tinydns-v6 "$(get_jail_ip6 stage)"
-	store_config "$STAGE_MNT/var/service/tinydns-v6/run" "overwrite" <<EO_TINYDNS_RUN
+	store_exec "$STAGE_MNT/var/service/tinydns-v6/run" <<EO_TINYDNS_RUN
 #!/bin/sh
 
 # logging enabled
@@ -121,7 +121,7 @@ configure_axfrdns4()
 {
 	tell_status "creating axfrdns server"
 	stage_exec axfrdns-conf tinydns bin /var/service/axfrdns /data "$(get_jail_ip stage)"
-	store_config "$STAGE_MNT/var/service/axfrdns/run" "overwrite" <<'EO_AXFRDNS_RUN'
+	store_exec "$STAGE_MNT/var/service/axfrdns/run" <<'EO_AXFRDNS_RUN'
 #!/bin/sh
 
 # logging enabled
@@ -146,7 +146,7 @@ configure_axfrdns6()
 {
 	tell_status "creating axfrdns IPv6 server"
 	stage_exec axfrdns-conf tinydns bin /var/service/axfrdns-v6 /data "$(get_jail_ip6 stage)"
-	store_config "$STAGE_MNT/var/service/axfrdns-v6/run" "overwrite" <<'EO_AXFRDNS_RUN'
+	store_exec "$STAGE_MNT/var/service/axfrdns-v6/run" <<'EO_AXFRDNS_RUN'
 #!/bin/sh
 
 # logging enabled

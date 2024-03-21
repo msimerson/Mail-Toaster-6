@@ -94,8 +94,12 @@ auth.require   = ( "/cgi-bin/vqadmin" =>
 EO_LIGHTTPD
 
 	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
-		sed -i.bak -e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+		sed -i.bak \
+			-e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' \
+			"$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	fi
+
+	preserve_file vpopmail "/usr/local/etc/lighttpd/lighttpd.conf"
 
 	stage_sysrc lighttpd_enable=YES
 	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
@@ -170,7 +174,7 @@ install_vpopmail_mysql_grants()
 		return
 	fi
 
-	local _vpass; _vpass=$(openssl rand -hex 18)
+	local _vpass; _vpass=$(get_random_pass 18)
 
 	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
 	local _ip="${JAIL_NET_PREFIX}.0/24"
@@ -187,7 +191,6 @@ install_vpopmail_mysql_grants()
 		do
 			mysql_user_exists vpopmail $_ip \
 				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query
-
 
 			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query
 		done
@@ -281,7 +284,7 @@ configure_vpopmail()
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
 	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
-		local _ppass; _ppass=$(openssl rand -base64 12)
+		local _ppass; _ppass=$(get_random_pass 14)
 		tell_status "ATTN: Your postmaster password is: $_ppass"
 		stage_exec /usr/local/vpopmail/bin/vadddomain "$TOASTER_MAIL_DOMAIN" "$_ppass"
 	fi

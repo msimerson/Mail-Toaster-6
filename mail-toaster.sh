@@ -1,11 +1,9 @@
 #!/bin/sh
 
-# bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20231004"; }
+# bump version when a change in this file effects provision scripts
+mt6_version() { echo "20240319"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
-
-sed_replacement_quote() { printf "%s" "$1" | sed -E 's,([&\\/]),\\\1,g'; }
 
 get_random_ip6net()
 {
@@ -153,7 +151,7 @@ mt6_version_check
 config
 
 # Required settings
-export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
+export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit 1
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
 
@@ -576,12 +574,7 @@ install_pfrule()
 {
 	tell_status "setting up etc/pf.conf.d"
 
-	_dir="$ZFS_DATA_MNT/$1/etc/pf.conf.d"
-	if [ ! -d "$_dir" ]; then
-		mkdir -p "$_dir" || exit 1
-	fi
-
-	cat <<'EO_PF_RULE' > "$_dir/pfrule.sh"
+	store_exec "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh" <<'EO_PF_RULE'
 #!/bin/sh
 
 # pfrule.sh
@@ -618,7 +611,6 @@ done
 
 exit
 EO_PF_RULE
-	chmod 755 "$_dir/pfrule.sh"
 }
 
 install_fstab()
@@ -820,7 +812,7 @@ rename_ready_to_active()
 
 tell_settings()
 {
-	echo; echo "   ***   Configured $1 settings:"
+	echo; echo "   ***   Configured $1 settings:   ***"; echo
 	set | grep "^$1_"
 	echo
 	sleep 2
@@ -936,30 +928,39 @@ stage_exec()
 	jexec "$SAFE_NAME" "$@"
 }
 
+port_is_listening()
+{
+	local _port=${1:-"25"}
+	local _jail=${2:-"stage"}
+
+	if [ -n "$(sockstat -l -q -4 -6 -p "$_port" -j "$_jail")" ]; then
+		true
+	else
+		false
+	fi
+}
+
 stage_listening()
 {
-	echo "checking for port $1 listener in staged jail"
+	local _port=${1:-"25"}
+	local _max_tries=${2:-"3"}
+	local _sleep=${3:-"1"}
+	local _try=0
 
-	local _max_tries=${2:-"1"}
-	local _tries=0
-	local _listening=""
-	local _sleep="$3"
-	if [ -z "$_sleep" ]; then _sleep=1; fi
+	echo; echo -n "checking for port $_port listening in staged jail..."
 
-	until [ -n "$_listening" ]; do
-		_tries=$((_tries + 1))
+	until port_is_listening "$_port"; do
+		_try=$((_try + 1))
 
-		if [ "$_tries" -gt "$_max_tries" ]; then
-			echo "port $1 is NOT listening"
-			exit
+		if [ "$_try" -gt "$_max_tries" ]; then
+			echo "FAILED"
+			exit 1
 		fi
-		echo "	checking port $1"
-		_listening=$(sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO)
+		echo -n "."
 		sleep "$_sleep"
 	done
 
-	echo
-	echo "Success! Port $1 is listening"
+	echo "OK"; echo
 }
 
 stage_test_running()
@@ -1340,7 +1341,7 @@ preserve_file() {
 
 	if [ -f "$_active_cfg" ]; then
 		tell_status "preserving $_active_cfg"
-		cp "$_active_cfg" "$_stage_cfg" || return 1
+		cp -p "$_active_cfg" "$_stage_cfg" || return 1
 		return
 	fi
 
@@ -1348,10 +1349,41 @@ preserve_file() {
 		_active_cfg="$ZFS_JAIL_MNT/$_jail_name.last/$_file_path"
 		if [ -f "$_active_cfg" ]; then
 			tell_status "preserving $_active_cfg"
-			cp "$_active_cfg" "$_stage_cfg" || return 1
+			cp -p "$_active_cfg" "$_stage_cfg" || return 1
 			return
 		fi
 	fi
+}
+
+get_random_pass()
+{
+	local _pass_len=${1:-"14"}
+
+	# Password Entropy = log2(charset_len ^pass_len)
+
+	if [ -z "$2" ]; then
+		# default, good, limited by base64 charset
+		openssl rand -base64 "$(echo "$_pass_len + 4" | bc)" | head -c "$_pass_len"
+	else
+		# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
+		# more entropy with 94 ASCII chars but special chars are often problematic
+		LC_ALL=C tr -dc '[:graph:]' </dev/urandom | head -c "$_pass_len"
+	fi
+
+	echo
+}
+
+store_exec()
+{
+	# $1 - path to file, STDIN is file contents
+	if [ ! -d "$(dirname $1)" ]; then
+		tell_status "creating $(dirname $1)"
+		mkdir -p "$(dirname $1)" || exit 1
+	fi
+
+	tell_status "installing $1"
+	cat - > "$1" || exit 1
+	chmod 755 "$1"
 }
 
 onexit() { while caller $((n++)); do :; done; }

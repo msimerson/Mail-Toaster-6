@@ -17,7 +17,7 @@ configure_vim_tiny()
 		-e 's/^set number/" set number/' \
 		-e 's/^set cursorline/" set cursorline/' \
 		-e 's/^set relativenumber/" set relativenumber/' \
-		"$_base/vimrc"
+		"$_base/usr/local/etc/vim/vimrc"
 }
 
 configure_vim()
@@ -35,13 +35,13 @@ configure_vim()
 		-e 's/^set number/" set number/' \
 		-e 's/^set cursorline/" set cursorline/' \
 		-e 's/^set relativenumber/" set relativenumber/' \
-		"$_base/vimrc"
+		"$_base/usr/local/etc/vim/vimrc"
 
 	if fetch -m -o /usr/local/share/vim/vim91/colors/gruvbox.vim https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim;
 	then
 		sed -i '' \
 			-e 's/^colorscheme.*/colorscheme gruvbox/' \
-			"$_base/vimrc"
+			"$_base/usr/local/etc/vim/vimrc"
 	fi
 }
 

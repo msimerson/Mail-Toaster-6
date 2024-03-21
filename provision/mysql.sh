@@ -44,13 +44,17 @@ write_pass_to_conf()
 		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
 	fi
 
+	preserve_file mysql /root/.my.cnf
+
 	local _my_cnf="$STAGE_MNT/root/.my.cnf"
-	tee "$_my_cnf" <<EO_MY_CNF
+	if [ ! -f "$_my_cnf" ]; then
+		tee "$_my_cnf" <<EO_MY_CNF
 [client]
 user = root
 password = $TOASTER_MYSQL_PASS
 EO_MY_CNF
-	chmod 600 "$_my_cnf"
+		chmod 600 "$_my_cnf"
+	fi
 }
 
 configure_mysql_keys()
@@ -74,9 +78,16 @@ configure_mysql_keys()
 configure_mysql_root_password()
 {
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
-		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
+		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf"
 
-		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
+		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
+		if [ -f "$_my.cnf" ] &&  [ -r "$_my.cnf" ]; then
+			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
+		fi
+
+		if [ -z "$TOASTER_MYSQL_PASS" ]; then
+			TOASTER_MYSQL_PASS=$(get_random_pass 15)
+		fi
 		export TOASTER_MYSQL_PASS
 	fi
 
