@@ -138,7 +138,8 @@ constrain_sshd_to_host()
 	get_public_ip
 	get_public_ip ipv6
 
-	local _confirm_msg="
+	if [ -t 0 ]; then
+		local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
@@ -147,7 +148,8 @@ constrain_sshd_to_host()
 
 	May I update your sshd config?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || return
+		dialog --yesno "$_confirm_msg" 13 70 || return
+	fi
 
 	tell_status "Limiting SSHd to host IP address"
 
