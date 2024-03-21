@@ -19,7 +19,7 @@ stages:
 
 host_setup:
   stage: host_setup
-  timeout: 5m
+  timeout: 9m
   script:
     - sh test/get_jail_ip.sh
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
@@ -55,7 +55,7 @@ db:
 
 mailstore:
   stage: mailstore
-  timeout: 10m
+  timeout: 15m
   script:
     - sh provision/vpopmail.sh
     - sh provision/dovecot.sh
@@ -65,7 +65,7 @@ mailstore:
 
 mta:
   stage: mta
-  timeout: 10m
+  timeout: 15m
   script:
     - sh provision/clamav.sh
     - sh provision/dcc.sh
@@ -77,7 +77,7 @@ mta:
 
 webmail:
   stage: webmail
-  timeout: 10m
+  timeout: 15m
   script:
     - sh provision/haproxy.sh
     - sh provision/webmail.sh
