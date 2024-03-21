@@ -1359,16 +1359,22 @@ get_random_pass()
 {
 	local _pass_len=${1:-"14"}
 
-	# Password Entropy = log2(charset_len ^pass_len)
-
-	if [ -z "$2" ]; then
-		# default, good, limited by base64 charset
-		openssl rand -base64 "$(echo "$_pass_len + 4" | bc)" | head -c "$_pass_len"
-	else
-		# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
-		# more entropy with 94 ASCII chars but special chars are often problematic
-		LC_ALL=C tr -dc '[:graph:]' </dev/urandom | head -c "$_pass_len"
-	fi
+	# Password Entropy = log2(charset_len^pass_len)
+	case "$2" in
+		strong)
+			# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
+			# more entropy with 94 ASCII chars but special chars are often problematic
+			LC_ALL=C tr -dc '[:graph:]' </dev/urandom | head -c "$_pass_len"
+			;;
+		safe)
+			# good entropy, limited by 62 alpha-num characters (no symbols)
+			LC_ALL=C tr -dc A-Za-z0-9 </dev/urandom | head -c "$_pass_len"
+			;;
+		*)
+			# default, good, limited by base64 charset
+			openssl rand -base64 "$(echo "$_pass_len + 4" | bc)" | head -c "$_pass_len"
+			;;
+	esac
 
 	echo
 }

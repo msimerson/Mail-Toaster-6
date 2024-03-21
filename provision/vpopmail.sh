@@ -174,7 +174,7 @@ install_vpopmail_mysql_grants()
 		return
 	fi
 
-	local _vpass; _vpass=$(get_random_pass 18)
+	local _vpass; _vpass=$(get_random_pass 18 safe)
 
 	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
 	local _ip="${JAIL_NET_PREFIX}.0/24"

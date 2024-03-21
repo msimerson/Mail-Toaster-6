@@ -82,11 +82,13 @@ configure_mysql_root_password()
 
 		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
 		if [ -f "$_my.cnf" ] &&  [ -r "$_my.cnf" ]; then
+			tell_status "TOASTER_MYSQL_PASS unset in $_my_cnf"
 			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
 		fi
 
 		if [ -z "$TOASTER_MYSQL_PASS" ]; then
-			TOASTER_MYSQL_PASS=$(get_random_pass 15)
+			tell_status "generating a random password for MySQL"
+			TOASTER_MYSQL_PASS=$(get_random_pass 15 safe)
 		fi
 		export TOASTER_MYSQL_PASS
 	fi

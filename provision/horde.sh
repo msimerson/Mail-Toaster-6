@@ -78,7 +78,7 @@ install_horde_mysql()
 		_init_db=1
 	fi
 
-	_hordepass=$(get_random_pass 18)
+	_hordepass=$(get_random_pass 18 safe)
 
 	_horde_key=$(openssl rand -hex 20)
 
