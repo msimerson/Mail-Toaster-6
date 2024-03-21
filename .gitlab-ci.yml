@@ -1,5 +1,5 @@
 image: auchida/freebsd:latest
-timeout: 90
+# timeout: 90
 
 # Instructions for creating your own test runner:
 # https://github.com/msimerson/Mail-Toaster-6/wiki/Develop-CI-Testing/
