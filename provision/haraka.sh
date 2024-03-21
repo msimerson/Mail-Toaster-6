@@ -7,7 +7,7 @@ set -e
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;"
-export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP nullfs rw 0 0"
+export JAIL_FSTAB=""
 
 HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 
@@ -43,6 +43,14 @@ install_geoip_dbs()
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
 		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
 		return
+	fi
+
+	local _fstab="$ZFS_DATA_MNT/haraka/etc/fstab"
+	if ! grep -qs GeoIP "$_fstab"; then
+		tell_status "adding GeoIP volumne to $_fstab"
+		tee -a "$_fstab" <<EO_GEOIP
+$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP nullfs rw 0 0"
+EO_GEOIP
 	fi
 
 	if ! grep -qs ^geoip "$HARAKA_CONF/plugins"; then

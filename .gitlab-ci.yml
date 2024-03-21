@@ -1,5 +1,4 @@
 image: auchida/freebsd:latest
-# timeout: 90
 
 # Instructions for creating your own test runner:
 # https://github.com/msimerson/Mail-Toaster-6/wiki/Develop-CI-Testing/
@@ -20,6 +19,7 @@ stages:
 
 host_setup:
   stage: host_setup
+  timeout: 5m
   script:
     - sh test/get_jail_ip.sh
     - echo "export TOASTER_HOSTNAME=`hostname`" >> mail-toaster.conf
@@ -33,6 +33,7 @@ host_setup:
 
 dns:
   stage: dns
+  timeout: 5m
   script:
     - sh provision/dns.sh
 # enabling caching doubles gitlab runner builds (~30 to 60m)
@@ -43,15 +44,18 @@ dns:
 
 db:
   stage: db
+  timeout: 5m
   script:
     - sh provision/mysql.sh
     - sh provision/redis.sh
+    # - sh provision/geoip.sh
   tags:
     - freebsd
     - ssh
 
 mailstore:
   stage: mailstore
+  timeout: 10m
   script:
     - sh provision/vpopmail.sh
     - sh provision/dovecot.sh
@@ -61,6 +65,7 @@ mailstore:
 
 mta:
   stage: mta
+  timeout: 10m
   script:
     - sh provision/clamav.sh
     - sh provision/dcc.sh
@@ -72,6 +77,7 @@ mta:
 
 webmail:
   stage: webmail
+  timeout: 10m
   script:
     - sh provision/haproxy.sh
     - sh provision/webmail.sh
@@ -84,6 +90,7 @@ webmail:
 
 extras:
   stage: extras
+  timeout: 10m
   script:
     - sh provision/spamassassin.sh
 #   - sh provision/elasticsearch.sh
@@ -94,6 +101,7 @@ extras:
 
 test:
   stage: test
+  timeout: 5m
   script:
     - sh provision/mailtest.sh
   tags:
