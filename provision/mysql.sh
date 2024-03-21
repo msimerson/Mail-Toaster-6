@@ -81,7 +81,7 @@ configure_mysql_root_password()
 		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf"
 
 		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
-		if [ -f "$_my.cnf" -a -r "$_my.cnf" ]; then
+		if [ -f "$_my.cnf" ] &&  [ -r "$_my.cnf" ]; then
 			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
 		fi
 
