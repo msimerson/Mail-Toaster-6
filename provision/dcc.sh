@@ -19,8 +19,7 @@ install_dcc_cleanup()
 		exit 2
 	fi
 
-	tell_status "adding DCC cleanup task"
-	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/501.dccd" <<EO_DCC
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/501.dccd-cleanup" <<EO_DCC
 #!/bin/sh
 /usr/local/libexec/cron-dccd
 /usr/bin/find /var/db/dcc/log/ -not -newermt '1 days ago' -delete

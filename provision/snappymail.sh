@@ -14,7 +14,7 @@ PHP_VER="82"
 
 install_snappymail()
 {
-	local _php_modules="ctype curl dom fileinfo gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid pecl-xxtea phar session simplexml sodium tidy xml zip zlib"
+	local _php_modules="ctype curl dom fileinfo gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
 
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "using sqlite DB backend"
@@ -31,6 +31,10 @@ install_snappymail()
 
 	install_php "$PHP_VER" "$_php_modules"
 	install_nginx
+
+	if ! stage_exec pkg install -y php82-pecl-xxtea; then
+		stage_pkg_install bsddialog gnupg autoconf automake re2c pcre2 pkgconf libxml2
+	fi
 
 	tell_status "installing snappymail"
 	stage_pkg_install gnupg

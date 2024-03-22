@@ -17,12 +17,11 @@ configure_rsnapshot()
 {
 	local _pdir="$STAGE_MNT/usr/local/etc/periodic"
 
-	for p in daily weekly monthly
+	for _p in daily weekly monthly
 	do
-		if [ ! -f "$_pdir/$p/rsnapshot" ]; then
-			tell_status "installing $p periodic task"
-			store_exec "$_pdir/$p/rsnapshot" <<EO_RSNAP
-/usr/local/bin/rsnapshot -c /data/etc/rsnapshot.conf $p
+		if [ ! -f "$_pdir/$_p/rsnapshot" ]; then
+			store_exec "$_pdir/$_p/rsnapshot" <<EO_RSNAP
+/usr/local/bin/rsnapshot -c /data/etc/rsnapshot.conf $_p
 EO_RSNAP
 		fi
 	done
