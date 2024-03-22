@@ -7,7 +7,7 @@ set -e
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		allow.raw_sockets;"
-
+export JAIL_FSTAB=""
 
 install_mailtest()
 {

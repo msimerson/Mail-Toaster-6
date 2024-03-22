@@ -10,6 +10,9 @@ configure_mta()
 		enable_dma
 	elif [ "$_mta" = "sendmail" ]; then
 		enable_sendmail
+	elif [ "$_mta" = "postfix" ]; then
+		disable_sendmail
+		enable_postfix
 	elif [ -x "$_base/usr/libexec/dma" ]; then
 		disable_sendmail
 		enable_dma
@@ -59,6 +62,12 @@ disable_sendmail()
 	if [ "$($_sysrc -n sendmail_outbound_enable)" != "NO" ]; then
 		$_sysrc sendmail_outbound_enable=NO
 	fi
+
+	local _periodic="sysrc -f $_base/etc/periodic.conf"
+	for _c in daily_clean_hoststat_enable daily_status_mail_rejects_enable daily_status_include_submit_mailq daily_submit_queuerun;
+	do
+		if [ "$($_periodic -n $_c)" != "NO" ]; then $_periodic $_c=NO; fi
+	done
 }
 
 set_root_alias()
@@ -120,4 +129,17 @@ hoststat	/usr/bin/true
 purgestat	/usr/bin/true
 EO_MAILER_CONF
 
+}
+
+enable_postfix()
+{
+	tell_status "setting up postfix"
+	cp "$_base/usr/local/share/postfix/mailer.conf.postfix" "$_base/etc/mail/mailer.conf"
+
+	set_root_alias
+
+	stage_pkg_install postfix
+	stage_sysrc postfix_enable=YES
+	stage_exec /usr/local/bin/newaliases
+	stage_exec service postfix start
 }

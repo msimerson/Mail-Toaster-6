@@ -80,7 +80,7 @@ export TOASTER_MSA="haraka"
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_NRPE=""
-export TOASTER_PKG_AUDIT="0"
+export TOASTER_PKG_AUDIT="1"
 export TOASTER_PKG_BRANCH="latest"
 export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
@@ -160,22 +160,24 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
+export TLS_LIBRARY=${TLS_LIBRARY:=""}
 export TOASTER_BASE_MTA=${TOASTER_BASE_MTA:=""}
 export TOASTER_BASE_PKGS=${TOASTER_BASE_PKGS:="pkg ca_root_nss"}
-export TOASTER_EDITOR=${TOASTER_EDITOR:="vi"}
+export TOASTER_BUILD_DEBUG=${TOASTER_BUILD_DEBUG:="0"}
+export TOASTER_EDITOR=${TOASTER_EDITOR:="vim-tiny"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
-export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
+export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="1"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
 export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:="0"}
 export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:="1"}
@@ -572,8 +574,6 @@ cleanup_staged_fs()
 
 install_pfrule()
 {
-	tell_status "setting up etc/pf.conf.d"
-
 	store_exec "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh" <<'EO_PF_RULE'
 #!/bin/sh
 
@@ -825,11 +825,11 @@ proclaim_success()
 
 stage_clear_caches()
 {
-	echo "clearing pkg cache"
-	rm -rf "$STAGE_MNT/var/cache/pkg/*"
-
-	echo "clearing freebsd-update cache"
-	rm -rf "$STAGE_MNT/var/db/freebsd-update/*"
+	for _c in "$STAGE_MNT/var/cache/pkg" "$STAGE_MNT/var/db/freebsd-update"
+	do
+		echo "clearing cache ($_c)"
+		rm -rf "${_c:?}"/*
+	done
 }
 
 stage_resolv_conf()
@@ -866,9 +866,9 @@ promote_staged_jail()
 	seed_pkg_audit
 	tell_status "promoting jail $1"
 	stop_jail stage
+	stage_clear_caches
 	stage_unmount "$1"
 	ipcrm -W
-	stage_clear_caches
 
 	rename_staged_to_ready "$1"
 

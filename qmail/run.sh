@@ -384,7 +384,7 @@ EO_DELIVERABLED_RUN
 	pkg install -y p5-Package-Constants
 
 	echo "installing Qmail::Deliverable"
-	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-App-Cpanminus
+	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-App-Cpanminus p5-libwww
 	cpanm Qmail::Deliverable
 
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then

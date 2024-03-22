@@ -1,17 +1,20 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e -u
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA="devfs_ruleset=7
 		allow.raw_sockets=1"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;
 		allow.raw_sockets = 1;"
+export JAIL_FSTAB=""
 
 install_dhcpd()
 {
 	tell_status "installing dhcpd"
-	stage_pkg_install isc-dhcp44-server || exit
+	stage_pkg_install isc-dhcp44-server
 }
 
 configure_dhcpd()
@@ -34,11 +37,11 @@ rdr inet6 proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip6 dhcp)
 EO_PF_RDR
 
 	if [ ! -d "$ZFS_DATA_MNT/dhcp/etc" ]; then
-		mkdir -p "$ZFS_DATA_MNT/dhcp/etc" || exit
+		mkdir -p "$ZFS_DATA_MNT/dhcp/etc"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/dhcp/db" ]; then
-		mkdir -p "$ZFS_DATA_MNT/dhcp/db" || exit
+		mkdir -p "$ZFS_DATA_MNT/dhcp/db"
 	fi
 
 	get_public_ip
@@ -79,7 +82,7 @@ EO_DHCP
 start_dhcpd()
 {
 	tell_status "starting dhcpd"
-	stage_exec service isc-dhcpd start || exit
+	stage_exec service isc-dhcpd start
 }
 
 test_dhcpd()

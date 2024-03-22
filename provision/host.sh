@@ -6,6 +6,7 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include shell
 mt6-include mta
@@ -491,6 +492,9 @@ update_freebsd()
 
 	tell_status "updating FreeBSD with security patches"
 	freebsd-update fetch install
+
+	tell_status "clearing freebsd-update cache"
+	rm -rf /var/db/freebsd-update/*
 
 	tell_status "updating FreeBSD pkg collection"
 	pkg update

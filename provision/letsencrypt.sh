@@ -4,6 +4,10 @@ set -e
 
 . mail-toaster.sh
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
+
 install_letsencrypt()
 {
 	tell_status "installing ACME.sh & Let's Encrypt"

@@ -4,6 +4,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 export NICTOOL_UPGRADE=""

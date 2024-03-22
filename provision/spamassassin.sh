@@ -4,6 +4,8 @@ set -e
 
 . mail-toaster.sh
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
 mt6-include mysql
@@ -58,17 +60,6 @@ install_spamassassin_port()
 	stage_port_install mail/spamassassin
 }
 
-install_spamassassin_nrpe()
-{
-	if [ -z "$TOASTER_NRPE" ]; then
-		echo "TOASTER_NRPE unset, skipping nrpe plugin"
-		return
-	fi
-
-	tell_status "installing nrpe spamd plugin"
-	stage_pkg_install nagios-spamd-plugin
-}
-
 install_spamassassin_data_fs()
 {
 	for _d in $ZFS_DATA_MNT/spamassassin/etc $ZFS_DATA_MNT/spamassassin/var $STAGE_MNT/usr/local/etc/mail; do
@@ -121,7 +112,6 @@ install_spamassassin()
 	fi
 
 	install_spamassassin_data_fs
-	install_spamassassin_nrpe
 	install_spamassassin_port
 }
 

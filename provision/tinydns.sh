@@ -1,11 +1,14 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
-. include/djb.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
+
+mt6-include djb
 
 configure_tinydns()
 {
@@ -48,16 +51,16 @@ test_tinydns()
 	fi
 
 	tell_status "testing UDP DNS query"
-	drill    "$_fqdn" @"$(get_jail_ip stage)" || exit
+	drill    "$_fqdn" @"$(get_jail_ip stage)"
 
 	tell_status "testing TCP DNS query"
-	drill -t "$_fqdn" @"$(get_jail_ip stage)" || exit
+	drill -t "$_fqdn" @"$(get_jail_ip stage)"
 
 	tell_status "switching tinydns IP to deployment IP"
 	get_jail_ip tinydns | tee "$STAGE_MNT/var/service/tinydns/env/IP" "$STAGE_MNT/var/service/axfrdns/env/IP"
 	get_jail_ip6 tinydns | tee "$STAGE_MNT/var/service/tinydns-v6/env/IP" "$STAGE_MNT/var/service/axfrdns-v6/env/IP"
 
-	stage_exec service svscan stop || exit
+	stage_exec service svscan stop
 	for d in tinydns axfrdns tinydns-v6 axfrdns-v6
 	do
 		if [ -d "$ZFS_DATA_MNT/tinydns/service/$d" ]; then
@@ -70,7 +73,7 @@ test_tinydns()
 	stage_sysrc svscan_servicedir="/data/service"
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs tinydns
 start_staged_jail tinydns
 install_daemontools

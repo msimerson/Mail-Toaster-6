@@ -396,6 +396,21 @@ configure_haraka_smtp_ini()
 		"$HARAKA_CONF/smtp.ini"
 }
 
+configure_haraka_outbound_ini
+{
+	if [ ! -f "$HARAKA_CONF/outbound.ini" ]; then
+		configure_install_default outbound.ini
+	fi
+
+	if grep -q ^local_mx_ok "$HARAKA_CONF/outbound.ini"
+	then
+		tell_status "preserving local_mx_ok in outbound.ini"
+	else
+		tell_status "setting local_mx_ok in outbound.ini"
+		echo 'local_mx_ok=true' >> "$HARAKA_CONF/outbound.ini"
+	fi
+}
+
 configure_haraka_plugins()
 {
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then
@@ -684,6 +699,7 @@ configure_haraka()
 	fi
 
 	configure_haraka_smtp_ini
+	configure_haraka_outbound_ini
 	configure_haraka_plugins
 	configure_haraka_limit
 	configure_haraka_syslog

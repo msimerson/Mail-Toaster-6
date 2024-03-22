@@ -33,6 +33,9 @@ freebsd_update()
 	tell_status "apply FreeBSD security updates to base jail"
 	sed -i.bak -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
+
+	echo "clearing freebsd-update cache"
+	rm -rf $BASE_MNT/var/db/freebsd-update/*
 }
 
 install_freebsd()
