@@ -19,15 +19,12 @@ install_dcc_cleanup()
 		exit 2
 	fi
 
-	tell_status "adding DCC cleanup periodic task"
-	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
-	mkdir -p "$_periodic"
-	cat <<EO_DCC > "$_periodic/daily/501.dccd"
+	tell_status "adding DCC cleanup task"
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/501.dccd" <<EO_DCC
 #!/bin/sh
 /usr/local/libexec/cron-dccd
 /usr/bin/find /var/db/dcc/log/ -not -newermt '1 days ago' -delete
 EO_DCC
-	chmod 755 "$_periodic/daily/501.dccd"
 }
 
 install_dcc_port_options()

@@ -233,7 +233,7 @@ install_ocsp_stapler()
 {
 	if [ -f "$1" ]; then return; fi
 
-	tee "$1" <<'EO_OCSP'
+	store_exec "$1" <<'EO_OCSP'
 #!/bin/sh -e
 
 # http://www.jinnko.org/2015/03/ocsp-stapling-with-haproxy.html
@@ -286,8 +286,6 @@ else
 fi
 
 EO_OCSP
-
-	chmod 755 "$1"
 }
 
 configure_haproxy_tls()
@@ -308,9 +306,6 @@ configure_haproxy_tls()
 		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d"
 	fi
 
-	if [ ! -d "$STAGE_MNT/usr/local/etc/periodic/daily" ]; then
-		mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
-	fi
 	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"
 }
 
