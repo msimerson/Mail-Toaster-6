@@ -40,7 +40,7 @@ install_geoip()
 
 configure_geoip_geoipupdate()
 {
-	tee "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO
+	store_exec "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO
 #!/bin/sh
 export MAXMIND_DB_DIR=/data/db/
 /usr/local/bin/geoipupdate
@@ -49,7 +49,7 @@ EO_GEO
 
 configure_geoip_mm_mirror()
 {
-	tee "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO_MM
+	store_exec "$_weekly/999.maxmind-geolite-mirror" <<EO_GEO_MM
 #!/bin/sh
 export MAXMIND_DB_DIR=/data/db/
 export MAXMIND_LICENSE_KEY="$MAXMIND_LICENSE_KEY"
@@ -60,13 +60,12 @@ EO_GEO_MM
 geoip_periodic()
 {
 	_weekly="$STAGE_MNT/usr/local/etc/periodic/weekly"
-	mkdir -p "$_weekly"
+
 	if [ "$GEOIP_UPDATER" = "geoipupdate" ]; then
 		configure_geoip_geoipupdate
 	else
 		configure_geoip_mm_mirror
 	fi
-	chmod 700 "$_weekly/999.maxmind-geolite-mirror"
 }
 
 configure_geoip()

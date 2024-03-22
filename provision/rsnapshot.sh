@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
@@ -8,26 +10,19 @@ export JAIL_CONF_EXTRA=""
 install_rsnapshot()
 {
 	tell_status "installing rsnapshot"
-	stage_pkg_install rsnapshot coreutils || exit
+	stage_pkg_install rsnapshot coreutils
 }
 
 configure_rsnapshot()
 {
 	local _pdir="$STAGE_MNT/usr/local/etc/periodic"
 
-	for p in daily weekly monthly
+	for _p in daily weekly monthly
 	do
-		if [ ! -d "$_pdir/$p" ]; then
-			tell_status "creating $_pdir/$p"
-			mkdir -p "$_pdir/$p" || exit
-		fi
-
-		if [ ! -f "$_pdir/$p/rsnapshot" ]; then
-			tell_status "installing $p periodic task"
-			tee "$_pdir/$p/rsnapshot" <<EO_RSNAP
-/usr/local/bin/rsnapshot -c /data/etc/rsnapshot.conf $p
+		if [ ! -f "$_pdir/$_p/rsnapshot" ]; then
+			store_exec "$_pdir/$_p/rsnapshot" <<EO_RSNAP
+/usr/local/bin/rsnapshot -c /data/etc/rsnapshot.conf $_p
 EO_RSNAP
-			chmod 755 "$_pdir/$p/rsnapshot"
 		fi
 	done
 
@@ -47,7 +42,7 @@ EO_RSNAP
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$ZFS_DATA_MNT/rsnapshot/ssh/"* "$STAGE_MNT/root/.ssh/" || exit 1
+		cp "$ZFS_DATA_MNT/rsnapshot/ssh/"* "$STAGE_MNT/root/.ssh/"
 	fi
 }
 

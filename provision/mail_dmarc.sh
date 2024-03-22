@@ -19,11 +19,10 @@ install_dmarc()
 
 	tell_status "Mail::DMARC installed"
 
-	tee "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive" <<EO_DMARC
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive" <<EO_DMARC
 #!/bin/sh
 /usr/local/bin/dmarc_receive --imap
 EO_DMARC
-	chmod 755 "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive"
 
 	install_dmarc_config
 }

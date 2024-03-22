@@ -103,18 +103,10 @@ configure_postfix()
 
 configure_squirrelcart_cron()
 {
-	local _perdir="$STAGE_MNT/usr/local/etc/periodic/daily"
-	if [ ! -d "$_perdir" ]; then
-		mkdir -p "$_perdir"
-	fi
-
-	tell_status "installing periodic cron task"
-	tee "$_perdir/squirrelcart" <<EO_SQ_CRON
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/squirrelcart" <<EO_SQ_CRON
 #!/bin/sh
 /usr/local/bin/php /usr/local/www/squirrelcart/squirrelcart/cron.php
 EO_SQ_CRON
-
-	chmod 755 "$_perdir"
 }
 
 configure_squirrelcart()

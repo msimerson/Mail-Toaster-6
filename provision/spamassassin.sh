@@ -10,11 +10,9 @@ mt6-include mysql
 
 install_sa_update()
 {
-	tell_status "adding sa-update periodic task"
-	local _periodic="$STAGE_MNT/usr/local/etc/periodic"
-	mkdir -p "$_periodic/daily"
-	cat <<EO_SAUPD > "$_periodic/daily/502.sa-update"
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/502.sa-update" <<EO_SAUPD
 #!/bin/sh
+umask 022
 PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-update \
 	--gpgkey 6C6191E3 \
@@ -22,7 +20,6 @@ PATH=/usr/local/bin:/usr/bin:/bin
 /usr/local/bin/perl -T /usr/local/bin/sa-compile
 /usr/local/etc/rc.d/sa-spamd reload
 EO_SAUPD
-	chmod 755 "$_periodic/daily/502.sa-update"
 }
 
 install_sought_rules() {
@@ -236,7 +233,7 @@ EO_LOCAL_CONF
 	fi
 
 	tell_status "initialize sa-update"
-	stage_exec sa-update
+	stage_exec sa-update && stage_exec sa-compile
 
 	#install_sought_rules
 	install_sa_update

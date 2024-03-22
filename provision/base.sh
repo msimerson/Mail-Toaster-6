@@ -112,13 +112,7 @@ disable_cron_jobs()
 
 enable_security_periodic()
 {
-	local _daily="$BASE_MNT/usr/local/etc/periodic/daily"
-	if [ ! -d "$_daily" ]; then
-		mkdir -p "$_daily"
-	fi
-
-	tell_status "setting up auto package security"
-	cat <<'EO_PKG_SECURITY' > "$_daily/auto_security_upgrades"
+	store_exec "$BASE_MNT/usr/local/etc/periodic/daily/auto_security_upgrades" <<'EO_PKG_SECURITY'
 #!/bin/sh
 
 auto_remove="vim-console vim-lite"
@@ -138,7 +132,6 @@ do
   /usr/sbin/pkg audit | grep "$_pkg" && pkg install -y "$_pkg"
 done
 EO_PKG_SECURITY
-	chmod 755 "$_daily/auto_security_upgrades"
 }
 
 configure_ssl_dirs()

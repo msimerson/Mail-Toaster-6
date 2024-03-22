@@ -32,9 +32,13 @@ install_snappymail()
 	install_php "$PHP_VER" "$_php_modules"
 	install_nginx
 
+	if ! stage_exec pkg install -y php82-pecl-xxtea; then
+		stage_pkg_install bsddialog gnupg autoconf automake re2c pcre2 pkgconf libxml2
+	fi
+
 	tell_status "installing snappymail"
-	# stage_pkg_install snappymail-php$PHP_VER
 	stage_pkg_install gnupg
+	# stage_pkg_install snappymail-php$PHP_VER
 	stage_port_install mail/snappymail
 }
 
