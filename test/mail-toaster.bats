@@ -73,7 +73,6 @@ setup() {
 
 @test "get_random_pass 14 strong" {
   run get_random_pass 14 strong
-  echo "# $output" >&3
   assert_success
   assert_equal ${#output} 14
 }
