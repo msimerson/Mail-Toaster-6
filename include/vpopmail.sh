@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 install_vpopmail_deps()
 {
 	tell_status "install vpopmail deps"
@@ -34,7 +33,7 @@ install_vpopmail_source()
 		git clone https://github.com/brunonymous/vpopmail.git "$ZFS_DATA_MNT/vpopmail/src/vpopmail" || exit 1
 	fi
 
-	_conf_args="--disable-users-big-dir --enable-logging=y --enable-md5-passwords"
+	_conf_args="--disable-users-big-dir --enable-logging=y --enable-md5-passwords --disable-sha512-passwords"
 	if [ "$TOASTER_MYSQL" = "1" ]; then _conf_args="$_conf_args --enable-auth-module=mysql --enable-valias --enable-sql-aliasdomains"; fi
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then _conf_args="$_conf_args --enable-qmail-ext"; fi
 	if [ "$TOASTER_VPOPMAIL_CLEAR" = "1" ]; then _conf_args="$_conf_args --enable-clear-passwd"; fi
@@ -42,6 +41,15 @@ install_vpopmail_source()
 	stage_exec sh -c 'cd /data/src/vpopmail; aclocal' || exit 1
 	stage_exec sh -c "cd /data/src/vpopmail; CFLAGS=\"-fcommon\" ./configure $_conf_args" || exit 1
 	stage_exec sh -c 'cd /data/src/vpopmail; make install' || exit 1
+
+	# TODO: check and automate this
+	echo; echo "
+	ALTER TABLE vpopmail MODIFY column pw_name char(64);
+	ALTER TABLE vpopmail MODIFY column pw_passwd char(128);
+	ALTER TABLE vpopmail MODIFY column pw_gecos char(64);
+	"; echo
+
+	tell_status "*** Run the above commands above to update MySQL. *** "
 }
 
 install_vpopmail_port()

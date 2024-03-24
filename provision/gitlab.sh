@@ -6,6 +6,7 @@ export JAIL_START_EXTRA="allow.sysvipc=1"
 export JAIL_CONF_EXTRA="
 		allow.sysvipc;
 "
+export JAIL_FSTAB=""
 
 # https://docs.gitlab.com/ee/install/relative_url.html
 # https://gitlab.fechner.net/mfechner/Gitlab-docu/blob/master/install/15.10-freebsd.md

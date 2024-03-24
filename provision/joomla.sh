@@ -3,8 +3,8 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-# shellcheck disable=2016
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include php
 mt6-include nginx

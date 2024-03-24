@@ -4,9 +4,12 @@ set -e
 
 . mail-toaster.sh
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
+
 export VPOPMAIL_OPTIONS_SET=""
 export VPOPMAIL_OPTIONS_UNSET="ROAMING"
-export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 mt6-include mysql

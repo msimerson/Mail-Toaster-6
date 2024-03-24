@@ -9,6 +9,7 @@ export JAIL_CONF_EXTRA="
 		allow.raw_sockets;
 		allow.sysvipc;
 		allow.mlock;"
+export JAIL_FSTAB=""
 
 install_mongodb()
 {

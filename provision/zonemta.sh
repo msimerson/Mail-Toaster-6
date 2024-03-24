@@ -1,10 +1,12 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-
+export JAIL_FSTAB=""
 
 install_zonemta_webadmin()
 {
@@ -22,7 +24,7 @@ install_zonemta_webadmin()
 install_zonemta()
 {
 	tell_status "installing node.js"
-	stage_pkg_install npm-node16 git-tiny || exit
+	stage_pkg_install npm-node20 git-tiny
 
 	tell_status "installing ZoneMTA"
 	stage_exec bash -c "cd /data && git clone https://github.com/zone-eu/zone-mta-template.git zone-mta"

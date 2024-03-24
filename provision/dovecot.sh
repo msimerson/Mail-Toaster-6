@@ -5,9 +5,11 @@ set -e
 . mail-toaster.sh
 
 export JAIL_START_EXTRA="allow.sysvipc=1"
+export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
+mt6-include mua
 
 allow_sysvipc_stage()
 {
@@ -574,94 +576,16 @@ start_dovecot()
 	stage_exec service dovecot start
 }
 
-test_imap_empty()
-{
-	pkg info | grep -q ^empty || pkg install -y empty
-
-	if [ -f in ]; then rm -f in; fi
-	if [ -f out ]; then rm -f out; fi
-
-	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 143
-	empty -v -f -i in -o out openssl s_client -quiet -verify_quiet -crlf -connect "$(get_jail_ip stage):993"
-	if [ ! -e out ]; then exit; fi
-	empty -v -w -i out -o in "ready"             ". LOGIN $POST_USER $POST_PASS"$'\n'
-	empty -v -w -i out -o in "Logged in"         $'. LIST \"\" \"*\"\n'
-	empty -v -w -i out -o in "List completed"    $'. SELECT INBOX\n'
-	# shellcheck disable=SC2050
-	if [ "has" = "some messages" ]; then
-		empty -v -w -i out -o in "Select completed"  $'. FETCH 1 BODY\n'
-		empty -v -w -i out -o in "OK Fetch completed" $'. LOGOUT\n'
-	else
-		empty -v -w -i out -o in "Select completed" $'. LOGOUT\n'
-	fi
-	echo "Logout completed"
-	if [ -e out ]; then
-		sleep 1
-		if [ -e out ]; then exit; fi
-	fi
-}
-
-test_imap_openssl()
-{
-	openssl s_client -quiet -verify_quiet -crlf -connect "$(get_jail_ip stage):993" <<EOF
-. login $POST_USER $POST_PASS
-. LIST "" "*"
-. SELECT INBOX
-. LOGOUT
-EOF
-}
-
-test_imap_curl()
-{
-	# shellcheck disable=SC2001
-	curl -k -v --login-options 'AUTH=PLAIN' "imaps://$(echo $POST_USER | sed -e 's/@/%40/'):${POST_PASS}@stage/"
-}
-
-test_imap()
-{
-	echo "testing IMAP AUTH as $POST_USER"
-	test_imap_curl
-	# test_imap_openssl
-	# test_imap_empty
-}
-
-test_pop3_empty()
-{
-	pkg info | grep -q ^empty || pkg install -y empty
-
-	if [ -f in ]; then rm -f in; fi
-	if [ -f out ]; then rm -f out; fi
-
-	echo "testing POP3 AUTH as $POST_USER"
-
-	# empty -v -f -i in -o out telnet "$(get_jail_ip stage)" 110
-	empty -v -f -i in -o out openssl s_client -quiet -crlf -connect "$(get_jail_ip stage):995"
-	if [ ! -e out ]; then exit; fi
-	empty -v -w -i out -o in "\+OK." "user $POST_USER"$'\n'
-	empty -v -w -i out -o in "\+OK" "pass $POST_PASS"$'\n'
-	empty -v -w -i out -o in "OK Logged in" $'list\n'
-	empty -v -w -i out -o in "." $'quit\n'
-
-	if [ -e out ]; then
-		sleep 1
-		if [ -e out ]; then exit; fi
-	fi
-}
-
-test_pop3()
-{
-	# shellcheck disable=SC2001
-	curl -k -v --login-options 'AUTH=PLAIN' "pop3s://$(echo $POST_USER | sed -e 's/@/%40/'):${POST_PASS}@stage/"
-}
-
 test_dovecot()
 {
 	tell_status "testing dovecot"
 	stage_listening 993 3
 	stage_listening 995 3
 
-	POST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
-	POST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${POST_USER}")
+	MUA_TEST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
+	MUA_TEST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${MUA_TEST_USER}")
+	MUA_TEST_HOST=$(get_jail_ip stage)
+	export MUA_TEST_HOST; export MUA_TEST_USER; export MUA_TEST_PASS
 
 	test_imap
 	test_pop3

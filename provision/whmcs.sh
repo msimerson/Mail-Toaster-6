@@ -1,7 +1,11 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
 
+. mail-toaster.sh
+
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP nullfs rw 0 0"
 
 mt6-include php
@@ -13,7 +17,7 @@ install_whmcs()
 	install_php 81 "ctype curl filter gd iconv imap mbstring session soap xml zip zlib"
 	install_nginx whmcs
 
-	stage_port_install devel/ioncube || exit
+	stage_port_install devel/ioncube
 }
 
 configure_whmcs_nginx()
@@ -93,7 +97,7 @@ test_whmcs()
 	echo "it worked"
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs whmcs
 mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
 start_staged_jail

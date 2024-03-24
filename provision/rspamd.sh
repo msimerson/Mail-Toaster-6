@@ -6,6 +6,7 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 RSPAMD_ETC="$STAGE_MNT/usr/local/etc/rspamd"
 

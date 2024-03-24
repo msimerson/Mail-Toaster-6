@@ -2,6 +2,10 @@
 
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
+
 # https://wiki.freebsd.org/Docker
 # https://docs.gitlab.com/runner/install/freebsd.html
 

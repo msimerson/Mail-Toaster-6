@@ -1,21 +1,26 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e -u
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
-# shellcheck disable=2016
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 install_dmarc()
 {
 	tell_status "installing Mail::DMARC deps"
-	stage_pkg_install perl5 p5-HTTP-Date p5-File-ShareDir p5-Module-Build p5-CGI p5-HTTP-Tiny || exit
-	stage_pkg_install p5-Config-Tiny p5-DBIx-Simple p5-Email-Simple p5-JSON p5-Mail-DKIM p5-Net-DNS p5-Net-IP p5-Net-SMTPS p5-URI || exit
-	stage_pkg_install p5-Email-MIME p5-Net-IDN-Encode p5-Regexp-Common p5-XML-LibXML p5-HTTP-Message p5-libwww p5-Net-Server || exit
-	stage_pkg_install p5-Test-Output p5-Net-IMAP-Simple p5-Test-File-ShareDir p5-Test-Exception p5-DBD-mysql || exit
+	stage_pkg_install perl5 p5-File-ShareDir p5-Module-Build p5-XML-LibXML p5-Regexp-Common
+	stage_pkg_install p5-Net-DNS p5-Net-IP p5-Net-Server p5-Net-SMTPS p5-Net-IDN-Encode p5-Mail-DKIM
+	stage_pkg_install p5-Email-MIME p5-Email-Simple p5-Net-IMAP-Simple p5-Email-Sender
+	stage_pkg_install p5-CGI p5-HTTP-Tiny p5-libwww p5-HTTP-Date p5-JSON p5-HTTP-Message p5-URI
+	stage_pkg_install p5-Test-Output p5-Test-File-ShareDir p5-Test-Exception p5-Net-DNS-Resolver-Mock
+	stage_pkg_install p5-Config-Tiny p5-DBIx-Simple p5-DBD-mysql
+	stage_pkg_install p5-Mail-DMARC
 
-	tell_status "installing Mail::DMARC"
-	stage_exec perl -MCPAN -e 'install Mail::DMARC' || exit
+	tell_status "installing Mail::DMARC from CPAN"
+	stage_exec perl -MCPAN -e 'install Mail::DMARC'
 
 	tell_status "Mail::DMARC installed"
 
