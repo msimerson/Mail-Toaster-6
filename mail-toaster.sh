@@ -24,14 +24,14 @@ store_config()
 	# $1 - path to config file, $2 - overwrite, STDIN is file contents
 	if [ ! -d "$(dirname $1)" ]; then
 		tell_status "creating $(dirname $1)"
-		mkdir -p "$(dirname $1)" || exit 1
+		mkdir -p "$(dirname $1)"
 	fi
 
-	cat - > "$1.mt6" || exit 1
+	cat - > "$1.mt6"
 
 	if [ ! -f "$1" ] || [ -n "$2" ]; then
 		tell_status "installing $1"
-		cp "$1.mt6" "$1" || exit 1
+		cp "$1.mt6" "$1"
 	else
 		tell_status "preserving $1"
 	fi
