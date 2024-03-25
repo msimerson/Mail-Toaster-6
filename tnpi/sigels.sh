@@ -59,8 +59,8 @@ configure_postfix()
 	fi
 
 	if [ -n "$TOASTER_NRPE" ]; then
-		stage_sysrc nrpe3_enable=YES
-		stage_sysrc nrpe3_configfile="/data/etc/nrpe.cfg"
+		stage_sysrc nrpe_enable=YES
+		stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 	fi
 
 	for _f in master main
