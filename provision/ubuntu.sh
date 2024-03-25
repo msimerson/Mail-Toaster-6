@@ -14,14 +14,15 @@ export JAIL_START_EXTRA="allow.mount
 		enforce_statfs=1
 "
 export JAIL_CONF_EXTRA='
-		allow.raw_sockets;
-		mount += "devfs     $path/compat/linux/dev     devfs     rw  0 0";
-		mount += "tmpfs     $path/compat/linux/dev/shm tmpfs     rw,size=1g,mode=1777  0 0";
-		mount += "fdescfs   $path/compat/linux/dev/fd  fdescfs   rw,linrdlnk 0 0";
-		mount += "linprocfs $path/compat/linux/proc    linprocfs rw  0 0";
-		mount += "linsysfs  $path/compat/linux/sys     linsysfs  rw  0 0";
-		#mount += "/tmp      $path/compat/linux/tmp     nullfs    rw  0 0";
-		#mount += "/home     $path/compat/linux/home    nullfs    rw  0 0";'
+		allow.raw_sockets;'
+export JAIL_FSTAB='
+devfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev     devfs     rw  0 0
+tmpfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/shm tmpfs     rw,size=1g,mode=1777  0 0
+fdescfs   $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/fd  fdescfs   rw,linrdlnk 0 0
+linprocfs $ZFS_JAIL_MNT/ubuntu/compat/linux/proc    linprocfs rw  0 0
+linsysfs  $ZFS_JAIL_MNT/ubuntu/compat/linux/sys     linsysfs  rw  0 0
+#/tmp      $ZFS_JAIL_MNT/ubuntu/compat/linux/tmp     nullfs    rw  0 0
+#/home     $ZFS_JAIL_MNT/ubuntu/compat/linux/home    nullfs    rw  0 0'
 
 install_ubuntu()
 {
