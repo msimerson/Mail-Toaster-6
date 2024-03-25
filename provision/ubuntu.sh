@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e -u
+
+. mail-toaster.sh
 
 mt6-include linux
 
@@ -29,7 +31,7 @@ install_ubuntu()
 	install_linux jammy
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs ubuntu
 start_staged_jail ubuntu
 install_ubuntu

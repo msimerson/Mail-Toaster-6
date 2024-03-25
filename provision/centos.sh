@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e -u
+
+. mail-toaster.sh
 
 mt6-include linux
 
@@ -29,7 +31,7 @@ install_centos()
 	install_linux centos
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
 create_staged_fs centos
 start_staged_jail centos
 install_centos
