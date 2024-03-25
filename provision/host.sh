@@ -356,6 +356,18 @@ block in quick from <bruteforce>
 
 block in quick proto tcp from <sshguard> to any port ssh
 
+# DHCP
+pass in inet  proto udp from port 67 to port 68
+pass in inet6 proto udp from port 547 to port 546
+
+# IPv6 routing
+pass in inet6 proto ipv6-icmp icmp6-type 134
+pass in inet6 proto ipv6-icmp icmp6-type 135
+pass in inet6 proto ipv6-icmp icmp6-type 136
+
+# NTP
+pass out quick on \$ext_if proto udp to any port ntp keep state
+
 pass  in quick on \$ext_if proto tcp to port ssh \
         flags S/SA synproxy state \
         (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
