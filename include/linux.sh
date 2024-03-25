@@ -51,7 +51,7 @@ install_linux()
 {
 	# tested with values of $1:
 	#   Ubuntu: bionic (18), focal (20) and jammy (22)
-	#   Debian: bullseye (11)
+	#   Debian: bullseye (11), bookwork (12)
 	#   CentOS: centos (7)
 
 	configure_linuxulator
@@ -61,7 +61,7 @@ install_linux()
 			tell_status "installing $1"
 			stage_pkg_install linux_base-c7 || exit 1
 		;;
-		bionic|bullseye|focal|jammy)
+		bionic|bookworm|bullseye|focal|jammy)
 			tell_status "installing (debian|ubuntu) $1"
 			stage_pkg_install debootstrap || exit 1
 			stage_exec debootstrap $1 /compat/linux

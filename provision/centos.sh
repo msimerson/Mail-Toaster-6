@@ -33,6 +33,10 @@ install_centos()
 
 base_snapshot_exists || exit 1
 create_staged_fs centos
+for _fs in dev proc sys tmp home; do
+	mkdir -p "$ZFS_JAIL_MNT/stage/compat/linux/$_fs"
+done
+chmod 777 "$ZFS_JAIL_MNT/stage/compat/linux/tmp"
 start_staged_jail centos
 install_centos
 promote_staged_jail centos
