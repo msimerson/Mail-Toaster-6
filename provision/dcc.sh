@@ -55,8 +55,8 @@ configure_dcc()
 
 	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-pass in quick proto udp from any port 6277 to $(get_jail_ip  dcc)
-pass in quick proto udp from any port 6277 to $(get_jail_ip6 dcc)
+table <dcc_server> { \$ext_ip4 \$ext_ip6 $(get_jail_ip dcc) $(get_jail_ip6 dcc) }
+pass in quick proto udp from any port 6277 to <dcc_server>
 EO_PF_ALLOW
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR

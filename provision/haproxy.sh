@@ -335,13 +335,16 @@ configure_haproxy()
 
 	_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF
-rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip  haproxy)
+rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
 EO_PF
 
+	get_public_ip
+	get_public_ip ipv6
+
 	store_config "$_pf_etc/allow.conf" <<EO_PF
-pass in quick inet  proto tcp from any to <ext_ip4> port { 80 443 }
-pass in quick inet6 proto tcp from any to <ext_ip6> port { 80 443 }
+table <http_servers> { $PUBLIC_IP4 $PUBLIC_IP6 $(get_jail_ip haproxy) $(get_jail_ip6 haproxy) }
+pass in quick proto tcp from any to <http_servers> port { 80 443 }
 EO_PF
 
 	configure_haproxy_tls

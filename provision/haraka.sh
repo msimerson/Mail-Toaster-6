@@ -14,7 +14,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node18 gmake pkgconf git-tiny
+	stage_pkg_install npm-node20 gmake pkgconf git-tiny
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash
@@ -396,7 +396,7 @@ configure_haraka_smtp_ini()
 		"$HARAKA_CONF/smtp.ini"
 }
 
-configure_haraka_outbound_ini
+configure_haraka_outbound_ini()
 {
 	if [ ! -f "$HARAKA_CONF/outbound.ini" ]; then
 		configure_install_default outbound.ini

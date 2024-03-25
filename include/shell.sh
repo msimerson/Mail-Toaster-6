@@ -56,7 +56,7 @@ configure_bourne_shell()
 	_f="$1/etc/profile.d/toaster.sh"
 	if ! grep -qs ^PS1 "$_f"; then
 		tell_status "customizing bourne shell prompt"
-		tee -a "$_f" <<'EO_BOURNE_SHELL'
+		cat <<'EO_BOURNE_SHELL' > "$_f"
 alias h='fc -l'
 alias m=$PAGER
 alias ll="ls -alFG"
@@ -78,9 +78,7 @@ EO_BOURNE_SHELL
 	fi
 
 	if ! grep -qs profile "/root/.profile"; then
-		tee -a "/root/.profile" <<EO_INCL
-. /etc/profile
-EO_INCL
+		echo ". /etc/profile" >> "/root/.profile"
 	fi
 }
 
@@ -93,7 +91,7 @@ configure_csh_shell()
 	fi
 
 	tell_status "configure C shell"
-	tee -a "$_cshrc" <<'EO_CSHRC'
+	cat <<'EO_CSHRC' > "$_cshrc"
 alias h         history 25
 alias j         jobs -l
 alias la        ls -aF

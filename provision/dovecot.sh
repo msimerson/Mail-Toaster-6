@@ -523,6 +523,7 @@ configure_dovecot_pf()
 
 	store_config "$_pf_etc/insecure_mua" <<EO_PF_INSECURE
 # 10.0.0.0/8
+# 172.16.0.0/12
 # 192.168.0.0/16
 EO_PF_INSECURE
 
@@ -539,7 +540,7 @@ EO_PF_RDR
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_RDR
 mua_ports = "{ 110 143 993 995 }"
-table <mua_servers> persist { $(get_jail_ip dovecot), $(get_jail_ip6 dovecot) }
+table <mua_servers> persist { \$ext_ip4 \$ext_ip6 $(get_jail_ip dovecot) $(get_jail_ip6 dovecot) }
 pass in quick proto tcp from any to <mua_servers> port \$mua_ports
 EO_PF_RDR
 }

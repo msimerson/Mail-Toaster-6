@@ -329,13 +329,17 @@ add_jail_nat()
 ## Macros
 
 ext_if="$PUBLIC_NIC"
-table <ext_ip4> { $PUBLIC_IP4 }
-table <ext_ip6> { $PUBLIC_IP6 }
+ext_ip4="$PUBLIC_IP4"
+ext_ip6="$PUBLIC_IP6"
+
+table <ext_ip>  { \$ext_ip4 \$ext_ip6 } persist
+table <ext_ip4> { \$ext_ip4 } persist
+table <ext_ip6> { \$ext_ip6 } persist
 
 table <bruteforce> persist
 table <sshguard> persist
 
-## Translation / NAT
+## NAT / Network Address Translation
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
@@ -347,7 +351,7 @@ nat-anchor "nat/*"
 
 rdr-anchor "rdr/*"
 
-## Filtering rules
+## Filtering
 
 # block everything by default. Be careful!
 #block in log on \$ext_if
@@ -355,6 +359,18 @@ rdr-anchor "rdr/*"
 block in quick from <bruteforce>
 
 block in quick proto tcp from <sshguard> to any port ssh
+
+# DHCP
+pass in inet  proto udp from port 67 to port 68
+pass in inet6 proto udp from port 547 to port 546
+
+# IPv6 routing
+pass in inet6 proto ipv6-icmp icmp6-type 134
+pass in inet6 proto ipv6-icmp icmp6-type 135
+pass in inet6 proto ipv6-icmp icmp6-type 136
+
+# NTP
+pass out quick on \$ext_if proto udp to any port ntp keep state
 
 pass  in quick on \$ext_if proto tcp to port ssh \
         flags S/SA synproxy state \

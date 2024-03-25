@@ -24,14 +24,14 @@ store_config()
 	# $1 - path to config file, $2 - overwrite, STDIN is file contents
 	if [ ! -d "$(dirname $1)" ]; then
 		tell_status "creating $(dirname $1)"
-		mkdir -p "$(dirname $1)" || exit 1
+		mkdir -p "$(dirname $1)"
 	fi
 
-	cat - > "$1.mt6" || exit 1
+	cat - > "$1.mt6"
 
 	if [ ! -f "$1" ] || [ -n "$2" ]; then
 		tell_status "installing $1"
-		cp "$1.mt6" "$1" || exit 1
+		cp "$1.mt6" "$1"
 	else
 		tell_status "preserving $1"
 	fi
@@ -80,7 +80,7 @@ export TOASTER_MSA="haraka"
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_NRPE=""
-export TOASTER_PKG_AUDIT="1"
+export TOASTER_PKG_AUDIT="0"
 export TOASTER_PKG_BRANCH="latest"
 export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
@@ -178,7 +178,7 @@ export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
 export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
-export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="1"}
+export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
 export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:="0"}
 export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:="1"}
@@ -1100,6 +1100,8 @@ provision()
 
 	case "$1" in
 		host)   fetch_and_exec "$1"; return;;
+		web)    for _j in haproxy webmail roundcube snappymail; do fetch_and_exec "$_j"; done
+			return;;
 		mt6)    provision_mt6; return;;
 	esac
 
