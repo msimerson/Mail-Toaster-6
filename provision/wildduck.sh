@@ -56,13 +56,15 @@ configure_pf()
 	_pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-rdr proto tcp from any to <ext_ip4> port 993 -> $(get_jail_ip  wildduck) port 9993
-rdr proto tcp from any to <ext_ip4> port 995 -> $(get_jail_ip  wildduck) port 9995
+rdr inet  proto tcp from any to <ext_ip4> port 993 -> $(get_jail_ip wildduck) port 9993
+rdr inet  proto tcp from any to <ext_ip4> port 995 -> $(get_jail_ip wildduck) port 9995
+rdr inet6 proto tcp from any to <ext_ip6> port 993 -> $(get_jail_ip6 wildduck) port 9993
+rdr inet6 proto tcp from any to <ext_ip6> port 995 -> $(get_jail_ip6 wildduck) port 9995
 EO_PF_RDR
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
 mua_ports = "{ 993 995 9993 9995 }"
-table <mua_servers> persist { $(get_jail_ip wildduck), $(get_jail_ip6 wildduck) }
+table <mua_servers> persist { \$ext_ip4 \$ext_ip6 $(get_jail_ip wildduck), $(get_jail_ip6 wildduck) }
 pass in quick proto tcp from any to <mua_servers> port \$mua_ports
 EO_PF_ALLOW
 }
