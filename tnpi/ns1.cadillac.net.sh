@@ -30,9 +30,9 @@ install_nrpe()
 	fi
 
 	tell_status "installing nrpe plugin"
-	stage_pkg_install nrpe3
-	stage_sysrc nrpe3_enable=YES
-	stage_sysrc nrpe3_configfile="/data/etc/nrpe.cfg"
+	stage_pkg_install nrpe
+	stage_sysrc nrpe_enable=YES
+	stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 }
 
 configure_knot()
