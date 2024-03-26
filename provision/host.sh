@@ -332,7 +332,7 @@ ext_if="$PUBLIC_NIC"
 ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
-table <ext_ip>  { \$ext_ip4 \$ext_ip6 } persist
+table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
 table <ext_ip4> { \$ext_ip4 } persist
 table <ext_ip6> { \$ext_ip6 } persist
 
