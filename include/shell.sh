@@ -18,8 +18,7 @@ install_bash()
 		return
 	fi
 
-	tell_status "adding .bash_profile for root@jail"
-	configure_bash "$_profile"
+	configure_bash "$1"
 }
 
 install_zsh()
@@ -31,23 +30,40 @@ install_zsh()
 
 configure_bash()
 {
-	tee -a "$1" <<'EO_BASH_PROFILE'
+	if ! grep -q profile "$1/root/.profile"; then
+		tell_status "telling bash to read /etc/profile"
+		sed -i '' \
+			-e '/PAGER$/ a\
+\
+if [ -n "\$BASH" ]; then . /etc/profile; fi' \
+			"$1/root/.profile"
+		echo '' >> "$1/root/.profile"
+		echo 'if [ -n "$BASH" ] && [ -r ~/.bashrc ]; then . ~/.bashrc; fi' >> "$1/root/.profile"
+	fi
 
-export EDITOR="vim"
-export BLOCKSIZE=K;
+	if [ ! -e "$1/root/.bashrc" ]; then
+		tell_status "creating $1/root/.bashrc"
+		cat <<'EO_BASH_RC' > "$1/root/.bashrc"
+
 export HISTSIZE=10000
 export HISTCONTROL=ignoredups:erasedups
 export HISTIGNORE="&:[bf]g:exit"
+
 shopt -s histappend
 shopt -s cdspell
-alias h="history 200"
-alias ll="ls -alFG"
-EO_BASH_PROFILE
 
-	if ! grep -qs profile "$1"; then
-		tee -a "$1" <<EO_INCL
-. /etc/profile
-EO_INCL
+if [[ $- == *i* ]]
+then
+    bind '"\e[A": history-search-backward'
+    bind '"\e[B": history-search-forward'
+fi
+
+PS1="[\u@\[\033[0;36m\]\h\[\033[0m\]] \w "
+case $(id -u) in
+    0) PS1="${PS1}# ";;
+    *) PS1="${PS1}$ ";;
+esac
+EO_BASH_RC
 	fi
 }
 
@@ -56,22 +72,28 @@ configure_bourne_shell()
 	_f="$1/etc/profile.d/toaster.sh"
 	if ! grep -qs ^PS1 "$_f"; then
 		tell_status "customizing bourne shell prompt"
-		cat <<'EO_BOURNE_SHELL' > "$_f"
+		cat <<EO_BOURNE_SHELL > "$_f"
+export EDITOR="$TOASTER_EDITOR"
+export BLOCKSIZE=K;
+
 alias h='fc -l'
-alias m=$PAGER
+alias m=\$PAGER
+alias ls="ls -FG"
 alias ll="ls -alFG"
 alias g='egrep -i'
+#alias df="df -h -tnodevfs,procfs,nullfs,tmpfs"
 
-PS1="$(whoami)@$(hostname -s):\\w "
-case $(id -u) in
-    0) PS1="${PS1}# ";;
-    *) PS1="${PS1}$ ";;
+# set prompt for bourne shell (/bin/sh)
+PS1="\$(whoami)@\$(hostname -s):\\w "
+case \$(id -u) in
+    0) PS1="\${PS1}# ";;
+    *) PS1="\${PS1}\$ ";;
 esac
 
 jexecl() {
-  if   [ -z "$1" ]; then /usr/sbin/jexec;
-  elif [ -n "$2" ]; then /usr/sbin/jexec ${@:1};
-  else /usr/sbin/jexec $1 login -f -h $(hostname) root;
+  if   [ -z "\$1" ]; then /usr/sbin/jexec;
+  elif [ -n "\$2" ]; then /usr/sbin/jexec \${@:1};
+  else /usr/sbin/jexec \$1 login -f -h $(hostname) root;
   fi
 }
 EO_BOURNE_SHELL
@@ -91,18 +113,18 @@ configure_csh_shell()
 	fi
 
 	tell_status "configure C shell"
-	cat <<'EO_CSHRC' > "$_cshrc"
+	cat <<EO_CSHRC > "$_cshrc"
 alias h         history 25
 alias j         jobs -l
 alias la        ls -aF
 alias lf        ls -FA
 alias ll        ls -lAFG
 
-setenv  EDITOR  vi
+setenv  EDITOR  $TOASTER_EDITOR
 setenv  PAGER   less
 setenv  BLOCKSIZE       K
 
-if ($?prompt) then
+if (\$?prompt) then
         # An interactive shell -- set some stuff up
         set prompt = "%N@%m:%~ %# "
         set promptchars = "%#"
@@ -114,7 +136,7 @@ if ($?prompt) then
         # Use history to aid expansion
         set autoexpand
         set autorehash
-        if ( $?tcsh ) then
+        if ( \$?tcsh ) then
                 bindkey "^W" backward-delete-word
                 bindkey -k up history-search-backward
                 bindkey -k down history-search-forward

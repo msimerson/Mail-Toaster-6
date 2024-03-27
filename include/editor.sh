@@ -72,7 +72,7 @@ configure_editor()
 {
 	local _base=${1:-""}
 
-	case "$TOASTER_EDITOR" in
+	case "$TOASTER_EDITOR_PORT" in
 		neovim)
 			configure_neovim
 			;;
