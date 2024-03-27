@@ -9,5 +9,5 @@ shellcheck provision/*.sh
 echo "shellcheck include/*.sh"
 shellcheck include/*.sh
 
-bats test
-bats test/include
+bats test/*.bats
+bats test/include/*.bats
