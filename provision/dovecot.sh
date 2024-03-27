@@ -541,7 +541,7 @@ rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> $int_ip
 rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> $int_ip6
 EO_PF_RDR
 
-	store_config "$_pf_etc/allow.conf" <<EO_PF_RDR
+	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
 int_ip4 = "$(get_jail_ip dovecot)"
 int_ip6 = "$(get_jail_ip6 dovecot)"
 
@@ -551,7 +551,7 @@ pass in quick proto tcp from any to <ext_ip> port { 993 995 }
 pass in quick proto tcp from any to <dovecot_int> port { 993 995 }
 
 pass in quick proto tcp from <insecure_mua> to <dovecot_int> port { 110 143 }
-EO_PF_RDR
+EO_PF_ALLOW
 }
 
 configure_dovecot()
