@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "shellcheck *.sh"
-shellcheck *.sh
+shellcheck ./*.sh
 
 echo "shellcheck provision/*.sh"
 shellcheck provision/*.sh
