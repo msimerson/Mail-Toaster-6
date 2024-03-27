@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -e -u
 
 # shellcheck disable=3003
 test_imap_empty()
@@ -44,7 +44,7 @@ test_imap_curl()
 {
 	# shellcheck disable=SC2001
 	curl -k -v --login-options 'AUTH=PLAIN' \
-		"imaps://$(uriencode $MUA_TEST_USER):$(uriencode MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+		"imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
 }
 
 test_imap()
@@ -81,26 +81,21 @@ test_pop3_empty()
 
 test_pop3()
 {
-	# shellcheck disable=SC2001
+	# shellcheck disable=2001
 	curl -k -v --login-options 'AUTH=PLAIN' \
-		"pop3s://$(uriencode $MUA_TEST_USER):$(uriencode MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+		"pop3s://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
 }
 
-# https://stackoverflow.com/questions/296536/how-to-urlencode-data-for-curl-command
-# shellcheck disable=3005,3018,3024,3045,3057
 uriencode() {
-  local string="${1}"
-  local strlen=${#string}
-  local encoded=""
-  local pos c o
-
-  for (( pos=0 ; pos<strlen ; pos++ )); do
-     c=${string:$pos:1}
-     case "$c" in
-        [-_.~a-zA-Z0-9] ) o="${c}" ;;
-        * )               printf -v o '%%%02x' "'$c"
-     esac
-     encoded+="${o}"
+  string=$1
+  while [ -n "$string" ]; do
+    tail=${string#?}
+    head=${string%"$tail"}
+    case $head in
+      [-._~0-9A-Za-z]) printf %c "$head";;
+      *) printf %%%02x "'$head"
+    esac
+    string=$tail
   done
-  echo "${encoded}"
+  echo
 }
