@@ -258,12 +258,10 @@ configure_tls_certs()
 configure_dhparams()
 {
 	local DHP="/etc/ssl/dhparam.pem"
-	if [ -f "$DHP" ]; then
-		return
+	if [ ! -f "$DHP" ]; then
+		tell_status "Generating a 2048 bit dhparams file"
+		openssl dhparam -out "$DHP" 2048
 	fi
-
-	tell_status "Generating a 2048 bit dhparams file"
-	openssl dhparam -out "$DHP" 2048
 }
 
 install_sshguard()
@@ -280,18 +278,11 @@ install_sshguard()
 	sed -i.bak \
 		-e '/sshg-fw-null/ s/^B/#B/' \
 		-e '/sshg-fw-pf/ s/^#//' \
-			/usr/local/etc/sshguard.conf
+		/usr/local/etc/sshguard.conf
 
 	tell_status "starting sshguard"
 	sysrc sshguard_enable=YES
 	service sshguard start
-}
-
-check_timezone()
-{
-	if [ ! -e "/etc/localtime" ]; then
-		tzsetup
-	fi
 }
 
 check_global_listeners()
@@ -303,7 +294,6 @@ check_global_listeners()
 		if [ -t 0 ]; then exit 2; fi
 
 		echo "Not interactive, continuing anyway."
-		return
 	fi
 }
 
@@ -400,74 +390,25 @@ install_jailmanage()
 	chmod 755 /usr/local/bin/jailmanage
 }
 
-set_jail_start_order()
-{
-	if grep -q ^jail_list /etc/rc.conf; then
-		tell_status "preserving jail order"
-		return
-	fi
-}
-
-jail_reverse_shutdown()
-{
-	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" -ge 11 ]; then
-		if grep -q jail_reverse_stop /etc/rc.conf; then
-			return
-		fi
-		tell_status "reverse jails when shutting down"
-		sysrc jail_reverse_stop=YES
-		return
-	fi
-
-	if grep -q _rev_jail_list /etc/rc.d/jail; then
-		echo "rc.d/jail is already patched"
-		return
-	fi
-
-	tell_status "patching jail so shutdown reverses jail order"
-	patch -d / <<'EO_JAIL_RCD'
-Index: etc/rc.d/jail
-===================================================================
---- etc/rc.d/jail
-+++ etc/rc.d/jail
-@@ -516,7 +516,10 @@
- 		command=$jail_program
- 		rc_flags=$jail_flags
- 		command_args="-f $jail_conf -r"
--		$jail_jls name | while read _j; do
-+		for _j in $($jail_jls name); do
-+			_rev_jail_list="${_j} ${_rev_jail_list}"
-+		done
-+		for _j in ${_rev_jail_list}; do
- 			echo -n " $_j"
- 			_tmp=`mktemp -t jail` || exit 3
- 			$command $rc_flags $command_args $_j >> $_tmp 2>&1
-@@ -532,6 +535,9 @@
- 	;;
- 	esac
- 	for _j in $@; do
-+		_rev_jail_list="${_j} ${_rev_jail_list}"
-+	done
-+	for _j in ${_rev_jail_list}; do
- 		_j=$(echo $_j | tr /. _)
- 		parse_options $_j || continue
- 		if ! $jail_jls -j $_j > /dev/null 2>&1; then
-EO_JAIL_RCD
-}
-
 enable_jails()
 {
+	tell_status "enabling jails"
 	sysrc jail_enable=YES
-	jail_reverse_shutdown
-	set_jail_start_order
+
+	if ! grep -q jail_reverse_stop /etc/rc.conf; then
+		tell_status "reverse jails when shutting down"
+		sysrc jail_reverse_stop=YES
+	fi
+
+	if grep -q ^jail_list /etc/rc.conf; then
+		tell_status "preserving jail order"
+	fi
 
 	if [ -d /etc/jail.conf.d ]; then
 		add_jail_conf stage
-		return
+	else
+		grep -sq 'exec' /etc/jail.conf || jail_conf_header
 	fi
-
-	grep -sq 'exec' /etc/jail.conf || jail_conf_header
 }
 
 update_ports_tree()
@@ -586,7 +527,7 @@ update_mt6()
 }
 
 update_host() {
-	sysrc background_fsck=NO
+	sysrc -q background_fsck=NO
 	update_mt6
 	update_freebsd
 	configure_pkg_latest ""
@@ -607,7 +548,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
-	check_timezone
+	if [ ! -e "/etc/localtime" ]; then tzsetup; fi
 	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }

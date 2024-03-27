@@ -59,28 +59,40 @@ setup() {
 
 @test "get_random_pass 20" {
   run get_random_pass 20
-  echo "# $output" >&3
+  #echo "# $output" >&3
   assert_success
   assert_equal ${#output} 20
 }
 
 @test "get_random_pass (defaults)" {
   run get_random_pass
-  echo "# $output" >&3
+  #echo "# $output" >&3
   assert_success
   assert_equal ${#output} 14
 }
 
 @test "get_random_pass 14 strong" {
   run get_random_pass 14 strong
-  echo "# $output" >&3
+  #echo "# $output" >&3
   assert_success
   #assert_equal ${#output} 14
 }
 
 @test "get_random_pass 14 safe" {
   run get_random_pass 14 safe
-  echo "# $output" >&3
+  #echo "# $output" >&3
   assert_success
   #assert_equal ${#output} 14
+}
+
+@test "get_jail_ip mysql" {
+  run get_jail_ip mysql
+  assert_success
+  assert_output "172.16.15.4"
+}
+
+@test "get_jail_ip haraka" {
+  run get_jail_ip haraka
+  assert_success
+  assert_output "172.16.15.9"
 }

@@ -60,8 +60,8 @@ configure_pf()
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
-rdr inet  proto tcp from any to <ext_ip4> port { 3000 9993 9995 } -> $int_ip4
-rdr inet6 proto tcp from any to <ext_ip6> port { 3000 9993 9995 } -> $int_ip6
+rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$int_ip6
 EO_PF_RDR
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
@@ -70,8 +70,8 @@ int_ip6 = "$(get_jail_ip6 wildduck)"
 
 table <wildduck_int> persist { \$int_ip4, \$int_ip6 }
 
-pass in quick proto tcp from any to <ext_ip> port { 3000 9993 9995 }
-pass in quick proto tcp from any to <wildduck_int> port { 3000 9993 9995 }
+pass in quick proto tcp from any to <ext_ip> port { 3000 993 995 }
+pass in quick proto tcp from any to <wildduck_int> port { 3000 993 995 }
 EO_PF_ALLOW
 }
 

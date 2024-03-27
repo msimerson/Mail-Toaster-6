@@ -565,7 +565,6 @@ configure_haraka_helo()
 		tee "$HARAKA_CONF/helo.checks.ini" <<EO_HELO_INI
 [reject]
 host_mismatch=false
-valid_hostname=false
 EO_HELO_INI
 	fi
 
@@ -677,7 +676,7 @@ configure_haraka()
 	stage_exec haraka -i /data
 
 	tell_status "configuring Haraka"
-	echo 'LOGINFO' > "$HARAKA_CONF/loglevel"
+	# echo 'LOGINFO' > "$HARAKA_CONF/loglevel"
 	if [ ! -f "$HARAKA_CONF/tarpit.timeout" ]; then
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
 	fi
@@ -749,7 +748,7 @@ start_haraka()
 		"$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	chmod 555 "$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	stage_sysrc haraka_enable=YES
-	sysrc -f "$STAGE_MNT/etc/rc.conf" haraka_flags='-c /data'
+	stage_sysrc haraka_flags='-c /data'
 
 	if [ ! -d "$HARAKA_CONF/queue" ]; then
 		mkdir -p "$HARAKA_CONF/queue"

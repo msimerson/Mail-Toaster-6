@@ -75,7 +75,8 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
-export TOASTER_EDITOR="vim-tiny"
+export TOASTER_EDITOR="vim"
+export TOASTER_EDITOR_PORT="vim-tiny"
 export TOASTER_MSA="haraka"
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
@@ -172,7 +173,8 @@ export TLS_LIBRARY=${TLS_LIBRARY:=""}
 export TOASTER_BASE_MTA=${TOASTER_BASE_MTA:=""}
 export TOASTER_BASE_PKGS=${TOASTER_BASE_PKGS:="pkg ca_root_nss"}
 export TOASTER_BUILD_DEBUG=${TOASTER_BUILD_DEBUG:="0"}
-export TOASTER_EDITOR=${TOASTER_EDITOR:="vim-tiny"}
+export TOASTER_EDITOR=${TOASTER_EDITOR:="vim"}
+export TOASTER_EDITOR_PORT=${TOASTER_EDITOR_PORT:="vim-tiny"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
@@ -674,6 +676,7 @@ create_staged_fs()
 
 	assure_ip6_addr_is_declared "$1"
 	stage_resolv_conf
+	echo "MASQUERADE $1@$TOASTER_MAIL_DOMAIN" >> "$STAGE_MNT/etc/dma/dma.conf"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	install_fstab $1
@@ -1388,6 +1391,7 @@ store_exec()
 	chmod 755 "$1"
 }
 
+# shellcheck disable=3044,3018
 onexit() { while caller $((n++)); do :; done; }
 
 if [ "$TOASTER_BUILD_DEBUG" = "1" ]; then
