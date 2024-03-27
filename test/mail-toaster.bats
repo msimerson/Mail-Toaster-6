@@ -84,3 +84,15 @@ setup() {
   assert_success
   #assert_equal ${#output} 14
 }
+
+@test "get_jail_ip mysql" {
+  run get_jail_ip mysql
+  assert_success
+  assert_output "172.16.15.4"
+}
+
+@test "get_jail_ip haraka" {
+  run get_jail_ip haraka
+  assert_success
+  assert_output "172.16.15.9"
+}
