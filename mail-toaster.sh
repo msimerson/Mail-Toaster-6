@@ -1391,6 +1391,7 @@ store_exec()
 	chmod 755 "$1"
 }
 
+# shellcheck disable=3044,3018
 onexit() { while caller $((n++)); do :; done; }
 
 if [ "$TOASTER_BUILD_DEBUG" = "1" ]; then
