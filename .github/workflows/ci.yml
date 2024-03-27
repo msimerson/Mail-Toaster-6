@@ -24,7 +24,9 @@ jobs:
     - name: Setup Bats
       run: git submodule update --init --recursive
     - name: bats test
-      run: ./test/bats/bin/bats test
+      run: |
+        ./test/bats/bin/bats test
+        ./test/bats/bin/bats test/include
 
   freebsd:
     if: false
