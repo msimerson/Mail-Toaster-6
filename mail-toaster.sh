@@ -676,6 +676,7 @@ create_staged_fs()
 
 	assure_ip6_addr_is_declared "$1"
 	stage_resolv_conf
+	echo "MASQUERADE $1@$TOASTER_MAIL_DOMAIN" >> "$STAGE_MNT/etc/dma/dma.conf"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
 	install_fstab $1
