@@ -94,6 +94,8 @@ enable_dma()
 		-e "s/^#SMARTHOST/SMARTHOST $TOASTER_MSA/" \
 		"$_base/etc/dma/dma.conf"
 
+	# MASQUERADE
+
 	set_root_alias
 }
 
