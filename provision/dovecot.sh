@@ -528,20 +528,29 @@ configure_dovecot_pf()
 EO_PF_INSECURE
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
+int_ip4 = "$(get_jail_ip dovecot)"
+int_ip6 = "$(get_jail_ip6 dovecot)"
+
 # to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
 table <insecure_mua> persist file "$_pf_etc/insecure_mua"
 
-rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> $(get_jail_ip  dovecot)
-rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> $(get_jail_ip6 dovecot)
+rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> $int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> $int_ip6
 
-rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> $(get_jail_ip  dovecot)
-rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> $(get_jail_ip6 dovecot)
+rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> $int_ip4
+rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> $int_ip6
 EO_PF_RDR
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_RDR
-mua_ports = "{ 110 143 993 995 }"
-table <mua_servers> persist { \$ext_ip4 \$ext_ip6 $(get_jail_ip dovecot) $(get_jail_ip6 dovecot) }
-pass in quick proto tcp from any to <mua_servers> port \$mua_ports
+int_ip4 = "$(get_jail_ip dovecot)"
+int_ip6 = "$(get_jail_ip6 dovecot)"
+
+table <dovecot_int> persist { \$int_ip4, \$int_ip6 }
+
+pass in quick proto tcp from any to <ext_ip> port { 993 995 }
+pass in quick proto tcp from any to <dovecot_int> port { 993 995 }
+
+pass in quick proto tcp from <insecure_mua> to <dovecot_int> port { 110 143 }
 EO_PF_RDR
 }
 

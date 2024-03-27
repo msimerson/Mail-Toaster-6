@@ -30,7 +30,8 @@ install_webmail()
 	else
 		tell_status "updating wildduck webmail"
 		stage_exec bash -c "cd /data/webmail && git pull && npm install && npm run bowerdeps"
-		stage_exec bash -c "cd /data/webmail && mkdir -p public/components && bower install --allow-root"
+		stage_exec bash -c "cd /data/webmail && mkdir -p public/components"
+		stage_exec bash -c "cd /data/webmail && npx bower install --allow-root"
 	fi
 }
 
@@ -56,16 +57,21 @@ configure_pf()
 	_pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-rdr inet  proto tcp from any to <ext_ip4> port 993 -> $(get_jail_ip wildduck) port 9993
-rdr inet  proto tcp from any to <ext_ip4> port 995 -> $(get_jail_ip wildduck) port 9995
-rdr inet6 proto tcp from any to <ext_ip6> port 993 -> $(get_jail_ip6 wildduck) port 9993
-rdr inet6 proto tcp from any to <ext_ip6> port 995 -> $(get_jail_ip6 wildduck) port 9995
+int_ip4 = "$(get_jail_ip wildduck)"
+int_ip6 = "$(get_jail_ip6 wildduck)"
+
+rdr inet  proto tcp from any to <ext_ip4> port { 3000 9993 9995 } -> $int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { 3000 9993 9995 } -> $int_ip6
 EO_PF_RDR
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-mua_ports = "{ 993 995 9993 9995 }"
-table <mua_servers> persist { \$ext_ip4 \$ext_ip6 $(get_jail_ip wildduck), $(get_jail_ip6 wildduck) }
-pass in quick proto tcp from any to <mua_servers> port \$mua_ports
+int_ip4 = "$(get_jail_ip wildduck)"
+int_ip6 = "$(get_jail_ip6 wildduck)"
+
+table <wildduck_int> persist { \$int_ip4, \$int_ip6 }
+
+pass in quick proto tcp from any to <ext_ip> port { 3000 9993 9995 }
+pass in quick proto tcp from any to <wildduck_int> port { 3000 9993 9995 }
 EO_PF_ALLOW
 }
 

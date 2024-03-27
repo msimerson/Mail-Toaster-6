@@ -483,14 +483,7 @@ get_safe_jail_path()
 
 add_jail_conf_d()
 {
-	_safe_path="/etc/jail.conf.d/$(safe_jailname $1).conf"
-	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
-		tell_status "preserving jail config $_safe_path"
-		return
-	fi
-
-	tell_status "creating $_safe_path"
-	tee "$_safe_path" <<EO_JAIL_RC
+	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
 $(jail_conf_header)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
