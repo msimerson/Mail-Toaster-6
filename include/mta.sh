@@ -89,7 +89,7 @@ enable_dma()
 	tell_status "setting up dma"
 	cp "$_base/usr/share/examples/dma/mailer.conf" "$_base/etc/mail/mailer.conf"
 
-	echo "dma.conf: $_base/etc/dma/dma.conf"
+	echo "editing $_base/etc/dma/dma.conf"
 	sed -i '' \
 		-e "s/^#SMARTHOST/SMARTHOST $TOASTER_MSA/" \
 		"$_base/etc/dma/dma.conf"

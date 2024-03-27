@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -e -u
 
 . mail-toaster.sh
 
@@ -534,11 +534,11 @@ int_ip6 = "$(get_jail_ip6 dovecot)"
 # to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
 table <insecure_mua> persist file "$_pf_etc/insecure_mua"
 
-rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> $int_ip4
-rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> $int_ip6
+rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$int_ip6
 
-rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> $int_ip4
-rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> $int_ip6
+rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> \$int_ip4
+rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> \$int_ip6
 EO_PF_RDR
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW

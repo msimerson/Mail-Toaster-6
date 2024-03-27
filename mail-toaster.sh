@@ -16,12 +16,14 @@ get_random_ip6net()
 tell_status()
 {
 	echo; echo "   ***   $1   ***"; echo
-	sleep 1
+	if [ -t 0 ]; then sleep 1; fi
 }
 
 store_config()
 {
 	# $1 - path to config file, $2 - overwrite, STDIN is file contents
+	local _overwrite=${2:-""}
+
 	if [ ! -d "$(dirname $1)" ]; then
 		tell_status "creating $(dirname $1)"
 		mkdir -p "$(dirname $1)"
@@ -29,7 +31,7 @@ store_config()
 
 	cat - > "$1.mt6"
 
-	if [ ! -f "$1" ] || [ -n "$2" ]; then
+	if [ ! -f "$1" ] || [ "$_overwrite" = "overwrite" ]; then
 		tell_status "installing $1"
 		cp "$1.mt6" "$1"
 	else
@@ -812,7 +814,7 @@ tell_settings()
 	echo; echo "   ***   Configured $1 settings:   ***"; echo
 	set | grep "^$1_"
 	echo
-	sleep 2
+	if [ -t 0 ]; then sleep 2; fi
 }
 
 proclaim_success()
