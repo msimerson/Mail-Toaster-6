@@ -51,6 +51,7 @@ export HISTIGNORE="&:[bf]g:exit"
 
 shopt -s histappend
 shopt -s cdspell
+set -o vi
 
 if [[ $- == *i* ]]
 then

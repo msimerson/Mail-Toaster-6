@@ -163,7 +163,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_BHYVE_VOL="${ZFS_BHYVE_VOL:=$ZFS_VOL}"
@@ -194,6 +194,8 @@ export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:="$TOASTER_MAIL_DOMAIN"}
+export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:="$TOASTER_HOSTNAME"}
 
 # shellcheck disable=2009,2317
 if ps -o args= -p "$$" | grep csh; then
@@ -1020,9 +1022,11 @@ unmount_data()
 
 get_public_facing_nic()
 {
+	local _ver=${1:-"ipv4"}
+
 	export PUBLIC_NIC
 
-	if [ "$1" = 'ipv6' ]; then
+	if [ "$_ver" = 'ipv6' ]; then
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | tail -n1)
 	else
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
@@ -1033,20 +1037,25 @@ get_public_facing_nic()
 		echo "public NIC detection failed"
 		exit 1
 	fi
+
+	echo "$PUBLIC_NIC"
 }
 
 get_public_ip()
 {
-	get_public_facing_nic "$1"
+	local _ver=${1:-"ipv4"}
 
-	if [ "$1" = "ipv6" ]; then
-		if [ -n "$PUBLIC_IP6" ]; then return; fi
-		export PUBLIC_IP6
+	get_public_facing_nic "$_ver"
+
+	export PUBLIC_IP6
+	export PUBLIC_IP4
+
+	if [ "$_ver" = "ipv6" ]; then
 		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
+		echo "$PUBLIC_IP6"
 	else
-		if [ -n "$PUBLIC_IP4" ]; then return; fi
-		export PUBLIC_IP4
 		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
+		echo "$PUBLIC_IP4"
 	fi
 }
 
