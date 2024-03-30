@@ -255,7 +255,11 @@ EO_ZONEMTA_TLS
 
 	store_config "$_cfg/pools.toml" "overwrite" <<EO_POOLS
 [[default]]
-address=["0.0.0.0", "::"]
+address="0.0.0.0"
+name="$WILDDUCK_HOSTNAME"
+
+[[default]]
+address="::"
 name="$WILDDUCK_HOSTNAME"
 EO_POOLS
 
