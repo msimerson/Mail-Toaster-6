@@ -177,11 +177,12 @@ configure_wildduck()
 
 	if ! grep -q ^secret "$_cfg/dkim.toml"; then
 		tell_status "configuring $_cfg/dkim.toml"
-		echo "secret = \"$(get_random_pass 14)\"" >> "$_cfg/dkim.toml"
+		cat <<EO_DKIM_SECRET >> "$_cfg/dkim.toml"
+secret = "$(get_random_pass 14)"
+EO_DKIM_SECRET
 	fi
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/tls.toml"; then
-		tell_status "configuring $_cfg/tls.toml"
 		store_config "$_cfg/tls.toml" "overwrite" <<EO_TLS_CFG
 key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
 cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
@@ -196,6 +197,7 @@ configure_wildduck_webmail()
 	local _cfg="$STAGE_MNT/data/wildduck-webmail/config"
 
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml" ]; then
+		tell_status "configuring $_cfg/default.toml"
 		sed -i '' \
 			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
 			-e "/domain/ s/localhost/$WILDDUCK_MAIL_DOMAIN/" \
