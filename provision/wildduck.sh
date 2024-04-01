@@ -93,9 +93,9 @@ install_haraka()
 		stage_exec bash -c "cd /data/haraka && git pull && $_npm_cmd"
 	fi
 
-	if [ ! -e "$STAGE_MNT/data/haraka/plugin/wildduck" ]; then
-		stage_exec bash -c "cd /data/haraka/plugin && git clone https://github.com/nodemailer/haraka-plugin-wildduck wildduck"
-		stage_exec bash -c "cd /data/haraka/plugin/wildduck && npm install --omit=dev --omit=optional"
+	if [ ! -e "$STAGE_MNT/data/haraka/plugins/wildduck" ]; then
+		stage_exec bash -c "cd /data/haraka/plugins && git clone https://github.com/nodemailer/haraka-plugin-wildduck wildduck"
+		stage_exec bash -c "cd /data/haraka/plugins/wildduck && npm install --omit=dev --omit=optional"
 	fi
 }
 
@@ -119,7 +119,9 @@ configure_wildduck()
 			-e "/^db=3/ s/3/9/" \
 			"$_cfg/dbs.toml"
 
-		if [ -n "$WILDDUCK_MONGO_DSN" ]; then
+		if [ -z ${WILDDUCK_MONGO_DSN+x} ]; then
+			tell_status "If Mongo requires AUTH, you should set WILDDUCK_MONGO_DSN"
+		else
 			sed -i '' \
 				-e "/^mongo/ s|=.*$|=$WILDDUCK_MONGO_DSN|" \
 				"$_cfg/dbs.toml"
@@ -408,16 +410,19 @@ EO_RSPAMD
 	get_public_ip
 
 	sed -i '' \
-		-e "/^;public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
-		-e '/^;nodes/ s/cpus/1/' \
+		-e '/^;public_ip/ s/^;//' \
+		-e "/^public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
+		-e '/^;nodes/ s/^;//' \
+		-e '/^nodes/ s/cpus/1/' \
 		"$_cfg/smtp.ini"
 
 	sed -i '' \
-		-e "/^;spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
+		-e '/^;spamd_socket/ s/^;//' \
+		-e "/^spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
 		-e '/^;spamd_user=first-recipient (see docs)/ s/^;//' \
-		-e '/;spamd_user=first-recipient (see docs)/ s/ (see docs)//' \
-		-e '/; reject_threshold/ s/;//' \
-		-e '/; relay_reject_threshold/ s/;//' \
+		-e '/^spamd_user=first-recipient (see docs)/ s/ (see docs)//' \
+		-e '/; reject_threshold/ s/; ?//' \
+		-e '/; relay_reject_threshold/ s/; ?//' \
 		"$_cfg/spamassassin.ini"
 
 	sed -i '' \
@@ -425,11 +430,11 @@ EO_RSPAMD
 		-e "/^; cert/ s/^; //; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 		-e '/; dhparam/ s/; //; /^dhparam/ s|dhparams.pem|/etc/ssl/dhparam.pem|' \
 		-e '/dhparam.pem/ a\
-ca=/usr/local/share/certs/ca-root-nss.crt'
+ca=/usr/local/share/certs/ca-root-nss.crt' \
 		"$_cfg/tls.ini"
 
 	if [ ! -f "$_cfg/wildduck.yaml" ]; then
-		sed -e '' \
+		sed \
 			-e "/host:/ s/'127.0.0.1'/redis/" \
 			-e "/db:/ s/3/9/" \
 			-e "/mongodb:/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
@@ -524,6 +529,7 @@ install_wildduck
 install_wildduck_webmail
 install_zonemta
 install_zonemta_webadmin
+install_haraka
 install_pm2
 configure_wildduck
 configure_wildduck_webmail
