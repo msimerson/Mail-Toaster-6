@@ -126,15 +126,15 @@ configure_wildduck()
 		fi
 	fi
 
-	if [ ! -e "$_cfg/wildduck.toml" ]; then
-		tell_status "creating $_cfg/wildduck.toml"
-		sed \
+	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/default.toml"; then
+		tell_status "configuring $_cfg/default.toml"
+		sed -i '' \
 			-e '/^#emailDomain/ s/^#//' \
 			-e "/^emailDomain/ s/mydomain.info/$WILDDUCK_MAIL_DOMAIN/" \
 			-e "/rpId/ s/example.com/$WILDDUCK_MAIL_DOMAIN/" \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			-e '/^port/ s/2587/587/' \
-			"$_cfg/default.toml" > "$_cfg/wildduck.toml"
+			"$_cfg/default.toml"
 	fi
 
 	if ! grep -q "$TOASTER_ORG_NAME" "$_cfg/api.toml"; then
@@ -148,8 +148,8 @@ configure_wildduck()
 		tell_status "configuring $_cfg/imap.toml"
 		sed -i '' \
 			-e '/^port/ s/9993/993/' \
-			-e "/^#key=/ s/^#//; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-			-e "/^#cert=/ s/^#//; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
+			-e '/^[tls]/ a\
+# @include "tls.toml"' \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			"$_cfg/imap.toml"
 	fi
@@ -159,8 +159,8 @@ configure_wildduck()
 		sed -i '' \
 			-e '/^enabled/ s/false/true/' \
 			-e '/^port/ s/2424/24/' \
-			-e "/^#key=/ s/^#//; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-			-e "/^#cert=/ s/^#//; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
+			-e '/^[tls]/ a\
+# @include "tls.toml"' \
 			-e "/^name/ s/false/\"$WILDDUCK_HOSTNAME\"/" \
 			"$_cfg/lmtp.toml"
 	fi
@@ -169,8 +169,8 @@ configure_wildduck()
 		tell_status "configuring $_cfg/pop3.toml"
 		sed -i '' \
 			-e '/^port/ s/9995/995/' \
-			-e "/^#key=/ s/^#//; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-			-e "/^#cert=/ s/^#//; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
+			-e '/^[tls]/ a\
+# @include "tls.toml"' \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			"$_cfg/pop3.toml"
 	fi
@@ -182,9 +182,9 @@ configure_wildduck()
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/tls.toml"; then
 		tell_status "configuring $_cfg/tls.toml"
-		store_config "$_cfg/tls.toml" <<EO_TLS_CFG
-key="/data/etc/tls/private/mail.tnpi.biz.pem"
-cert="/data/etc/tls/certs/mail.tnpi.biz.pem"
+		store_config "$_cfg/tls.toml" "overwrite" <<EO_TLS_CFG
+key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
+cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
 dhparam="/etc/ssl/dhparam.pem"
 ca=["/usr/local/share/certs/ca-root-nss.crt"]
 EO_TLS_CFG
@@ -195,15 +195,16 @@ configure_wildduck_webmail()
 {
 	local _cfg="$STAGE_MNT/data/wildduck-webmail/config"
 
-	if [ ! -e "$_cfg/wildduck-webmail.toml" ]; then
-		sed \
+	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml" ]; then
+		sed -i '' \
+			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
 			-e "/domain/ s/localhost/$WILDDUCK_MAIL_DOMAIN/" \
-			-e "/redis=/  s/127.0.0.1/$(get_jail_ip redis)/; s|/5|/9|" \
+			-e "/redis=/ s/127.0.0.1/$(get_jail_ip redis)/; s|/5|/9|" \
 			-e '/proxy=/ s/false/true/' \
 			-e '/secret=/ s/a cat/a secret elephant cat/' \
 			-e "/hostname=/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			-e '/port=/ s/=2587/=587/; s/=9993/=993/; s/=9995/=995/' \
-			"$_cfg/default.toml" > "$_cfg/wildduck-webmail.toml"
+			"$_cfg/default.toml"
 	fi
 }
 
@@ -235,6 +236,7 @@ configure_zonemta()
 			-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
 			-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
 			"$_cfg/dbs-development.toml"
+
 		cat <<EO_ZONEMTA_TLS >> "$_cfg/interfaces/feeder.toml"
 key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
 cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
@@ -304,7 +306,7 @@ configure_zonemta_admin()
 	sed -i '' \
 		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 		-e "/^host/  s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
-		-e "/^db = / s/2/7/" \
+		-e "/^db = / s/2/9/" \
 		"$STAGE_MNT/data/zone-mta-admin/config/default.toml"
 
 	if [ -n "$ZONEMTA_MONGO_DSN" ]; then
