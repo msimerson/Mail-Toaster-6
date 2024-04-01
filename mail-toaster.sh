@@ -1368,9 +1368,10 @@ preserve_file() {
 get_random_pass()
 {
 	local _pass_len=${1:-"14"}
+	local _strength=${2:-"good"}
 
 	# Password Entropy = log2(charset_len^pass_len)
-	case "$2" in
+	case "$_strength" in
 		strong)
 			# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
 			# more entropy with 94 ASCII chars but special chars are often problematic
