@@ -339,36 +339,47 @@ configure_pf()
 {
 	local _pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
 
+	get_public_ip
+	get_public_ip ipv6
+
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
-rdr inet  proto tcp from any to <ext_ip4> port { 25 587 80 443 993 995 } -> \$int_ip4
-rdr inet6 proto tcp from any to <ext_ip6> port { 25 587 80 443 993 995 } -> \$int_ip6
-EO_PF_RDR
+ext_ip4 = "$PUBLIC_IP4"
+ext_ip6 = "$PUBLIC_IP6"
 
-	get_public_ip
+# mail traffic to wildduck
+rdr inet  proto tcp from any to \$ext_ip4 port { 25 465 587 993 995 } -> \$int_ip4
+rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_ip6
+
+# send HTTP traffic to haproxy
+rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
+rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
+EO_PF_RDR
 
 	store_config "$_pf_etc/nat.conf" <<EO_PF_NAT
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
 ext_if = "$PUBLIC_NIC"
-#ext_ip4 = "$PUBLIC_IP4"
-#ext_ip6 = "$PUBLIC_IP6"
+ext_ip4 = "$PUBLIC_IP4"
+ext_ip6 = "$PUBLIC_IP6"
 
-#nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
-#nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
+nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
+nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
 EO_PF_NAT
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
-
 table <wildduck_int> persist { \$int_ip4, \$int_ip6 }
+pass in quick proto tcp from any to <wildduck_int> port { 25 465 587 80 443 993 995 }
 
-pass in quick proto tcp from any to <ext_ip> port { 25 587 80 443 993 995 }
-pass in quick proto tcp from any to <wildduck_int> port { 25 587 80 443 993 995 }
+# ext_ip4 = "$PUBLIC_IP4"
+# ext_ip6 = "$PUBLIC_IP6"
+# table <wildduck_ext> persist { \$ext_ip4, \$ext_ip6 }
+# pass in quick proto tcp from any to <wildduck_ext> port { 25 465 587 80 443 993 995 }
 EO_PF_ALLOW
 }
 
