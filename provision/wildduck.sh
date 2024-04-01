@@ -198,7 +198,7 @@ configure_wildduck_webmail()
 {
 	local _cfg="$STAGE_MNT/data/wildduck-webmail/config"
 
-	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml" ]; then
+	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml"; then
 		tell_status "configuring $_cfg/default.toml"
 		sed -i '' \
 			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
