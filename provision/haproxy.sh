@@ -123,6 +123,8 @@ frontend http-in
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
 	acl kibana       path_beg /kibana
+	acl zonemta      hdr_beg(host) -i zonemta
+	acl wildduck     hdr_beg(host) -i wildduck
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
@@ -149,6 +151,8 @@ frontend http-in
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
 	use_backend www_kibana       if  kibana
+	use_backend www_zonemta      if  zonemta
+	use_backend www_wildduck     if  wildduck
 
 	default_backend www_webmail
 
@@ -229,6 +233,12 @@ frontend http-in
 	backend www_kibana
 	server kibana $(get_jail_ip elasticsearch):5601
 	http-request replace-uri /kibana/(.*) /\1
+
+	backend www_wildduck
+	server wildduck 172.16.15.64:3000
+
+	backend www_zonemta
+	server zonemta 172.16.15.64:8082
 
 EO_HAPROXY_CONF
 }
