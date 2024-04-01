@@ -28,11 +28,13 @@ install_wildduck()
 	if [ ! -e "$STAGE_MNT/data/wildduck" ]; then
 		tell_status "installing wildduck"
 		stage_exec bash -c "cd /data && git clone https://github.com/nodemailer/wildduck.git wildduck"
-		stage_exec bash -c "cd /data/wildduck && npm install --production"
+		stage_exec bash -c "cd /data/wildduck && npm install --omit=dev"
 	else
 		tell_status "updating wildduck"
-		stage_exec bash -c "cd /data/wildduck && git pull && npm install --production"
+		stage_exec bash -c "cd /data/wildduck && git pull && npm install --omit=dev"
 	fi
+
+	stage_exec npm install -g saslprep
 }
 
 install_wildduck_webmail()
@@ -52,7 +54,7 @@ install_wildduck_webmail()
 
 install_zonemta()
 {
-	_npm_ins="npm install --production --no-optional --no-package-lock --no-audit --ignore-scripts --no-shrinkwrap --progress=false --unsafe-perm"
+	_npm_ins="npm install --omit=dev --omit=optional --no-package-lock --no-audit --ignore-scripts --no-shrinkwrap --progress=false --unsafe-perm"
 
 	if [ ! -e "$STAGE_MNT/data/zone-mta" ]; then
 		tell_status "installing ZoneMTA"
@@ -74,15 +76,15 @@ install_zonemta_webadmin()
 	tell_status "installing ZoneMTA webadmin"
 	if [ ! -e "$STAGE_MNT/data/zone-mta-admin" ]; then
 		stage_exec bash -c "cd /data && git clone https://github.com/zone-eu/zmta-webadmin.git zone-mta-admin"
-		stage_exec bash -c "cd /data/zone-mta-admin && npm install --production"
+		stage_exec bash -c "cd /data/zone-mta-admin && npm install --omit=dev"
 	else
-		stage_exec bash -c "cd /data/zone-mta-admin && git pull && npm install --production"
+		stage_exec bash -c "cd /data/zone-mta-admin && git pull && npm install --omit=dev"
 	fi
 }
 
 install_haraka()
 {
-	local _npm_cmd="npm install --production --no-package-lock --no-audit --no-shrinkwrap"
+	local _npm_cmd="npm install --omit=dev --no-package-lock --no-audit --no-shrinkwrap"
 
 	if [ ! -e "$STAGE_MNT/data/haraka" ]; then
 		tell_status "installing haraka"
@@ -97,6 +99,8 @@ install_haraka()
 		stage_exec bash -c "cd /data/haraka/plugins && git clone https://github.com/nodemailer/haraka-plugin-wildduck wildduck"
 		stage_exec bash -c "cd /data/haraka/plugins/wildduck && npm install --omit=dev --omit=optional"
 	fi
+
+	stage_exec bash -c 'cd /data/haraka && npm install --no-save haraka-plugin-dkim haraka-plugin-dns-list'
 }
 
 install_pm2()
