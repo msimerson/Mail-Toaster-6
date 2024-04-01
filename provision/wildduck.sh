@@ -224,7 +224,9 @@ configure_zonemta()
 			-e "/^redis/ s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
 			"$_cfg/dbs-production.toml"
 
-		if [ -n "$ZONEMTA_MONGO_DSN" ]; then
+		if [ -z ${ZONEMTA_MONGO_DSN+x} ]; then
+			tell_status "If Mongo requires AUTH, you should set ZONEMTA_MONGO_DSN"
+		else
 			sed -i '' \
 				-e "/^mongo/ s|=.*$|=$ZONEMTA_MONGO_DSN|" \
 				"$_cfg/dbs-production.toml"
