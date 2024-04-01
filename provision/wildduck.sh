@@ -106,6 +106,19 @@ install_pm2()
 	stage_sysrc pm2_toor_enable=YES
 }
 
+configure_tls()
+{
+	local _tls_dir="$STAGE_MNT/data/etc/tls"
+	if [ ! -d "$_tls_dir" ];         then mkdir "$_tls_dir"         0755; fi
+	if [ ! -d "$_tls_dir/certs" ];   then mkdir "$_tls_dir/certs"   0755; fi
+	if [ ! -d "$_tls_dir/private" ]; then mkdir "$_tls_dir/private" 0700; fi
+
+	if [ -f "/root/.acme/$WILDDUCK_HOSTNAME/$WILDDUCK_HOSTNAME.cer" ]; then
+		install "/root/.acme/$WILDDUCK_HOSTNAME/fullchain.cer" "$_tls_dir/certs/$WILDDUCK_HOSTNAME.pem"
+		install "/root/.acme/$WILDDUCK_HOSTNAME/$WILDDUCK_HOSTNAME.key" "$_tls_dir/private/$WILDDUCK_HOSTNAME.pem"
+	fi
+}
+
 configure_wildduck()
 {
 	local _cfg="$STAGE_MNT/data/wildduck/config"
@@ -533,6 +546,7 @@ install_zonemta
 install_zonemta_webadmin
 install_haraka
 install_pm2
+configure_tls
 configure_wildduck
 configure_wildduck_webmail
 configure_zonemta
