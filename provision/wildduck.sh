@@ -136,7 +136,7 @@ configure_wildduck()
 			tell_status "If Mongo requires AUTH, you should set WILDDUCK_MONGO_DSN"
 		else
 			sed -i '' \
-				-e "/^mongo/ s|=.*$|=$WILDDUCK_MONGO_DSN|" \
+				-e "/^mongo/ s|=.*$|=\"$WILDDUCK_MONGO_DSN\"|" \
 				"$_cfg/dbs.toml"
 		fi
 	fi
@@ -241,7 +241,7 @@ configure_zonemta()
 			tell_status "If Mongo requires AUTH, you should set ZONEMTA_MONGO_DSN"
 		else
 			sed -i '' \
-				-e "/^mongo/ s|=.*$|=$ZONEMTA_MONGO_DSN|" \
+				-e "/^mongo/ s|=.*$|=\"$ZONEMTA_MONGO_DSN\"|" \
 				"$_cfg/dbs-production.toml"
 		fi
 
