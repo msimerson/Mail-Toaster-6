@@ -162,9 +162,8 @@ configure_wildduck()
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/imap.toml"; then
 		tell_status "configuring $_cfg/imap.toml"
 		sed -i '' \
+			-e '/^host =/ s/0.0.0.0//' \
 			-e '/^port/ s/9993/993/' \
-			-e '/^[tls]/ a\
-# @include "tls.toml"' \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			"$_cfg/imap.toml"
 	fi
@@ -174,8 +173,6 @@ configure_wildduck()
 		sed -i '' \
 			-e '/^enabled/ s/false/true/' \
 			-e '/^port/ s/2424/24/' \
-			-e '/^[tls]/ a\
-# @include "tls.toml"' \
 			-e "/^name/ s/false/\"$WILDDUCK_HOSTNAME\"/" \
 			"$_cfg/lmtp.toml"
 	fi
@@ -183,22 +180,20 @@ configure_wildduck()
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/pop3.toml"; then
 		tell_status "configuring $_cfg/pop3.toml"
 		sed -i '' \
+			-e '/^host =/ s/0.0.0.0//' \
 			-e '/^port/ s/9995/995/' \
-			-e '/^[tls]/ a\
-# @include "tls.toml"' \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			"$_cfg/pop3.toml"
 	fi
 
 	if ! grep -q ^secret "$_cfg/dkim.toml"; then
 		tell_status "configuring $_cfg/dkim.toml"
-		cat <<EO_DKIM_SECRET >> "$_cfg/dkim.toml"
-secret = "$(get_random_pass 14)"
-EO_DKIM_SECRET
+		echo "secret = \"$(get_random_pass 14)\"" >> "$_cfg/dkim.toml"
 	fi
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/tls.toml"; then
-		store_config "$_cfg/tls.toml" "overwrite" <<EO_TLS_CFG
+		tell_status "installing $_cfg/tls.toml"
+		cat <<EO_TLS_CFG "$_cfg/tls.toml"
 key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
 cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
 dhparam="/etc/ssl/dhparam.pem"
@@ -255,11 +250,6 @@ configure_zonemta()
 			-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
 			-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
 			"$_cfg/dbs-development.toml"
-
-		cat <<EO_ZONEMTA_TLS >> "$_cfg/interfaces/feeder.toml"
-key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
-cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
-EO_ZONEMTA_TLS
 	fi
 
 	tell_status "disabling DNS cache"
@@ -269,12 +259,14 @@ EO_ZONEMTA_TLS
 
 	tell_status "configuring $_cfg/interfaces/feeder.toml"
 	sed -i '' \
-		-e '/^host/ s/127.0.0.1/0.0.0.0/' \
+		-e '/^host/ s/127.0.0.1//' \
 		-e '/^port=/ s/2525/587/' \
 		-e '/^authentication=/ s/false/true/' \
+		-e '/^#cert/a\'$'\n''# @include "/data/wildduck/config/tls.toml"' \
 		"$_cfg/interfaces/feeder.toml"
 
-	store_config "$_cfg/pools.toml" "overwrite" <<EO_POOLS
+	tell_status "configuring $_cfg/pools.toml"
+	cat <<EO_POOLS > "$_cfg/pools.toml"
 [[default]]
 address="0.0.0.0"
 name="$WILDDUCK_HOSTNAME"
@@ -293,7 +285,8 @@ EO_POOLS
 		-e '/ignoreIPv6/ s/true/false/' \
 		"$_cfg/zones/default.toml"
 
-	store_config "$_cfg/plugins/wildduck.toml" <<EO_WILDDUCK
+	tell_status "configuring $_cfg/plugins/wildduck.toml"
+	cat <<EO_WILDDUCK > "$_cfg/plugins/wildduck.toml"
 [wildduck]
 enabled=["receiver", "sender"]
 
@@ -388,14 +381,16 @@ configure_haraka()
 	tell_status "configuring Haraka"
 	local _cfg="$ZFS_DATA_MNT/wildduck/haraka/config"
 
-	store_config "$_cfg/clamd.ini" <<EO_CLAM
+	tell_status "installing $_cfg/clamd.ini"
+	cat <<EO_CLAM > "$_cfg/clamd.ini"
 clamd_socket=$(get_jail_ip clamav):3310
 timeout=29
 [reject]
 error=false
 EO_CLAM
 
-	store_config "$_cfg/helo.checks.ini" <<EO_HELO
+	tell_status "installing $_cfg/helo.checks.ini"
+	cat <<EO_HELO > "$_cfg/helo.checks.ini"
 [reject]
 host_mismatch=false
 EO_HELO
@@ -404,6 +399,7 @@ EO_HELO
 	echo "local_mx_ok=true" >> "$_cfg/outbound.ini"
 	echo "wildduck" >> "$_cfg/plugins"
 
+	tell_status "configuring $_cfg/plugins"
 	sed -i '' \
 		-e '/^#process_title/ s/#//' \
 		-e '/^# fcrdns/ s/^# //' \
@@ -413,12 +409,12 @@ EO_HELO
 		-e '/^#attachment/ s/^#//' \
 		-e '/^#clamd/ s/^#//' \
 		-e '/^#spamassassin/ s/^#//' \
-		-e '/^spamassassin/ a\
-rspamd' \
+		-e '/^spamassassin/ a\'$'\n''rspamd' \
 		-e '/^queue/ s/queue/#queue/' \
 		"$_cfg/plugins"
 
-	store_config "$_cfg/rspamd.ini" <<EO_RSPAMD
+	tell_status "installing $_cfg/rspamd.ini"
+	cat <<EO_RSPAMD > "$_cfg/rspamd.ini"
 host = $(get_jail_ip rspamd)
 add_headers = always
 
@@ -455,8 +451,7 @@ EO_RSPAMD
 		-e "/^; key/ s/^; //; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
 		-e "/^; cert/ s/^; //; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 		-e '/; dhparam/ s/; //; /^dhparam/ s|dhparams.pem|/etc/ssl/dhparam.pem|' \
-		-e '/dhparam.pem/ a\
-ca=/usr/local/share/certs/ca-root-nss.crt' \
+		-e '/dhparam.pem/ a\'$'\n''ca=/usr/local/share/certs/ca-root-nss.crt' \
 		"$_cfg/tls.ini"
 
 	if [ ! -f "$_cfg/wildduck.yaml" ]; then
