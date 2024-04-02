@@ -258,6 +258,7 @@ configure_zonemta()
 		"$_cfg/dns.toml"
 
 	tell_status "configuring $_cfg/interfaces/feeder.toml"
+	# shellcheck disable=1003
 	sed -i '' \
 		-e '/^host/ s/127.0.0.1//' \
 		-e '/^port=/ s/2525/587/' \
@@ -400,6 +401,7 @@ EO_HELO
 	echo "wildduck" >> "$_cfg/plugins"
 
 	tell_status "configuring $_cfg/plugins"
+	# shellcheck disable=1003
 	sed -i '' \
 		-e '/^#process_title/ s/#//' \
 		-e '/^# fcrdns/ s/^# //' \
@@ -447,6 +449,8 @@ EO_RSPAMD
 		-e '/; relay_reject_threshold/ s/; ?//' \
 		"$_cfg/spamassassin.ini"
 
+	tell_status "configuring $_cfg/tls.ini"
+	# shellcheck disable=1003
 	sed -i '' \
 		-e "/^; key/ s/^; //; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
 		-e "/^; cert/ s/^; //; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
@@ -455,6 +459,7 @@ EO_RSPAMD
 		"$_cfg/tls.ini"
 
 	if [ ! -f "$_cfg/wildduck.yaml" ]; then
+		tell_status "installing $_cfg/wildduck.yaml"
 		sed \
 			-e "/host:/ s/'127.0.0.1'/redis/" \
 			-e "/db:/ s/3/9/" \
