@@ -172,6 +172,7 @@ configure_wildduck()
 		tell_status "configuring $_cfg/lmtp.toml"
 		sed -i '' \
 			-e '/^enabled/ s/false/true/' \
+			-e '/^host/ s/127.0.0.1//' \
 			-e '/^port/ s/2424/24/' \
 			-e "/^name/ s/false/\"$WILDDUCK_HOSTNAME\"/" \
 			"$_cfg/lmtp.toml"
@@ -209,9 +210,11 @@ configure_wildduck_webmail()
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml"; then
 		tell_status "configuring $_cfg/default.toml"
 		sed -i '' \
+			-e "/^name=/ s/Wild Duck/$TOASTER_ORG_NAME/" \
 			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
 			-e "/domain/ s/localhost/$WILDDUCK_MAIL_DOMAIN/" \
 			-e "/redis=/ s/127.0.0.1/$(get_jail_ip redis)/; s|/5|/9|" \
+			-e '/host=/ s/false/""/' \
 			-e '/proxy=/ s/false/true/' \
 			-e '/secret=/ s/a cat/a secret elephant cat/' \
 			-e "/hostname=/ s/localhost/$WILDDUCK_HOSTNAME/" \
