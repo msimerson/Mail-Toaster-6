@@ -455,8 +455,8 @@ EO_RSPAMD
 	tell_status "configuring $_cfg/tls.ini"
 	# shellcheck disable=1003
 	sed -i '' \
-		-e "/^; key/ s/^; //; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-		-e "/^; cert/ s/^; //; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
+		-e "/^; key/ s/^; //; /^key=/ s|=.*$|=/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
+		-e "/^; cert/ s/^; //; /^cert=/ s|=.*$|=/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 		-e '/; dhparam/ s/; //; /^dhparam/ s|dhparams.pem|/etc/ssl/dhparam.pem|' \
 		-e '/dhparam.pem/ a\'$'\n''ca=/usr/local/share/certs/ca-root-nss.crt' \
 		"$_cfg/tls.ini"
