@@ -93,9 +93,9 @@ install_haraka()
 		stage_exec bash -c "cd /data/haraka && git pull && $_npm_cmd"
 	fi
 
-	if [ ! -e "$STAGE_MNT/data/haraka/plugin/wildduck" ]; then
-		stage_exec bash -c "cd /data/haraka/plugin && git clone https://github.com/nodemailer/haraka-plugin-wildduck wildduck"
-		stage_exec bash -c "cd /data/haraka/plugin/wildduck && npm install --omit=dev --omit=optional"
+	if [ ! -e "$STAGE_MNT/data/haraka/plugins/wildduck" ]; then
+		stage_exec bash -c "cd /data/haraka/plugins && git clone https://github.com/nodemailer/haraka-plugin-wildduck wildduck"
+		stage_exec bash -c "cd /data/haraka/plugins/wildduck && npm install --omit=dev --omit=optional"
 	fi
 }
 
@@ -104,6 +104,19 @@ install_pm2()
 	stage_exec npm install -g pm2
 	stage_exec pm2 startup
 	stage_sysrc pm2_toor_enable=YES
+}
+
+configure_tls()
+{
+	local _tls_dir="$STAGE_MNT/data/etc/tls"
+	if [ ! -d "$_tls_dir" ];         then mkdir "$_tls_dir"         0755; fi
+	if [ ! -d "$_tls_dir/certs" ];   then mkdir "$_tls_dir/certs"   0755; fi
+	if [ ! -d "$_tls_dir/private" ]; then mkdir "$_tls_dir/private" 0700; fi
+
+	if [ -f "/root/.acme/$WILDDUCK_HOSTNAME/$WILDDUCK_HOSTNAME.cer" ]; then
+		install "/root/.acme/$WILDDUCK_HOSTNAME/fullchain.cer" "$_tls_dir/certs/$WILDDUCK_HOSTNAME.pem"
+		install "/root/.acme/$WILDDUCK_HOSTNAME/$WILDDUCK_HOSTNAME.key" "$_tls_dir/private/$WILDDUCK_HOSTNAME.pem"
+	fi
 }
 
 configure_wildduck()
@@ -119,22 +132,24 @@ configure_wildduck()
 			-e "/^db=3/ s/3/9/" \
 			"$_cfg/dbs.toml"
 
-		if [ -n "$WILDDUCK_MONGO_DSN" ]; then
+		if [ -z ${WILDDUCK_MONGO_DSN+x} ]; then
+			tell_status "If Mongo requires AUTH, you should set WILDDUCK_MONGO_DSN"
+		else
 			sed -i '' \
-				-e "/^mongo/ s|=.*$|=$WILDDUCK_MONGO_DSN|" \
+				-e "/^mongo/ s|=.*$|=\"$WILDDUCK_MONGO_DSN\"|" \
 				"$_cfg/dbs.toml"
 		fi
 	fi
 
-	if [ ! -e "$_cfg/wildduck.toml" ]; then
-		tell_status "creating $_cfg/wildduck.toml"
-		sed \
+	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/default.toml"; then
+		tell_status "configuring $_cfg/default.toml"
+		sed -i '' \
 			-e '/^#emailDomain/ s/^#//' \
 			-e "/^emailDomain/ s/mydomain.info/$WILDDUCK_MAIL_DOMAIN/" \
 			-e "/rpId/ s/example.com/$WILDDUCK_MAIL_DOMAIN/" \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			-e '/^port/ s/2587/587/' \
-			"$_cfg/default.toml" > "$_cfg/wildduck.toml"
+			"$_cfg/default.toml"
 	fi
 
 	if ! grep -q "$TOASTER_ORG_NAME" "$_cfg/api.toml"; then
@@ -147,9 +162,8 @@ configure_wildduck()
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/imap.toml"; then
 		tell_status "configuring $_cfg/imap.toml"
 		sed -i '' \
+			-e '/^host =/ s/0.0.0.0//' \
 			-e '/^port/ s/9993/993/' \
-			-e "/^#key=/ s/^#//; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-			-e "/^#cert=/ s/^#//; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			"$_cfg/imap.toml"
 	fi
@@ -158,9 +172,8 @@ configure_wildduck()
 		tell_status "configuring $_cfg/lmtp.toml"
 		sed -i '' \
 			-e '/^enabled/ s/false/true/' \
+			-e '/^host/ s/127.0.0.1//' \
 			-e '/^port/ s/2424/24/' \
-			-e "/^#key=/ s/^#//; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-			-e "/^#cert=/ s/^#//; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 			-e "/^name/ s/false/\"$WILDDUCK_HOSTNAME\"/" \
 			"$_cfg/lmtp.toml"
 	fi
@@ -168,9 +181,8 @@ configure_wildduck()
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/pop3.toml"; then
 		tell_status "configuring $_cfg/pop3.toml"
 		sed -i '' \
+			-e '/^host =/ s/0.0.0.0//' \
 			-e '/^port/ s/9995/995/' \
-			-e "/^#key=/ s/^#//; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-			-e "/^#cert=/ s/^#//; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			"$_cfg/pop3.toml"
 	fi
@@ -181,10 +193,10 @@ configure_wildduck()
 	fi
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/tls.toml"; then
-		tell_status "configuring $_cfg/tls.toml"
-		store_config "$_cfg/tls.toml" <<EO_TLS_CFG
-key="/data/etc/tls/private/mail.tnpi.biz.pem"
-cert="/data/etc/tls/certs/mail.tnpi.biz.pem"
+		tell_status "installing $_cfg/tls.toml"
+		cat <<EO_TLS_CFG "$_cfg/tls.toml"
+key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
+cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
 dhparam="/etc/ssl/dhparam.pem"
 ca=["/usr/local/share/certs/ca-root-nss.crt"]
 EO_TLS_CFG
@@ -195,15 +207,19 @@ configure_wildduck_webmail()
 {
 	local _cfg="$STAGE_MNT/data/wildduck-webmail/config"
 
-	if [ ! -e "$_cfg/wildduck-webmail.toml" ]; then
-		sed \
+	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml"; then
+		tell_status "configuring $_cfg/default.toml"
+		sed -i '' \
+			-e "/^name=/ s/Wild Duck/$TOASTER_ORG_NAME/" \
+			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
 			-e "/domain/ s/localhost/$WILDDUCK_MAIL_DOMAIN/" \
-			-e "/redis=/  s/127.0.0.1/$(get_jail_ip redis)/; s|/5|/9|" \
+			-e "/redis=/ s/127.0.0.1/$(get_jail_ip redis)/; s|/5|/9|" \
+			-e '/host=/ s/false/""/' \
 			-e '/proxy=/ s/false/true/' \
 			-e '/secret=/ s/a cat/a secret elephant cat/' \
 			-e "/hostname=/ s/localhost/$WILDDUCK_HOSTNAME/" \
 			-e '/port=/ s/=2587/=587/; s/=9993/=993/; s/=9995/=995/' \
-			"$_cfg/default.toml" > "$_cfg/wildduck-webmail.toml"
+			"$_cfg/default.toml"
 	fi
 }
 
@@ -219,9 +235,11 @@ configure_zonemta()
 			-e "/^redis/ s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
 			"$_cfg/dbs-production.toml"
 
-		if [ -n "$ZONEMTA_MONGO_DSN" ]; then
+		if [ -z ${ZONEMTA_MONGO_DSN+x} ]; then
+			tell_status "If Mongo requires AUTH, you should set ZONEMTA_MONGO_DSN"
+		else
 			sed -i '' \
-				-e "/^mongo/ s|=.*$|=$ZONEMTA_MONGO_DSN|" \
+				-e "/^mongo/ s|=.*$|=\"$ZONEMTA_MONGO_DSN\"|" \
 				"$_cfg/dbs-production.toml"
 		fi
 
@@ -235,10 +253,6 @@ configure_zonemta()
 			-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
 			-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
 			"$_cfg/dbs-development.toml"
-		cat <<EO_ZONEMTA_TLS >> "$_cfg/interfaces/feeder.toml"
-key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
-cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
-EO_ZONEMTA_TLS
 	fi
 
 	tell_status "disabling DNS cache"
@@ -247,15 +261,22 @@ EO_ZONEMTA_TLS
 		"$_cfg/dns.toml"
 
 	tell_status "configuring $_cfg/interfaces/feeder.toml"
+	# shellcheck disable=1003
 	sed -i '' \
-		-e '/^host/ s/127.0.0.1/0.0.0.0/' \
+		-e '/^host/ s/127.0.0.1//' \
 		-e '/^port=/ s/2525/587/' \
 		-e '/^authentication=/ s/false/true/' \
+		-e '/^#cert/a\'$'\n''# @include "/data/wildduck/config/tls.toml"' \
 		"$_cfg/interfaces/feeder.toml"
 
-	store_config "$_cfg/pools.toml" "overwrite" <<EO_POOLS
+	tell_status "configuring $_cfg/pools.toml"
+	cat <<EO_POOLS > "$_cfg/pools.toml"
 [[default]]
-address=["0.0.0.0", "::"]
+address="0.0.0.0"
+name="$WILDDUCK_HOSTNAME"
+
+[[default]]
+address="::"
 name="$WILDDUCK_HOSTNAME"
 EO_POOLS
 
@@ -268,7 +289,8 @@ EO_POOLS
 		-e '/ignoreIPv6/ s/true/false/' \
 		"$_cfg/zones/default.toml"
 
-	store_config "$_cfg/plugins/wildduck.toml" <<EO_WILDDUCK
+	tell_status "configuring $_cfg/plugins/wildduck.toml"
+	cat <<EO_WILDDUCK > "$_cfg/plugins/wildduck.toml"
 [wildduck]
 enabled=["receiver", "sender"]
 
@@ -300,7 +322,7 @@ configure_zonemta_admin()
 	sed -i '' \
 		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 		-e "/^host/  s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
-		-e "/^db = / s/2/7/" \
+		-e "/^db = / s/2/9/" \
 		"$STAGE_MNT/data/zone-mta-admin/config/default.toml"
 
 	if [ -n "$ZONEMTA_MONGO_DSN" ]; then
@@ -314,36 +336,47 @@ configure_pf()
 {
 	local _pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
 
+	get_public_ip
+	get_public_ip ipv6
+
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
-rdr inet  proto tcp from any to <ext_ip4> port { 25 587 80 443 993 995 } -> \$int_ip4
-rdr inet6 proto tcp from any to <ext_ip6> port { 25 587 80 443 993 995 } -> \$int_ip6
-EO_PF_RDR
+ext_ip4 = "$PUBLIC_IP4"
+ext_ip6 = "$PUBLIC_IP6"
 
-	get_public_ip
+# mail traffic to wildduck
+rdr inet  proto tcp from any to \$ext_ip4 port { 25 465 587 993 995 } -> \$int_ip4
+rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_ip6
+
+# send HTTP traffic to haproxy
+rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
+rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
+EO_PF_RDR
 
 	store_config "$_pf_etc/nat.conf" <<EO_PF_NAT
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
 ext_if = "$PUBLIC_NIC"
-#ext_ip4 = "$PUBLIC_IP4"
-#ext_ip6 = "$PUBLIC_IP6"
+ext_ip4 = "$PUBLIC_IP4"
+ext_ip6 = "$PUBLIC_IP6"
 
-#nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
-#nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
+nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
+nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
 EO_PF_NAT
 
 	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
 int_ip4 = "$(get_jail_ip wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
-
 table <wildduck_int> persist { \$int_ip4, \$int_ip6 }
+pass in quick proto tcp from any to <wildduck_int> port { 25 465 587 80 443 993 995 }
 
-pass in quick proto tcp from any to <ext_ip> port { 25 587 80 443 993 995 }
-pass in quick proto tcp from any to <wildduck_int> port { 25 587 80 443 993 995 }
+# ext_ip4 = "$PUBLIC_IP4"
+# ext_ip6 = "$PUBLIC_IP6"
+# table <wildduck_ext> persist { \$ext_ip4, \$ext_ip6 }
+# pass in quick proto tcp from any to <wildduck_ext> port { 25 465 587 80 443 993 995 }
 EO_PF_ALLOW
 }
 
@@ -352,14 +385,16 @@ configure_haraka()
 	tell_status "configuring Haraka"
 	local _cfg="$ZFS_DATA_MNT/wildduck/haraka/config"
 
-	store_config "$_cfg/clamd.ini" <<EO_CLAM
+	tell_status "installing $_cfg/clamd.ini"
+	cat <<EO_CLAM > "$_cfg/clamd.ini"
 clamd_socket=$(get_jail_ip clamav):3310
 timeout=29
 [reject]
 error=false
 EO_CLAM
 
-	store_config "$_cfg/helo.checks.ini" <<EO_HELO
+	tell_status "installing $_cfg/helo.checks.ini"
+	cat <<EO_HELO > "$_cfg/helo.checks.ini"
 [reject]
 host_mismatch=false
 EO_HELO
@@ -368,6 +403,8 @@ EO_HELO
 	echo "local_mx_ok=true" >> "$_cfg/outbound.ini"
 	echo "wildduck" >> "$_cfg/plugins"
 
+	tell_status "configuring $_cfg/plugins"
+	# shellcheck disable=1003
 	sed -i '' \
 		-e '/^#process_title/ s/#//' \
 		-e '/^# fcrdns/ s/^# //' \
@@ -377,12 +414,12 @@ EO_HELO
 		-e '/^#attachment/ s/^#//' \
 		-e '/^#clamd/ s/^#//' \
 		-e '/^#spamassassin/ s/^#//' \
-		-e '/^spamassassin/ a\
-rspamd' \
+		-e '/^spamassassin/ a\'$'\n''rspamd' \
 		-e '/^queue/ s/queue/#queue/' \
 		"$_cfg/plugins"
 
-	store_config "$_cfg/rspamd.ini" <<EO_RSPAMD
+	tell_status "installing $_cfg/rspamd.ini"
+	cat <<EO_RSPAMD > "$_cfg/rspamd.ini"
 host = $(get_jail_ip rspamd)
 add_headers = always
 
@@ -400,28 +437,33 @@ EO_RSPAMD
 	get_public_ip
 
 	sed -i '' \
-		-e "/^;public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
-		-e '/^;nodes/ s/cpus/1/' \
+		-e '/^;public_ip/ s/^;//' \
+		-e "/^public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
+		-e '/^;nodes/ s/^;//' \
+		-e '/^nodes/ s/cpus/1/' \
 		"$_cfg/smtp.ini"
 
 	sed -i '' \
-		-e "/^;spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
+		-e '/^;spamd_socket/ s/^;//' \
+		-e "/^spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
 		-e '/^;spamd_user=first-recipient (see docs)/ s/^;//' \
-		-e '/;spamd_user=first-recipient (see docs)/ s/ (see docs)//' \
-		-e '/; reject_threshold/ s/;//' \
-		-e '/; relay_reject_threshold/ s/;//' \
+		-e '/^spamd_user=first-recipient (see docs)/ s/ (see docs)//' \
+		-e '/; reject_threshold/ s/; ?//' \
+		-e '/; relay_reject_threshold/ s/; ?//' \
 		"$_cfg/spamassassin.ini"
 
+	tell_status "configuring $_cfg/tls.ini"
+	# shellcheck disable=1003
 	sed -i '' \
-		-e "/^; key/ s/^; //; /^key=/ s|^.*$|/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
-		-e "/^; cert/ s/^; //; /^cert=/ s|^.*$|/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
+		-e "/^; key/ s/^; //; /^key=/ s|=.*$|=/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
+		-e "/^; cert/ s/^; //; /^cert=/ s|=.*$|=/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 		-e '/; dhparam/ s/; //; /^dhparam/ s|dhparams.pem|/etc/ssl/dhparam.pem|' \
-		-e '/dhparam.pem/ a\
-ca=/usr/local/share/certs/ca-root-nss.crt'
+		-e '/dhparam.pem/ a\'$'\n''ca=/usr/local/share/certs/ca-root-nss.crt' \
 		"$_cfg/tls.ini"
 
 	if [ ! -f "$_cfg/wildduck.yaml" ]; then
-		sed -e '' \
+		tell_status "installing $_cfg/wildduck.yaml"
+		sed \
 			-e "/host:/ s/'127.0.0.1'/redis/" \
 			-e "/db:/ s/3/9/" \
 			-e "/mongodb:/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
@@ -516,7 +558,9 @@ install_wildduck
 install_wildduck_webmail
 install_zonemta
 install_zonemta_webadmin
+install_haraka
 install_pm2
+configure_tls
 configure_wildduck
 configure_wildduck_webmail
 configure_zonemta
