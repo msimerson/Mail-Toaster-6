@@ -172,7 +172,7 @@ PATH="$PATH:/usr/local/bin"|' \
 #			echo 'command[check_clamav]=/usr/local/bin/sudo jexec clamav /data/check_clamav_signatures -p /data/db' \
 #				| tee -a /usr/local/etc/nrpe.cfg
 #		fi
-#	fi
+ 	fi
 }
 
 install_clamav()
