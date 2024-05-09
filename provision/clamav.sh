@@ -153,6 +153,7 @@ install_clamav_nrpe()
 	stage_pkg_install nagios-plugins
 
 	tell_status "installing clamav nrpe plugin"
+	stage_pkg_install nagios-check_clamav
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
 	sed -i.bak \
@@ -163,11 +164,15 @@ PATH="$PATH:/usr/local/bin"|' \
 	chmod 755 "$ZFS_DATA_MNT/clamav/check_clamav_signatures"
 
 	if [ -f /usr/local/etc/nrpe.cfg ]; then
-		if ! grep -q check_clamav_signatures /usr/local/etc/nrpe.cfg; then
-			echo 'command[check_clamav]=/usr/local/bin/sudo jexec clamav /data/check_clamav_signatures -p /data/db' \
+		if ! grep -q 'command[check_clamav' /usr/local/etc/nrpe.cfg; then
+			echo 'command[check_clamav]=/usr/local/bin/sudo /usr/sbin/jexec clamav /usr/local/libexec/nagios/check_clamav -w3 -c5' \
 				| tee -a /usr/local/etc/nrpe.cfg
 		fi
-	fi
+#		if ! grep -q check_clamav_signatures /usr/local/etc/nrpe.cfg; then
+#			echo 'command[check_clamav]=/usr/local/bin/sudo jexec clamav /data/check_clamav_signatures -p /data/db' \
+#				| tee -a /usr/local/etc/nrpe.cfg
+#		fi
+#	fi
 }
 
 install_clamav()
@@ -260,7 +265,9 @@ configure_clamav()
 start_clamav()
 {
 	tell_status "downloading virus definition databases"
-	stage_exec freshclam --config-file=/data/etc/freshclam.conf --datadir=/data/db
+	if ! pgrep -q freshclam; then
+		stage_exec freshclam --config-file=/data/etc/freshclam.conf --datadir=/data/db
+	fi
 
 	tell_status "starting ClamAV daemons"
 	stage_sysrc clamav_clamd_enable=YES
