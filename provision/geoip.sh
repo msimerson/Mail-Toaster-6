@@ -13,6 +13,11 @@ preflight_check() {
 		echo "ERROR: edit mail-toaster.conf and set MAXMIND_LICENSE_KEY"
 		exit 1
 	fi
+
+	if [ "$GEOIP_UPDATER" = "geoipupdate" ] && [ -z "$MAXMIND_ACCOUNT_ID" ]; then
+		echo "ERROR: edit mail-toaster.conf and set MAXMIND_ACCOUNT_ID"
+		exit 1
+	fi
 }
 
 install_geoip_geoipupdate()
@@ -77,6 +82,14 @@ configure_geoip()
 	if [ -f "$ZFS_DATA_MNT/geoip/GeoIP.conf" ]; then
 		tell_status "installing GeoIP.conf"
 		cp "$ZFS_DATA_MNT/geoip/GeoIP.conf" "$STAGE_MNT/usr/local/etc"
+	else
+		sed -i '' \
+			-e "/^AccountID/ s/YOUR_ACCOUNT_ID_HERE/$MAXMIND_ACCOUNT_ID/" \
+			-e "/^LicenseKey/ s/YOUR_LICENSE_KEY_HERE/$MAXMIND_LICENSE_KEY/" \
+			-e '/^EditionIDs/ s/GeoLite2-City/GeoLite2-City GeoLite2-ASN/' \
+			-e '/^# DatabaseDirectory/ s/^# //' \
+			-e '/^DatabaseDirectory/ s|/usr/local/share/GeoIP|/data/db|' \
+			"$STAGE_MNT/usr/local/etc/GeoIP.conf"
 	fi
 
 	geoip_periodic
