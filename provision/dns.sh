@@ -17,8 +17,6 @@ install_unbound()
 
 get_mt6_data()
 {
-	get_public_ip
-
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
@@ -69,6 +67,8 @@ EO_UNBOUND_ACCESS
 
 install_local_conf()
 {
+	get_public_ip
+
 	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
