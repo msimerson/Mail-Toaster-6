@@ -4,6 +4,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 install_borg()
 {
@@ -17,17 +18,10 @@ configure_borg()
 
 	for p in daily weekly monthly
 	do
-		if [ ! -d "$_pdir/$p" ]; then
-			tell_status "creating $_pdir/$p"
-			mkdir -p "$_pdir/$p" || exit
-		fi
-
 		if [ ! -f "$_pdir/$p/borg" ]; then
-			tell_status "installing $p periodic task"
-			tee "$_pdir/$p/borg" <<EO_RSNAP
+			store_exec "$_pdir/$p/borg" <<EO_RSNAP
 /usr/local/bin/borg -c /data/etc/borg.conf $p
 EO_RSNAP
-            chmod 755 "$_pdir/$p/borg"
 		fi
 	done
 

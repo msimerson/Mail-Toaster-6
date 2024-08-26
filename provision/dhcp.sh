@@ -1,17 +1,20 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e -u
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA="devfs_ruleset=7
 		allow.raw_sockets=1"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;
 		allow.raw_sockets = 1;"
+export JAIL_FSTAB=""
 
 install_dhcpd()
 {
 	tell_status "installing dhcpd"
-	stage_pkg_install isc-dhcp44-server || exit
+	stage_pkg_install isc-dhcp44-server
 }
 
 configure_dhcpd()
@@ -27,19 +30,22 @@ configure_dhcpd()
 	stage_sysrc dhcpd_rootdir="/data/db"	# directory to run in
 	echo "configured"
 
-	add_pf_portmap "67 68" dhcp
+	_pf_etc="$ZFS_DATA_MNT/dhcp/etc/pf.conf.d"
+	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
+rdr inet  proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip  dhcp)
+rdr inet6 proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip6 dhcp)
+EO_PF_RDR
 
 	if [ ! -d "$ZFS_DATA_MNT/dhcp/etc" ]; then
-		mkdir -p "$ZFS_DATA_MNT/dhcp/etc" || exit
+		mkdir -p "$ZFS_DATA_MNT/dhcp/etc"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/dhcp/db" ]; then
-		mkdir -p "$ZFS_DATA_MNT/dhcp/db" || exit
+		mkdir -p "$ZFS_DATA_MNT/dhcp/db"
 	fi
 
-	if [ ! -f "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" ]; then
-		get_public_ip
-		tee -a "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" <<EO_DHCP
+	get_public_ip
+	store_config "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" <<EO_DHCP
 option domain-name "$TOASTER_MAIL_DOMAIN";
 # option domain-name-servers $PUBLIC_IP4;
 
@@ -71,13 +77,12 @@ subnet 172.16.0.0 netmask 255.240.0.0 {
 
 EO_DHCP
 
-	fi
 }
 
 start_dhcpd()
 {
 	tell_status "starting dhcpd"
-	stage_exec service isc-dhcpd start || exit
+	stage_exec service isc-dhcpd start
 }
 
 test_dhcpd()

@@ -1,11 +1,15 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include shell
+mt6-include mta
 
 configure_ntp()
 {
@@ -34,7 +38,7 @@ configure_ntpd()
 	fi
 
 	tell_status "enabling NTPd"
-	sysrc ntpd_enable=YES || exit
+	sysrc ntpd_enable=YES
 	sysrc ntpd_sync_on_start=YES
 	/etc/rc.d/ntpd restart
 }
@@ -58,26 +62,9 @@ update_syslogd()
 	service syslogd restart
 }
 
-update_sendmail()
-{
-	if grep -q ^sendmail_enable /etc/rc.conf; then
-		tell_status "preserving sendmail config"
-		return
-	fi
-
-	tell_status "disable sendmail network listening"
-	sysrc sendmail_enable=NO
-	service sendmail onestop
-}
-
 install_periodic_conf()
 {
-	if [ -f /etc/periodic.conf ]; then
-		return
-	fi
-
-	tell_status "installing /etc/periodic.conf"
-	tee -a /etc/periodic.conf <<EO_PERIODIC
+	store_config /etc/periodic.conf <<EO_PERIODIC
 # older versions of FreeBSD bark b/c these are defined in
 # /etc/defaults/periodic.conf and do not exist. Hush.
 daily_local=""
@@ -139,8 +126,8 @@ EO_PERIODIC
 
 constrain_sshd_to_host()
 {
-	if grep -q ^ListenAddress /etc/ssh/sshd_config; then
-		tell_status "preserving sshd_config ListenAddress"
+	if grep -q ListenAddress /etc/rc.conf; then
+		tell_status "preserving sshd_flags ListenAddress"
 		return
 	fi
 
@@ -151,29 +138,51 @@ constrain_sshd_to_host()
 
 	get_public_ip
 	get_public_ip ipv6
-	local _sshd_conf="/etc/ssh/sshd_config"
 
-	local _confirm_msg="
+	if [ -t 0 ]; then
+		local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
 	Your public IPs are detected as $PUBLIC_IP4
 		and $PUBLIC_IP6
 
-	May I update $_sshd_conf?
+	May I update your sshd config?
 	"
-	dialog --yesno "$_confirm_msg" 13 70 || return
+		dialog --yesno "$_confirm_msg" 13 70 || return
+	fi
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sed -i.bak -e "s/#ListenAddress 0.0.0.0/ListenAddress $PUBLIC_IP4/" $_sshd_conf
+	sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP4"
 	if [ -n "$PUBLIC_IP6" ]; then
-		sed -i.bak6 -e "s/#ListenAddress ::/ListenAddress $PUBLIC_IP6/" $_sshd_conf
+		sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP6"
 	fi
 
-	grep ^Listen /etc/ssh/sshd_config
-	service sshd configtest || exit
+	service sshd configtest
 	service sshd restart
+}
+
+sshd_reorder()
+{
+	_file="/usr/local/etc/rc.d/sshd_reorder"
+	if [ -x "$_file" ]; then
+		tell_status "preserving sshd_reorder"
+		return
+	fi
+
+	tell_status "starting sshd earlier"
+	tee "$_file" <<EO_SSHD_REORDER
+#!/bin/sh
+# start up sshd earlier, particularly before jails
+# see https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=190447
+
+# PROVIDE: sshd_reorder
+# REQUIRE: LOGIN sshd
+# BEFORE: jail
+
+EO_SSHD_REORDER
+	chmod 755 "$_file"
 }
 
 update_openssl_defaults()
@@ -249,16 +258,19 @@ configure_tls_certs()
 configure_dhparams()
 {
 	local DHP="/etc/ssl/dhparam.pem"
-	if [ -f "$DHP" ]; then
-		return
+	if [ ! -f "$DHP" ]; then
+		tell_status "Generating a 2048 bit dhparams file"
+		openssl dhparam -out "$DHP" 2048
 	fi
-
-	tell_status "Generating a 2048 bit dhparams file"
-	openssl dhparam -out "$DHP" 2048 || exit
 }
 
 install_sshguard()
 {
+	if pkg info -e sshguard; then
+		tell_status "sshguard installed"
+		return
+	fi
+
 	tell_status "installing sshguard"
 	pkg install -y sshguard
 
@@ -266,18 +278,11 @@ install_sshguard()
 	sed -i.bak \
 		-e '/sshg-fw-null/ s/^B/#B/' \
 		-e '/sshg-fw-pf/ s/^#//' \
-			/usr/local/etc/sshguard.conf
+		/usr/local/etc/sshguard.conf
 
 	tell_status "starting sshguard"
 	sysrc sshguard_enable=YES
-	# service sshguard start
-}
-
-check_timezone()
-{
-	if [ ! -e "/etc/localtime" ]; then
-		tzsetup || exit
-	fi
+	service sshguard start
 }
 
 check_global_listeners()
@@ -285,109 +290,95 @@ check_global_listeners()
 	tell_status "checking for host listeners on all IPs"
 
 	if sockstat -L -4 | grep -E '\*:[0-9]' | grep -v 123; then
-		echo "oops!, you should not having anything listening
-on all your IP addresses!"
+		echo "oops!, you should not having anything listening on all your IP addresses!"
 		if [ -t 0 ]; then exit 2; fi
 
 		echo "Not interactive, continuing anyway."
-		return
 	fi
+}
+
+pf_bruteforce_expire()
+{
+	store_exec /usr/local/etc/periodic/security/pf_bruteforce_expire <<EO_PF_EXPIRE
+#!/bin/sh
+# expire after 7 days
+/sbin/pfctl -t bruteforce -T expire 604800
+EO_PF_EXPIRE
 }
 
 add_jail_nat()
 {
-	if grep -qs bruteforce /etc/pf.conf; then
-		# this is an upgrade / reinstall
-		if grep -qs ext_ip6 /etc/pf.conf; then
-			tell_status "preserving pf.conf settings"
-			return
-		fi
-
-		# MT6 without IPv6 rules
-		if [ ! -f "/etc/pf.conf-$(date +%Y.%m.%d)" ]; then
-			# only back up once per day
-			tell_status "Backing up /etc/pf.conf"
-			cp /etc/pf.conf "/etc/pf.conf-$(date +%Y.%m.%d)" || exit
-		fi
-	fi
-
 	get_public_ip
 	get_public_ip ipv6
 
-	if [ -z "$PUBLIC_NIC" ]; then echo "PUBLIC_NIC unset!"; exit; fi
-	if [ -z "$PUBLIC_IP4" ]; then echo "PUBLIC_IP4 unset!"; exit; fi
+	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
+	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
 
 	tell_status "setting up the PF firewall and NAT for jails"
-	tee /etc/pf.conf <<EO_PF_RULES
+	store_config "/etc/pf.conf" <<EO_PF_RULES
 ## Macros
 
 ext_if="$PUBLIC_NIC"
-table <ext_ip4> { $PUBLIC_IP4 }
-table <ext_ip6> { $PUBLIC_IP6 }
+ext_ip4="$PUBLIC_IP4"
+ext_ip6="$PUBLIC_IP6"
 
-# to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-table <allow_insecure> { }
+table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
+table <ext_ip4> { \$ext_ip4 } persist
+table <ext_ip6> { \$ext_ip6 } persist
 
 table <bruteforce> persist
 table <sshguard> persist
 
-ssh_ports    = "{ 22 }"
-http_ports   = "{ 80 443 }"
-msa_ports    = "{ 465 587 }"
-mta_ports    = "{ 25 465 587 }"
-mua_insecure = "{ 110 143 }"
-mua_ports    = "{ 993 995 }"
-
-dovecot_lo4  = "{ $(get_jail_ip  dovecot) }"
-haraka_lo4   = "{ $(get_jail_ip  haraka)  }"
-haproxy_lo4  = "{ $(get_jail_ip  haproxy) }"
-
-dovecot_lo6  = "{ $(get_jail_ip6 dovecot) }"
-haraka_lo6   = "{ $(get_jail_ip6 haraka) }"
-haproxy_lo6  = "{ $(get_jail_ip6 haproxy) }"
-
-## Translation rules
+## NAT / Network Address Translation
 
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from ! \$ext_if to any -> <ext_ip6>
+nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
-# Secured POP3 & IMAP traffic to dovecot jail
-rdr inet  proto tcp from any to <ext_ip4> port \$mua_ports -> \$dovecot_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port \$mua_ports -> \$dovecot_lo6
-
-# POP3 & IMAP from insecure IPs
-rdr inet  proto tcp from <allow_insecure> to <ext_ip4> port \$mua_insecure -> \$dovecot_lo4
-rdr inet6 proto tcp from <allow_insecure> to <ext_ip6> port \$mua_insecure -> \$dovecot_lo6
-
-# SMTP traffic to the Haraka jail
-rdr inet  proto tcp from any to <ext_ip4> port \$mta_ports -> \$haraka_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port \$mta_ports -> \$haraka_lo6
-
-# HTTP traffic to HAproxy
-rdr inet  proto tcp from any to <ext_ip4> port \$http_ports -> \$haproxy_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port \$http_ports -> \$haproxy_lo6
+## Redirection
 
 rdr-anchor "rdr/*"
 
-## Filtering rules
+## Filtering
 
-block in quick inet  proto tcp from <sshguard> to any port \$ssh_ports
-block in quick inet6 proto tcp from <sshguard> to any port \$ssh_ports
+# block everything by default. Be careful!
+#block in log on \$ext_if
 
 block in quick from <bruteforce>
+
+block in quick proto tcp from <sshguard> to any port ssh
+
+# DHCP
+pass in inet  proto udp from port 67 to port 68
+pass in inet6 proto udp from port 547 to port 546
+
+# IPv6 routing
+pass in inet6 proto ipv6-icmp icmp6-type 134
+pass in inet6 proto ipv6-icmp icmp6-type 135
+pass in inet6 proto ipv6-icmp icmp6-type 136
+
+# NTP
+pass out quick on \$ext_if proto udp to any port ntp keep state
+
+pass  in quick on \$ext_if proto tcp to port ssh \
+        flags S/SA synproxy state \
+        (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
+
+anchor "allow/*"
 EO_PF_RULES
 
-	echo; echo "/etc/pf.conf has been installed"; echo
-
-	kldstat -q -m pf || kldload pf || exit 1
+	kldstat -q -m pf || kldload pf
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
-	/etc/rc.d/pf restart || exit 1
+	if ! /sbin/pfctl -s Running; then
+		/etc/rc.d/pf start
+	else
+		/sbin/pfctl -f /etc/pf.conf
+	fi
 
-	pfctl -f /etc/pf.conf || exit 1
+	pf_bruteforce_expire
 }
 
 install_jailmanage()
@@ -399,99 +390,48 @@ install_jailmanage()
 	chmod 755 /usr/local/bin/jailmanage
 }
 
-set_jail_start_order()
-{
-	if grep -q ^jail_list /etc/rc.conf; then
-		tell_status "preserving jail order"
-		return
-	fi
-}
-
-jail_reverse_shutdown()
-{
-	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" -ge 11 ]; then
-		if grep -q jail_reverse_stop /etc/rc.conf; then
-			return
-		fi
-		tell_status "reverse jails when shutting down"
-		sysrc jail_reverse_stop=YES
-		return
-	fi
-
-	if grep -q _rev_jail_list /etc/rc.d/jail; then
-		echo "rc.d/jail is already patched"
-		return
-	fi
-
-	tell_status "patching jail so shutdown reverses jail order"
-	patch -d / <<'EO_JAIL_RCD'
-Index: etc/rc.d/jail
-===================================================================
---- etc/rc.d/jail
-+++ etc/rc.d/jail
-@@ -516,7 +516,10 @@
- 		command=$jail_program
- 		rc_flags=$jail_flags
- 		command_args="-f $jail_conf -r"
--		$jail_jls name | while read _j; do
-+		for _j in $($jail_jls name); do
-+			_rev_jail_list="${_j} ${_rev_jail_list}"
-+		done
-+		for _j in ${_rev_jail_list}; do
- 			echo -n " $_j"
- 			_tmp=`mktemp -t jail` || exit 3
- 			$command $rc_flags $command_args $_j >> $_tmp 2>&1
-@@ -532,6 +535,9 @@
- 	;;
- 	esac
- 	for _j in $@; do
-+		_rev_jail_list="${_j} ${_rev_jail_list}"
-+	done
-+	for _j in ${_rev_jail_list}; do
- 		_j=$(echo $_j | tr /. _)
- 		parse_options $_j || continue
- 		if ! $jail_jls -j $_j > /dev/null 2>&1; then
-EO_JAIL_RCD
-}
-
 enable_jails()
 {
+	tell_status "enabling jails"
 	sysrc jail_enable=YES
-	jail_reverse_shutdown
-	set_jail_start_order
+
+	if ! grep -q jail_reverse_stop /etc/rc.conf; then
+		tell_status "reverse jails when shutting down"
+		sysrc jail_reverse_stop=YES
+	fi
+
+	if grep -q ^jail_list /etc/rc.conf; then
+		tell_status "preserving jail order"
+	fi
 
 	if [ -d /etc/jail.conf.d ]; then
 		add_jail_conf stage
-		return
+	else
+		grep -sq 'exec' /etc/jail.conf || jail_conf_header
 	fi
-
-	grep -sq 'exec' /etc/jail.conf || jail_conf_header
 }
 
 update_ports_tree()
 {
-	tell_status "updating FreeBSD ports tree"
-
 	if [ ! -t 0 ]; then
 		echo "Not interactive, it's on you to update the ports tree!"
 		return
 	fi
 
 	if [ -d "/usr/ports/.git" ]; then
-		echo "ports via git detected"
+		tell_status "updating FreeBSD ports tree (git)"
 		cd "/usr/ports/" || return
 		git pull
 		cd - || return
-		return
-	fi
-
-	portsnap fetch || exit
-
-	if [ -d /usr/ports/mail/vpopmail ]; then
-		portsnap update || portsnap extract || exit
 	else
-		portsnap extract || exit
+		tell_status "updating FreeBSD ports tree (portsnap)"
+		portsnap fetch
+
+		if [ -d /usr/ports/mail/vpopmail ]; then
+			portsnap update || portsnap extract
+		else
+			portsnap extract
+		fi
 	fi
 }
 
@@ -510,8 +450,11 @@ update_freebsd()
 	tell_status "updating FreeBSD with security patches"
 	freebsd-update fetch install
 
+	tell_status "clearing freebsd-update cache"
+	rm -rf /var/db/freebsd-update/*
+
 	tell_status "updating FreeBSD pkg collection"
-	pkg update || exit
+	pkg update
 
 	if ! pkg info -e ca_root_nss; then
 		tell_status "install CA root certs, so https URLs work"
@@ -519,7 +462,7 @@ update_freebsd()
 	fi
 
 	tell_status "upgrading installed FreeBSD packages"
-	pkg upgrade
+	pkg upgrade -y
 
 	update_ports_tree
 }
@@ -533,14 +476,12 @@ plumb_jail_nic()
 
 	if ! grep -q cloned_interfaces /etc/rc.conf; then
 		tell_status "plumb lo1 interface at startup"
-		sysrc cloned_interfaces+=lo1 || exit
+		sysrc cloned_interfaces+=lo1
 	fi
 
-	local _missing;
-	_missing=$(ifconfig lo1 2>&1 | grep 'does not exist')
-	if [ -n "$_missing" ]; then
+	if ifconfig lo1 2>&1 | grep -q 'does not exist'; then
 		tell_status "plumb lo1 interface"
-		ifconfig lo1 create || exit
+		ifconfig lo1 create
 	fi
 }
 
@@ -548,14 +489,12 @@ assign_syslog_ip()
 {
 	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
 		tell_status "adding syslog IP to lo1"
-		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0" || exit
+		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0"
 	fi
 
-	local _present
-	_present=$(ifconfig lo1 2>&1 | grep "$JAIL_NET_PREFIX.1 ")
-	if [ -z "$_present" ]; then
+	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET_PREFIX.1 "; then
 		echo "assigning $JAIL_NET_PREFIX.1 to lo1"
-		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0 || exit
+		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0
 	fi
 }
 
@@ -576,7 +515,15 @@ configure_etc_hosts()
 $(get_jail_ip "$_j")		$_j"
 	done
 
-	echo "$_hosts" | tee -a "/etc/hosts"
+	echo "$_hosts" >> "/etc/hosts"
+}
+
+update_mt6()
+{
+	if [ -d ".git" ]; then
+		git remote update
+		git status -u no
+	fi
 }
 
 update_mt6()
@@ -588,14 +535,15 @@ update_mt6()
 }
 
 update_host() {
-	sysrc background_fsck=NO
+	sysrc -q background_fsck=NO
 	update_mt6
 	update_freebsd
 	configure_pkg_latest ""
 	configure_ntp
-	update_sendmail
+	configure_mta
 	install_periodic_conf
 	constrain_sshd_to_host
+	sshd_reorder
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
@@ -608,7 +556,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
-	check_timezone
+	if [ ! -e "/etc/localtime" ]; then tzsetup; fi
 	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }

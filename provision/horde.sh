@@ -3,10 +3,8 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-# shellcheck disable=2016
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/horde \$path/data nullfs rw 0 0\";
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/horde/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include php
 mt6-include nginx
@@ -82,13 +80,13 @@ install_horde_mysql()
 		_init_db=1
 	fi
 
-	_hordepass=$(openssl rand -hex 18)
+	_hordepass=$(get_random_pass 18 safe)
 
 	_horde_key=$(openssl rand -hex 20)
 
 	local _horde_dir="$STAGE_MNT/usr/local/www/horde/config"
 
-	tee   "$_horde_dir/conf.php" << EO_HORDE_CONF
+	store_config "$_horde_dir/conf.php" << EO_HORDE_CONF
 	<?php
 
 	\$conf['vhosts'] = false;
@@ -222,7 +220,7 @@ install_horde_mysql()
 
 EO_HORDE_CONF
 
-	tee  -a "$_horde_dir/prefs.php" << 'EO_HORDE_PREFS'
+	tee -a "$_horde_dir/prefs.php" << 'EO_HORDE_PREFS'
 	$_prefs['initial_application']['value'] = 'imp';
 EO_HORDE_PREFS
 
@@ -233,8 +231,8 @@ EO_HORDE_PREFS
 		for _jail in horde stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
-				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" \
-					| mysql_query || exit
+				echo "CREATE USER IF NOT EXISTS 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" | mysql_query || exit 1
+				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}';" | mysql_query || exit 1
 			done
 		done
 	fi
@@ -246,7 +244,7 @@ configure_horde_imp()
 
 	local _horde_imp_dir="$STAGE_MNT/usr/local/www/horde/imp/config"
 
-	tee  "$_horde_imp_dir/conf.php" << 'EO_HORDE_IMP_CONF'
+	store_config "$_horde_imp_dir/conf.php" "overwrite" << 'EO_HORDE_IMP_CONF'
 	<?php
 	/* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
 	// $Id: 48bf0b4cc99e7941b4432a29e70e145b8d654cc7 $
@@ -283,7 +281,7 @@ configure_horde_ingo()
 {
 	local _horde_ingo="$STAGE_MNT/usr/local/www/horde/ingo/config"
 
-	tee "$_horde_ingo/conf.php" << 'EO_INGO_CONF'
+	store_config "$_horde_ingo/conf.php" "overwrite" << 'EO_INGO_CONF'
 	<?php
 	/* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
 	// $Id: 48142d13ef06c07f56427fe5b43981631bdbfdb0 $
@@ -296,7 +294,7 @@ configure_horde_ingo()
 	/* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 EO_INGO_CONF
 
-	tee "$_horde_ingo/hooks.php" << 'EO_INGO_HOOKS'
+	store_config "$_horde_ingo/hooks.php" "overwrite" << 'EO_INGO_HOOKS'
 	<?php
 	class Ingo_Hooks
 	{
@@ -327,7 +325,7 @@ EO_INGO_CONF
 EO_INGO_HOOKS
 
 
-	tee "$_horde_ingo/backends.local.php" << EO_INGO_BACKEND
+	store_config "$_horde_ingo/backends.local.php" "overwrite" << EO_INGO_BACKEND
 	<?php
 
 	/* IMAP Example */
@@ -393,10 +391,8 @@ EO_INGO_BACKEND
 
 install_default_horde_conf()
 {
-
 	local _local_config_horde="$ZFS_JAIL_MNT/horde/usr/local/www/horde/config/conf.php"
 	local _horde_install="$ZFS_JAIL_MNT/horde/usr/local/www/horde"
-
 
 	if [ -f "$_local_config_horde" ]; then
 		#Assuming if Horde is configured IMP and Ingo will be as well
@@ -417,7 +413,6 @@ install_default_horde_conf()
 		tell_status "post-install configuration will be required"
 		sleep 2
 	fi
-
 }
 
 configure_horde()

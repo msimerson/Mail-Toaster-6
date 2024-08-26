@@ -4,13 +4,14 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include user
 
 install_knot()
 {
 	tell_status "installing Knot DNS 3"
-	stage_pkg_install knot3 rsync dialog4ports || exit
+	stage_pkg_install knot3 rsync || exit
 
 	install_nrpe
 	install_sentry

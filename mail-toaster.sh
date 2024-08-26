@@ -1,11 +1,9 @@
 #!/bin/sh
 
-# bump version when a change in this file effects a provision script(s)
-mt6_version() { echo "20230507"; }
+# bump version when a change in this file effects provision scripts
+mt6_version() { echo "20240319"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
-
-sed_replacement_quote() { printf "%s" "$1" | sed -E 's,([&\\/]),\\\1,g'; }
 
 get_random_ip6net()
 {
@@ -13,6 +11,32 @@ get_random_ip6net()
 	local RAND16
 	RAND16=$(od -t uI -N 2 /dev/urandom | awk '{print $2}')
 	echo "fd7a:e5cd:1fc1:$(dec_to_hex "$RAND16"):dead:beef:cafe"
+}
+
+tell_status()
+{
+	echo; echo "   ***   $1   ***"; echo
+	if [ -t 0 ]; then sleep 1; fi
+}
+
+store_config()
+{
+	# $1 - path to config file, $2 - overwrite, STDIN is file contents
+	local _overwrite=${2:-""}
+
+	if [ ! -d "$(dirname $1)" ]; then
+		tell_status "creating $(dirname $1)"
+		mkdir -p "$(dirname $1)"
+	fi
+
+	cat - > "$1.mt6"
+
+	if [ ! -f "$1" ] || [ "$_overwrite" = "overwrite" ]; then
+		tell_status "installing $1"
+		cp "$1.mt6" "$1"
+	else
+		tell_status "preserving $1"
+	fi
 }
 
 create_default_config()
@@ -34,7 +58,7 @@ create_default_config()
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
 	echo "creating mail-toaster.conf with defaults"
-	tee mail-toaster.conf <<EO_MT_CONF
+	store_config mail-toaster.conf <<EO_MT_CONF
 export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
@@ -53,25 +77,23 @@ export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
 export ZFS_JAIL_MNT="/jails"
 export ZFS_DATA_MNT="/data"
-export TOASTER_MARIADB="0"
+export TOASTER_EDITOR="vim"
+export TOASTER_EDITOR_PORT="vim-tiny"
 export TOASTER_MSA="haraka"
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_NRPE=""
 export TOASTER_PKG_AUDIT="0"
 export TOASTER_PKG_BRANCH="latest"
-export TOASTER_QMHANDLE="0"
-export TOASTER_SENTRY=""
 export TOASTER_USE_TMPFS="0"
+export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
 export CLAMAV_FANGFRISCH="0"
-export CLAMAV_UNOFFICIAL="0"
 export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
 export ROUNDCUBE_DEFAULT_HOST=""
 export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
 export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
-export SQUIRREL_SQL="0"
 
 EO_MT_CONF
 
@@ -132,7 +154,7 @@ mt6_version_check
 config
 
 # Required settings
-export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit
+export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit 1
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:="example.com"}
 export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMAIN"}
 
@@ -141,7 +163,7 @@ export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
 export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
-export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache"
+export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman"
 
 export ZFS_VOL=${ZFS_VOL:="zroot"}
 export ZFS_BHYVE_VOL="${ZFS_BHYVE_VOL:=$ZFS_VOL}"
@@ -149,6 +171,12 @@ export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:="/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:="/data"}
 export FBSD_MIRROR=${FBSD_MIRROR:="ftp://ftp.freebsd.org"}
 
+export TLS_LIBRARY=${TLS_LIBRARY:=""}
+export TOASTER_BASE_MTA=${TOASTER_BASE_MTA:=""}
+export TOASTER_BASE_PKGS=${TOASTER_BASE_PKGS:="pkg ca_root_nss"}
+export TOASTER_BUILD_DEBUG=${TOASTER_BUILD_DEBUG:="0"}
+export TOASTER_EDITOR=${TOASTER_EDITOR:="vim"}
+export TOASTER_EDITOR_PORT=${TOASTER_EDITOR_PORT:="vim-tiny"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
@@ -156,13 +184,24 @@ export TOASTER_NTP=${TOASTER_NTP:="ntp"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
+export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:="0"}
+export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:="1"}
 export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:="0"}
+export TOASTER_VQADMIN=${TOASTER_VQADMIN:="0"}
 export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:="0"}
 export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:="0"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
 export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:="Roundcube Webmail"}
 export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:="25"}
 export SQUIRREL_SQL=${SQUIRREL_SQL:="$TOASTER_MYSQL"}
+export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:="$TOASTER_MAIL_DOMAIN"}
+export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:="$TOASTER_HOSTNAME"}
+
+# shellcheck disable=2009,2317
+if ps -o args= -p "$$" | grep csh; then
+	echo; echo "ERROR: switch to sh or bash"; return 1; exit 1;
+fi
+echo "shell: $SHELL"
 
 if [ "$TOASTER_MYSQL" = "1" ]; then
 	echo "mysql enabled"
@@ -170,15 +209,20 @@ fi
 
 usage()
 {
-	if [ -n "$1" ]; then echo; echo "ERROR: missing required $1"; echo; fi
+	if [ -n "$1" ]; then echo; echo "ERROR: invalid $1"; echo; fi
 	echo; echo "Next step, edit mail-toaster.conf!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
-	exit
 }
-if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then usage TOASTER_HOSTNAME; fi
+# shellcheck disable=2317
+if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
+	usage TOASTER_HOSTNAME; return 1; exit 1
+fi
 echo "toaster host: $TOASTER_HOSTNAME"
 
-if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then usage TOASTER_MAIL_DOMAIN; fi
+# shellcheck disable=2317
+if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
+	usage TOASTER_MAIL_DOMAIN; return 1; exit 1
+fi
 echo "email domain: $TOASTER_MAIL_DOMAIN"
 
 if [ -z "$JAIL_NET6" ]; then
@@ -187,10 +231,6 @@ if [ -z "$JAIL_NET6" ]; then
 	export JAIL_NET6
 fi
 echo "IPv6 jail network: $JAIL_NET6"
-
-# shellcheck disable=2009
-if ps -o args= -p "$$" | grep csh; then usage; fi
-echo "shell: $SHELL"
 
 # little below here should need customizing. If so, consider opening
 # an issue or PR at https://github.com/msimerson/Mail-Toaster-6
@@ -205,8 +245,8 @@ if [ "$(uname)" = 'FreeBSD' ]; then
 fi
 
 # the 'base' jail that other jails are cloned from. This will be named as the
-# host OS version, ex: base-11.0-RELEASE and the snapshot name will be the OS
-# patch level, ex: base-11.0-RELEASE@p3
+# host OS version, eg: base-13.2-RELEASE and the snapshot name will be the OS
+# patch level, eg: base-13.2-RELEASE@p3
 export BASE_NAME="base-$FBSD_REL_VER"
 export BASE_VOL="$ZFS_JAIL_VOL/$BASE_NAME"
 export BASE_SNAP="${BASE_VOL}@${FBSD_PATCH_VER}"
@@ -214,7 +254,7 @@ export BASE_MNT="$ZFS_JAIL_MNT/$BASE_NAME"
 
 export STAGE_MNT="$ZFS_JAIL_MNT/stage"
 
-fatal_err() { echo; echo "FATAL: $1"; echo; exit; }
+fatal_err() { echo; echo "FATAL: $1"; echo; exit 1; }
 
 safe_jailname()
 {
@@ -236,9 +276,11 @@ zfs_filesystem_exists()
 
 zfs_snapshot_exists()
 {
-	zfs list -t snapshot "$1" 2>/dev/null | grep -q "$1" || return 1
-	echo "$1 snapshot exists"
-	return 0
+	if zfs list -t snapshot "$1" 2>/dev/null | grep -q "$1"; then
+		echo "$1 snapshot exists"
+		return
+	fi
+	false
 }
 
 zfs_mountpoint_exists()
@@ -307,7 +349,6 @@ jail_conf_header()
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
-mount.devfs;
 devfs_ruleset=5;
 path = "$ZFS_JAIL_MNT/\$name";
 interface = $JAIL_NET_INTERFACE;
@@ -427,10 +468,9 @@ add_jail_conf()
 		return
 	fi
 
-	jail_conf_extra $1
-
 	tell_status "adding $1 to /etc/jail.conf"
 	echo "$1	{$(get_safe_jail_path $1)
+		mount.fstab = \"$ZFS_DATA_MNT/$1/etc/fstab\";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
 	}" | tee -a /etc/jail.conf
@@ -447,37 +487,19 @@ get_safe_jail_path()
 	fi
 }
 
-jail_conf_extra()
-{
-	# if not present, add data mount
-	if ! echo "$JAIL_CONF_EXTRA" | grep -q "$ZFS_DATA_MNT"; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"$ZFS_DATA_MNT/$1 \$path/data nullfs rw 0 0\";"
-	fi
-
-	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
-		JAIL_CONF_EXTRA="$JAIL_CONF_EXTRA
-		mount += \"tmpfs \$path/tmp tmpfs rw,mode=01777,noexec,nosuid 0 0\";
-		mount += \"tmpfs \$path/var/run tmpfs rw,mode=01755,noexec,nosuid 0 0\";"
-	fi
-}
-
 add_jail_conf_d()
 {
-	if [ -f "/etc/jail.conf.d/$1.conf" ]; then
-		tell_status "preserving jail config /etc/jail.conf.d/$1.conf"
-		return
-	fi
+	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
+$(jail_conf_header)
 
-	jail_conf_extra $1
-
-	tell_status "creating /etc/jail.conf.d/$1.conf"
-	echo "$(jail_conf_header)
-
-$1	{$(get_safe_jail_path $1)
+$(safe_jailname $1)	{$(get_safe_jail_path $1)
+		mount.fstab = "$ZFS_DATA_MNT/$1/etc/fstab";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
-	}" | tee -a /etc/jail.conf.d/$1.conf
+		exec.created = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load";
+		exec.poststop = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload";
+	}
+EO_JAIL_RC
 }
 
 add_automount()
@@ -507,21 +529,39 @@ add_automount()
 
 stop_jail()
 {
+	tell_status "stopping jail $1"
 	local _safe; _safe=$(safe_jailname "$1")
-	echo "service jail stop $_safe"
-	service jail stop "$_safe"
+	if jail_is_running "$_safe"; then
+		echo "service jail stop $_safe"
+		if ! service jail stop "$_safe"; then
+			echo "jail -r $_safe"
+			if jail -r "$_safe" 2>/dev/null; then echo "removed"; fi
+		fi
+	fi
 
-	echo "jail -r $_safe"
-	jail -r "$_safe" 2>/dev/null
+	if jail_is_running "$_safe"; then
+		echo "jail -r $_safe"
+		if jail -r "$_safe" 2>/dev/null; then echo "removed"; fi
+	fi
 }
 
 stage_unmount()
 {
-	stage_unmount_dev
-	unmount_ports "$STAGE_MNT"
-	unmount_pkg_cache
-	unmount_data "$1"
-	stage_unmount_aux_data "$1"
+	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
+		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+		umount "$_fs"
+	done
+
+	# repeat, as sometimes a nested fs will prevent first try from success
+	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
+		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+		umount "$_fs"
+	done
+
+	if mount -t devfs | grep -q "$STAGE_MNT/dev"; then
+		echo "umount $STAGE_MNT/dev"
+		umount "$STAGE_MNT/dev" || exit 1
+	fi
 }
 
 cleanup_staged_fs()
@@ -532,27 +572,88 @@ cleanup_staged_fs()
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
-assure_data_volume_mount_is_declared()
+install_pfrule()
 {
-	if ! grep -qs "^$1" /etc/jail.conf; then
-		# config for this jail hasn't been created. It's created
-		# when the data FS is provisioned.
-		return
+	store_exec "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh" <<'EO_PF_RULE'
+#!/bin/sh
+
+# pfrule.sh
+#
+# Matt Simerson, matt@tnpi.net, 2023-06
+#
+# Use pfctl to load and unload PF rules into named anchors from config
+# files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
+
+_etcpath="$(dirname -- "$( readlink -f -- "$0"; )";)"
+
+usage() {
+    echo "   usage: $0 [ load | unload ]"
+    echo " "
+    exit 1
+}
+
+for _f in "$_etcpath"/*.conf; do
+    [ -f "$_f" ] || continue
+
+    _anchor=$(basename $_f .conf)  # nat, rdr, allow
+    _jailname=$(basename "$(dirname "$(dirname $_etcpath)")")
+    _pfctl="pfctl -a $_anchor/$_jailname"
+
+    case "$1" in
+        "load"   ) _cmd="$_pfctl -f $_f" ;;
+        "unload" ) _cmd="$_pfctl -F all" ;;
+        *        ) usage                 ;;
+    esac
+
+    echo "$_cmd"
+    $_cmd || exit 1
+done
+
+exit
+EO_PF_RULE
+}
+
+install_fstab()
+{
+	_data_mount="$ZFS_DATA_MNT/$1"
+	_jail_mount="$ZFS_JAIL_MNT/$1"
+	_fstab="$ZFS_DATA_MNT/$1/etc/fstab"
+
+	if [ ! -d "$_data_mount/etc" ]; then
+		mkdir "$_data_mount/etc" || exit 1
 	fi
 
-	if grep -qs "data/$1" /etc/jail.conf; then
-		# data fs mountpoint already declared
-		return
+	tell_status "writing data mount to $_fstab"
+	echo "# Device                Mountpoint      FStype  Options         Dump    Pass#" | tee "$_fstab" || exit 1
+	echo "$_data_mount       $_jail_mount/data nullfs  rw   0  0" | tee -a "$_fstab"
+	echo "devfs               $_jail_mount/dev  devfs   rw   0  0" | tee -a "$_fstab"
+
+	if [ -n "$JAIL_FSTAB" ]; then
+		tell_status "appending JAIL_FSTAB to fstab"
+		echo "$JAIL_FSTAB" | tee -a "$_fstab" || exit 1
 	fi
 
-	local _mp; _mp=$(data_mountpoint "$1" "\$path")
-	tell_status "roadblock: UPGRADE action required"
-	echo
-	echo "You MUST add this line to the $1 section in /etc/jail.conf to continue:"
-	echo
-	echo "	mount += \"/data/$1 $_mp nullfs rw 0 0\";"
-	echo
-	exit
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		if ! grep -q "$_jail_mount/tmp" "$_fstab"; then
+			tell_status "adding tmpfs to fstab"
+			echo "tmpfs $_jail_mount/tmp     tmpfs rw,mode=01777,noexec,nosuid  0  0" | tee -a "$_fstab"
+			echo "tmpfs $_jail_mount/var/run tmpfs rw,mode=01755,noexec,nosuid  0  0" | tee -a "$_fstab"
+		fi
+	fi
+
+	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $ZFS_JAIL_MNT/stage|" \
+		"$_fstab" > \
+		"$_fstab.stage" || exit 1
+
+	tell_status "appending pkg & ports to fstab.stage"
+	echo "/usr/ports         $STAGE_MNT/usr/ports       nullfs rw  0  0" | tee -a "$_fstab.stage"
+	echo "/var/cache/pkg     $STAGE_MNT/var/cache/pkg   nullfs rw  0  0" | tee -a "$_fstab.stage"
+
+	# copy staged fstab into place for jail shutdown
+	if [ ! -d "$ZFS_DATA_MNT/stage/etc" ]; then
+		mkdir -p "$ZFS_DATA_MNT/stage/etc" || exit 1
+	fi
+	cp "$_fstab.stage" "$ZFS_DATA_MNT/stage/etc/fstab" || exit 1
 }
 
 create_staged_fs()
@@ -561,46 +662,36 @@ create_staged_fs()
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
-	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit
+	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
+	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
+		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
+	fi
+
+	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
+		tell_status "creating $ZFS_JAIL_MNT/stage/data"
+		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
+	fi
 
 	stage_sysrc hostname="$1"
-	sed -i '' -e "/^hostname=/ s/_HOSTNAME_/$1/" \
-		"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" || exit
+	if [ -f "$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" ]; then
+		sed -i '' -e "/^hostname=/ s/_HOSTNAME_/$1/" \
+			"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf"
+	fi
 
-	assure_data_volume_mount_is_declared "$1"
 	assure_ip6_addr_is_declared "$1"
+	stage_resolv_conf
+	echo "MASQUERADE $1@$TOASTER_MAIL_DOMAIN" >> "$STAGE_MNT/etc/dma/dma.conf"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-	mount_data "$1" "$STAGE_MNT" || exit 1
-
-	stage_mount_ports
-	stage_mount_pkg_cache
+	install_fstab $1
+	install_pfrule $1
 	echo
-}
-
-stage_unmount_aux_data()
-{
-	case "$1" in
-		spamassassin)  unmount_data geoip ;;
-		haraka)        unmount_data geoip ;;
-		whmcs )        unmount_data geoip ;;
-	esac
-}
-
-stage_mount_aux_data()
-{
-	case "$1" in
-		spamassassin )  mount_data geoip ;;
-		haraka )        mount_data geoip ;;
-		whmcs )         mount_data geoip ;;
-	esac
 }
 
 enable_bsd_cache()
 {
-	# see if jails are running
-	jls | grep -q bsd_cache || return;
-	jls | grep -q dns || return;
+	if ! jail_is_running bsd_cache; then return; fi
+	if ! jail_is_running dns; then return; fi
 
 	# assure services are available
 	sockstat -4 -6 -p 80 -q -j bsd_cache | grep -q . || return
@@ -608,7 +699,7 @@ enable_bsd_cache()
 
 	tell_status "enabling bsd_cache"
 
-	tee "$STAGE_MNT/etc/resolv.conf" <<EO_RESOLV
+	store_config "$STAGE_MNT/etc/resolv.conf" "overwrite" <<EO_RESOLV
 nameserver $(get_jail_ip dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
@@ -616,15 +707,13 @@ EO_RESOLV
 	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
-	tell_status "updating $_repo_dir/FreeBSD.conf"
-	tee "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
+	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 FreeBSD: {
 	enabled: no
 }
 EO_PKG_CONF
 
-	tell_status "updating $_repo_dir/MT6.conf"
-	tee "$_repo_dir/MT6.conf" <<EO_PKG_MT6
+	store_config "$_repo_dir/MT6.conf" <<EO_PKG_MT6
 MT6: {
 	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
 	enabled: yes
@@ -643,11 +732,11 @@ EO_PKG_MT6
 
 start_staged_jail()
 {
-	local _name="$1"
-	local _path="$2"
+	local _name=${1:-"$SAFE_NAME"}
+	local _path=${2:-"$STAGE_MNT"}
+	local _fstab="$ZFS_DATA_MNT/$_name/etc/fstab.stage"
 
-	if [ -z "$_name" ]; then _name="$SAFE_NAME"; fi
-	if [ -z "$_path" ]; then _path="$STAGE_MNT"; fi
+	if [ "$_name" = "base" ]; then _fstab="$BASE_MNT/data/etc/fstab"; fi
 
 	tell_status "stage jail $_name startup"
 
@@ -661,12 +750,10 @@ start_staged_jail()
 		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		mount.devfs \
+		mount.fstab="$_fstab" \
 		devfs_ruleset=5 \
-		$JAIL_START_EXTRA \
-		|| exit
+		$JAIL_START_EXTRA
 
-	stage_mount_aux_data "$_name"
 	enable_bsd_cache
 
 	tell_status "updating pkg database"
@@ -685,7 +772,7 @@ rename_staged_to_ready()
 	local _zfs_rename="zfs rename $ZFS_JAIL_VOL/stage $_new_vol"
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ "$_tries" -gt 10 ]; then
+		if [ "$_tries" -gt 5 ]; then
 			echo "trying to force rename"
 			_zfs_rename="zfs rename -f $ZFS_JAIL_VOL/stage $_new_vol"
 		fi
@@ -724,18 +811,12 @@ rename_ready_to_active()
 	zfs rename "$ZFS_JAIL_VOL/${1}.ready" "$ZFS_JAIL_VOL/$1" || exit
 }
 
-tell_status()
-{
-	echo; echo "   ***   $1   ***"; echo
-	sleep 1
-}
-
 tell_settings()
 {
-	echo; echo "   ***   Configured $1 settings:"
+	echo; echo "   ***   Configured $1 settings:   ***"; echo
 	set | grep "^$1_"
 	echo
-	sleep 2
+	if [ -t 0 ]; then sleep 2; fi
 }
 
 proclaim_success()
@@ -745,17 +826,19 @@ proclaim_success()
 
 stage_clear_caches()
 {
-	echo "clearing pkg cache"
-	rm -rf "$STAGE_MNT/var/cache/pkg/*"
-
-	echo "clearing freebsd-update cache"
-	rm -rf "$STAGE_MNT/var/db/freebsd-update/*"
+	for _c in "$STAGE_MNT/var/cache/pkg" "$STAGE_MNT/var/db/freebsd-update"
+	do
+		echo "clearing cache ($_c)"
+		rm -rf "${_c:?}"/*
+	done
 }
 
 stage_resolv_conf()
 {
+	if ! jail_is_running dns; then return; fi
+
 	tell_status "configuring DNS for local recursor"
-	echo "nameserver $(get_jail_ip dns)" > "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip  dns)" >  "$STAGE_MNT/etc/resolv.conf"
 	echo "nameserver $(get_jail_ip6 dns)" >> "$STAGE_MNT/etc/resolv.conf"
 }
 
@@ -784,16 +867,13 @@ promote_staged_jail()
 	seed_pkg_audit
 	tell_status "promoting jail $1"
 	stop_jail stage
-	stage_resolv_conf
+	stage_clear_caches
 	stage_unmount "$1"
 	ipcrm -W
-	stage_clear_caches
 
 	rename_staged_to_ready "$1"
 
 	stop_jail "$1"
-	unmount_data "$1" "$ZFS_JAIL_MNT/$1"
-	unmount_ports "$ZFS_JAIL_MNT/$1"
 
 	rename_active_to_last "$1"
 	rename_ready_to_active "$1"
@@ -814,7 +894,11 @@ stage_pkg_install()
 
 stage_port_install()
 {
-	# $1 is the port directory (ex: mail/dovecot)
+	# $1 is the port directory (eg: mail/dovecot)
+
+	jexec "$SAFE_NAME" pkg install -y pkgconf portconfig
+	# portconfig replaces dialog4ports (as of Oct 2023)
+
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
 
@@ -845,33 +929,39 @@ stage_exec()
 	jexec "$SAFE_NAME" "$@"
 }
 
+port_is_listening()
+{
+	local _port=${1:-"25"}
+	local _jail=${2:-"stage"}
+
+	if [ -n "$(sockstat -l -q -4 -6 -p "$_port" -j "$_jail")" ]; then
+		true
+	else
+		false
+	fi
+}
+
 stage_listening()
 {
-	echo "checking for port $1 listener in staged jail"
-	if [ -z "$2" ]; then
-		sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO || exit
-		return
-	fi
+	local _port=${1:-"25"}
+	local _max_tries=${2:-"3"}
+	local _sleep=${3:-"1"}
+	local _try=0
 
-	local _tries=0
-	local _listening=""
-	local _sleep="$3"
-	if [ -z "$_sleep" ]; then _sleep=1; fi
+	echo; echo -n "checking for port $_port listening in staged jail..."
 
-	until [ -n "$_listening" ]; do
-		_tries=$((_tries + 1))
+	until port_is_listening "$_port"; do
+		_try=$((_try + 1))
 
-		if [ "$_tries" -gt "$2" ]; then
-			echo "port $1 is NOT listening"
-			exit
+		if [ "$_try" -gt "$_max_tries" ]; then
+			echo "FAILED"
+			exit 1
 		fi
-		echo "	checking port $1"
-		_listening=$(sockstat -l -4 -6 -p "$1" -j "$(jls -j stage jid)" | grep -v PROTO)
+		echo -n "."
 		sleep "$_sleep"
 	done
 
-	echo
-	echo "Success! Port $1 is listening in staging jail"
+	echo "OK"; echo
 }
 
 stage_test_running()
@@ -879,32 +969,6 @@ stage_test_running()
 	echo "checking for process $1 in staged jail"
 	pgrep -j stage "$1" || exit
 	echo "ok"
-}
-
-stage_mount_ports()
-{
-	echo "mount $STAGE_MNT/usr/ports"
-	mount_nullfs /usr/ports "$STAGE_MNT/usr/ports" || exit
-}
-
-stage_mount_pkg_cache()
-{
-	echo "mount $STAGE_MNT/var/cache/pkg"
-	mount_nullfs /var/cache/pkg "$STAGE_MNT/var/cache/pkg" || exit
-}
-
-unmount_ports()
-{
-	if [ ! -d "$1/usr/ports/mail" ]; then
-		return
-	fi
-
-	if ! mount -t nullfs | grep -q "$1"; then
-		return
-	fi
-
-	echo "unmount $1/usr/ports"
-	umount "$1/usr/ports" || exit
 }
 
 unmount_pkg_cache()
@@ -919,7 +983,12 @@ unmount_pkg_cache()
 
 freebsd_release_url_base()
 {
-	echo "$FBSD_MIRROR/pub/FreeBSD/releases/$(uname -m)/$FBSD_REL_VER"
+	_major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
+	if [ "$_major_ver" -lt "13" ]; then
+		echo "http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases"
+	else
+		echo "ftp://ftp.freebsd.org/pub/FreeBSD/releases"
+	fi
 }
 
 stage_fbsd_package()
@@ -927,8 +996,9 @@ stage_fbsd_package()
 	local _dest="$2"
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
-	tell_status "downloading $(freebsd_release_url_base)/$1.txz"
-	fetch -m "$(freebsd_release_url_base)/$1.txz" || exit
+	_file_uri="$(freebsd_release_url_base)/$(uname -m)/$FBSD_REL_VER/$1.txz"
+	tell_status "downloading $_file_uri"
+	fetch -m "$_file_uri" || exit
 	echo "done"
 
 	tell_status "extracting FreeBSD package $1.tgz to $_dest"
@@ -936,78 +1006,27 @@ stage_fbsd_package()
 	echo "done"
 }
 
-mount_data()
-{
-	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
-
-	if ! zfs_filesystem_exists "$_data_vol"; then
-		echo "no $_data_vol to mount"
-		return
-	fi
-
-	local _data_mnt; _data_mnt="$ZFS_DATA_MNT/$1"
-	local _data_mp;  _data_mp=$(data_mountpoint "$1" "$2")
-
-	if [ ! -d "$_data_mp" ]; then
-		echo "mkdir -p $_data_mp"
-		mkdir -p "$_data_mp" || exit 1
-	fi
-
-	if mount -t nullfs | grep -q "$_data_mp"; then
-		echo "$_data_mp already mounted!"
-		exit 1
-	fi
-
-	echo "mount_nullfs $_data_mnt $_data_mp"
-	mount_nullfs "$_data_mnt" "$_data_mp" || exit 1
-}
-
 unmount_data()
 {
+	# $1 is ZFS fs (eg: /data/mysql)
 	local _data_vol; _data_vol="$ZFS_DATA_VOL/$1"
 
 	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
 
-	local _data_mp=; _data_mp=$(data_mountpoint "$1" "$2")
-
-	if mount -t nullfs | grep "$_data_mp"; then
-		echo "unmount data fs $_data_mp"
+	local _data_mp="$STAGE_MNT/data"
+	if mount -t nullfs | grep -q "$_data_mp"; then
+		tell_status "unmounting data fs $_data_mp"
 		umount -t nullfs "$_data_mp"
 	fi
 }
 
-data_mountpoint()
-{
-	local _base_dir="$2"
-	if [ -z "$_base_dir" ]; then
-		_base_dir="$STAGE_MNT"  # default to stage
-	fi
-
-	case "$1" in
-		avg )       echo "$_base_dir/data/avg"; return ;;
-		clamav )	echo "$_base_dir/var/db/clamav"; return ;;
-		geoip )     echo "$_base_dir/usr/local/share/GeoIP"; return ;;
-		mysql )     echo "$_base_dir/var/db/mysql"; return ;;
-		vpopmail )  echo "$_base_dir/usr/local/vpopmail"; return ;;
-	esac
-
-	echo "$_base_dir/data"
-}
-
-stage_unmount_dev()
-{
-	if ! mount -t devfs | grep -q "$STAGE_MNT/dev"; then
-		return
-	fi
-	echo "umount $STAGE_MNT/dev"
-	umount "$STAGE_MNT/dev" || exit
-}
-
 get_public_facing_nic()
 {
+	local _ver=${1:-"ipv4"}
+
 	export PUBLIC_NIC
 
-	if [ "$1" = 'ipv6' ]; then
+	if [ "$_ver" = 'ipv6' ]; then
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | tail -n1)
 	else
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
@@ -1018,20 +1037,25 @@ get_public_facing_nic()
 		echo "public NIC detection failed"
 		exit 1
 	fi
+
+	echo "$PUBLIC_NIC"
 }
 
 get_public_ip()
 {
-	get_public_facing_nic "$1"
+	local _ver=${1:-"ipv4"}
 
-	if [ "$1" = "ipv6" ]; then
-		if [ -n "$PUBLIC_IP6" ]; then return; fi
-		export PUBLIC_IP6
+	get_public_facing_nic "$_ver"
+
+	export PUBLIC_IP6
+	export PUBLIC_IP4
+
+	if [ "$_ver" = "ipv6" ]; then
 		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
+		echo "$PUBLIC_IP6"
 	else
-		if [ -n "$PUBLIC_IP4" ]; then return; fi
-		export PUBLIC_IP4
 		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
+		echo "$PUBLIC_IP4"
 	fi
 }
 
@@ -1040,7 +1064,7 @@ fetch_and_exec()
 	if [ ! -d provision ]; then mkdir provision; fi
 
 	if [ -d ".git" ]; then
-		tell_status "skipping fetch, running from git"
+		tell_status "running from git, skipping fetch"
 	else
 		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
 	fi
@@ -1064,21 +1088,27 @@ install_sentry()
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios sentry plugin"
 		stage_pkg_install nagios-plugins || exit
-		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master/contrib/check_sentry
+		stage_exec fetch -o /usr/local/libexec/nagios/check_sentry $TOASTER_SRC_URL/contrib/check_sentry
 	fi
 }
 
 provision_mt6()
 {
-	for _j in host base dns bsd_cache mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
+	for _j in host base dns mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
 		fetch_and_exec "$_j" || break
 	done
 }
 
 provision()
 {
+	for _var in JAIL_START_EXTRA JAIL_CONF_EXTRA JAIL_FSTAB; do
+		unset "$_var"
+	done
+
 	case "$1" in
 		host)   fetch_and_exec "$1"; return;;
+		web)    for _j in haproxy webmail roundcube snappymail; do fetch_and_exec "$_j"; done
+			return;;
 		mt6)    provision_mt6; return;;
 	esac
 
@@ -1094,7 +1124,7 @@ reverse_list()
 {
 	# shellcheck disable=2068
 	for _j in $@; do
-		_rev_list="${_j} ${_rev_list}"
+		local _rev_list="${_j} ${_rev_list}"
 	done
 	echo "$_rev_list"
 }
@@ -1210,25 +1240,6 @@ unprovision()
 	echo "done"
 }
 
-add_pf_portmap()
-{
-	if grep -q "$2" /etc/pf.conf; then
-		echo "NOTICE: PF rules for $2 exist, skipping"
-		return
-	fi
-
-	tell_status "adding redirection rules for $2"
-	sed -i.bak \
-		-e "/^## Filtering rules/ c\\
-rdr inet  proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip  "$2")\\
-rdr inet6 proto tcp from any to <ext_ips> port { $1 } -> $(get_jail_ip6 "$2")\\
-\\
-## Filtering rules" \
-		/etc/pf.conf || exit
-
-	pfctl -f /etc/pf.conf || exit
-}
-
 mt6-include()
 {
 	if [ ! -d include ]; then
@@ -1248,6 +1259,11 @@ mt6-include()
 
 	# shellcheck source=include/$.sh disable=SC1091
 	. "include/$1.sh"
+}
+
+jail_is_running()
+{
+	jls -d -j $1 name 2>/dev/null | grep -q $1
 }
 
 jail_rename()
@@ -1291,7 +1307,7 @@ configure_pkg_latest()
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
-	tee "$REPODIR/FreeBSD.conf" <<EO_PKG
+	store_config "$REPODIR/FreeBSD.conf" "overwrite" <<EO_PKG
 FreeBSD: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }
@@ -1314,7 +1330,7 @@ assure_ip6_addr_is_declared()
 	sed -i.bak \
 		-e "/^$1/,/ip4/ s/ip4.*;/&\\
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
-		/etc/jail.conf || exit
+		/etc/jail.conf
 }
 
 assure_jail()
@@ -1327,22 +1343,69 @@ assure_jail()
 }
 
 preserve_file() {
-	# $1 is the jail name
-	# $2 is a path to a file within a jail
-	local _active_cfg="$ZFS_JAIL_MNT/$1/$2"
-	local _stage_cfg="${STAGE_MNT}/$2"
+	local _jail_name=$1
+	local _file_path=$2
+
+	local _active_cfg="$ZFS_JAIL_MNT/$_jail_name/$_file_path"
+	local _stage_cfg="${STAGE_MNT}/$_file_path"
+
 	if [ -f "$_active_cfg" ]; then
 		tell_status "preserving $_active_cfg"
-		cp "$_active_cfg" "$_stage_cfg" || return 1
+		cp -p "$_active_cfg" "$_stage_cfg" || return 1
 		return
 	fi
 
-	if [ -d "$ZFS_JAIL_MNT/$1.last" ]; then
-		_active_cfg="$ZFS_JAIL_MNT/$1.last/$2"
+	if [ -d "$ZFS_JAIL_MNT/$_jail_name.last" ]; then
+		_active_cfg="$ZFS_JAIL_MNT/$_jail_name.last/$_file_path"
 		if [ -f "$_active_cfg" ]; then
 			tell_status "preserving $_active_cfg"
-			cp "$_active_cfg" "$_stage_cfg" || return 1
+			cp -p "$_active_cfg" "$_stage_cfg" || return 1
 			return
 		fi
 	fi
 }
+
+get_random_pass()
+{
+	local _pass_len=${1:-"14"}
+	local _strength=${2:-"good"}
+
+	# Password Entropy = log2(charset_len^pass_len)
+	case "$_strength" in
+		strong)
+			# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
+			# more entropy with 94 ASCII chars but special chars are often problematic
+			LC_ALL=C tr -dc '[:graph:]' </dev/urandom | head -c "$_pass_len"
+			;;
+		safe)
+			# good entropy, limited by 62 alpha-num characters (no symbols)
+			LC_ALL=C tr -dc A-Za-z0-9 </dev/urandom | head -c "$_pass_len"
+			;;
+		*)
+			# default, good, limited by base64 charset
+			openssl rand -base64 "$(echo "$_pass_len + 4" | bc)" | head -c "$_pass_len"
+			;;
+	esac
+
+	echo
+}
+
+store_exec()
+{
+	# $1 - path to file, STDIN is file contents
+	if [ ! -d "$(dirname $1)" ]; then
+		tell_status "creating $(dirname $1)"
+		mkdir -p "$(dirname $1)" || exit 1
+	fi
+
+	tell_status "installing $1"
+	cat - > "$1" || exit 1
+	chmod 755 "$1"
+}
+
+# shellcheck disable=3044,3018
+onexit() { while caller $((n++)); do :; done; }
+
+if [ "$TOASTER_BUILD_DEBUG" = "1" ]; then
+	trap onexit EXIT
+fi

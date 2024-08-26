@@ -1,21 +1,22 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		allow.raw_sockets;"
+export JAIL_FSTAB=""
 
 install_unbound()
 {
 	tell_status "installing unbound"
-	stage_pkg_install unbound || exit
+	stage_pkg_install unbound
 }
 
 get_mt6_data()
 {
-	get_public_ip
-
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
@@ -53,9 +54,7 @@ get_mt6_data()
 
 install_access_conf()
 {
-	if [ ! -f "$ZFS_DATA_MNT/dns/access.conf" ]; then
-		tell_status "installing access.conf"
-		tee "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
+	store_config "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
@@ -64,20 +63,13 @@ install_access_conf()
 	   access-control: $JAIL_NET6::/64 allow
 
 EO_UNBOUND_ACCESS
-	else
-		tell_status "preserving access.conf"
-	fi
 }
 
 install_local_conf()
 {
-	if [ -f "$ZFS_DATA_MNT/dns/mt6-local.conf" ]; then
-		tell_status "updating unbound/mt6-local.conf"
-	else
-		tell_status "installing unbound/mt6-local.conf"
-	fi
+	get_public_ip
 
-	tee "$ZFS_DATA_MNT/dns/mt6-local.conf" <<EO_UNBOUND
+	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
 	   $(get_mt6_data)
@@ -92,10 +84,13 @@ tweak_unbound_conf()
 	sed -i.bak \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
-		-e '/# use-syslog/      s/# //' \
-		-e '/# chroot: /        s/# //; s/".*"/""/' \
-		-e '/# hide-identity: / s/# //; s/no/yes/' \
-		-e '/# hide-version: /  s/# //; s/no/yes/' \
+		-e '/# use-syslog/s/# //' \
+		-e '/# chroot: /s/# //' \
+		-e '/chroot: /s/".*"/""/' \
+		-e '/# hide-identity: /s/# //' \
+		-e '/hide-identity: /s/no/yes/' \
+		-e '/# hide-version: /s/# //' \
+		-e '/hide-version: /s/no/yes/' \
 		-e '/# access-control: ::ffff:127.*/ a\ 
 include: "/data/access.conf" \
 ' \
@@ -105,21 +100,21 @@ include: "/data/mt6-local.conf" \
 		-e '/^remote-control:/ a\ 
 	include: "/data/control.conf" \
 ' \
-		"$UNBOUND_DIR/unbound.conf" || exit
+		"$UNBOUND_DIR/unbound.conf"
 }
 
 enable_control()
 {
-	tell_status "configuring unbound-control"
 	if [ -d "$ZFS_DATA_MNT/dns/control" ]; then
-		tell_status "preserving unbound control"
+		tell_status "preserving unbound-control"
 		return
 	fi
 
 	tell_status "creating $ZFS_DATA_MNT/dns/control"
-	mkdir "$ZFS_DATA_MNT/dns/control" || exit
+	mkdir "$ZFS_DATA_MNT/dns/control"
 
-	tee -a "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+	tell_status "configuring unbound-control"
+	tee "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 
@@ -143,10 +138,10 @@ configure_unbound()
 	UNBOUND_DIR="$STAGE_MNT/usr/local/etc/unbound"
 	UNBOUND_LOCAL=""
 
-	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf" || exit
+	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf"
 	if [ -f 'unbound.conf.local' ]; then
 		tell_status "moving unbound.conf.local to data volume"
-		mv unbound.conf.local "$ZFS_DATA_MNT/dns/" || exit
+		mv unbound.conf.local "$ZFS_DATA_MNT/dns/"
 	fi
 
 	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
@@ -166,7 +161,7 @@ start_unbound()
 {
 	tell_status "starting unbound"
 	stage_sysrc unbound_enable=YES
-	stage_exec service unbound start || exit
+	stage_exec service unbound start
 }
 
 test_unbound()
@@ -178,14 +173,25 @@ test_unbound()
 	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 
 	# test if we get an answer
-	stage_exec host dns || exit
+	stage_exec host dns
 
 	# set it back to production value
 	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
 	echo "it worked."
 }
 
-base_snapshot_exists || exit
+switch_host_resolver()
+{
+	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
+
+	echo "switching host resolver to local"
+	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns) $(get_jail_ip6 dns)"
+	echo "nameserver $(get_jail_ip dns)
+nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
+	sysrc -f /etc/resolvconf.conf resolvconf=NO
+}
+
+base_snapshot_exists || exit 1
 create_staged_fs dns
 start_staged_jail dns
 install_unbound
@@ -193,15 +199,4 @@ configure_unbound
 start_unbound
 test_unbound
 promote_staged_jail dns
-
-if [ ! -f /etc/resolv.conf.orig ]; then
-	cp /etc/resolv.conf /etc/resolv.conf.orig
-fi
-
-if ! grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf;
-then
-	echo "switching host resolver to $(get_jail_ip dns)"
-	echo "nameserver $(get_jail_ip dns)" > /etc/resolv.conf
-	echo "nameserver $(get_jail_ip6 dns)" >> /etc/resolv.conf
-	cat /etc/resolv.conf.orig >> /etc/resolv.conf
-fi
+switch_host_resolver

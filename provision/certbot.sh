@@ -2,6 +2,10 @@
 
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
+
 install_certbot()
 {
 	tell_status "installing certbot"
@@ -10,7 +14,7 @@ install_certbot()
 
 install_deploy_haproxy()
 {
-	tee "$_deploy/deploy/haproxy" <<'EO_LE_HAPROXY_DEPLOY'
+	store_config "$_deploy/deploy/haproxy" <<'EO_LE_HAPROXY_DEPLOY'
 #!/usr/bin/env python3.8
 
 import os

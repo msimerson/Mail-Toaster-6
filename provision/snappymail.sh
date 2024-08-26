@@ -1,9 +1,12 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include php
 mt6-include nginx
@@ -12,7 +15,7 @@ PHP_VER="82"
 
 install_snappymail()
 {
-	local _php_modules="curl dom gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
+	local _php_modules="ctype curl dom fileinfo gd iconv intl mbstring pdo_sqlite pecl-APCu pecl-gnupg pecl-uuid phar session simplexml sodium tidy xml zip zlib"
 
 	if [ "$TOASTER_MYSQL" != "1" ]; then
 		tell_status "using sqlite DB backend"
@@ -27,13 +30,17 @@ install_snappymail()
 		stage_make_conf snappymail_UNSET 'mail_snappymail_UNSET=SQLITE3 PGSQL REDIS LDAP'
 	fi
 
-	install_php "$PHP_VER" "$_php_modules" || exit
-	install_nginx || exit
+	install_php "$PHP_VER" "$_php_modules"
+	install_nginx
+
+	if ! stage_exec pkg install -y php82-pecl-xxtea; then
+		stage_pkg_install bsddialog gnupg autoconf automake re2c pcre2 pkgconf libxml2
+	fi
 
 	tell_status "installing snappymail"
-	# stage_pkg_install snappymail-php$PHP_VER
 	stage_pkg_install gnupg
-	stage_port_install mail/snappymail || exit
+	# stage_pkg_install snappymail-php$PHP_VER
+	stage_port_install mail/snappymail
 }
 
 configure_nginx_server()
@@ -85,19 +92,13 @@ configure_nginx_server()
 install_default_json()
 {
 	local _rlconfdir="$ZFS_DATA_MNT/snappymail/_data_/_default_"
-	local _djson="$_rlconfdir/domains/default.json"
-	if [ -f "$_djson" ]; then
-		tell_status "preserving default.json"
-		return
-	fi
-
 	if [ ! -d "$_rlconfdir/domains" ]; then
 		tell_status "creating default/domains dir"
-		mkdir -p "$_rlconfdir/domains" || exit
+		mkdir -p "$_rlconfdir/domains"
 	fi
 
-	tell_status "installing domains/default.json"
-	tee -a "$_djson" <<EO_JSON
+	local _djson="$_rlconfdir/domains/default.json"
+	store_config "$_djson" "overwrite" <<EO_JSON
 {
     "name": "*",
     "IMAP": {

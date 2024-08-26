@@ -4,15 +4,13 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 install_ghost()
 {
 	tell_status "install ghost"
 
-	stage_pkg_install python27
-	stage_exec ln -s /usr/local/bin/python2.7 /usr/local/bin/python
-
-	stage_pkg_install npm-node10 || exit
+	stage_pkg_install npm-node18 || exit
 	stage_exec npm install -g ghost-cli@latest
 }
 
@@ -28,7 +26,7 @@ configure_ghost()
 start_ghost()
 {
 	tell_status "starting up ghost"
-	stage_exec bash -c 'cd /data/www/ghost && ghost start'
+	stage_exec bash -c 'cd /data/www/ghost && ghost start || exit 1'
 }
 
 test_ghost()

@@ -1,31 +1,58 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
 
-export VPOPMAIL_OPTIONS_SET="CLEAR_PASSWD"
-export VPOPMAIL_OPTIONS_UNSET="ROAMING"
+. mail-toaster.sh
+
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
+
+export VPOPMAIL_OPTIONS_SET=""
+export VPOPMAIL_OPTIONS_UNSET="ROAMING"
 
 mt6-include vpopmail
 mt6-include mysql
 
+install_maildrop_port()
+{
+	stage_make_conf mail_maildrop_ "
+mail_maildrop_UNSET=DOCS
+"
+	# libidn is needed for 3.0.x versions
+	stage_pkg_install courier-unicode libidn2 pcre pcre2 perl5
+
+	sed -i '' \
+		-e 's/3\.[0-9]\.[0-9]/3.1.0/' \
+		/usr/ports/mail/maildrop/Makefile
+
+	if ! grep -qs 3.1.0 /usr/ports/mail/maildrop/distinfo; then
+		tee -a /usr/ports/mail/maildrop/distinfo <<EO_MAILDROP_310
+SHA256 (maildrop-3.1.0.tar.bz2) = b6000075de1d4ffd0d1e7dc3127bc06c04bf1244b00bae853638150823094fec
+SIZE (maildrop-3.1.0.tar.bz2) = 2154698
+EO_MAILDROP_310
+	fi
+
+	export BATCH=${BATCH:="1"}
+	stage_port_install mail/maildrop
+}
+
 install_maildrop()
 {
 	tell_status "installing maildrop"
-	stage_pkg_install maildrop
+	# stage_pkg_install maildrop
+	install_maildrop_port
 
 	tell_status "installing maildrop filter file"
-	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt" || exit
+	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt"
 
 	tell_status "adding legacy mailfilter for MT5 compatibility"
-	mkdir -p "$STAGE_MNT/usr/local/etc/mail" || exit
-	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/" || exit
+	mkdir -p "$STAGE_MNT/usr/local/etc/mail"
+	cp "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/"
 
 	tell_status "setting permissions on mailfilter files"
-	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
-	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter" || exit
+	chown 89:89 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter"
+	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter"
 }
 
 install_lighttpd()
@@ -53,13 +80,16 @@ extforward.forwarder = (
      "$(get_jail_ip6 haproxy)"  => "trust",
 )
 
+#auth.backend                   = "plain"
 auth.backend                   = "htdigest"
-auth.backend.htdigest.userfile = "/usr/local/etc/WebUsers"
+auth.backend.plain.userfile    = "/data/etc/WebUsers.plain"
+auth.backend.htdigest.userfile = "/data/etc/WebUsers.digest"
 
 auth.require   = ( "/cgi-bin/vqadmin" =>
                      (
+                         #"method"  => "basic",
                          "method"  => "digest",
-                         "realm"   => "Admins Only",
+                         "realm"   => "vqadmin",
                          "require" => "valid-user"
                       ),
                  )
@@ -67,8 +97,12 @@ auth.require   = ( "/cgi-bin/vqadmin" =>
 EO_LIGHTTPD
 
 	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
-		sed -i.bak -e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
+		sed -i.bak \
+			-e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' \
+			"$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	fi
+
+	preserve_file vpopmail "/usr/local/etc/lighttpd/lighttpd.conf"
 
 	stage_sysrc lighttpd_enable=YES
 	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
@@ -80,8 +114,8 @@ install_qmailadmin()
 	tell_status "installing qmailadmin"
 	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man
 	stage_make_conf mail_qmailadmin_ '
-mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA SPAM_DETECTION TRIVIAL_PASSWORD USER_INDEX
-mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
+mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA TRIVIAL_PASSWORD USER_INDEX
+mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 '
 
 	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" ]; then
@@ -95,19 +129,20 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL
 
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
 
-	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
-		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
-	fi
-	stage_port_install mail/qmailadmin || exit
+	stage_port_install devel/autoconf
+	stage_port_install mail/qmailadmin
 
 	install_lighttpd
 }
 
 install_vqadmin()
 {
+	if [ "$TOASTER_VQADMIN" != "1" ]; then return; fi
+
 	tell_status "installing vqadmin"
 	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
-	stage_port_install mail/vqadmin || exit
+	stage_port_install mail/vqadmin
+	stage_exec ln /usr/local/www/cgi-bin/vqadmin/html/en-us /usr/local/www/cgi-bin/vqadmin/html/en-US
 }
 
 mysql_error_warning()
@@ -142,7 +177,7 @@ install_vpopmail_mysql_grants()
 		return
 	fi
 
-	local _vpass; _vpass=$(openssl rand -hex 18)
+	local _vpass; _vpass=$(get_random_pass 18 safe)
 
 	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
 	local _ip="${JAIL_NET_PREFIX}.0/24"
@@ -151,19 +186,23 @@ install_vpopmail_mysql_grants()
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
-		"$_vpe" || exit
+		"$_vpe"
 
 	tell_status "setting up mysql user vpopmail"
 	for _jail in stage vpopmail dovecot sqwebmail; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			mysql_user_exists vpopmail $_ip \
-				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query \
-				|| exit 1
+				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query
 
-			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query || exit
+			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query
 		done
 	done
+}
+
+install_vpopmail_mysql_aliastable()
+{
+	echo "CREATE TABLE IF NOT EXISTS aliasdomains (alias varchar(100) NOT NULL, domain varchar(100) NOT NULL, PRIMARY KEY (alias));" | mysql_query vpopmail || return 1
 }
 
 install_vpop_nrpe()
@@ -189,9 +228,9 @@ install_quota_report()
 	_qr="$STAGE_MNT/usr/local/etc/periodic/daily/toaster-quota-report"
 
 	tell_status "installing quota_report"
-	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily" || exit
-	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report" || exit
-	chmod 755 "$_qr" || exit
+	mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
+	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
+	chmod 755 "$_qr"
 
 	sed -i '' \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
@@ -214,14 +253,19 @@ install_vpopmail()
 	fi
 
 	tell_status "installing vpopmail package"
-	stage_pkg_install vpopmail || exit
+	stage_pkg_install vpopmail
+
+	stage_port_install devel/gmake
 
 	install_vpopmail_port
+	#install_vpopmail_source
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
+		install_vpopmail_mysql_aliastable
 	fi
 
 	install_qmailadmin
+	install_vqadmin
 	install_vpop_nrpe
 }
 
@@ -242,9 +286,10 @@ configure_vpopmail()
 	stage_pkg_install p5-Package-Constants
 	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
-		tell_status "ATTN: Your postmaster password is..."
-		stage_exec /usr/local/vpopmail/bin/vadddomain -r14 "$TOASTER_MAIL_DOMAIN"
+	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
+		local _ppass; _ppass=$(get_random_pass 14)
+		tell_status "ATTN: Your postmaster password is: $_ppass"
+		stage_exec /usr/local/vpopmail/bin/vadddomain "$TOASTER_MAIL_DOMAIN" "$_ppass"
 	fi
 }
 
@@ -267,8 +312,83 @@ test_vpopmail()
 	echo "it worked"
 }
 
-base_snapshot_exists || exit
+migrate_vpopmail_home()
+{
+	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains" ]; then
+		# no vpopmail data or data already migrated
+		return
+	fi
+
+	echo '
+	WARNING: vpopmail data migration required. Migration requires that you
+	         manually perform the following steps:
+
+	1. stop the running dovecot and vpopmail jails
+
+		   service jail stop dovecot vpopmail
+
+	2. move the vpopmail data into a "home" subdirectory
+
+           cd /data/vpopmail
+           mkdir home
+           mv bin doc domains etc include lib qmail-control qmail-users home/
+
+    3. edit /etc/jail.conf per this diff:
+
+# diff -u /etc/jail.conf.bak /etc/jail.conf
+--- /etc/jail.conf.bak	2023-09-29 18:18:38.958413000 -0400
++++ /etc/jail.conf	2023-09-29 18:18:46.394384000 -0400
+@@ -17,14 +17,15 @@
+ vpopmail	{
+ 		ip4.addr = 172.16.15.8;
+ 		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:0008;
+-		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
++		mount += "/data/vpopmail $path/data nullfs rw 0 0";
++		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
+ 	}
+ 
+ dovecot	{
+ 		ip4.addr = 172.16.15.15;
+ 		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:000f;
+ 		mount += "/data/dovecot $path/data nullfs rw 0 0";
+-		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
++		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
+ 	}
+ 
+	4. start the dovecot and vpopmail jails
+
+		   service jail start vpopmail dovecot
+
+	'
+	exit
+
+	# service jail stop dovecot vpopmail
+
+	# for _d in bin domains include qmail-control doc etc lib qmail-users; do
+	# 	echo "mv $ZFS_DATA_MNT/vpopmail/$_d $ZFS_DATA_MNT/vpopmail/home/"
+	# 	mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
+	# done
+
+	# if [ ! -d "$ZFS_DATA_MNT/vpopmail/etc" ]; then
+	# 	mkdir "$ZFS_DATA_MNT/vpopmail/etc"
+	# fi
+
+	# if [ -d "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" ]; then
+	# 	mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
+	# fi
+
+	# # TODO: patch fstab mounts in /etc/jail.conf
+	# service jail stop dovecot vpopmail
+}
+
+migrate_vpopmail_home
+base_snapshot_exists || exit 1
 create_staged_fs vpopmail
+
+mkdir -p "$STAGE_MNT/usr/local/vpopmail" \
+	"$ZFS_DATA_MNT/vpopmail/home" \
+	"$ZFS_DATA_MNT/vpopmail/etc"
+
 start_staged_jail vpopmail
 install_vpopmail
 configure_vpopmail

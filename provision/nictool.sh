@@ -4,6 +4,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 export NICTOOL_VER=${NICTOOL_VER:="2.33"}
 export NICTOOL_UPGRADE=""
@@ -29,7 +30,7 @@ install_nt_prereqs()
 
 install_nt_from_git()
 {
-	stage_pkg_install git-lite || exit
+	stage_pkg_install git-tiny || exit
 	cd "$STAGE_MNT/usr/local" || exit
 	stage_exec git clone --depth=1 https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
 	stage_pkg_install p5-App-Cpanminus
@@ -110,7 +111,7 @@ install_nictool_server() {
 install_apache_setup()
 {
 	_htcnf="$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf"
-	tee "$_htcnf" <<EO_NICTOOL_APACHE24
+	store_config "$_htcnf" <<EO_NICTOOL_APACHE24
 LoadModule perl_module libexec/apache24/mod_perl.so
 PerlRequire /usr/local/nictool/client/lib/nictoolclient.conf
 

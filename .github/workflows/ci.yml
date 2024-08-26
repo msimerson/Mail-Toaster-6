@@ -1,14 +1,54 @@
 name: CI Tests
 
-on: [ push, pull_request ]
+on:
+  push:
+  pull_request:
 
 jobs:
   shellcheck:
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run ShellCheck
       uses: ludeeus/action-shellcheck@master
       env:
         SHELLCHECK_OPTS: -s bash -e SC1004,SC1091,SC2009,SC2016,SC2039,SC2086,SC2119,SC2153
+
+  bats:
+    name: Bats
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: Setup Bats
+      run: git submodule update --init --recursive
+    - name: bats test
+      run: |
+        ./test/bats/bin/bats test/*.bats
+        ./test/bats/bin/bats test/include/*.bats
+
+  freebsd:
+    if: false
+    runs-on: ubuntu-latest
+    name: FreeBSD
+    env:
+      MYTOKEN : ${{ secrets.MYTOKEN }}
+      MYTOKEN2: "value2"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Test in FreeBSD
+      id: test
+      uses: vmactions/freebsd-vm@v1
+      with:
+        envs: 'MYTOKEN MYTOKEN2'
+        usesh: true
+        prepare: |
+          pkg install -y curl
+
+        run: |
+          pwd
+          ls -lah
+          whoami
+          env
+          freebsd-version

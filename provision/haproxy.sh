@@ -1,9 +1,12 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 install_haproxy()
 {
@@ -20,35 +23,30 @@ install_haproxy()
 install_haproxy_pkg()
 {
 	tell_status "installing haproxy"
-	stage_pkg_install haproxy || exit 1
+	stage_pkg_install haproxy
 }
 
 install_haproxy_openssl()
 {
 	tell_status "compiling haproxy against openssl $TLS_LIBRARY"
 	echo "DEFAULT_VERSIONS+=ssl=$TLS_LIBRARY" >> "$STAGE_MNT/etc/make.conf"
-	stage_pkg_install pcre gmake "$TLS_LIBRARY" || exit 1
-	stage_port_install net/haproxy || exit 1
+	stage_pkg_install pcre gmake "$TLS_LIBRARY"
+	stage_port_install net/haproxy
 }
 
 install_haproxy_libressl()
 {
 	tell_status "compiling haproxy against libressl"
 	echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
-	stage_pkg_install pcre gmake libressl || exit 1
-	stage_port_install net/haproxy || exit 1
+	stage_pkg_install pcre gmake libressl
+	stage_port_install net/haproxy
 }
 
 configure_haproxy_dot_conf()
 {
 	local _data_cf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
-	if [ -f "$_data_cf" ]; then
-		tell_status "preserving $_data_cf"
-		return
-	fi
 
-	tell_status "configuring MT6 default haproxy"
-	tee "$_data_cf" <<EO_HAPROXY_CONF
+	store_config "$_data_cf" <<EO_HAPROXY_CONF
 global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
@@ -105,6 +103,7 @@ frontend http-in
 	acl qmailadmin   path_beg /qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/qmailadmin
 	acl qmailadmin   path_beg /cgi-bin/vqadmin
+	acl qmailadmin   path_beg /images/vqadmin
 	acl sqwebmail    path_beg /sqwebmail
 	acl sqwebmail    path_beg /cgi-bin/sqwebmail
 	acl isoqlog      path_beg /isoqlog
@@ -124,6 +123,8 @@ frontend http-in
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
 	acl kibana       path_beg /kibana
+	acl zonemta      hdr_beg(host) -i zonemta
+	acl wildduck     hdr_beg(host) -i wildduck
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
@@ -150,6 +151,8 @@ frontend http-in
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
 	use_backend www_kibana       if  kibana
+	use_backend www_zonemta      if  zonemta
+	use_backend www_wildduck     if  wildduck
 
 	default_backend www_webmail
 
@@ -185,6 +188,7 @@ frontend http-in
 
 	backend www_snappymail
 	server snappymail $(get_jail_ip snappymail):80 send-proxy-v2
+	http-response del-header X-Frame-Options
 
 	backend www_munin
 	server munin $(get_jail_ip munin):80
@@ -230,6 +234,12 @@ frontend http-in
 	server kibana $(get_jail_ip elasticsearch):5601
 	http-request replace-uri /kibana/(.*) /\1
 
+	backend www_wildduck
+	server wildduck 172.16.15.64:3000
+
+	backend www_zonemta
+	server zonemta 172.16.15.64:8082
+
 EO_HAPROXY_CONF
 }
 
@@ -237,7 +247,7 @@ install_ocsp_stapler()
 {
 	if [ -f "$1" ]; then return; fi
 
-	tee "$1" <<'EO_OCSP'
+	store_exec "$1" <<'EO_OCSP'
 #!/bin/sh -e
 
 # http://www.jinnko.org/2015/03/ocsp-stapling-with-haproxy.html
@@ -290,8 +300,6 @@ else
 fi
 
 EO_OCSP
-
-	chmod 755 "$1"
 }
 
 configure_haproxy_tls()
@@ -299,22 +307,19 @@ configure_haproxy_tls()
 	if [ ! -f "$STAGE_MNT/etc/ssl/private/server.pem" ]; then
 		tell_status "concatenating TLS key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$STAGE_MNT/etc/ssl/private/server.pem" || exit 1
+			> "$STAGE_MNT/etc/ssl/private/server.pem"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl" ]; then
 		tell_status "creating /data/ssl"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl" || exit 1
+		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl"
 	fi
 
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl.d" ]; then
 		tell_status "creating /data/ssl.d"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d" || exit 1
+		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d"
 	fi
 
-	if [ ! -d "$STAGE_MNT/usr/local/etc/periodic/daily" ]; then
-		mkdir -p "$STAGE_MNT/usr/local/etc/periodic/daily"
-	fi
 	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"
 }
 
@@ -322,7 +327,7 @@ configure_haproxy()
 {
 	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc" ]; then
 		tell_status "creating /data/etc"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/etc" || exit
+		mkdir -p "$ZFS_DATA_MNT/haproxy/etc"
 	fi
 
 	configure_haproxy_dot_conf
@@ -337,6 +342,20 @@ configure_haproxy()
 		# useful for stats socket
 		mkdir "$STAGE_MNT/var/run/haproxy"
 	fi
+
+	_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
+	store_config "$_pf_etc/rdr.conf" <<EO_PF
+rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip haproxy)
+rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
+EO_PF
+
+	get_public_ip
+	get_public_ip ipv6
+
+	store_config "$_pf_etc/allow.conf" <<EO_PF
+table <http_servers> { $PUBLIC_IP4 $PUBLIC_IP6 $(get_jail_ip haproxy) $(get_jail_ip6 haproxy) }
+pass in quick proto tcp from any to <http_servers> port { 80 443 }
+EO_PF
 
 	configure_haproxy_tls
 }

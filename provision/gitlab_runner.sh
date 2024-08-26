@@ -2,6 +2,10 @@
 
 . mail-toaster.sh || exit
 
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
+
 # https://wiki.freebsd.org/Docker
 # https://docs.gitlab.com/runner/install/freebsd.html
 
@@ -14,7 +18,7 @@ install_gitlab_runner_pkg()
 install_gitlab_runner_port()
 {
 	tell_status "installing GitLab Runner port"
-	stage_pkg_install dialog4ports go go-bindata
+	stage_pkg_install go go-bindata
 	stage_port_install devel/gitlab-runner || exit
 }
 

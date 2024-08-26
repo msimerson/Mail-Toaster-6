@@ -6,8 +6,8 @@
 #           upgradevm, installTools, checkToolsState, deleteVM, clone
 # vmrun -T fusion start
 
-FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 13 GitLab Runner.vmwarevm"
-VERSION="13.2p0"
+FREEBSD="/Users/Shared/Virtual Machines/FreeBSD 13.vmwarevm"
+VERSION="13.3p0"
 VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
 GUESTUSER="root"
 GUESTPASS="passWord"
@@ -67,11 +67,13 @@ cleanstart() {
 
 vm_setup() {
 	# install, no options, Auto ZFS, 8gb swap, sshd & powerd
-	pkg install -y vim-tiny sudo open-vm-tools-nox11 git-lite
+	pkg install -y vim-tiny sudo open-vm-tools-nox11 git-tiny
 	chpass -s sh root
 	echo 'autoboot_delay="1"' >> /boot/loader.conf
 
-	sed -i '' -e '/^#PermitRootLogin/ s/#//; s/no/without-password/' /etc/ssh/sshd_config
+	if ! grep -q PermitRootLogin /etc/rc.conf; then
+		sysrc sshd_flags+=" \-o PermitRootLogin=without-password"
+	fi
 	service sshd restart
 
 	for d in usr/src var/audit var/crash var/mail var/tmp; do

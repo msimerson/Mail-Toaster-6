@@ -4,14 +4,13 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 install_sphinxsearch()
 {
 	tell_status "installing Sphinxsearch"
 	stage_pkg_install sphinxsearch || exit
 	stage_make_conf textproc_sphinxsearch   'textproc_sphinxsearch_SET=ID64'
-
-	stage_pkg_install dialog4ports || exit
 
 	tell_status "Compiling Sphinx search"
 

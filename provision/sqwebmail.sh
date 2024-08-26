@@ -3,9 +3,8 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/sqwebmail \$path/data nullfs rw 0 0\";
-		mount += \"$ZFS_DATA_MNT/vpopmail \$path/usr/local/vpopmail nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/sqwebmail/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 
@@ -16,9 +15,6 @@ install_authdaemond()
 security_courier-authlib_SET=AUTH_VCHKPW
 "
 	export BATCH=${BATCH:="1"}
-
-	# sunset after 2017-08 (when courier-unicode 2.0 is installed by pkg)
-	#stage_port_install devel/courier-unicode || exit
 
 	stage_port_install security/courier-authlib || exit
 }
@@ -38,7 +34,7 @@ install_sqwebmail()
 {
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing mysql client libs (for vpopmail)"
-		stage_pkg_install mysql80-client dialog4ports
+		stage_pkg_install mysql80-client
 	fi
 
 	install_qmail

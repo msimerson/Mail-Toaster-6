@@ -26,7 +26,7 @@ install_nginx()
 		"$STAGE_MNT/var/db/ports/www_nginx/options" || exit
 
 	tell_status "installing nginx port with localized options"
-	stage_pkg_install GeoIP dialog4ports gettext
+	stage_pkg_install GeoIP gettext
 	if [ "$TLS_LIBRARY" = "libressl" ]; then
 		echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
 	else

@@ -4,6 +4,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include php
 mt6-include nginx
@@ -65,22 +66,22 @@ EO_SQUIRREL_SQL
 	for _jail in squirrelmail stage; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "GRANT ALL PRIVILEGES ON squirrelmail.* to 'squirrelmail'@'${_ip}' IDENTIFIED BY '${sqpass}';" \
-				| mysql_query || exit
+			echo "CREATE USER IF NOT EXISTS 'squirrelmail'@'${_ip}' IDENTIFIED BY '${sqpass}';" | mysql_query || exit 1
+			echo "GRANT ALL PRIVILEGES ON squirrelmail.* to 'squirrelmail'@'${_ip}';" | mysql_query || exit 1
 		done
 	done
 }
 
 install_squirrelmail()
 {
-	install_php 80 "fileinfo pecl-mcrypt exif"
+	install_php 81 "fileinfo pecl-mcrypt exif"
 	install_nginx || exit
 
 	tell_status "installing squirrelmail"
-	stage_pkg_install squirrelmail-php80 \
-		squirrelmail-sasql-plugin-php80 \
-		squirrelmail-quota_usage-plugin-php80 \
-		squirrelmail-abook_import_export-plugin-php80 || exit
+	stage_pkg_install squirrelmail-php81 \
+		squirrelmail-sasql-plugin-php81 \
+		squirrelmail-quota_usage-plugin-php81 \
+		squirrelmail-abook_import_export-plugin-php81 || exit
 
 	configure_squirrelmail_local
 
@@ -137,7 +138,7 @@ configure_squirrelmail_local()
 	if [ -n "$sqpass" ]; then
 		tell_status "preserving squirrelmail mysql password: $sqpass"
 	else
-		sqpass=$(openssl rand -hex 18)
+		sqpass=$(get_random_pass 18 safe)
 		tell_status "generating squirremail mysql password: $sqpass"
 	fi
 

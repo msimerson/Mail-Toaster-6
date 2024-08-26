@@ -1,15 +1,18 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include php
 mt6-include nginx
 mt6-include mysql
 
-PHP_VER="81"
+PHP_VER="82"
 
 mysql_error_warning()
 {
@@ -42,14 +45,14 @@ install_roundcube_mysql()
 			echo "preserving roundcube password $_rcpass"
 		fi
 	else
-		_rcpass=$(openssl rand -hex 18)
+		_rcpass=$(get_random_pass 18 safe)
 	fi
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
 	sed -i.bak \
 		-e "s/roundcube:pass@/roundcube:${_rcpass}@/" \
 		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
-		"$_rcc_dir/config.inc.php" || exit
+		"$_rcc_dir/config.inc.php"
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
@@ -57,8 +60,8 @@ install_roundcube_mysql()
 		for _jail in roundcube stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 			do
-				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" \
-					| mysql_query || exit
+				echo "CREATE USER IF NOT EXISTS 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" | mysql_query
+				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}';" | mysql_query
 			done
 		done
 
@@ -69,10 +72,10 @@ install_roundcube_mysql()
 roundcube_init_db()
 {
 	tell_status "initializing roundcube db"
-	pkg install -y curl || exit
+	pkg install -y curl
 	start_roundcube
 	curl -i --haproxy-protocol -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/installer/index.php?_step=3" || exit
+		"http://$(get_jail_ip stage)/installer/index.php?_step=3"
 }
 
 install_roundcube_plugins()
@@ -90,19 +93,17 @@ install_roundcube_plugins()
 
 install_roundcube()
 {
-	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pspell session xml zip"
+	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pdo_sqlite pspell session xml zip"
 
 	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		_php_modules="$_php_modules pdo_mysql"
-	else
-		_php_modules="$_php_modules pdo_sqlite"
 	fi
 
-	install_php $PHP_VER "$_php_modules" || exit
-	install_nginx || exit
+	install_php $PHP_VER "$_php_modules"
+	install_nginx
 
 	tell_status "installing roundcube"
-	stage_pkg_install roundcube-php${PHP_VER} || exit 1
+	stage_pkg_install roundcube-php${PHP_VER}
 
 	install_roundcube_plugins
 }
@@ -169,6 +170,34 @@ install_logo()
 	cp "$_logo_path" "$STAGE_MNT/usr/local/www/roundcube/skins/larry/images/"
 }
 
+configure_roundcube_php()
+{
+	tell_status "apply roundcube customizations to php.ini"
+	sed -i.bak \
+		-e "/^session.gc_maxlifetime/ s/= *[1-9][0-9]*/= 21600/" \
+		-e "/^post_max_size/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
+		-e "/^upload_max_filesize/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
+		"$STAGE_MNT/usr/local/etc/php.ini"
+}
+
+configure_roundcube_plugins()
+{
+	tell_status "configure the managesieve plugin"
+	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+	sed -i.bak \
+		-e "/'managesieve_host'/s/localhost/dovecot/" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
+
+	tell_status "configure the password plugin"
+	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php.dist" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php"
+	sed -i.bak \
+		-e "/'password_driver'/s/sql/vpopmaild/" \
+		-e "/'password_vpopmaild_host'/s/localhost/vpopmail/" \
+		"$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php"
+}
+
 configure_roundcube()
 {
 	configure_php roundcube
@@ -178,11 +207,14 @@ configure_roundcube()
 	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
 	preserve_file roundcube "$_local_path"
 
+	configure_roundcube_php
+	configure_roundcube_plugins
+
 	local _stage_cfg="${STAGE_MNT}${_local_path}"
 	if [ -f "$_stage_cfg" ]; then return; fi
 
 	tell_status "installing default $_stage_cfg"
-	cp "$_stage_cfg.sample" "$_stage_cfg" || exit
+	cp "$_stage_cfg.sample" "$_stage_cfg"
 
 	tell_status "customizing $_stage_cfg"
 	local _dovecot_ip
@@ -203,7 +235,7 @@ configure_roundcube()
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
 		-e "/'archive',/     s/,$/, 'managesieve',/" \
 		-e "/'product_name'/ s|'Roundcube Webmail'|'$ROUNDCUBE_PRODUCT_NAME'|" \
-		"$_stage_cfg" || exit
+		"$_stage_cfg"
 
 	tee -a "$_stage_cfg" <<'EO_RC_ADD'
 
@@ -228,7 +260,7 @@ EO_RC_ADD
 	else
 		sed -i.bak \
 			-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/sqlite.db?mode=0646';/" \
-			"$_stage_cfg" || exit
+			"$_stage_cfg"
 
 		if [ ! -f "$ZFS_DATA_MNT/roundcube/sqlite.db" ]; then
 			mkdir -p "$STAGE_MNT/data"
@@ -240,21 +272,6 @@ EO_RC_ADD
 	sed -i.bak \
 		-e "/enable_installer/ s/true/false/" \
 		"$_stage_cfg"
-
-	tell_status "configure the managesieve plugin"
-	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
-		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
-
-	sed -i.bak \
-		-e "/'managesieve_host'/ s/localhost/dovecot/" \
-		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
-
-	tell_status "apply roundcube customizations to php.ini"
-	sed -i.bak \
-		-e "/^session.gc_maxlifetime/ s/= *[1-9][0-9]*/= 21600/" \
-		-e "/^post_max_size/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
-		-e "/^upload_max_filesize/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
-		"$STAGE_MNT/usr/local/etc/php.ini" || exit
 }
 
 fixup_url()

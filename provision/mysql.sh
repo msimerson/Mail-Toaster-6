@@ -1,13 +1,23 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/mysql \$path/var/db/mysql nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 install_db_server()
 {
+	for _d in etc db; do
+		_path="$STAGE_MNT/data/$_d"
+		if [ ! -d "$_path" ]; then
+			mkdir "$_path"
+			chown 88:88 "$_path"
+		fi
+	done
+
 	# Check if MariaDB needs to be installed
 	if [ "$TOASTER_MARIADB" = "1" ]; then
 		install_mariadb
@@ -19,13 +29,13 @@ install_db_server()
 install_mysql()
 {
 	tell_status "installing mysql"
-	stage_pkg_install mysql80-server || exit 1
+	stage_pkg_install mysql80-server
 }
 
 install_mariadb()
 {
 	tell_status "installing mariadb"
-	stage_pkg_install mariadb104-server || exit 1
+	stage_pkg_install mariadb1011-server
 }
 
 write_pass_to_conf()
@@ -33,22 +43,28 @@ write_pass_to_conf()
 	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
 		sed -i '' \
 			-e "/^export TOASTER_MYSQL_PASS=/ s|=\"\"|=\"$TOASTER_MYSQL_PASS\"|" \
-			mail-toaster.conf || exit
+			mail-toaster.conf
 	else
 		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
 	fi
 
+	preserve_file mysql /root/.my.cnf
+
 	local _my_cnf="$STAGE_MNT/root/.my.cnf"
-	tee "$_my_cnf" <<EO_MY_CNF
+	if [ ! -f "$_my_cnf" ]; then
+		tee "$_my_cnf" <<EO_MY_CNF
 [client]
 user = root
 password = $TOASTER_MYSQL_PASS
 EO_MY_CNF
-	chmod 600 "$_my_cnf"
+		chmod 600 "$_my_cnf"
+	fi
 }
 
 configure_mysql_keys()
 {
+	local _dbdir="$ZFS_DATA_MNT/mysql/db"
+
 	if [ ! -f "$_dbdir/private_key.pem" ]; then
 		tell_status "enabling sha256_password support"
 		openssl genrsa -out "$_dbdir/private_key.pem" 2048
@@ -66,15 +82,24 @@ configure_mysql_keys()
 configure_mysql_root_password()
 {
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
-		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf, generating a password"
+		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf"
 
-		TOASTER_MYSQL_PASS=$(openssl rand -base64 15)
+		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
+		if [ -f "$_my.cnf" ] &&  [ -r "$_my.cnf" ]; then
+			tell_status "TOASTER_MYSQL_PASS unset in $_my_cnf"
+			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
+		fi
+
+		if [ -z "$TOASTER_MYSQL_PASS" ]; then
+			tell_status "generating a random password for MySQL"
+			TOASTER_MYSQL_PASS=$(get_random_pass 15 safe)
+		fi
 		export TOASTER_MYSQL_PASS
 	fi
 
 	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" \
 		|| echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
-			| stage_exec mysql -u root || exit 1
+			| stage_exec mysql -u root
 
 	write_pass_to_conf
 }
@@ -82,49 +107,86 @@ configure_mysql_root_password()
 configure_mysql()
 {
 	tell_status "configuring mysql"
-	stage_sysrc mysql_optfile="/var/db/mysql/my.cnf"
+	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
+		sed -i '' \
+			-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
+			"$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+		# enable this when mysql port adds config setting to rc.d script
+		# cp "$STAGE_MNT/usr/local/etc/mysql/my.cnf" "$STAGE_MNT/data/etc/my.cnf"
+	fi
 
-	preserve_file /etc/my.cnf
+	stage_sysrc mysql_enable=YES
+	stage_sysrc mysql_dbdir="/data/db"
+	stage_sysrc mysql_optfile="/data/etc/extra.cnf"
 
-	local _dbdir="$ZFS_DATA_MNT/mysql"
-	if [ ! -d "$_dbdir" ]; then mkdir "$_dbdir" || exit 1; fi
+	local _dbdir="$ZFS_DATA_MNT/mysql/db"
 
-	local _my_cnf="$_dbdir/my.cnf"
-	if [ ! -f "$_my_cnf" ]; then
-		tell_status "installing $_my_cnf"
-		tee -a "$_my_cnf" <<EO_MY_CNF
+	local _my_cnf="$STAGE_MNT/data/etc/extra.cnf"
+	store_config "$_my_cnf" <<EO_MY_CNF
 [mysqld]
+datadir                         = /data/db
+innodb_data_home_dir            = /data/db
+innodb_log_group_home_dir       = /data/db
+
 innodb_doublewrite = off
 innodb_file_per_table = 1
 innodb_checksum_algorithm = none
 innodb_flush_neighbors = 0
 EO_MY_CNF
-	fi
-
-	configure_mysql_keys
-	configure_mysql_root_password
 }
 
 start_mysql()
 {
 	tell_status "starting mysql"
-	stage_sysrc mysql_enable=YES
 
-	if [ -d "$ZFS_JAIL_MNT/mysql/var/db/mysql" ]; then
-		# update, mysql jail exists, unmount the data dir, two mysql's
+	if [ -d "$ZFS_JAIL_MNT/mysql/data/db/mysql" ]; then
+		# mysql jail exists, unmount the data dir as two mysql's
 		# cannot access the data concurrently
+		tell_status "unmounting live mysql data FS"
 		unmount_data mysql
 	fi
 
-	stage_exec service mysql-server start || exit
+	stage_exec service mysql-server start
+	configure_mysql_root_password
+	configure_mysql_keys
 }
 
 test_mysql()
 {
 	tell_status "testing mysql"
 	stage_listening 3306 2
-	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" || exit 1
+	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS"
 	echo "it worked"
+}
+
+migrate_mysql_dbs()
+{
+	if [ -f "$ZFS_DATA_MNT/mysql/mysql.err" ]; then
+		echo "
+	HALT: mysql data migration required.
+
+	See https://github.com/msimerson/Mail-Toaster-6/wiki/Updating
+		"
+		exit 1
+	fi
+
+	if jls -j mysql | grep -qs mysql; then
+		echo "mysql jail is running"
+
+		_my_ver=$(pkg -j mysql info | grep mysql | grep server | cut -f1 -d' ' | cut -d- -f3)
+		if [ -n "$_my_ver" ]; then
+			_major=$(echo "$_my_ver" | cut -f1 -d'.')
+			if [ "$_major" -lt "8" ]; then
+				echo "
+	HALT: mysql upgrade to version 8 required.
+
+	See https://github.com/msimerson/Mail-Toaster-6/wiki/Updating
+				"
+				exit 1
+
+			fi
+		fi
+	fi
 }
 
 if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
@@ -134,11 +196,12 @@ else
 	exit
 fi
 
-base_snapshot_exists || exit
+base_snapshot_exists || exit 1
+migrate_mysql_dbs
 create_staged_fs mysql
 start_staged_jail mysql
 install_db_server
-start_mysql
 configure_mysql
+start_mysql
 test_mysql
 promote_staged_jail mysql

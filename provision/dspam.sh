@@ -4,6 +4,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include mysql
 
@@ -38,15 +39,13 @@ configure_dspam_mysql()
 		return
 	fi
 
-	_dpass=$(openssl rand -hex 18)
+	_dpass=$(get_random_pass 18 safe)
 
 	for _jail in dspam stage; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
-			echo "CREATE USER dspam@'${_ip}' IDENTIFIED BY '${_dpass}';" \
-				| mysql_query || exit
-			echo "GRANT ALL PRIVILEGES ON dspam.* to dspam@'${_ip}';" \
-				| mysql_query || exit
+			echo "CREATE USER IF NOT EXISTS 'dspam'@'${_ip}' IDENTIFIED BY '${_dpass}';" | mysql_query || exit 1
+			echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'${_ip}';" | mysql_query || exit 1
 		done
 	done
 }

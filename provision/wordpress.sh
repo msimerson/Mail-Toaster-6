@@ -1,9 +1,12 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include php
 mt6-include nginx
@@ -15,10 +18,8 @@ install_wordpress()
 	install_nginx
 	install_php 81 "ctype curl dom exif fileinfo filter ftp gd iconv intl mbstring mysqli pecl-imagick-im7 session tokenizer xml zip zlib"
 
-	stage_pkg_install dialog4ports
-
 	# stage_pkg_install wordpress
-	stage_port_install www/wordpress || exit
+	stage_port_install www/wordpress
 }
 
 configure_nginx_server()
@@ -76,7 +77,7 @@ configure_nginx_with_path()
 		_uri_path="/wpn"
 	fi
 
-	tee "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_WP_NGINX'
+	store_config "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_WP_NGINX'
 
 	server_name     wordpress;
 	index		index.php;
@@ -138,7 +139,7 @@ configure_wp_config()
 	local _installed_config="$_wp_install/wp-config.php"
 	if [ -f "$_installed_config" ]; then
 		tell_status "preserving wp-config.php"
-		cp "$_installed_config" "$STAGE_MNT/usr/local/www/wordpress/" || exit
+		cp "$_installed_config" "$STAGE_MNT/usr/local/www/wordpress/"
 		return
 	else
 		tell_status "post-install configuration will be required"

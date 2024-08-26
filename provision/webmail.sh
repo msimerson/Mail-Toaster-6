@@ -1,9 +1,12 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 mt6-include nginx
 
@@ -57,7 +60,7 @@ configure_lighttpd()
 		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
 		"$_lighttpd_conf"
 
-	tee "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
+	store_config "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
 server.modules += ( "mod_alias" )
 
 alias.url = (
@@ -86,17 +89,16 @@ EO_LIGHTTPD_MT6
 install_webmail()
 {
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		install_lighttpd || exit
+		install_lighttpd
 	else
-		install_nginx || exit
+		install_nginx
 		configure_nginx_server
 	fi
 }
 
 install_index()
 {
-	tell_status "installing index.html"
-	tee "$_htdocs/index.html" <<'EO_INDEX'
+	store_config "$_htdocs/index.html" "overwrite" <<'EO_INDEX'
 <html>
 <head>
  <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>
@@ -111,9 +113,9 @@ install_index()
     'webmail'     : '',
     'roundcube'   : '/roundcube/',
     'snappymail'  : '/snappymail/',
-    'rainloop'    : '/rainloop/',
-    'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
-    'squirrelmail': '/squirrelmail/',
+    // 'rainloop'    : '/rainloop/',
+    // 'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
+    // 'squirrelmail': '/squirrelmail/src/webmail.php',
   }
   const adminPaths = {
     'admin'     : '',
@@ -121,7 +123,7 @@ install_index()
     'rspamd'    : '/rspamd/',
     'watch'     : '/watch/',
     'snappymail': '/snappymail/?admin',
-    'rainloop'  : '/rainloop/?admin',
+    // 'rainloop'  : '/rainloop/?admin',
   }
   const statsPaths = {
     'statistics': '',
@@ -216,9 +218,9 @@ body {
                <option value=webmail>Webmail</option>
                <option value=roundcube>Roundcube</option>
                <option value=snappymail>Snappymail</option>
-               <option value=squirrelmail>Squirrelmail</option>
-               <option value=rainloop>Rainloop</option>
-               <option value=sqwebmail>Sqwebmail</option>
+               <!--<option value=squirrelmail>Squirrelmail</option>-->
+               <!--<option value=rainloop>Rainloop</option>-->
+               <!--<option value=sqwebmail>Sqwebmail</option>-->
            </select>
        </a>
        </li>
@@ -229,7 +231,7 @@ body {
                <option value=rspamd>Rspamd</option>
                <option value=watch>Haraka Watch</option>
                <option value=snappymail>Snappymail Admin</option>
-               <option value=rainloop>Rainloop Admin</option>
+               <!--<option value=rainloop>Rainloop Admin</option>-->
            </select>
        </a>
        </li>
@@ -274,9 +276,9 @@ EO_INDEX
 configure_webmail()
 {
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		configure_lighttpd || exit
+		configure_lighttpd
 	else
-		configure_nginx webmail || exit
+		configure_nginx webmail
 		configure_nginx_server
 	fi
 
@@ -292,8 +294,7 @@ configure_webmail()
 	install_index
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
-		tell_status "installing robots.txt"
-		tee "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
+		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
 User-agent: *
 Disallow: /
 EO_ROBOTS_TXT

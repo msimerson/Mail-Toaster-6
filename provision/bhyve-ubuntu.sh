@@ -167,12 +167,6 @@ install_ubuntu_bhyve()
 	bhyvectl --destroy --vm=ubuntu-guest
 }
 
-install_ubuntu()
-{
-	# tell_status "installing ubuntu"
-	install_ubuntu_bhyve
-}
-
 configure_ubuntu()
 {
 	local _pdir="$STAGE_MNT/usr/local/etc/periodic"
@@ -203,11 +197,6 @@ test_ubuntu()
 	echo "hrmm, how to test?"
 }
 
-#base_snapshot_exists || exit
-#create_staged_fs ubuntu-guest
-#start_staged_jail ubuntu-guest
-install_ubuntu
-configure_ubuntu
+install_ubuntu_bhyve
 #start_ubuntu
 #test_ubuntu
-#promote_staged_jail ubuntu-guest
