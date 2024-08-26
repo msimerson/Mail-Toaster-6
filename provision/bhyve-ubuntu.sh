@@ -80,7 +80,7 @@ install_ubuntu_bhyve_zfs()
 
 generate_config()
 {
-	tee "$ZFS_BHYVE_VOL/bhyve/$BHYVE_VM_NAME.conf <<EO_BHYVE_CONF
+	tee "$ZFS_BHYVE_VOL/bhyve/$BHYVE_VM_NAME.conf" <<EO_BHYVE_CONF
 name=$BHYVE_VM_NAME
 
 cpus=1
