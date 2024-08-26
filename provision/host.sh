@@ -526,14 +526,6 @@ update_mt6()
 	fi
 }
 
-update_mt6()
-{
-	if [ -d ".git" ]; then
-		git remote update
-		git status -u no
-	fi
-}
-
 update_host() {
 	sysrc -q background_fsck=NO
 	update_mt6
