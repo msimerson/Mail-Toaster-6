@@ -2,6 +2,8 @@
 
 . mail-toaster.sh || exit
 
+export BHYVE_VM_NAME=ubuntu-guest
+
 create_bridge()
 {
 	if ! grep -q "tap.up_on_open" /etc/sysctl.conf; then
@@ -13,16 +15,15 @@ create_bridge()
 	# create a named bridge for bhyve VMs
 	ifconfig bridge bridge-public 2>/dev/null || {
 		tell_status "creating bridge-public"
-		ifconfig bridge create name bridge-public
+		ifconfig bridge create name bridge-public up
 		get_public_facing_nic
 		ifconfig bridge-public addm "$PUBLIC_NIC"
-		ifconfig bridge-public up
 	}
 
 	# create tap interface for VM
 	ifconfig tap-ubuntu 2>/dev/null || {
 		tell_status "creating VM tap interface"
-		ifconfig tap create name tap-ubuntu
+		ifconfig tap create name tap-ubuntu up
 		ifconfig bridge-public addm tap-ubuntu
 	}
 
@@ -72,9 +73,59 @@ install_ubuntu_bhyve_zfs()
 		zfs set recordsize=64K "$ZFS_BHYVE_VOL/bhyve"
 	fi
 
-	if ! zfs_filesystem_exists "$ZFS_BHYVE_VOL/bhyve/ubuntu-guest"; then
-		zfs create -V20G -o volmode=dev "$ZFS_BHYVE_VOL/bhyve/ubuntu-guest"
+	if ! zfs_filesystem_exists "$ZFS_BHYVE_VOL/bhyve/$BHYVE_VM_NAME"; then
+		zfs create -V20G -o volmode=dev "$ZFS_BHYVE_VOL/bhyve/$BHYVE_VM_NAME"
 	fi
+}
+
+generate_config()
+{
+	tee "$ZFS_BHYVE_VOL/bhyve/$BHYVE_VM_NAME.conf <<EO_BHYVE_CONF
+name=$BHYVE_VM_NAME
+
+cpus=1
+#cores=1
+#threads=1
+#sockets=1
+
+memory.size=1G
+memory.wired=false
+
+acpi_tables=true
+destroy_on_poweroff=true
+
+#uuid=""
+
+pci.0.0.0.device=hostbridge
+
+#pci.0.2.0.device=e1000  (use for Windows)
+pci.0.2.0.device=virtio-net
+pci.0.2.0.type=tap
+pci.0.2.0.backend=tap-ubuntu
+
+pci.0.3.0.device=virtio-blk
+pci.0.3.0.path=/dev/zvol/$ZFS_BHYVE_VOL/bhyve/$BHYVE_VM_NAME
+
+pci.0.4.0.device=ahci
+pci.0.4.0.path=/$ZFS_BHYVE_VOL/ISO/ubuntu-22.04.2-live-server-amd64.iso
+
+pci.0.29.0.device=fbuf
+pci.0.29.0.wait=false
+pci.0.29.0.rfb=0.0.0.0:5900
+pci.0.29.0.w=800
+pci.0.29.0.h=600
+
+pci.0.30.0.device=xhci
+pci.0.30.0.slot.1.device=tablet
+
+pci.0.31.0.device=lpc
+
+lpc.com1.device=stdio
+#lpc.com1.device=/dev/nmdm0A
+#lpc.com2.device=/dev/nmdm1A
+lpc.bootrom=/usr/local/share/uefi-firmware/BHYVE_UEFI.fd
+
+EO_BHYVE_CONF
 }
 
 install_ubuntu_bhyve()
@@ -92,6 +143,7 @@ install_ubuntu_bhyve()
 	stage_pkg_install bhyve-firmware grub2-bhyve || exit
 	#configure_grub
 
+	tell_status "launching bhyve VM with CD installer"
 	bhyve \
 		-H -P -w \
 		-c 1 -m 1G \
