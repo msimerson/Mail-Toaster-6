@@ -154,6 +154,10 @@ install_clamav_nrpe()
 
 	tell_status "installing clamav nrpe plugin"
 	stage_pkg_install nagios-check_clamav
+	sed -i .bak \
+		-e 's|clamd_cmd -V|clamd_cmd --datadir=/data/db -V|' \
+		/usr/local/libexec/nagios/check_clamav
+
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
 	sed -i.bak \
