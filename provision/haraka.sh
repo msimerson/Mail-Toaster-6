@@ -440,7 +440,7 @@ configure_install_default()
 		local _pname="${1%.*}"
 		_source="$_haraka/node_modules/haraka-plugin-$_pname/config"
 		if [ ! -f "$_source/$1" ]; then
-			echo "unable to find default $1 in "
+			echo "unable to find default '$1' in "
 			echo "    $_haraka/config"
 			echo " or "
 			echo "    $_source"
@@ -481,7 +481,8 @@ configure_haraka_dkim()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/dkim/dkim_key_gen.sh" ]; then
-		configure_install_default "dkim/dkim_key_gen.sh"
+		cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-dkim/config/dkim_key_gen.sh" \
+			"$HARAKA_CONF/dkim/dkim_key_gen.sh"
 	fi
 
 	if [ ! -d "$HARAKA_CONF/dkim/$TOASTER_MAIL_DOMAIN" ]; then
