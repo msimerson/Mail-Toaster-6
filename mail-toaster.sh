@@ -323,14 +323,13 @@ zfs_create_fs()
 
 zfs_destroy_fs()
 {
-	if ! zfs_filesystem_exists "$1"; then return; fi
-	if [ -n "$2" ]; then
-		echo "zfs destroy $2 $1"
-		zfs destroy "$2" "$1" || exit
-	else
-		echo "zfs destroy $1"
-		zfs destroy "$1" || exit
-	fi
+	local _fs="$1"
+	local _flags=${2:=""}
+
+	if ! zfs_filesystem_exists "$_fs"; then return; fi
+
+	echo "zfs destroy $2 $1"
+	zfs destroy "$2" "$1" || exit
 }
 
 base_snapshot_exists()
