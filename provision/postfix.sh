@@ -74,8 +74,8 @@ configure_postfix_main_cf()
 	fi
 
 	if [ -f "$_dkim_private_key" ]; then
-		postconf -e 'smtpd_milters = inet:localhost:8891'
-		postconf -e 'non_smtpd_milters = $smtpd_milters'
+		stage_exec postconf -e 'smtpd_milters = inet:localhost:8891'
+		stage_exec postconf -e 'non_smtpd_milters = $smtpd_milters'
 	fi
 }
 
