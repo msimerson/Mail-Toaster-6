@@ -324,7 +324,7 @@ zfs_create_fs()
 zfs_destroy_fs()
 {
 	local _fs="$1"
-	local _flags="$2"
+	local _flags=${2-}
 
 	if ! zfs_filesystem_exists "$_fs"; then return; fi
 
@@ -553,12 +553,14 @@ stage_unmount()
 {
 	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
 		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
-		umount "$_fs" || echo "unable to umount $_fs"
+		echo "umount $_fs"
+		umount "$_fs" || echo ""
 	done
 
 	# repeat, as sometimes a nested fs will prevent first try from success
 	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
 		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+		echo "umount $_fs"
 		umount "$_fs"
 	done
 
