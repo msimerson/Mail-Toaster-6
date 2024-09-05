@@ -324,12 +324,17 @@ zfs_create_fs()
 zfs_destroy_fs()
 {
 	local _fs="$1"
-	local _flags=${2:=""}
+	local _flags="$2"
 
 	if ! zfs_filesystem_exists "$_fs"; then return; fi
 
-	echo "zfs destroy $2 $1"
-	zfs destroy "$2" "$1" || exit
+	if [ -n "$_flags" ]; then
+		echo "zfs destroy $2 $1"
+		zfs destroy "$2" "$1" || exit 1
+	else
+		echo "zfs destroy $1"
+		zfs destroy "$1" || exit 1
+	fi
 }
 
 base_snapshot_exists()
@@ -548,7 +553,7 @@ stage_unmount()
 {
 	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
 		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
-		umount "$_fs"
+		umount "$_fs" || echo "unable to umount $_fs"
 	done
 
 	# repeat, as sometimes a nested fs will prevent first try from success
@@ -559,7 +564,7 @@ stage_unmount()
 
 	if mount -t devfs | grep -q "$STAGE_MNT/dev"; then
 		echo "umount $STAGE_MNT/dev"
-		umount "$STAGE_MNT/dev" || exit 1
+		umount "$STAGE_MNT/dev"
 	fi
 }
 
