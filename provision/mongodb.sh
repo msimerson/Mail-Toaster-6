@@ -22,13 +22,13 @@ install_mongodb()
 	fi
 
 	tell_status "installing mongodb"
-	stage_pkg_install mongodb50 mongodb-tools
+	stage_pkg_install mongodb60 mongodb-tools
 }
 
 install_mongodb_port()
 {
 	stage_pkg_install python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp
-	stage_port_install databases/mongodb50
+	stage_port_install databases/mongodb60
 }
 
 check_max_wired() {
