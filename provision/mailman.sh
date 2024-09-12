@@ -49,13 +49,14 @@ configure_mailman()
 {
 	configure_opendkim
 	configure_postfix
-	
+
 	tell_status "configuring mailman"
 	stage_sysrc mailman_enable=YES
 	stage_sysrc nginx_enable=YES
 	stage_sysrc uwsgi_enable=YES
 	stage_sysrc uwsgi_socket_owner="www:mailman"
 	stage_sysrc fcgiwrap_enable=YES
+	stage_sysrc fcgiwrap_socket=unix:/var/run/fcgiwrap/fcgiwrap.sock
 	stage_sysrc fcgiwrap_socket_owner=www
 
 	_mm_etc="usr/local/mailman/etc"
