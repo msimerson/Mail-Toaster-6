@@ -156,7 +156,7 @@ install_clamav_nrpe()
 	stage_pkg_install nagios-check_clamav
 	sed -i .bak \
 		-e 's|clamd_cmd -V|clamd_cmd --datadir=/data/db -V|' \
-		/usr/local/libexec/nagios/check_clamav
+		"$STAGE_MNT/usr/local/libexec/nagios/check_clamav"
 
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
@@ -231,7 +231,7 @@ configure_clamd()
 	sed -i '' \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
-		"$STAGE_MNT/usr/local/etc/rc.d/clamav-clamd"
+		"$STAGE_MNT/usr/local/etc/rc.d/clamav_clamd"
 }
 
 configure_freshclam()
@@ -257,7 +257,7 @@ configure_freshclam()
 	sed -i '' \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
-		"$STAGE_MNT/usr/local/etc/rc.d/clamav-freshclam"
+		"$STAGE_MNT/usr/local/etc/rc.d/clamav_freshclam"
 }
 
 configure_clamav()
@@ -276,11 +276,11 @@ start_clamav()
 	tell_status "starting ClamAV daemons"
 	stage_sysrc clamav_clamd_enable=YES
 	stage_sysrc clamav_clamd_flags="-c /data/etc/clamd.conf"
-	stage_exec service clamav-clamd start
+	stage_exec service clamav_clamd start
 
 	stage_sysrc clamav_freshclam_enable=YES
 	stage_sysrc clamav_freshclam_flags="--config-file=/data/etc/freshclam.conf --datadir=/data/db"
-	stage_exec service clamav-freshclam start
+	stage_exec service clamav_freshclam start
 }
 
 migrate_clamav_dbs()
