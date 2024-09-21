@@ -241,6 +241,31 @@ frontend http-in
 	server zonemta 172.16.15.64:8082
 
 EO_HAPROXY_CONF
+
+	_data_cf="$STAGE_MNT/usr/local/etc/haproxy.conf"
+
+	store_config "$_data_cf" <<EO_HAPROXY_STAGE_CONF
+global
+    daemon
+    log 172.16.15.1 local0 err
+    tune.ssl.default-dh-param 2048
+
+defaults
+    mode        http
+    log         global
+
+frontend default-http
+    bind $(get_jail_ip stage):80
+    bind $(get_jail_ip stage):443 alpn http/1.1 ssl crt /data/ssl.d
+    bind [$(get_jail_ip6 stage)]:80
+    bind [$(get_jail_ip6 stage)]:443 alpn http/1.1 ssl crt /data/ssl.d
+
+    default_backend www_webmail
+
+backend www_webmail
+    server webmail80 172.16.15.10:80 send-proxy
+
+EO_HAPROXY_STAGE_CONF
 }
 
 install_ocsp_stapler()
@@ -331,12 +356,6 @@ configure_haproxy()
 	fi
 
 	configure_haproxy_dot_conf
-	stage_sysrc haproxy_config="/data/etc/haproxy.conf"
-
-	if [ -f "$STAGE_MNT/usr/local/etc/haproxy.conf" ]; then
-		rm "$STAGE_MNT/usr/local/etc/haproxy.conf"
-	fi
-	stage_exec ln -s /data/etc/haproxy.conf /usr/local/etc/haproxy.conf
 
 	if [ ! -d "$STAGE_MNT/var/run/haproxy" ]; then
 		# useful for stats socket
@@ -365,24 +384,16 @@ start_haproxy()
 	tell_status "starting haproxy"
 	stage_sysrc haproxy_enable=YES
 
-	if [ -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
-		echo "haproxy is running, this might fail."
-	fi
-
 	stage_exec service haproxy start
 }
 
 test_haproxy()
 {
 	tell_status "testing haproxy"
-	if [ ! -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
-		stage_listening 443
-		echo "it worked"
-		return
-	fi
+	stage_listening 443
+	echo "it worked"
 
-	echo "previous haproxy is running, ignoring errors"
-	sockstat -l -4 -6 -p 443 -j "$(jls -j stage jid)"
+	stage_sysrc haproxy_config="/data/etc/haproxy.conf"
 }
 
 base_snapshot_exists || exit
