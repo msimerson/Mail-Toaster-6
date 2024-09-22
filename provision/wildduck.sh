@@ -475,6 +475,9 @@ EO_RSPAMD
 		-e '/^nodes/ s/cpus/1/' \
 		"$_cfg/smtp.ini"
 
+	cp $ZFS_DATA_MNT/wildduck/haraka/node_modules/haraka-plugin-spamassassin/config/spamassassin.ini \
+		"$_cfg/spamassassin.ini"
+
 	sed -i '' \
 		-e '/^;spamd_socket/ s/^;//' \
 		-e "/^spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
