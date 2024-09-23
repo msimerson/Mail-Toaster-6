@@ -14,7 +14,7 @@ mt6-include nginx
 install_whmcs()
 {
 	stage_pkg_install sudo libmaxminddb
-	install_php 81 "ctype curl filter gd iconv imap mbstring session soap xml zip zlib"
+	install_php 74 "ctype curl filter gd iconv imap mbstring session soap xml zip zlib"
 	install_nginx whmcs
 
 	stage_port_install devel/ioncube
@@ -100,7 +100,7 @@ test_whmcs()
 base_snapshot_exists || exit 1
 create_staged_fs whmcs
 mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
-start_staged_jail
+start_staged_jail whmcs
 install_whmcs
 configure_whmcs
 start_whmcs
