@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
@@ -11,6 +13,7 @@ export NICTOOL_UPGRADE=""
 
 mt6-include mysql
 mt6-include user
+mt6-include djb
 
 install_nt_prereqs()
 {
@@ -20,12 +23,20 @@ install_nt_prereqs()
 	stage_pkg_install perl5 mysql80-client apache24 ap24-mod_perl2 rsync p5-DBD-mysql
 
 	tell_status "installing tools for NicTool exports"
-	stage_pkg_install daemontools ucspi-tcp djbdns
+	stage_pkg_install daemontools ucspi-tcp
+	install_djbdns
 	stage_pkg_install knot3
 
 	tell_status "setting up svscan"
 	stage_sysrc svscan_enable=YES
-	mkdir -p "$STAGE_MNT/var/service"
+
+	if [ -d "$STAGE_MNT/data/ns" ]; then
+		tell_status "pointing svscan at existing /data/ns"
+		stage_sysrc svscan_servicedir="/data/ns"
+	else
+		tell_status "creating default /var/service for svscan"
+		mkdir -p "$STAGE_MNT/var/service"
+	fi
 }
 
 install_nt_from_git()

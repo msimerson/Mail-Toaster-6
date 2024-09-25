@@ -61,6 +61,7 @@ fetch -q -o - https://www.internic.net/domain/named.root \
     > dnsroots.global
 make setup check
 EO_DJBDNS_INSTALLER
+
 	stage_exec sh /usr/src/djb.sh
 }
 
