@@ -114,9 +114,9 @@ install_pm2()
 configure_tls()
 {
 	local _tls_dir="$STAGE_MNT/data/etc/tls"
-	if [ ! -d "$_tls_dir" ];         then mkdir "$_tls_dir"         0755; fi
-	if [ ! -d "$_tls_dir/certs" ];   then mkdir "$_tls_dir/certs"   0755; fi
-	if [ ! -d "$_tls_dir/private" ]; then mkdir "$_tls_dir/private" 0700; fi
+	if [ ! -d "$_tls_dir" ];         then mkdir -m 0755 "$_tls_dir"        ; fi
+	if [ ! -d "$_tls_dir/certs" ];   then mkdir -m 0755 "$_tls_dir/certs"  ; fi
+	if [ ! -d "$_tls_dir/private" ]; then mkdir -m 0700 "$_tls_dir/private"; fi
 
 	if [ -f "/root/.acme/$WILDDUCK_HOSTNAME/$WILDDUCK_HOSTNAME.cer" ]; then
 		install "/root/.acme/$WILDDUCK_HOSTNAME/fullchain.cer" "$_tls_dir/certs/$WILDDUCK_HOSTNAME.pem"
