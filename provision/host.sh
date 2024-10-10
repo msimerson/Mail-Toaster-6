@@ -15,17 +15,21 @@ configure_ntp()
 {
 	if [ "$TOASTER_NTP" = "ntimed" ]; then
 		configure_ntimed
+	elif [ "$TOASTER_NTP" = "openntpd" ]; then
+		configure_openntpd
+	elif [ "$TOASTER_NTP" = "chrony" ]; then
+		configure_chrony
 	else
+		tell_status "TOASTER_NTP unset, defaulting to ntpd"
 		configure_ntpd
 	fi
 }
 
 configure_ntimed()
 {
+	disable_ntpd
+
 	tell_status "installing and enabling Ntimed"
-	if grep -q ^ntpd_enable /etc/rc.conf; then
-		sysrc ntpd_enable=NO
-	fi
 	pkg install -y ntimed
 	sysrc ntimed_enable=YES
 	service ntimed start
@@ -33,14 +37,43 @@ configure_ntimed()
 
 configure_ntpd()
 {
+	if ! grep -q ^ntpd_enable /etc/rc.conf; then
+		tell_status "enabling NTPd"
+		sysrc ntpd_enable=YES
+		sysrc ntpd_sync_on_start=YES
+		/etc/rc.d/ntpd restart
+	fi
+}
+
+configure_openntpd()
+{
+	disable_ntpd
+
+	pkg install -y openntpd
+	sysrc openntpd_enable=YES
+	service openntpd start
+}
+
+configure_chrony()
+{
+	disable_ntpd
+
+	pkg install -y chrony
+	sysrc chronyd_enable=YES
+	service chronyd start
+}
+
+disable_ntpd()
+{
 	if grep -q ^ntpd_enable /etc/rc.conf; then
-		return
+		tell_status "disabling NTPd"
+		service ntpd stop
+		sysrc ntpd_enable=NO
 	fi
 
-	tell_status "enabling NTPd"
-	sysrc ntpd_enable=YES
-	sysrc ntpd_sync_on_start=YES
-	/etc/rc.d/ntpd restart
+	if grep -q ^ntpd_sync_on_start /etc/rc.conf; then
+		sysrc ntpd_sync_on_start="NO"
+	fi
 }
 
 update_syslogd()
