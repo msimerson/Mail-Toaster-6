@@ -69,10 +69,20 @@ configure_nginx_server_d()
 	fi
 
 	# most calls get enclosing server block
-	local _prefix='server {
-		listen       80 proxy_protocol;
-		listen  [::]:80 proxy_protocol;
+	local _prefix
+	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
+		_prefix='server {
+			listen       80 proxy_protocol;
+			listen  [::]:80 proxy_protocol;
 '
+	else
+		# nginx can't send proxy protocol AND route URIs at the same time
+		_prefix='server {
+			listen       80;
+			listen  [::]:80;
+'
+	fi
+
 	local _suffix='location ~ /\.ht {
 			deny  all;
 		}
@@ -115,6 +125,13 @@ configure_nginx()
 		return
 	fi
 
+	local _realip
+	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
+		_realip='proxy_protocol'
+	else
+		_realip='X-Forwarded-For'
+	fi
+
 	tell_status "saving $_installed"
 	tee "$_installed" <<EO_NGINX_CONF
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
@@ -136,8 +153,10 @@ http {
 	keepalive_timeout  65;
 
 	set_real_ip_from $(get_jail_ip haproxy);
+	set_real_ip_from $(get_jail_ip webmail);
 	set_real_ip_from $(get_jail_ip6 haproxy);
-	real_ip_header   proxy_protocol;
+	set_real_ip_from $(get_jail_ip6 webmail);
+	real_ip_header   $_realip;
 	real_ip_recursive on;
 	client_max_body_size 25m;
 
