@@ -34,7 +34,7 @@ EO_DMARC
 
 install_dmarc_config()
 {
-	local _data_cf="$ZFS_DATA_MNT/mail-dmarc.ini"
+	local _data_cf="$ZFS_DATA_MNT/mail_dmarc/mail-dmarc.ini"
 	if [ -f "$_data_cf" ]; then
 		tell_status "preserving $_data_cf"
 	else
