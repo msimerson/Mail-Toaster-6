@@ -205,6 +205,7 @@ sshd_reorder()
 	fi
 
 	tell_status "starting sshd earlier"
+	if [ ! -d "/usr/local/etc/rc.d" ]; then mkdir -p "/usr/local/etc/rc.d"; fi
 	tee "$_file" <<EO_SSHD_REORDER
 #!/bin/sh
 # start up sshd earlier, particularly before jails
@@ -402,6 +403,12 @@ pass  in quick on \$ext_if proto tcp to port ssh \
 anchor "allow/*"
 EO_PF_RULES
 
+	if [ -z "$PUBLIC_IP6" ]; then
+		sed -i '' \
+			-e '/^table <ext_ip>/ s/, \$ext_ip6//' \
+			/etc/pf.conf
+	fi
+
 	kldstat -q -m pf || kldload pf
 
 	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
@@ -419,6 +426,7 @@ install_jailmanage()
 	if [ -s /usr/local/bin/jailmanage ]; then return; fi
 
 	tell_status "installing jailmanage"
+	if [ ! -d "/usr/local/bin" ]; then mkdir -p "/usr/local/bin"; fi
 	fetch -o /usr/local/bin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
 	chmod 755 /usr/local/bin/jailmanage
 }
