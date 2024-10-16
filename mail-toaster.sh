@@ -88,6 +88,7 @@ export TOASTER_PKG_BRANCH="latest"
 export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
+export TOASTER_WEBMAIL_PROXY="haproxy"
 export CLAMAV_FANGFRISCH="0"
 export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
@@ -188,6 +189,7 @@ export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:="0"}
 export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:="1"}
 export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:="0"}
 export TOASTER_VQADMIN=${TOASTER_VQADMIN:="0"}
+export TOASTER_WEBMAIL_PROXY=${TOASTER_WEBMAIL_PROXY:="haproxy"}
 export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:="0"}
 export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:="0"}
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:="$TOASTER_MYSQL"}
@@ -1012,6 +1014,15 @@ stage_fbsd_package()
 	echo "done"
 }
 
+stage_setup_tls()
+{
+	if [ ! -f "$STAGE_MNT/etc/ssl/certs/${TOASTER_MAIL_DOMAIN}.pem" ]; then
+		tell_status "installing TLS certificate"
+		cp /etc/ssl/certs/server.crt "$STAGE_MNT/etc/ssl/certs/${TOASTER_MAIL_DOMAIN}.pem"
+		cp /etc/ssl/private/server.key "$STAGE_MNT/etc/ssl/private/${TOASTER_MAIL_DOMAIN}.pem"
+	fi
+}
+
 unmount_data()
 {
 	# $1 is ZFS fs (eg: /data/mysql)
@@ -1348,7 +1359,8 @@ assure_jail()
 	fi
 }
 
-preserve_file() {
+preserve_file()
+{
 	local _jail_name=$1
 	local _file_path=$2
 
