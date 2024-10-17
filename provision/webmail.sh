@@ -40,6 +40,7 @@ configure_nginx_server()
 	configure_nginx_server_d webmail
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		# shellcheck disable=SC2089
 		_NGINX_SERVER="
 	server {
 		listen	    443 ssl;
@@ -122,6 +123,7 @@ configure_nginx_server()
 		}
 	}
 "
+		# shellcheck disable=SC2090
 		export _NGINX_SERVER
 
 		configure_nginx_server_d webmail-tls
