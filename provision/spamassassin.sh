@@ -241,7 +241,7 @@ configure_spamassassin_mysql()
 	local _my_pass; _my_pass=$(get_random_pass 18 safe)
 
 	tee -a "$_sa_etc/sql.cf" <<EO_MYSQL_CONF
-	# Users scores is useful with the Squirrelmail SASQL plugin
+    # Users scores is useful with the Squirrelmail SASQL plugin
     # user_scores_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
     # user_scores_sql_username        spamassassin
     # user_scores_sql_password        $_my_pass

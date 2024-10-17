@@ -1016,10 +1016,24 @@ stage_fbsd_package()
 
 stage_setup_tls()
 {
+	# static TLS certificates (installed at deploy)
 	if [ ! -f "$STAGE_MNT/etc/ssl/certs/${TOASTER_MAIL_DOMAIN}.pem" ]; then
 		tell_status "installing TLS certificate"
 		cp /etc/ssl/certs/server.crt "$STAGE_MNT/etc/ssl/certs/${TOASTER_MAIL_DOMAIN}.pem"
 		cp /etc/ssl/private/server.key "$STAGE_MNT/etc/ssl/private/${TOASTER_MAIL_DOMAIN}.pem"
+	fi
+
+	# dynamic TLS certs, kept up-to-date by acme.sh or certbot
+	if [ ! -f "$STAGE_MNT/data/etc/tls/certs" ]; then
+		# shellcheck disable=SC2174
+		mkdir -m 0644 -p "$STAGE_MNT/data/etc/tls/certs"
+		cp /etc/ssl/certs/server.crt "$STAGE_MNT/data/etc/tls/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	fi
+
+	if [ ! -f "$STAGE_MNT/data/etc/tls/private" ]; then
+		# shellcheck disable=SC2174
+		mkdir -m 0640 -p "$STAGE_MNT/data/etc/tls/private"
+		cp /etc/ssl/private/server.key "$STAGE_MNT/data/etc/tls/private/${TOASTER_MAIL_DOMAIN}.pem"
 	fi
 }
 

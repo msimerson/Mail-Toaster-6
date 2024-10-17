@@ -82,7 +82,7 @@ defaults
 frontend http-in
 	#mode tcp
 	bind :::80 v4v6 alpn http/1.1
-	bind :::443 v4v6 alpn http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
+	bind :::443 v4v6 alpn http/1.1 ssl crt /etc/ssl/private crt /data/etc/tls.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -256,9 +256,9 @@ defaults
 
 frontend default-http
     bind $(get_jail_ip stage):80
-    bind $(get_jail_ip stage):443 alpn http/1.1 ssl crt /data/ssl.d
+    bind $(get_jail_ip stage):443 alpn http/1.1 ssl crt /data/etc/tls.d
     bind [$(get_jail_ip6 stage)]:80
-    bind [$(get_jail_ip6 stage)]:443 alpn http/1.1 ssl crt /data/ssl.d
+    bind [$(get_jail_ip6 stage)]:443 alpn http/1.1 ssl crt /data/etc/tls.d
 
     default_backend www_webmail
 
@@ -283,7 +283,7 @@ install_ocsp_stapler()
 OPENSSL=/usr/bin/openssl
 
 # Path to certificates
-PEMSDIR=/data/ssl.d
+PEMSDIR=/data/etc/tls.d
 
 # Path to log output to
 LOGDIR=/var/log/haproxy
@@ -294,7 +294,7 @@ UPDATED=0
 
 cd ${PEMSDIR}
 for pem in *.pem; do
-    echo "= $(date)" >> ${LOGDIR}/${pem}.log
+    echo "= $(date)" >> "$LOGDIR/${pem}.log"
 
     # Get the OCSP URL from the certificate
     ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in $pem)
@@ -318,7 +318,7 @@ for pem in *.pem; do
 done
 
 if [ $UPDATED -gt 0 ]; then
-    echo "= $(date) - Updated $UPDATED OCSP responses" >> ${LOGDIR}/${pem}.log
+    echo "= $(date) - Updated $UPDATED OCSP responses" >> "${LOGDIR}/${pem}.log"
     service haproxy reload > ${LOGDIR}/service-reload.log 2>&1
 else
     echo "= $(date) - No updates" >> ${LOGDIR}/${pem}.log
@@ -340,9 +340,9 @@ configure_haproxy_tls()
 		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl"
 	fi
 
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl.d" ]; then
-		tell_status "creating /data/ssl.d"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d"
+	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc/tls.d" ]; then
+		tell_status "creating /data/etc/tls.d"
+		mkdir -p "$ZFS_DATA_MNT/haproxy/etc/tls.d"
 	fi
 
 	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"

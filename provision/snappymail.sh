@@ -76,10 +76,6 @@ configure_nginx_server()
 			fastcgi_pass   php;
 		}
 
-		location ~ /\.ht {
-			deny  all;
-		}
-
 		location ^~ /data {
 			deny all;
 		}

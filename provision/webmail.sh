@@ -13,16 +13,15 @@ mt6-include nginx
 configure_nginx_server()
 {
 	_NGINX_SERVER='
-		server_name  webmail;
+		server_name webmail default_server;
+		root /data/htdocs;
 
 		# serve ACME requests from /data
 		location /.well-known/acme-challenge {
-		  root /data;
 			try_files $uri =404;
 		}
 
 		location /.well-known/pki-validation {
-			root /data;
 			try_files $uri =404;
 		}
 
@@ -32,12 +31,101 @@ configure_nginx_server()
 		}
 
 		location / {
-			root   /data/htdocs;
+			# redirect to HTTPS, use with TOASTER_WEBMAIL_PROXY=nginx
+			#return 301 https://$server_name$request_uri;
 			index  index.html index.htm;
 		}
 '
 	export _NGINX_SERVER
 	configure_nginx_server_d webmail
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		_NGINX_SERVER="
+	server {
+		listen	    443 ssl;
+		listen [::]:443 ssl;
+
+		server_name  $TOASTER_HOSTNAME;
+
+		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
+		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
+
+		proxy_set_header X-Forwarded-For \$remote_addr;
+		proxy_set_header X-Forwarded-Proto \$scheme;
+		proxy_set_header Host \$host;
+
+		# Forbid access to other dotfiles
+		location ~ /\.(?!well-known).* {
+			return 403;
+		}
+
+		location ~ /\.ht {
+			deny  all;
+		}
+
+		location /roundcube {
+			rewrite /roundcube/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip roundcube):80;
+		}
+
+		location /snappymail {
+			proxy_pass	http://$(get_jail_ip snappymail):80;
+		}
+
+		location /haraka/ {
+			rewrite /haraka/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass	http://$(get_jail_ip haraka):80;
+		}
+
+		location /watch/ {
+			proxy_pass	http://$(get_jail_ip haraka):80;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade \$http_upgrade;
+			proxy_set_header Connection \"upgrade\";
+			proxy_read_timeout 86400;
+		}
+
+		location /logs/ {
+			proxy_pass	http://$(get_jail_ip haraka):80;
+		}
+
+		location ~ /(qmailadmin|vqadmin) {
+			proxy_pass	http://$(get_jail_ip vpopmail):80;
+		}
+
+		location /images/mt {
+			proxy_pass	http://$(get_jail_ip vpopmail):80;
+		}
+
+		location ~ /sqwebmail {
+			proxy_pass	http://$(get_jail_ip sqwebmail):80;
+		}
+
+		location /rspamd/ {
+			proxy_pass	http://$(get_jail_ip rspamd):11334/;
+		}
+
+		location /dmarc {
+			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/;
+		}
+
+		location / {
+			root   /data/htdocs;
+			index  index.html index.htm;
+		}
+
+		error_page   500 502 503 504  /50x.html;
+		location = /50x.html {
+			root   /usr/local/www/nginx-dist;
+		}
+	}
+"
+		export _NGINX_SERVER
+
+		configure_nginx_server_d webmail-tls
+	fi
 }
 
 install_lighttpd()
@@ -92,6 +180,12 @@ install_webmail()
 		install_lighttpd
 	else
 		install_nginx
+
+		if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+			stage_setup_tls
+			pkg install -y socat acme.sh
+		fi
+
 		configure_nginx_server
 	fi
 }
@@ -204,11 +298,7 @@ install_index()
     checkStats();
   }
   </script>
-  <style>
-body {
-  font-size: 9pt;
-}
-  </style>
+  <style>body { font-size: 9pt; }</style>
 </head>
 <body onLoad="checkAll()">
 <div id="tabs">
@@ -273,6 +363,31 @@ body {
 EO_INDEX
 }
 
+configure_webmail_pf()
+{
+	_pf_etc="$ZFS_DATA_MNT/webmail/etc/pf.conf.d"
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		store_config "$_pf_etc/rdr.conf" <<EO_HTTP_RDR
+int_ip4 = "$(get_jail_ip webmail)"
+int_ip6 = "$(get_jail_ip6 webmail)"
+
+rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> \$int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> \$int_ip6
+EO_HTTP_RDR
+	fi
+
+	store_config "$_pf_etc/allow.conf" <<EO_HTTP_ALLOW
+int_ip4 = "$(get_jail_ip webmail)"
+int_ip6 = "$(get_jail_ip6 webmail)"
+
+table <webmail_int> persist { \$int_ip4, \$int_ip6 }
+
+pass in quick proto tcp from any to <ext_ip> port { 80 443 }
+pass in quick proto tcp from any to <webmail_int> port { 80 443 }
+EO_HTTP_ALLOW
+}
+
 configure_webmail()
 {
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
@@ -281,6 +396,8 @@ configure_webmail()
 		configure_nginx webmail
 		configure_nginx_server
 	fi
+
+	configure_webmail_pf
 
 	_htdocs="$ZFS_DATA_MNT/webmail/htdocs"
 	if [ ! -d "$_htdocs" ]; then
@@ -298,6 +415,15 @@ configure_webmail()
 User-agent: *
 Disallow: /
 EO_ROBOTS_TXT
+	fi
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		stage_exec acme.sh --set-default-ca --server letsencrypt
+		stage_exec acme.sh -d "$TOASTER_HOSTNAME" --issue --webroot=/data/htdocs
+		stage_exec acme.sh --install-cert -d "$TOASTER_HOSTNAME" \
+			--key-file       /data/etc/tls/private/$TOASTER_HOSTNAME.pem \
+			--fullchain-file /data/etc/tls/certs/$TOASTER_HOSTNAME.pem \
+			--reloadcmd      "service nginx reload"
 	fi
 }
 
