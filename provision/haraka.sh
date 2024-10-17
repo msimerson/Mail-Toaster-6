@@ -601,13 +601,6 @@ order=fail,pass,msg
 EO_RESULTS
 }
 
-enable_newsyslog() {
-	tell_status "enabling newsyslog"
-	stage_sysrc newsyslog_enable=YES
-	sed -i.bak \
-		-e '/^#0.*newsyslog/ s/^#0/0/' \
-		"$STAGE_MNT/etc/crontab"
-}
 
 configure_haraka_log_reader()
 {
@@ -621,11 +614,11 @@ configure_haraka_log_reader()
 
 configure_haraka_log_rotation()
 {
-	enable_newsyslog
+	stage_enable_newsyslog
 
 	tell_status "configuring haraka.log rotation"
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
-	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.log" <<EO_HARAKA
+	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" <<EO_HARAKA
 /var/log/haraka.log			644  7	   *	@T00  JC
 EO_HARAKA
 }

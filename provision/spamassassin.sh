@@ -89,12 +89,14 @@ install_spamassassin_razor()
 		'/^logfile/ s/= /= \/var\/log\//' \
 		"$STAGE_MNT/etc/razor/razor-agent.conf"
 
+	stage_enable_newsyslog
+
 	tell_status "setting up razor-agent log rotation"
-	if [ ! -d "$STAGE_MNT/etc/newsyslog.conf.d" ]; then
-		mkdir "$STAGE_MNT/etc/newsyslog.conf.d"
+	if [ ! -d "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" ]; then
+		mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
 	fi
 
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent" <<EO_RAZOR
+	tee "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
 /var/log/razor-agent.log    600 5   1000 *  Z
 EO_RAZOR
 }
@@ -241,7 +243,7 @@ configure_spamassassin_mysql()
 	local _my_pass; _my_pass=$(get_random_pass 18 safe)
 
 	tee -a "$_sa_etc/sql.cf" <<EO_MYSQL_CONF
-	# Users scores is useful with the Squirrelmail SASQL plugin
+    # Users scores is useful with the Squirrelmail SASQL plugin
     # user_scores_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
     # user_scores_sql_username        spamassassin
     # user_scores_sql_password        $_my_pass
