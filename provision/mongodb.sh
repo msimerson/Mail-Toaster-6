@@ -63,6 +63,8 @@ configure_mongodb()
 
 	check_max_wired
 
+	stage_enable_newsyslog
+
 	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
 		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod.conf"
 }

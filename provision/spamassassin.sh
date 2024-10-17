@@ -89,12 +89,14 @@ install_spamassassin_razor()
 		'/^logfile/ s/= /= \/var\/log\//' \
 		"$STAGE_MNT/etc/razor/razor-agent.conf"
 
+	stage_enable_newsyslog
+
 	tell_status "setting up razor-agent log rotation"
-	if [ ! -d "$STAGE_MNT/etc/newsyslog.conf.d" ]; then
-		mkdir "$STAGE_MNT/etc/newsyslog.conf.d"
+	if [ ! -d "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" ]; then
+		mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
 	fi
 
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
+	tee "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
 /var/log/razor-agent.log    600 5   1000 *  Z
 EO_RAZOR
 }

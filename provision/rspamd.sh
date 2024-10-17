@@ -144,7 +144,7 @@ level = "notice";
 EO_SYSLOG
 	else
 		tell_status "configuring log rotation"
-		stage_sysrc newsyslog_enable="YES"
+		stage_enable_newsyslog
 	fi
 }
 

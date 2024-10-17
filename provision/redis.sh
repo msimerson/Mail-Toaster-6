@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. mail-toaster.sh || exit
+set -e
+
+. mail-toaster.sh
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
@@ -17,11 +19,13 @@ configure_redis()
 	tell_status "configuring redis"
 
 	for _dir in db log etc; do
-		mkdir -p "$STAGE_MNT/data/$_dir" || exit
+		mkdir -p "$STAGE_MNT/data/$_dir"
 	done
 
-	mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" || exit
-	stage_exec chown redis:redis /data/db /data/log /data/etc || exit
+	stage_enable_newsyslog
+
+	mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
+	stage_exec chown redis:redis /data/db /data/log /data/etc
 
 	sed -i.bak \
 		-e '/^stop-writes-on-bgsave-error/ s/yes/no/' \
@@ -49,7 +53,7 @@ test_redis()
 	stage_listening 6379 3 2
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists
 create_staged_fs redis
 start_staged_jail redis
 install_redis

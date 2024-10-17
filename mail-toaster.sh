@@ -1039,6 +1039,15 @@ stage_setup_tls()
 	fi
 }
 
+stage_enable_newsyslog()
+{
+	tell_status "enabling newsyslog"
+	sysrc -f "$STAGE_MNT/etc/rc.conf" newsyslog_enable=YES
+	sed -i.bak \
+		-e '/^#0.*newsyslog/ s/^#0/0/' \
+		"$STAGE_MNT/etc/crontab"
+}
+
 unmount_data()
 {
 	# $1 is ZFS fs (eg: /data/mysql)

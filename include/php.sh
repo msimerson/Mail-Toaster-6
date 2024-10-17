@@ -29,6 +29,8 @@ install_php()
 }
 
 install_php_newsyslog() {
+	stage_enable_newsyslog
+
 	tell_status "enabling PHP-FPM log file rotation"
 	tee "$STAGE_MNT/etc/newsyslog.conf.d/php-fpm.conf" <<EO_FPM_NSL
 # rotate the file after it reaches 1M
