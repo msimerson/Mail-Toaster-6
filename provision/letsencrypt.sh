@@ -11,8 +11,7 @@ export JAIL_FSTAB=""
 install_letsencrypt()
 {
 	tell_status "installing ACME.sh & Let's Encrypt"
-	pkg install -y curl socat
-	fetch -o - https://get.acme.sh | sh
+	pkg install -y curl socat acme.sh
 }
 
 install_deploy_haproxy()
@@ -399,7 +398,7 @@ configure_letsencrypt()
 
 	tell_status "configuring acme.sh"
 
-	local _HTTPDIR="$ZFS_DATA_MNT/webmail"
+	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
 	local _acme="/root/.acme.sh/acme.sh"
 
 	$_acme --set-default-ca --server letsencrypt
@@ -415,7 +414,7 @@ configure_letsencrypt()
 
 test_letsencrypt()
 {
-	if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+	if [ ! -f "~root/.acme.sh/acme.sh" ]; then
 		echo "not installed!"
 		exit
 	fi
