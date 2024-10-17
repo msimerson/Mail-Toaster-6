@@ -64,7 +64,7 @@ configure_mongodb()
 	check_max_wired
 
 	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
-		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod"
+		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod.conf"
 }
 
 start_mongodb()

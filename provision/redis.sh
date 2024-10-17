@@ -33,7 +33,7 @@ configure_redis()
 		"$STAGE_MNT/usr/local/etc/redis.conf"
 
 	echo '/data/log/redis.log   redis:redis 644  7  *  @T00   JC   /var/run/redis/redis.pid' \
-   		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis"
+		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis.conf"
 }
 
 start_redis()

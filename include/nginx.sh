@@ -38,7 +38,7 @@ install_nginx()
 install_nginx_newsyslog()
 {
 	tell_status "enabling nginx log file rotation"
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx" <<EO_NG_NSL
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf" <<EO_NG_NSL
 # rotate nightly (default)
 /var/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 
