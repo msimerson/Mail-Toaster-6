@@ -42,9 +42,18 @@ EOF
 
 test_imap_curl()
 {
-	# shellcheck disable=SC2001
-	curl -k -v --login-options 'AUTH=PLAIN' \
-		"imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+	local _test_uri
+	_test_uri="imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+
+	if [ -x /usr/local/bin/curl ]; then
+		curl -k -v --login-options 'AUTH=PLAIN' "$_test_uri"
+	elif [ -x "$STAGE_MNT/usr/local/bin/curl" ]; then
+		_test_uri="imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@localhost/"
+		stage_exec curl -k -v --login-options 'AUTH=PLAIN' "$_test_uri"
+	else
+		pkg install -y curl
+		curl -k -v --login-options 'AUTH=PLAIN' "$_test_uri"
+	fi
 }
 
 test_imap()
