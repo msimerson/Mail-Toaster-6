@@ -324,27 +324,20 @@ configure_tls_certs()
 
 	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
 	if [ ! -d "$_ssldir/certs" ]; then
-		mkdir -p "$_ssldir/certs"
-		chmod 644 "$_ssldir/certs"
+		# shellcheck disable=SC2174
+		mkdir -m 644 -p "$_ssldir/certs"
 	fi
 
 	if [ ! -d "$_ssldir/private" ]; then
-		mkdir "$_ssldir/private"
-		chmod 644 "$_ssldir/private"
+		mkdir -m 0644 "$_ssldir/private"
 	fi
 
 	local _installed_crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	if [ -f "$_installed_crt" ]; then
-		tell_status "dovecot TLS certificates already installed"
-		return
+	if [ ! -f "$_installed_crt" ]; then
+		tell_status "installing dovecot TLS certificates"
+		cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+		cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 	fi
-
-	tell_status "installing dovecot TLS certificates"
-	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	# sunset after Dovecot 2.3 released
-	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	# /sunset
-	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 }
 
 configure_postfix_with_sasl()
