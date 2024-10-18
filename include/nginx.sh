@@ -74,8 +74,8 @@ configure_nginx_server_d()
 	local _prefix
 	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
 		_prefix='server {
-			listen       80 proxy_protocol;
-			listen  [::]:80 proxy_protocol;
+			listen       80;
+			listen  [::]:80;
 '
 	else
 		# nginx can't send proxy protocol AND route URIs at the same time
@@ -127,13 +127,6 @@ configure_nginx()
 		return
 	fi
 
-	local _realip
-	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
-		_realip='proxy_protocol'
-	else
-		_realip='X-Forwarded-For'
-	fi
-
 	tell_status "saving $_installed"
 	tee "$_installed" <<EO_NGINX_CONF
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
@@ -158,7 +151,7 @@ http {
 	set_real_ip_from $(get_jail_ip webmail);
 	set_real_ip_from $(get_jail_ip6 haproxy);
 	set_real_ip_from $(get_jail_ip6 webmail);
-	real_ip_header   $_realip;
+	real_ip_header   X-Forwarded-For;
 	real_ip_recursive on;
 	client_max_body_size 25m;
 
