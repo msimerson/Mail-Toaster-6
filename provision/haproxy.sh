@@ -289,10 +289,10 @@ PEMSDIR=/data/etc/tls.d
 LOGDIR=/var/log/haproxy
 
 # Create the log path if it doesn't already exist
-[ -d ${LOGDIR} ] || mkdir ${LOGDIR}
+[ -d $LOGDIR ] || mkdir $LOGDIR
 UPDATED=0
 
-cd ${PEMSDIR}
+cd $PEMSDIR
 for pem in *.pem; do
     echo "= $(date)" >> "$LOGDIR/${pem}.log"
 
@@ -318,10 +318,10 @@ for pem in *.pem; do
 done
 
 if [ $UPDATED -gt 0 ]; then
-    echo "= $(date) - Updated $UPDATED OCSP responses" >> "${LOGDIR}/${pem}.log"
-    service haproxy reload > ${LOGDIR}/service-reload.log 2>&1
+    echo "= $(date) - Updated $UPDATED OCSP responses" >> "$LOGDIR/${pem}.log"
+    service haproxy reload > $LOGDIR/service-reload.log 2>&1
 else
-    echo "= $(date) - No updates" >> ${LOGDIR}/${pem}.log
+    echo "= $(date) - No updates" >> $LOGDIR/${pem}.log
 fi
 
 EO_OCSP

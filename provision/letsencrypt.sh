@@ -64,8 +64,8 @@ haproxy_deploy() {
 	fi
 
 	local _tls_dir="/data/haproxy/etc/tls.d"
-	if [ ! -d "$_tls_dir" ]; then
-		# legacy dir, pre-2024
+	if [ -d "/data/haproxy/ssl.d" ]; then
+		_debug "using legacy /data/ssl.d (new: /data/etc/tls.d)"
 		_tls_dir="/data/haproxy/ssl.d"
 	fi
 
@@ -150,7 +150,8 @@ dovecot_deploy() {
 	assure_file "$_ccert" || return 2
 
 	_ssl_dir="/data/dovecot/etc/tls"
-	if [ ! -d "$_ssl_dir" ]; then
+	if [ -d "/data/dovecot/etc/ssl" ]; then
+		_debug "using legacy /data/etc/ssl (new: /data/etc/tls)"
 		_ssl_dir="/data/dovecot/etc/ssl"
 	fi
 
