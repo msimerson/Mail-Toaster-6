@@ -126,7 +126,7 @@ configure_nginx_server()
 		# shellcheck disable=SC2090
 		export _NGINX_SERVER
 
-		configure_nginx_server_d webmail-tls
+		configure_nginx_server_d webmail webmail-tls
 	fi
 }
 
