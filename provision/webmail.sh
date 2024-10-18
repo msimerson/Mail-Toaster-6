@@ -418,15 +418,6 @@ User-agent: *
 Disallow: /
 EO_ROBOTS_TXT
 	fi
-
-	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		acme.sh --set-default-ca --server letsencrypt
-		acme.sh -d "$TOASTER_HOSTNAME" --issue --webroot=$_htdocs
-		acme.sh --install-cert -d "$TOASTER_HOSTNAME" \
-			--key-file       $_data/etc/tls/private/$TOASTER_HOSTNAME.pem \
-			--fullchain-file $_data/etc/tls/certs/$TOASTER_HOSTNAME.pem \
-			--reloadcmd      "jexec webmail service nginx reload"
-	fi
 }
 
 start_webmail()
