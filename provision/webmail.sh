@@ -400,7 +400,8 @@ configure_webmail()
 
 	configure_webmail_pf
 
-	_htdocs="$ZFS_DATA_MNT/webmail/htdocs"
+	_data="$ZFS_DATA_MNT/webmail"
+	_htdocs="$_data/htdocs"
 	if [ ! -d "$_htdocs" ]; then
 	   mkdir -p "$_htdocs"
 	fi
@@ -419,12 +420,12 @@ EO_ROBOTS_TXT
 	fi
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		stage_exec acme.sh --set-default-ca --server letsencrypt
-		stage_exec acme.sh -d "$TOASTER_HOSTNAME" --issue --webroot=/data/htdocs
-		stage_exec acme.sh --install-cert -d "$TOASTER_HOSTNAME" \
-			--key-file       /data/etc/tls/private/$TOASTER_HOSTNAME.pem \
-			--fullchain-file /data/etc/tls/certs/$TOASTER_HOSTNAME.pem \
-			--reloadcmd      "service nginx reload"
+		acme.sh --set-default-ca --server letsencrypt
+		acme.sh -d "$TOASTER_HOSTNAME" --issue --webroot=$_htdocs
+		acme.sh --install-cert -d "$TOASTER_HOSTNAME" \
+			--key-file       $_data/etc/tls/private/$TOASTER_HOSTNAME.pem \
+			--fullchain-file $_data/etc/tls/certs/$TOASTER_HOSTNAME.pem \
+			--reloadcmd      "jexec webmail service nginx reload"
 	fi
 }
 
