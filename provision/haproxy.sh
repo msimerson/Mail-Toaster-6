@@ -82,7 +82,7 @@ defaults
 frontend http-in
 	#mode tcp
 	bind :::80 v4v6 alpn http/1.1
-	bind :::443 v4v6 alpn http/1.1 ssl crt /etc/ssl/private crt /data/etc/tls.d
+	bind :::443 v4v6 alpn http/1.1 ssl crt /data/etc/tls.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -329,20 +329,16 @@ EO_OCSP
 
 configure_haproxy_tls()
 {
-	if [ ! -f "$STAGE_MNT/etc/ssl/private/server.pem" ]; then
+	local _tls_dir="$ZFS_DATA_MNT/haproxy/etc/tls.d"
+	if [ ! -d "$_tls_dir" ]; then
+		tell_status "creating $_tls_dir"
+		mkdir -p "$_tls_dir"
+	fi
+
+	if [ ! -f "$_tls_dir/$TOASTER_HOSTNAME.pem" ]; then
 		tell_status "concatenating TLS key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$STAGE_MNT/etc/ssl/private/server.pem"
-	fi
-
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl" ]; then
-		tell_status "creating /data/ssl"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl"
-	fi
-
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc/tls.d" ]; then
-		tell_status "creating /data/etc/tls.d"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/etc/tls.d"
+			> "$_tls_dir/$TOASTER_HOSTNAME.pem"
 	fi
 
 	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"

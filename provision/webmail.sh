@@ -185,7 +185,6 @@ install_webmail()
 
 		if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 			stage_setup_tls
-			pkg install -y socat acme.sh
 		fi
 
 		configure_nginx_server

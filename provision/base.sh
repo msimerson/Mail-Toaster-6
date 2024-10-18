@@ -137,7 +137,7 @@ done
 EO_PKG_SECURITY
 }
 
-configure_ssl_dirs()
+configure_tls_dirs()
 {
 	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
 		mkdir -m 0644 "$BASE_MNT/etc/ssl/certs"
@@ -213,7 +213,7 @@ configure_base()
 		update_motd=NO
 
 	configure_pkg_latest "$BASE_MNT"
-	configure_ssl_dirs
+	configure_tls_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
 	enable_security_periodic
