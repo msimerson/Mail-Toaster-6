@@ -48,8 +48,8 @@ configure_nginx_server()
 
 		server_name  $TOASTER_HOSTNAME;
 
-		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
-		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
+		ssl_certificate	/data/etc/tls/certs/$TOASTER_MAIL_DOMAIN.pem;
+		ssl_certificate_key /data/etc/tls/private/$TOASTER_MAIL_DOMAIN.pem;
 
 		proxy_set_header X-Forwarded-For \$remote_addr;
 		proxy_set_header X-Forwarded-Proto \$scheme;
