@@ -147,7 +147,7 @@ configure_lighttpd()
 	# shellcheck disable=2016
 	sed -i.bak \
 		-e 's/^#include_shell "cat/include_shell "cat/' \
-		-e '/^var.server_root/ s/\/usr\/local\/www\/data/\/data\/htdocs/' \
+		-e '/^var.server_root/ s|/usr/local/www/data|/data/htdocs|' \
 		"$_lighttpd_conf"
 
 	store_config "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
@@ -178,15 +178,12 @@ EO_LIGHTTPD_MT6
 
 install_webmail()
 {
+	stage_setup_tls
+
 	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
 		install_lighttpd
 	else
 		install_nginx
-
-		if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-			stage_setup_tls
-		fi
-
 		configure_nginx_server
 	fi
 }
@@ -402,9 +399,7 @@ configure_webmail()
 
 	_data="$ZFS_DATA_MNT/webmail"
 	_htdocs="$_data/htdocs"
-	if [ ! -d "$_htdocs" ]; then
-	   mkdir -p "$_htdocs"
-	fi
+	if [ ! -d "$_htdocs" ]; then mkdir -p "$_htdocs"; fi
 
 	if [ -f "$_htdocs/index.html" ]; then
 		tell_status "backing up index.html"
