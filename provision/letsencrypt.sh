@@ -11,8 +11,7 @@ export JAIL_FSTAB=""
 install_letsencrypt()
 {
 	tell_status "installing ACME.sh & Let's Encrypt"
-	pkg install -y curl socat
-	fetch -o - https://get.acme.sh | sh
+	pkg install -y curl socat acme.sh
 }
 
 install_deploy_haproxy()
@@ -64,8 +63,14 @@ haproxy_deploy() {
 		return 2
 	fi
 
-	if [ ! -d /data/haproxy/ssl.d ]; then
-		_debug "no /data/haproxy/ssl.d dir"
+	local _tls_dir="/data/haproxy/etc/tls.d"
+	if [ -d "/data/haproxy/ssl.d" ]; then
+		_debug "using legacy /data/ssl.d (new: /data/etc/tls.d)"
+		_tls_dir="/data/haproxy/ssl.d"
+	fi
+
+	if [ ! -d "$_tls_dir" ]; then
+		_debug "no /data/haproxy/etc/tls.d dir"
 		return 0
 	fi
 
@@ -77,7 +82,7 @@ haproxy_deploy() {
 	fi
 
 	_debug "$_tmp created"
-	local _installed="/data/haproxy/ssl.d/$_cdomain.pem"
+	local _installed="$_tls_dir/$_cdomain.pem"
 	has_differences "$_tmp" "$_installed" || return 0
 	install_file "$_tmp" "$_installed" || return 1
 	install_file "$_cca" "${_installed}.issuer"
@@ -144,9 +149,14 @@ dovecot_deploy() {
 
 	assure_file "$_ccert" || return 2
 
-	_ssl_dir="/data/dovecot/etc/ssl"
+	_ssl_dir="/data/dovecot/etc/tls"
+	if [ -d "/data/dovecot/etc/ssl" ]; then
+		_debug "using legacy /data/etc/ssl (new: /data/etc/tls)"
+		_ssl_dir="/data/dovecot/etc/ssl"
+	fi
+
 	if [ ! -d "$_ssl_dir" ]; then
-		_debug "no TLS/SSL dir: $_ssl_dir"
+		_debug "no TLS/SSL dir: /data/dovecot/etc/tls"
 		return 0
 	fi
 
@@ -355,7 +365,7 @@ mailtoaster_deploy() {
 	_cca="$4"
 	_cfullchain="$5"
 
-	for _target in haraka haproxy dovecot
+	for _target in haraka haproxy dovecot webmail
 	do
 		echo "deploying $_target"
 		. "/root/.acme.sh/deploy/$_target"
@@ -365,6 +375,82 @@ mailtoaster_deploy() {
 	return 0
 }
 EO_LE_MT
+}
+
+install_deploy_webmail()
+{
+	store_config "$_deploy/webmail" <<'EO_LE_WEBMAIL'
+#!/bin/sh
+
+assure_file() {
+
+	if [ ! -s "$1" ]; then
+		_err "File doesn't exist: $1"
+		return 1
+	fi
+
+	_debug "file exists: $1"
+	return 0
+}
+
+has_differences() {
+
+	if [ ! -f "$2" ]; then
+		_debug "non-existent, deploying: $2"
+		return 0
+	fi
+
+	if diff -q "$1" "$2"; then
+		_debug "file contents identical, skip deploy of $2"
+		return 1
+	fi
+
+	_debug "file has changes, deploying"
+	return 0
+}
+
+install_file() {
+	cp "$1" "$2" || return 1
+
+	if [ ! -s "$2" ]; then
+		_err "install to $2 failed"
+		return 1
+	fi
+
+	_debug "installed as $2"
+	return 0
+}
+
+#domain keyfile certfile cafile fullchain
+webmail_deploy() {
+	_cdomain="$1"
+	_ckey="$2"
+	_ccert="$3"
+	_cca="$4"
+	_cfullchain="$5"
+
+	assure_file "$_ccert" || return 2
+
+	_ssl_dir="/data/webmail/etc/tls"
+	if [ ! -d "$_ssl_dir" ]; then
+		_debug "no TLS/SSL dir: /data/webmail/etc/tls"
+		return 0
+	fi
+
+	assure_file "$_cfullchain" || return 1;
+
+	local _crt_installed="$_ssl_dir/certs/${_cdomain}.pem"
+	local _key_installed="$_ssl_dir/private/${_cdomain}.pem"
+
+	has_differences "$_cfullchain" "$_crt_installed" || return 0
+	install_file    "$_cfullchain" "$_crt_installed" || return 1
+	install_file    "$_ckey"       "$_key_installed" || return 1
+
+	_debug "restarting webmail"
+	jexec webmail service nginx restart
+	return 0
+}
+EO_LE_WEBMAIL
 }
 
 install_deploy_scripts()
@@ -377,6 +463,7 @@ install_deploy_scripts()
 	install_deploy_haraka
 	install_deploy_mailtoaster
 	install_deploy_mysql
+	install_deploy_webmail
 }
 
 update_haproxy_ssld()
@@ -389,7 +476,7 @@ update_haproxy_ssld()
 
 	tell_status "switching haproxy TLS cert dir to /data/ssl.d"
 	sed -i.bak \
-		-e 's!ssl crt /etc.*!ssl crt /data/ssl.d!' \
+		-e 's!ssl crt /etc.*!ssl crt /data/etc/tls.d!' \
 		"$_haconf"
 }
 
@@ -399,7 +486,7 @@ configure_letsencrypt()
 
 	tell_status "configuring acme.sh"
 
-	local _HTTPDIR="$ZFS_DATA_MNT/webmail"
+	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
 	local _acme="/root/.acme.sh/acme.sh"
 
 	$_acme --set-default-ca --server letsencrypt
@@ -415,7 +502,7 @@ configure_letsencrypt()
 
 test_letsencrypt()
 {
-	if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+	if [ ! -f "~root/.acme.sh/acme.sh" ]; then
 		echo "not installed!"
 		exit
 	fi

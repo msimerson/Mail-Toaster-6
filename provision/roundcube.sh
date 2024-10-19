@@ -196,6 +196,19 @@ configure_roundcube_plugins()
 		-e "/'password_driver'/s/sql/vpopmaild/" \
 		-e "/'password_vpopmaild_host'/s/localhost/vpopmail/" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php"
+
+	tell_status "configure the SA UserPrefs plugin"
+	if [ ! -f "$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php" ]; then
+		cp "$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php.dist" \
+			"$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php"
+	fi
+	local _sapass
+	_sapass=$(grep user_scores_sql_password /data/spamassassin/etc/sql.cf | awk '{ print $2 }')
+	if [ -n "$_sapass" ]; then
+		sed -i.bak \
+			-e "/'sauserprefs_db_dsnw'/s|mysql://username:password@localhost/database|mysql://spamassassin:${_sapass}@mysql/spamassassin|" \
+			"$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php"
+	fi
 }
 
 configure_roundcube()
@@ -233,7 +246,7 @@ configure_roundcube()
 		-e "/'smtp_host'/    s/localhost:587/ssl:\/\/$TOASTER_MSA:465/" \
 		-e "/'smtp_user'/    s/'';/'%u';/" \
 		-e "/'smtp_pass'/    s/'';/'%p';/" \
-		-e "/'archive',/     s/,$/, 'managesieve',/" \
+		-e "/'archive',/     s|,$|, 'managesieve', 'sauserprefs',|" \
 		-e "/'product_name'/ s|'Roundcube Webmail'|'$ROUNDCUBE_PRODUCT_NAME'|" \
 		"$_stage_cfg"
 

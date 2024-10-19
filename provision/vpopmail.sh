@@ -253,9 +253,9 @@ install_vpopmail()
 	fi
 
 	tell_status "installing vpopmail package"
-	stage_pkg_install vpopmail
+	stage_pkg_install vpopmail gmake autoconf
 
-	stage_port_install devel/gmake
+	#stage_port_install devel/gmake
 
 	install_vpopmail_port
 	#install_vpopmail_source
