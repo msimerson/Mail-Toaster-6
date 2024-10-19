@@ -12,6 +12,10 @@ install_letsencrypt()
 {
 	tell_status "installing ACME.sh & Let's Encrypt"
 	pkg install -y curl socat acme.sh
+
+	if [ ! -d "/root/.acme.sh" ]; then
+		mkdir "/root/.acme.sh"
+	fi
 }
 
 install_deploy_haproxy()
@@ -166,8 +170,8 @@ dovecot_deploy() {
 	local _key_installed="$_ssl_dir/private/${_cdomain}.pem"
 
 	has_differences "$_cfullchain" "$_crt_installed" || return 0
-	install_file "$_cfullchain" "$_crt_installed" || return 1
-	install_file "$_ckey"    "$_key_installed" || return 1
+	install_file    "$_cfullchain" "$_crt_installed" || return 1
+	install_file    "$_ckey"       "$_key_installed" || return 1
 
 	_debug "restarting dovecot"
 	jexec dovecot service dovecot restart
@@ -368,7 +372,7 @@ mailtoaster_deploy() {
 	for _target in haraka haproxy dovecot webmail
 	do
 		echo "deploying $_target"
-		. "/root/.acme.sh/deploy/$_target"
+               . "/root/.acme.sh/deploy/$_target"
 		${_target}_deploy $* || return 2
 	done
 
@@ -468,13 +472,18 @@ install_deploy_scripts()
 
 update_haproxy_ssld()
 {
+	if [ ! -d "$ZFS_DATA_MNT/haproxy" ]; then
+		# haproxy not installed, nothing to do
+		return
+	fi
+
 	local _haconf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
 	if ! grep -q 'ssl crt /etc' "$_haconf"; then
 		# already updated
 		return
 	fi
 
-	tell_status "switching haproxy TLS cert dir to /data/ssl.d"
+	tell_status "switching haproxy TLS cert dir to /data/etc/tls.d"
 	sed -i.bak \
 		-e 's!ssl crt /etc.*!ssl crt /data/etc/tls.d!' \
 		"$_haconf"
@@ -487,13 +496,12 @@ configure_letsencrypt()
 	tell_status "configuring acme.sh"
 
 	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
-	local _acme="/root/.acme.sh/acme.sh"
 
-	$_acme --set-default-ca --server letsencrypt
+	acme.sh --set-default-ca --server letsencrypt
 
-	if $_acme --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
+	if acme.sh --issue --force -d "$TOASTER_HOSTNAME" -w "$_HTTPDIR"; then
 		update_haproxy_ssld
-		$_acme --deploy -d "$TOASTER_HOSTNAME" --deploy-hook mailtoaster
+		acme.sh --deploy -d "$TOASTER_HOSTNAME" --deploy-hook mailtoaster
 	else
 		tell_status "TLS Certificate Issue failed"
 		exit 1
@@ -502,11 +510,6 @@ configure_letsencrypt()
 
 test_letsencrypt()
 {
-	if [ ! -f "~root/.acme.sh/acme.sh" ]; then
-		echo "not installed!"
-		exit
-	fi
-
 	echo "it worked"
 }
 
