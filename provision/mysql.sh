@@ -170,7 +170,7 @@ migrate_mysql_dbs()
 		exit 1
 	fi
 
-	if jls -j mysql | grep -qs mysql; then
+	if jail_is_running mysql; then
 		echo "mysql jail is running"
 
 		_my_ver=$(pkg -j mysql info | grep mysql | grep server | cut -f1 -d' ' | cut -d- -f3)

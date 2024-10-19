@@ -125,7 +125,7 @@ do
 done
 
 # packages to be updated automatically
-auto_upgrade="curl expat libxml2 pkg sudo vim-tiny"
+auto_upgrade="curl expat libxml2 pkg sudo unbound vim-tiny"
 
 # add packages with:
 #   sysrc -f /usr/local/etc/periodic/daily/auto_security_upgrades auto_upgrade+=" $NEW"
@@ -137,17 +137,15 @@ done
 EO_PKG_SECURITY
 }
 
-configure_ssl_dirs()
+configure_tls_dirs()
 {
 	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
-		mkdir "$BASE_MNT/etc/ssl/certs"
+		mkdir -m 0644 "$BASE_MNT/etc/ssl/certs"
 	fi
 
 	if [ ! -d "$BASE_MNT/etc/ssl/private" ]; then
-		mkdir "$BASE_MNT/etc/ssl/private"
+		mkdir -m 0640 "$BASE_MNT/etc/ssl/private"
 	fi
-
-	chmod o-r "$BASE_MNT/etc/ssl/private"
 }
 
 configure_tls_dhparams()
@@ -215,7 +213,7 @@ configure_base()
 		update_motd=NO
 
 	configure_pkg_latest "$BASE_MNT"
-	configure_ssl_dirs
+	configure_tls_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
 	enable_security_periodic

@@ -112,13 +112,13 @@ protocol lmtp {
 }
 
 # default TLS certificate (no SNI)
-ssl_cert = </data/etc/ssl/certs/dovecot.pem
-ssl_key = </data/etc/ssl/private/dovecot.pem
+ssl_cert = </data/etc/tls/certs/dovecot.pem
+ssl_key = </data/etc/tls/private/dovecot.pem
 
 # example TLS SNI (see https://wiki.dovecot.org/SSL/DovecotConfiguration)
 #local_name mail.example.com {
-#  ssl_cert = </data/etc/ssl/certs/mail.example.com.pem
-#  ssl_key = </data/etc/ssl/private/mail.example.com.pem
+#  ssl_cert = </data/etc/tls/certs/mail.example.com.pem
+#  ssl_key = </data/etc/tls/private/mail.example.com.pem
 #}
 
 # dovecot 2.3+ supports a ssl_dh file
@@ -322,7 +322,7 @@ configure_tls_certs()
 			"$_localconf"
 	fi
 
-	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
+	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/tls"
 	if [ ! -d "$_ssldir/certs" ]; then
 		# shellcheck disable=SC2174
 		mkdir -m 644 -p "$_ssldir/certs"
@@ -351,8 +351,8 @@ configure_postfix_with_sasl()
 	stage_exec postconf -e 'smtpd_sasl_path = private/auth'
 	stage_exec postconf -e 'smtpd_sasl_auth_enable = yes'
 	stage_exec postconf -e 'smtpd_recipient_restrictions = permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination'
-	stage_exec postconf -e "smtpd_tls_cert_file = /data/etc/ssl/certs/$TOASTER_HOSTNAME.pem"
-	stage_exec postconf -e "smtpd_tls_key_file = /data/etc/ssl/private/$TOASTER_HOSTNAME.pem"
+	stage_exec postconf -e "smtpd_tls_cert_file = /data/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+	stage_exec postconf -e "smtpd_tls_key_file = /data/etc/tls/private/$TOASTER_HOSTNAME.pem"
 	stage_exec postconf -e 'smtp_tls_security_level = may'
 
 	for _s in 512 1024 2048; do
