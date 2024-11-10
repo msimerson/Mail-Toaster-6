@@ -631,6 +631,7 @@ do_cmd() {
 flush() {
     case "$1" in
         "nat"   ) do_cmd "$2 -F nat"   ;;
+        "rdr"   ) do_cmd "$2 -F nat"   ;;
         "filter") do_cmd "$2 -F rules" ;;
     esac
 }
