@@ -365,6 +365,8 @@ table <sshguard> persist
 
 ## NAT / Network Address Translation
 
+binat-anchor "binat/*"
+
 # default route to the internet for jails
 nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
 nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
@@ -396,11 +398,13 @@ pass in inet6 proto ipv6-icmp icmp6-type 136
 # NTP
 pass out quick on \$ext_if proto udp to any port ntp keep state
 
-pass  in quick on \$ext_if proto tcp to port ssh \
+pass in quick on \$ext_if proto tcp to port ssh \
         flags S/SA synproxy state \
         (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 
+# allow anchor is deprecated, use filter instead
 anchor "allow/*"
+anchor "filter/*"
 EO_PF_RULES
 
 	if [ -z "$PUBLIC_IP6" ]; then

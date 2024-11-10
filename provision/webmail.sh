@@ -366,24 +366,28 @@ configure_webmail_pf()
 	_pf_etc="$ZFS_DATA_MNT/webmail/etc/pf.conf.d"
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		store_config "$_pf_etc/rdr.conf" <<EO_HTTP_RDR
+		store_config "$_pf_etc/rdr.conf" <<EO_WEBMAIL_RDR
 int_ip4 = "$(get_jail_ip webmail)"
 int_ip6 = "$(get_jail_ip6 webmail)"
 
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> \$int_ip4
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> \$int_ip6
-EO_HTTP_RDR
+EO_WEBMAIL_RDR
 	fi
 
-	store_config "$_pf_etc/allow.conf" <<EO_HTTP_ALLOW
-int_ip4 = "$(get_jail_ip webmail)"
-int_ip6 = "$(get_jail_ip6 webmail)"
+	get_public_ip
+	get_public_ip ipv6
 
-table <webmail_int> persist { \$int_ip4, \$int_ip6 }
+	store_config "$_pf_etc/webmail.table" <<EO_WEBMAIL_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip webmail)
+$(get_jail_ip6 webmail)
+EO_WEBMAIL_TABLE
 
-pass in quick proto tcp from any to <ext_ip> port { 80 443 }
-pass in quick proto tcp from any to <webmail_int> port { 80 443 }
-EO_HTTP_ALLOW
+	store_config "$_pf_etc/filter.conf" <<EO_WEBMAIL_FILTER
+pass in quick proto tcp from any to <webmail> port { 80 443 }
+EO_WEBMAIL_FILTER
 }
 
 configure_webmail()

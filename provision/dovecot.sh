@@ -514,37 +514,40 @@ configure_dovecot_pf()
 {
 	_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
 
-	store_config "$_pf_etc/insecure_mua" <<EO_PF_INSECURE
-# 10.0.0.0/8
-# 172.16.0.0/12
-# 192.168.0.0/16
+	store_config "$_pf_etc/insecure_mua.table" <<EO_PF_INSECURE
+# RFC 1918 Private IP blocks
+# 10/8
+# 172.16/12
+# 192.168/16
+EO_PF_INSECURE
+
+	get_public_ip
+	get_public_ip ipv6
+
+	store_config "$_pf_etc/dovecot.table" <<EO_PF_INSECURE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip dovecot)
+$(get_jail_ip6 dovecot)
 EO_PF_INSECURE
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-int_ip4 = "$(get_jail_ip dovecot)"
-int_ip6 = "$(get_jail_ip6 dovecot)"
+dovecot_lo4 = "$(get_jail_ip dovecot)"
+dovecot_lo6 = "$(get_jail_ip6 dovecot)"
+
+rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$dovecot_lo4
+rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$dovecot_lo6
 
 # to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-table <insecure_mua> persist file "$_pf_etc/insecure_mua"
-
-rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$int_ip4
-rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$int_ip6
-
-rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> \$int_ip4
-rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> \$int_ip6
+rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> \$dovecot_lo4
+rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> \$dovecot_lo6
 EO_PF_RDR
 
-	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-int_ip4 = "$(get_jail_ip dovecot)"
-int_ip6 = "$(get_jail_ip6 dovecot)"
+	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
+pass in quick proto tcp from any to <dovecot> port { 993 995 }
 
-table <dovecot_int> persist { \$int_ip4, \$int_ip6 }
-
-pass in quick proto tcp from any to <ext_ip> port { 993 995 }
-pass in quick proto tcp from any to <dovecot_int> port { 993 995 }
-
-pass in quick proto tcp from <insecure_mua> to <dovecot_int> port { 110 143 }
-EO_PF_ALLOW
+pass in quick proto tcp from <insecure_mua> to <dovecot> port { 110 143 }
+EO_PF_FILTER
 }
 
 configure_dovecot()

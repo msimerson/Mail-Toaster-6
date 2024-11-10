@@ -11,6 +11,8 @@ export JAIL_FSTAB=""
 
 mt6-include mua
 
+# TODO: wildduck requires RSA certs (acme.sh --issue --keylength 2048|3072)
+
 preflight_check()
 {
 	for _j in dns redis mongodb
@@ -358,6 +360,10 @@ rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_i
 # send HTTP traffic to haproxy
 rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
 rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
+
+# or send HTTP traffic to webmail
+#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip webmail)
+#rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 webmail)
 EO_PF_RDR
 
 	store_config "$_pf_etc/nat.conf" <<EO_PF_NAT
@@ -372,17 +378,16 @@ nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
 nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
 EO_PF_NAT
 
-	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-int_ip4 = "$(get_jail_ip wildduck)"
-int_ip6 = "$(get_jail_ip6 wildduck)"
-table <wildduck_int> persist { \$int_ip4, \$int_ip6 }
-pass in quick proto tcp from any to <wildduck_int> port { 25 465 587 80 443 993 995 }
+	store_config "$_pf_etc/wildduck.table" <<EO_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip wildduck)
+$(get_jail_ip6 wildduck)
+EO_TABLE
 
-# ext_ip4 = "$PUBLIC_IP4"
-# ext_ip6 = "$PUBLIC_IP6"
-# table <wildduck_ext> persist { \$ext_ip4, \$ext_ip6 }
-# pass in quick proto tcp from any to <wildduck_ext> port { 25 465 587 80 443 993 995 }
-EO_PF_ALLOW
+	store_config "$_pf_etc/filter.conf" <<EO_FILTER
+pass in quick proto tcp from any to <wildduck> port { 25 465 587 80 443 993 995 }
+EO_FILTER
 }
 
 configure_haraka()

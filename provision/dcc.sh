@@ -54,11 +54,20 @@ configure_dcc()
 		"$STAGE_MNT/var/db/dcc/dcc_conf"
 
 	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
-	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-table <dcc_server> { $(get_jail_ip dcc), $(get_jail_ip6 dcc) }
-pass in quick proto udp from any port 6277 to <ext_ip>
-pass in quick proto udp from any port 6277 to <dcc_server>
-EO_PF_ALLOW
+
+	get_public_ip
+	get_public_ip ipv6
+
+	store_config "$_pf_etc/dcc.table" <<EO_DCC_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip dcc)
+$(get_jail_ip6 dcc)
+EO_DCC_TABLE
+
+	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
+pass in quick proto udp from any port 6277 to <dcc>
+EO_PF_FILTER
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port 6277 -> $(get_jail_ip  dcc)
