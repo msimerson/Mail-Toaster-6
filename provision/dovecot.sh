@@ -532,15 +532,15 @@ $(get_jail_ip6 dovecot)
 EO_PF_INSECURE
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-dovecot_lo4 = "$(get_jail_ip dovecot)"
-dovecot_lo6 = "$(get_jail_ip6 dovecot)"
+int_ip4 = "$(get_jail_ip dovecot)"
+int_ip6 = "$(get_jail_ip6 dovecot)"
 
-rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$dovecot_lo4
-rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$dovecot_lo6
+rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$int_ip6
 
 # to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> \$dovecot_lo4
-rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> \$dovecot_lo6
+rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> \$int_ip4
+rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> \$int_ip6
 EO_PF_RDR
 
 	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
