@@ -502,10 +502,12 @@ get_safe_jail_path()
 
 get_jail_fstab()
 {
+	local _suffix=${2:-""}
+
 	if [ "$1" = "base" ]; then
-		echo "mount.fstab = \"$BASE_MNT/data/etc/fstab\";"
+		echo "$BASE_MNT/data/etc/fstab$_suffix"
 	else
-		echo "mount.fstab = \"$ZFS_DATA_MNT/$1/etc/fstab\";"
+		echo "$ZFS_DATA_MNT/$1/etc/fstab$_suffix"
 	fi
 }
 
@@ -525,7 +527,7 @@ add_jail_conf_d()
 $(jail_conf_header $1)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
-		$_fstab
+		mount.fstab = "$_fstab";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}$_pfrule
 	}
@@ -801,9 +803,11 @@ start_staged_jail()
 {
 	local _name=${1:-"$SAFE_NAME"}
 	local _path=${2:-"$STAGE_MNT"}
-	local _fstab="$ZFS_DATA_MNT/$_name/etc/fstab.stage"
+	local _fstab
 
-	if [ "$_name" = "base" ]; then _fstab="$BASE_MNT/data/etc/fstab"; fi
+	_fstab="$(get_jail_fstab $_name .stage)"
+
+	if [ "$_name" = "base" ]; then _fstab=$(get_jail_fstab base); fi
 
 	tell_status "stage jail $_name startup"
 
