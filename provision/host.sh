@@ -67,7 +67,7 @@ disable_ntpd()
 {
 	if grep -q ^ntpd_enable /etc/rc.conf; then
 		tell_status "disabling NTPd"
-		service ntpd stop
+		service ntpd onestop
 		sysrc ntpd_enable=NO
 	fi
 
