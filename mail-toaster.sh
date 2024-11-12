@@ -353,12 +353,17 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
+	local _path="$ZFS_JAIL_MNT/\$name"
+	if [ "$1" = "base" ]; then
+		_path="$ZFS_JAIL_MNT/$(uname -r | cut -f1,2 -d'-')"
+	fi
+
 	cat <<EO_JAIL_CONF_HEAD
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 devfs_ruleset=5;
-path = "$ZFS_JAIL_MNT/\$name";
+path = "$_path";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
 
@@ -497,15 +502,20 @@ get_safe_jail_path()
 
 add_jail_conf_d()
 {
+	local _pfrule=''
+	if [ "$1" != "base" ]; then
+		_pfrule="
+		exec.created = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load";
+		exec.poststop = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload";"
+	fi
+
 	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
-$(jail_conf_header)
+$(jail_conf_header $1)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
 		mount.fstab = "$ZFS_DATA_MNT/$1/etc/fstab";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
-		exec.created = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load";
-		exec.poststop = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload";
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}$_pfrule
 	}
 EO_JAIL_RC
 }
