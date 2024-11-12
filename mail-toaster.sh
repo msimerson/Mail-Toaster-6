@@ -628,6 +628,13 @@ usage() {
     exit 1
 }
 
+cleanup() {
+    if [ -f allow.conf ] && [ ! -f filter.conf ]; then
+        echo "mv allow.conf filter.conf"
+        mv allow.conf filter.conf
+    fi
+}
+
 load_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
@@ -659,6 +666,8 @@ flush() {
         "filter") do_cmd "$2 -F rules" ;;
     esac
 }
+
+cleanup
 
 # load tables first, they may be referenced in anchored files
 if [ "$1" = "load" ]; then load_tables; fi
