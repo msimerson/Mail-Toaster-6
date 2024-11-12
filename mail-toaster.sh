@@ -355,7 +355,7 @@ jail_conf_header()
 {
 	local _path="$ZFS_JAIL_MNT/\$name"
 	if [ "$1" = "base" ]; then
-		_path="$ZFS_JAIL_MNT/$(uname -r | cut -f1,2 -d'-')"
+		_path="base-$ZFS_JAIL_MNT/$(uname -r | cut -f1,2 -d'-')"
 	fi
 
 	cat <<EO_JAIL_CONF_HEAD
