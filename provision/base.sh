@@ -202,6 +202,9 @@ configure_base()
 	tell_status "setting base jail timezone (to hosts)"
 	cp /etc/localtime "$BASE_MNT/etc"
 
+	tell_status "installing $BASE_MNT/etc/hosts"
+	cp /etc/hosts "$BASE_MNT/etc"
+
 	configure_make_conf
 
 	tell_status "adding base rc.conf settings"
