@@ -51,7 +51,7 @@ configure_openntpd()
 
 	pkg install -y openntpd
 	sysrc openntpd_enable=YES
-	service openntpd start
+	service openntpd restart
 }
 
 configure_chrony()
