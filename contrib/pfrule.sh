@@ -28,7 +28,7 @@ load_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
         _table_name=$(basename $_f .table)
-        do_cmd "pfctl -t "$_table_name" -T replace -f "$_f""
+        do_cmd "pfctl -t $_table_name -T replace -f $_f"
     done
 }
 
@@ -36,7 +36,7 @@ flush_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
         _table_name=$(basename $_f .table)
-        do_cmd "pfctl -t "$_table_name" -T flush"
+        do_cmd "pfctl -t $_table_name -T flush"
     done
 }
 
