@@ -201,8 +201,6 @@ configure_base()
 	tell_status "installing $BASE_MNT/etc/hosts"
 	cp /etc/hosts "$BASE_MNT/etc"
 
-	install_pfrule base
-
 	configure_make_conf
 
 	tell_status "adding base rc.conf settings"
@@ -222,6 +220,7 @@ configure_base()
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
 	configure_fstab "data/"
+	install_pfrule base
 }
 
 install_periodic_conf()

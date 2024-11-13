@@ -598,8 +598,12 @@ cleanup_staged_fs()
 
 install_pfrule()
 {
+	local _pfdir
+	_pfdir="$(get_jail_etc $1)/pf.conf.d"
+
 	mt6-fetch contrib pfrule.sh
-	install -C -m 0755 contrib/pfrule.sh "$(get_jail_etc $1)/pf.conf.d/pfrule.sh"
+	install -d "$_pfdir"
+	install -C -m 0755 contrib/pfrule.sh "$_pfdir/pfrule.sh"
 }
 
 install_fstab()
