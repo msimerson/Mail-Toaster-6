@@ -353,12 +353,15 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
+	local _path="$ZFS_JAIL_MNT/$1"
+	if [ "$1" = "base" ]; then _path="$BASE_MNT" fi
+
 	cat <<EO_JAIL_CONF_HEAD
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 devfs_ruleset=5;
-path = "$(get_jail_data $1)";
+path = "$_path";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
 
