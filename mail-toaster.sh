@@ -358,7 +358,7 @@ exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 devfs_ruleset=5;
-path = "$(get_jail_base $1)";
+path = "$(get_jail_data $1)";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
 
