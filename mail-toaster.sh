@@ -353,17 +353,11 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
-	local _path="$ZFS_JAIL_MNT/\$name"
-	if [ "$1" = "base" ]; then
-		_path="base-$ZFS_JAIL_MNT/$(uname -r | cut -f1,2 -d'-')"
-	fi
-
 	cat <<EO_JAIL_CONF_HEAD
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 devfs_ruleset=5;
-path = "$_path";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
 
@@ -500,36 +494,32 @@ get_safe_jail_path()
 	fi
 }
 
+get_jail_etc()
+{
+	if [ "$1" = "base" ]; then
+		echo "$BASE_MNT/data/etc"
+	else
+		echo "$ZFS_DATA_MNT/$1/etc"
+	fi
+}
+
 get_jail_fstab()
 {
 	local _suffix=${2:-""}
-
-	if [ "$1" = "base" ]; then
-		echo "$BASE_MNT/data/etc/fstab$_suffix"
-	else
-		echo "$ZFS_DATA_MNT/$1/etc/fstab$_suffix"
-	fi
+	echo "$(get_jail_etc $1)/fstab$_suffix"
 }
 
 add_jail_conf_d()
 {
-	local _pfrule=''
-	local _fstab=
-	_fstab=$(get_jail_fstab $1)
-
-	if [ "$1" != "base" ]; then
-		_pfrule="
-		exec.created = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load\";
-		exec.poststop = \"$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload\";"
-	fi
-
 	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
 $(jail_conf_header $1)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
-		mount.fstab = "$_fstab";
+		mount.fstab = "$(get_jail_fstab $1)";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}$_pfrule
+		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+		exec.created = "$(get_jail_etc $1)/pf.conf.d/pfrule.sh load";
+		exec.poststop = "$(get_jail_etc $1)/pf.conf.d/pfrule.sh unload";
 	}
 EO_JAIL_RC
 }
@@ -608,87 +598,8 @@ cleanup_staged_fs()
 
 install_pfrule()
 {
-	store_exec "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh" <<'EO_PF_RULE'
-#!/bin/sh
-
-# pfrule.sh
-#
-# Matt Simerson, matt@tnpi.net, 2024-11
-#
-# Use pfctl to load and unload PF rules into named anchors from config
-# files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
-
-ETC_PATH="$(dirname -- "$( readlink -f -- "$0"; )";)"
-JAIL_NAME=$(basename "$(dirname "$(dirname $ETC_PATH)")")
-PREVIEW="$2"
-
-usage() {
-    echo "   usage: $0 [ load | unload ] [-n]"
-    echo " "
-    exit 1
-}
-
-cleanup() {
-    if [ -f allow.conf ] && [ ! -f filter.conf ]; then
-        echo "mv allow.conf filter.conf"
-        mv allow.conf filter.conf
-    fi
-}
-
-load_tables() {
-    for _f in "$ETC_PATH"/*.table; do
-        [ -f "$_f" ] || continue
-        _table_name=$(basename $_f .table)
-        do_cmd "pfctl -t "$_table_name" -T replace -f "$_f""
-    done
-}
-
-flush_tables() {
-    for _f in "$ETC_PATH"/*.table; do
-        [ -f "$_f" ] || continue
-        _table_name=$(basename $_f .table)
-        do_cmd "pfctl -t "$_table_name" -T flush"
-    done
-}
-
-do_cmd() {
-    if [ "$PREVIEW" = "-n" ]; then
-        echo "$1"
-    else
-        $1 || exit 1
-    fi
-}
-
-flush() {
-    case "$1" in
-        "nat"   ) do_cmd "$2 -F nat"   ;;
-        "rdr"   ) do_cmd "$2 -F nat"   ;;
-        "filter") do_cmd "$2 -F rules" ;;
-    esac
-}
-
-cleanup
-
-# load tables first, they may be referenced in anchored files
-if [ "$1" = "load" ]; then load_tables; fi
-
-for _anchor in binat nat rdr filter; do
-    _f="$ETC_PATH/$_anchor.conf"
-    [ -f "$_f" ] || continue
-
-    _pfctl="pfctl -a $_anchor/$JAIL_NAME"
-
-    case "$1" in
-        "load"   ) do_cmd "$_pfctl -f $_f" ;;
-        "unload" ) flush "$_anchor" "$_pfctl" ;;
-        *        ) usage                 ;;
-    esac
-done
-
-if [ "$1" = "unload" ]; then flush_tables; fi
-
-exit
-EO_PF_RULE
+	mt6-fetch contrib pfrule.sh
+	install -C -m 0755 contrib/pfrule.sh "$(get_jail_etc $1)/pf.conf.d/pfrule.sh"
 }
 
 install_fstab()
@@ -1173,14 +1084,7 @@ get_public_ip()
 
 fetch_and_exec()
 {
-	if [ ! -d provision ]; then mkdir provision; fi
-
-	if [ -d ".git" ]; then
-		tell_status "running from git, skipping fetch"
-	else
-		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
-	fi
-
+	mt6-fetch provision "$1.sh"
 	sh "provision/$1.sh"
 }
 
@@ -1352,21 +1256,32 @@ unprovision()
 	echo "done"
 }
 
-mt6-include()
+mt6-fetch()
 {
-	if [ ! -d include ]; then
-		mkdir include || exit
+	local _dir="$1"
+	local _file="$2"
+
+	if [ -z "$_dir" ] || [ -z "$_file" ]; then
+		echo "FATAL: invalid args to mt6-fetch"; return 1
 	fi
 
 	if [ -d ".git" ]; then
-		tell_status "skipping include d/l, running from git"
-	else
-		fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
+		tell_status "running from git, skipping fetch"
+		return
+	fi
 
-		if [ ! -f "include/$1.sh" ]; then
-			echo "unable to download include/$1.sh"
-			exit
-		fi
+	if [ ! -d "$_dir" ]; then mkdir "$_dir"; fi
+
+	fetch -o "$_dir" -m "$TOASTER_SRC_URL/$_dir/$2"
+}
+
+mt6-include()
+{
+	mt6-fetch include "$1.sh"
+
+	if [ ! -f "include/$1.sh" ]; then
+		echo "unable to download include/$1.sh"
+		exit
 	fi
 
 	# shellcheck source=include/$.sh disable=SC1091
