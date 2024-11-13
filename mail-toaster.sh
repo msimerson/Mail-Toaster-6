@@ -504,19 +504,13 @@ get_jail_data()
 	fi
 }
 
-get_jail_fstab()
-{
-	local _suffix=${2:-""}
-	echo "$(get_jail_data $1)/etc/fstab$_suffix"
-}
-
 add_jail_conf_d()
 {
 	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
 $(jail_conf_header $1)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
-		mount.fstab = "$(get_jail_fstab $1)";
+		mount.fstab = "$(get_jail_data $1)/etc/fstab";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
 		exec.created = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh load";
@@ -730,9 +724,8 @@ start_staged_jail()
 	local _path=${2:-"$STAGE_MNT"}
 	local _fstab
 
-	_fstab="$(get_jail_fstab $_name .stage)"
-
-	if [ "$_name" = "base" ]; then _fstab=$(get_jail_fstab base); fi
+	_fstab="$(get_jail_data $_name)/etc/fstab"
+	if [ "$_name" != "base" ]; then _fstab="$_fstab.stage"; fi
 
 	tell_status "stage jail $_name startup"
 
