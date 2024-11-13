@@ -512,7 +512,7 @@ get_jail_fstab()
 add_jail_conf_d()
 {
 	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
-$(jail_conf_header $1)
+$(jail_conf_header)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
 		mount.fstab = "$(get_jail_fstab $1)";
