@@ -180,9 +180,7 @@ EO_MAKE_CONF
 configure_fstab() {
 	local _sub_dir=${1:-""}
 	local _etc_path="$BASE_MNT/${_sub_dir}etc"
-	if [ ! -d "$_etc_path" ]; then
-		mkdir -p "$_etc_path"
-	fi
+	if [ ! -d "$_etc_path" ]; then mkdir -p "$_etc_path"; fi
 
 	tee "$_etc_path/fstab" <<EO_FSTAB
 # Device                Mountpoint      FStype  Options         Dump    Pass#
@@ -192,9 +190,7 @@ EO_FSTAB
 
 configure_base()
 {
-	if [ ! -d "$BASE_MNT/usr/ports" ]; then
-		mkdir "$BASE_MNT/usr/ports"
-	fi
+	if [ ! -d "$BASE_MNT/usr/ports" ]; then mkdir "$BASE_MNT/usr/ports"; fi
 
 	tell_status "adding base jail resolv.conf"
 	cp /etc/resolv.conf "$BASE_MNT/etc"
@@ -204,6 +200,8 @@ configure_base()
 
 	tell_status "installing $BASE_MNT/etc/hosts"
 	cp /etc/hosts "$BASE_MNT/etc"
+
+	install_pfrule
 
 	configure_make_conf
 
