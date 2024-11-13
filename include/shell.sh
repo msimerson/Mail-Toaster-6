@@ -28,6 +28,13 @@ install_zsh()
 	stage_exec chpass -s /usr/local/bin/zsh
 }
 
+install_fish()
+{
+	tell_status "installing fish"
+	stage_pkg_install fish
+	stage_exec chpass -s /usr/local/bin/fish
+}
+
 configure_bash()
 {
 	if ! grep -q profile "$1/root/.profile"; then

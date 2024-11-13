@@ -3,6 +3,9 @@
 echo "shellcheck *.sh"
 shellcheck ./*.sh
 
+echo "shellcheck contrib/*.sh"
+shellcheck contrib/*.sh
+
 echo "shellcheck include/*.sh"
 shellcheck include/*.sh
 

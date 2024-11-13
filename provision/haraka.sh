@@ -620,8 +620,14 @@ configure_haraka_log_rotation()
 	tell_status "configuring haraka.log rotation"
 	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
 	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" <<EO_HARAKA
-/var/log/haraka.log			644  7	   *	@T00  JC
+/var/log/haraka.log			644  21	   *	@T00  JC
 EO_HARAKA
+
+	_logdays=$(grep ^/var/log/maillog /etc/newsyslog.conf | awk '{ print $3 }')
+	if [ "$_logdays" = "7" ]; then
+		tell_status "increasing log retention from 7 to 21 days"
+		sed -i '' -e '/maillog/ s/7/21/' /etc/newsyslog.conf
+	fi
 }
 
 configure_haraka_access()
@@ -729,8 +735,8 @@ configure_haraka()
 
 	_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF
-rdr inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
-rdr inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)
+rdr pass inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
+rdr pass inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)
 EO_PF
 
 	install_geoip_dbs

@@ -183,7 +183,7 @@ export TOASTER_EDITOR_PORT=${TOASTER_EDITOR_PORT:="vim-tiny"}
 # See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
-export TOASTER_NTP=${TOASTER_NTP:="ntp"}
+export TOASTER_NTP=${TOASTER_NTP:="openntpd"}
 export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:="latest"}
@@ -353,12 +353,15 @@ base_snapshot_exists()
 
 jail_conf_header()
 {
+	local _path="$ZFS_JAIL_MNT/$1"
+	if [ "$1" = "base" ]; then _path="$BASE_MNT"; fi
+
 	cat <<EO_JAIL_CONF_HEAD
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
 devfs_ruleset=5;
-path = "$ZFS_JAIL_MNT/\$name";
+path = "$_path";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
 
@@ -468,7 +471,7 @@ add_jail_conf()
 
 	if [ ! -e /etc/jail.conf ]; then
 		tell_status "adding /etc/jail.conf header"
-		jail_conf_header | tee -a /etc/jail.conf
+		jail_conf_header $1 | tee -a /etc/jail.conf
 	fi
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
@@ -495,17 +498,26 @@ get_safe_jail_path()
 	fi
 }
 
+get_jail_data()
+{
+	if [ "$1" = "base" ]; then
+		echo "$BASE_MNT/data"
+	else
+		echo "$ZFS_DATA_MNT/$1"
+	fi
+}
+
 add_jail_conf_d()
 {
 	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
-$(jail_conf_header)
+$(jail_conf_header $1)
 
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
-		mount.fstab = "$ZFS_DATA_MNT/$1/etc/fstab";
+		mount.fstab = "$(get_jail_data $1)/etc/fstab";
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
-		exec.created = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh load";
-		exec.poststop = "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh unload";
+		exec.created = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh load";
+		exec.poststop = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh unload";
 	}
 EO_JAIL_RC
 }
@@ -584,43 +596,12 @@ cleanup_staged_fs()
 
 install_pfrule()
 {
-	store_exec "$ZFS_DATA_MNT/$1/etc/pf.conf.d/pfrule.sh" <<'EO_PF_RULE'
-#!/bin/sh
+	local _pfdir
+	_pfdir="$(get_jail_data $1)/etc/pf.conf.d"
 
-# pfrule.sh
-#
-# Matt Simerson, matt@tnpi.net, 2023-06
-#
-# Use pfctl to load and unload PF rules into named anchors from config
-# files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
-
-_etcpath="$(dirname -- "$( readlink -f -- "$0"; )";)"
-
-usage() {
-    echo "   usage: $0 [ load | unload ]"
-    echo " "
-    exit 1
-}
-
-for _f in "$_etcpath"/*.conf; do
-    [ -f "$_f" ] || continue
-
-    _anchor=$(basename $_f .conf)  # nat, rdr, allow
-    _jailname=$(basename "$(dirname "$(dirname $_etcpath)")")
-    _pfctl="pfctl -a $_anchor/$_jailname"
-
-    case "$1" in
-        "load"   ) _cmd="$_pfctl -f $_f" ;;
-        "unload" ) _cmd="$_pfctl -F all" ;;
-        *        ) usage                 ;;
-    esac
-
-    echo "$_cmd"
-    $_cmd || exit 1
-done
-
-exit
-EO_PF_RULE
+	mt6-fetch contrib pfrule.sh
+	install -d "$_pfdir"
+	install -C -m 0755 contrib/pfrule.sh "$_pfdir/pfrule.sh"
 }
 
 install_fstab()
@@ -744,9 +725,10 @@ start_staged_jail()
 {
 	local _name=${1:-"$SAFE_NAME"}
 	local _path=${2:-"$STAGE_MNT"}
-	local _fstab="$ZFS_DATA_MNT/$_name/etc/fstab.stage"
+	local _fstab
 
-	if [ "$_name" = "base" ]; then _fstab="$BASE_MNT/data/etc/fstab"; fi
+	_fstab="$(get_jail_data $_name)/etc/fstab"
+	if [ "$_name" != "base" ]; then _fstab="$_fstab.stage"; fi
 
 	tell_status "stage jail $_name startup"
 
@@ -1103,14 +1085,7 @@ get_public_ip()
 
 fetch_and_exec()
 {
-	if [ ! -d provision ]; then mkdir provision; fi
-
-	if [ -d ".git" ]; then
-		tell_status "running from git, skipping fetch"
-	else
-		fetch -o provision -m "$TOASTER_SRC_URL/provision/$1.sh"
-	fi
-
+	mt6-fetch provision "$1.sh"
 	sh "provision/$1.sh"
 }
 
@@ -1282,21 +1257,32 @@ unprovision()
 	echo "done"
 }
 
-mt6-include()
+mt6-fetch()
 {
-	if [ ! -d include ]; then
-		mkdir include || exit
+	local _dir="$1"
+	local _file="$2"
+
+	if [ -z "$_dir" ] || [ -z "$_file" ]; then
+		echo "FATAL: invalid args to mt6-fetch"; return 1
 	fi
 
 	if [ -d ".git" ]; then
-		tell_status "skipping include d/l, running from git"
-	else
-		fetch -m -o "include/$1.sh" "$TOASTER_SRC_URL/include/$1.sh"
+		tell_status "running from git, skipping fetch"
+		return
+	fi
 
-		if [ ! -f "include/$1.sh" ]; then
-			echo "unable to download include/$1.sh"
-			exit
-		fi
+	if [ ! -d "$_dir" ]; then mkdir "$_dir"; fi
+
+	fetch -o "$_dir" -m "$TOASTER_SRC_URL/$_dir/$2"
+}
+
+mt6-include()
+{
+	mt6-fetch include "$1.sh"
+
+	if [ ! -f "include/$1.sh" ]; then
+		echo "unable to download include/$1.sh"
+		exit
 	fi
 
 	# shellcheck source=include/$.sh disable=SC1091
