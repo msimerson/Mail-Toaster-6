@@ -1268,6 +1268,7 @@ mt6-fetch()
 
 	if [ -d ".git" ]; then
 		tell_status "running from git, skipping fetch"
+		git remote update && git status
 		return
 	fi
 
