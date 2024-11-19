@@ -41,15 +41,6 @@ install_vpopmail_source()
 	stage_exec sh -c 'cd /data/src/vpopmail; aclocal' || exit 1
 	stage_exec sh -c "cd /data/src/vpopmail; CFLAGS=\"-fcommon\" ./configure $_conf_args" || exit 1
 	stage_exec sh -c 'cd /data/src/vpopmail; make install' || exit 1
-
-	# TODO: check and automate this
-	echo; echo "
-	ALTER TABLE vpopmail MODIFY column pw_name char(64);
-	ALTER TABLE vpopmail MODIFY column pw_passwd char(128);
-	ALTER TABLE vpopmail MODIFY column pw_gecos char(64);
-	"; echo
-
-	tell_status "*** Run the above commands above to update MySQL. *** "
 }
 
 install_vpopmail_port()

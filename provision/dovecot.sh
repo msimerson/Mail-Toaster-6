@@ -71,7 +71,21 @@ service auth {
 #    mode = 0666
 #  }
 }
-
+service imap {
+  executable = imap lastauth
+}
+service pop3 {
+  executable = pop3 lastauth
+}
+service lastauth {
+  executable = script-login /data/bin/lastauth.sh
+  user = vpopmail
+  unix_listener lastauth {
+    user = vpopmail
+    group = vpopmail
+    mode = 0660
+  }
+}
 service lmtp {
   user = vpopmail
   inet_listener lmtp {
@@ -79,6 +93,19 @@ service lmtp {
   }
   unix_listener lmtp {
     #mode = 0666
+  }
+}
+service tcpwrap {
+  unix_listener login/tcpwrap {
+    mode = 0600
+    user = $default_login_user
+    group = $default_login_user
+  }
+  user = root
+}
+service managesieve-login {
+  inet_listener sieve {
+    port = 4190
   }
 }
 
@@ -130,19 +157,6 @@ ssl_cipher_list = AES128+EECDH:AES128+EDH
 
 login_access_sockets = tcpwrap
 
-service tcpwrap {
-  unix_listener login/tcpwrap {
-    mode = 0600
-    user = $default_login_user
-    group = $default_login_user
-  }
-  user = root
-}
-service managesieve-login {
-  inet_listener sieve {
-    port = 4190
-  }
-}
 plugin {
   quota = maildir:User quota
   quota_rule = *:storage=1G
@@ -550,6 +564,35 @@ pass in quick proto tcp from <insecure_mua> to <dovecot> port { 110 143 }
 EO_PF_FILTER
 }
 
+configure_dovecot_lastauth()
+{
+	store_exec "$ZFS_DATA_MNT/dovecot/bin/lastauth.sh" <<EO_LASTAUTH
+#!/bin/sh
+
+set -e
+
+domain=\$(echo \$USER | cut -f2 -d@)
+user=\$(echo \$USER | cut -f1 -d@)
+
+echo "UPDATE vpopmail.lastauth SET timestamp=UNIX_TIMESTAMP(now()), remote_ip='\$IP' WHERE user='\$user' AND domain='\$domain';" \
+ | mysql --defaults-extra-file=/data/etc/.my.cnf vpopmail
+
+exec "\$@"
+EO_LASTAUTH
+
+	_mycnf="$ZFS_DATA_MNT/dovecot/etc/.my.cnf"
+	store_config "$_mycnf" "overwrite" <<EO_DOVECOT_MY
+[client]
+host=mysql
+user=vpopmail
+password=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+database=vpopmail
+EO_DOVECOT_MY
+
+	chmod 0640 "$_mycnf"
+	chown 89:89 "$_mycnf"
+}
+
 configure_dovecot()
 {
 	for _d in etc bin; do
@@ -570,6 +613,7 @@ configure_dovecot()
 	configure_tls_certs
 	configure_sieve
 	configure_dovecot_pf
+	configure_dovecot_lastauth
 
 	mkdir -p "$STAGE_MNT/var/spool/postfix/private"
 }
