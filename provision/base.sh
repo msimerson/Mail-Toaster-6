@@ -242,6 +242,7 @@ monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
 security_show_info="NO"
+security_status_baseaudit_enable="NO"
 security_status_pkgaudit_enable="NO"
 security_status_pkgaudit_quiet="YES"
 daily_status_security_inline="NO"
