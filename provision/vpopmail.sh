@@ -205,6 +205,22 @@ install_vpopmail_mysql_aliastable()
 	echo "CREATE TABLE IF NOT EXISTS aliasdomains (alias varchar(100) NOT NULL, domain varchar(100) NOT NULL, PRIMARY KEY (alias));" | mysql_query vpopmail || return 1
 }
 
+alter_vpopmail_tables()
+{
+        echo "ALTER TABLE vpopmail.vpopmail
+		MODIFY COLUMN pw_name   varchar(64),
+                MODIFY COLUMN pw_domain varchar(96),
+                MODIFY COLUMN pw_passwd varchar(128),
+                MODIFY COLUMN pw_gecos  varchar(64),
+                MODIFY COLUMN pw_dir    varchar(160),
+                MODIFY COLUMN pw_clear_passwd varchar(128);" | mysql_query
+
+        echo "ALTER TABLE vpopmail.lastauth
+		MODIFY COLUMN user      varchar(64),
+                MODIFY COLUMN domain    varchar(96),
+                MODIFY COLUMN remote_ip varchar(39);" | mysql_query
+}
+
 install_vpop_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
@@ -259,9 +275,11 @@ install_vpopmail()
 
 	install_vpopmail_port
 	#install_vpopmail_source
+
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
 		install_vpopmail_mysql_aliastable
+		alter_vpopmail_tables
 	fi
 
 	install_qmailadmin
