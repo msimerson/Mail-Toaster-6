@@ -255,6 +255,22 @@ install_quota_report()
 		"$_qr"
 }
 
+MT6_STAGE_PORT_FUNCTION() {
+	sed -i '' \
+		-e '/pw_name char(32)/         s/char(32)/VARCHAR (64)/'  \
+		-e '/pw_domain char(96)/       s/char(96)/VARCHAR (96)/'  \
+		-e '/user char(32)/            s/char(32)/VARCHAR (64)/'  \
+		-e '/remote_ip char(18)/       s/char(18)/VARCHAR (39)/'  \
+		-e '/pw_passwd char(40)/       s/char(40)/VARCHAR (128)/' \
+		-e '/pw_clear_passwd char(16)/ s/char(16)/VARCHAR (128)/' \
+		-e '/pw_gecos char(48)/        s/char(48)/VARCHAR (64)/'  \
+		-e '/pw_dir char(160)/         s/char(160)/VARCHAR (160)/' \
+		-e '/pw_shell char(20)/        s/char(20)/VARCHAR (20)/'  \
+		-e '/domain CHAR(96)/          s/CHAR(96)/VARCHAR (96)/'  \
+		-e '/ip_addr char(18)/         s/char(18)/VARCHAR (39)/'  \
+		/tmp/portbuild/usr/ports/mail/vpopmail/work/vpopmail-5.4.33/vmysql.h
+}
+
 install_vpopmail()
 {
 	install_qmail
@@ -273,13 +289,15 @@ install_vpopmail()
 
 	#stage_port_install devel/gmake
 
+	export -f MT6_STAGE_PORT_FUNCTION
 	install_vpopmail_port
+	unset -f MT6_STAGE_PORT_FUNCTION
+
 	#install_vpopmail_source
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
 		install_vpopmail_mysql_aliastable
-		alter_vpopmail_tables
 	fi
 
 	install_qmailadmin
@@ -308,6 +326,10 @@ configure_vpopmail()
 		local _ppass; _ppass=$(get_random_pass 14)
 		tell_status "ATTN: Your postmaster password is: $_ppass"
 		stage_exec /usr/local/vpopmail/bin/vadddomain "$TOASTER_MAIL_DOMAIN" "$_ppass"
+	fi
+
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		alter_vpopmail_tables
 	fi
 }
 
@@ -364,7 +386,7 @@ migrate_vpopmail_home()
 +		mount += "/data/vpopmail $path/data nullfs rw 0 0";
 +		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
  	}
- 
+
  dovecot	{
  		ip4.addr = 172.16.15.15;
  		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:000f;
@@ -372,7 +394,7 @@ migrate_vpopmail_home()
 -		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
 +		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
  	}
- 
+
 	4. start the dovecot and vpopmail jails
 
 		   service jail start vpopmail dovecot

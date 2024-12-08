@@ -891,6 +891,13 @@ stage_port_install()
 	jexec "$SAFE_NAME" pkg install -y pkgconf portconfig
 	# portconfig replaces dialog4ports (as of Oct 2023)
 
+	# enable caller to do fixups in port workdir
+	if [ -n "$MT6_STAGE_PORT_FUNCTION" ]; then
+		echo "jexec $SAFE_NAME make -C /usr/ports/$1 extract"
+		jexec "$SAFE_NAME" make -C "/usr/ports/$1" extract
+		$MT6_STAGE_PORT_FUNCTION
+	fi
+
 	echo "jexec $SAFE_NAME make -C /usr/ports/$1 build deinstall install clean"
 	jexec "$SAFE_NAME" make -C "/usr/ports/$1" build deinstall install clean || return 1
 
