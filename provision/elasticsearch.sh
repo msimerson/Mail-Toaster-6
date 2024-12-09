@@ -148,13 +148,13 @@ configure_elasticsearch()
 		chown 965 "$_data_conf"
 
 		sed -i.bak \
-			-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip elasticsearch)/" \
+			-e "/^network.host:/ s/$(get_jail_ip stage)/$(get_jail_ip elasticsearch)/" \
 			-e '/^path.data: / s/var/data/' \
 			-e '/^path.logs: / s/var/data/' \
 			-e '/^path\./ s/\/elasticsearch//' \
 			-e '/^#cluster_name/ s/^#//; s/my-application/mail-toaster/' \
-			-e '/^#node.name/ s/^#//; s/node-1/mt1/' \
-			-e '/^#cluster.initial/ s/^#//; s/node-1/mt1/; s/, "node-2"//' \
+			-e '/^node.name/ s/stage/mt1/' \
+			-e '/^cluster.initial/ s/stage/mt1/' \
 				"$_data_conf"
 
 		if ! grep -qs xpack.security.enabled "$_data_conf"; then
