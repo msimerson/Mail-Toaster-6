@@ -506,7 +506,7 @@ dbid=1
 server_ip=$(get_jail_ip redis)
 
 [deny_excludes]
-plugins=send_email, access, helo.checks, data.headers, mail_from.is_resolvable, avg, limit, attachment, tls
+plugins=send_email, access, helo.checks, headers, mail_from.is_resolvable, avg, limit, attachment, tls
 " | tee -a "$HARAKA_CONF/karma.ini"
 
 }
@@ -583,13 +583,16 @@ configure_haraka_results()
 [fcrdns]
 hide=ptr_names,ptr_name_to_ip,ptr_name_has_ips,ptr_multidomain,has_rdns
 
-[data.headers]
+[headers]
 order=fail,pass,msg
 
-[data.uribl]
+[uribl]
 hide=skip
 
 [dnsbl]
+hide=pass
+
+[dns-list]
 hide=pass
 
 [qmail-deliverable]
@@ -703,10 +706,6 @@ configure_haraka()
 	configure_haraka_smtp_forward
 	configure_haraka_qmail_deliverable
 	configure_haraka_dnsbl
-
-	if [ ! -f "$HARAKA_CONF/data.headers.ini" ]; then
-		echo "reject=no" | tee -a "$HARAKA_CONF/data.headers.ini"
-	fi
 
 	configure_haraka_http
 	configure_haraka_tls
