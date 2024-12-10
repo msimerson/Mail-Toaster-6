@@ -161,7 +161,7 @@ configure_haraka_vpopmail()
 
 		# shellcheck disable=1004
 		sed -i.bak \
-			-e '/^# auth\/auth_ldap$/a\
+			-e '/^# auth\/auth_proxy$/a\
 auth\/auth_vpopmaild
 ' "$HARAKA_CONF/plugins"
 	fi
@@ -180,7 +180,7 @@ queue=smtp_forward" | \
 	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
 		tell_status "enabling qmail-deliverable plugin"
 		sed -i.bak \
-			-e '/^#qmail-deliverable/ s/#//' \
+			-e '/^# qmail-deliverable/ s/# //' \
 			-e '/^#rcpt_to.qmail_deliverable/ s/#.*/qmail-deliverable/' \
 			-e 's/^rcpt_to.in_host_list/# rcpt_to.in_host_list/' \
 			"$HARAKA_CONF/plugins"
@@ -215,7 +215,7 @@ configure_haraka_spamassassin()
 
 	if ! grep -qs ^spamassasssin "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka spamassassin plugin"
-		sed -i '' -e '/^#spamassassin/ s/#//' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# spamassassin/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/spamassassin.ini" ]; then
@@ -279,7 +279,7 @@ configure_haraka_clamav()
 
 	if ! grep -qs ^clamd "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka clamav plugin"
-		sed -i '' -e '/^#clamd/ s/#//' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# clamd/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if ! grep -qs ^clamd_socket "$HARAKA_CONF/clamd.ini"; then
@@ -362,10 +362,7 @@ add_headers = always
 
 	if ! grep -qs ^rspamd "$HARAKA_CONF/plugins"; then
 		tell_status "enabling rspamd plugin"
-		# shellcheck disable=1004
-		sed -i '' -e '/spamassassin$/a\
-rspamd
-' "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# rspamd/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 }
 
@@ -373,7 +370,7 @@ configure_haraka_watch()
 {
 	if ! grep -qs ^watch "$HARAKA_CONF/plugins"; then
 		tell_status "enabling watch plugin"
-		echo 'watch' >> "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# watch/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/watch.ini" ]; then
@@ -420,15 +417,14 @@ configure_haraka_plugins()
 
 	# enable a bunch of plugins
 	sed -i.bak \
-		-e '/^#process_title/ s/#//' \
-		-e '/^#spf$/ s/#//' \
-		-e '/^#bounce/ s/#//' \
-		-e '/^#data.uribl/ s/#data\.//' \
-		-e '/^#uribl/ s/#//' \
-		-e '/^#attachment/ s/#//' \
-		-e '/^#dkim_sign/ s/#//' \
-		-e '/^#karma$/ s/#//' \
-		-e '/^# fcrdns/ s/# //' \
+		-e '/^# process_title/ s/# //' \
+		-e '/^# spf$/    s/# //' \
+		-e '/^# bounce/  s/# //' \
+		-e '/^# uribl/   s/# //' \
+		-e '/^# attachment/ s/# //' \
+		-e '/^# dkim/    s/# //' \
+		-e '/^# karma/   s/# //' \
+		-e '/^# fcrdns/  s/# //' \
 		"$HARAKA_CONF/plugins"
 }
 
@@ -457,7 +453,7 @@ configure_haraka_limit()
 {
 	if ! grep -qs ^limit "$HARAKA_CONF/plugins"; then
 		tell_status "adding limit plugin"
-		echo 'limit' | tee -a "$HARAKA_CONF/plugins"
+		sed -i '' -e '/^# limit/ s/# //' "$HARAKA_CONF/plugins"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/limit.ini" ]; then
