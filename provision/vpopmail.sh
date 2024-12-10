@@ -270,7 +270,6 @@ install_vpopmail()
 
 	tell_status "installing vpopmail package"
 	stage_pkg_install vpopmail gmake autoconf
-
 	#stage_port_install devel/gmake
 
 	install_vpopmail_port
@@ -279,7 +278,6 @@ install_vpopmail()
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
 		install_vpopmail_mysql_aliastable
-		alter_vpopmail_tables
 	fi
 
 	install_qmailadmin
@@ -308,6 +306,10 @@ configure_vpopmail()
 		local _ppass; _ppass=$(get_random_pass 14)
 		tell_status "ATTN: Your postmaster password is: $_ppass"
 		stage_exec /usr/local/vpopmail/bin/vadddomain "$TOASTER_MAIL_DOMAIN" "$_ppass"
+	fi
+
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		alter_vpopmail_tables
 	fi
 }
 
@@ -364,7 +366,7 @@ migrate_vpopmail_home()
 +		mount += "/data/vpopmail $path/data nullfs rw 0 0";
 +		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
  	}
- 
+
  dovecot	{
  		ip4.addr = 172.16.15.15;
  		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:000f;
@@ -372,7 +374,7 @@ migrate_vpopmail_home()
 -		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
 +		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
  	}
- 
+
 	4. start the dovecot and vpopmail jails
 
 		   service jail start vpopmail dovecot
