@@ -74,14 +74,14 @@ configure_nginx_server_d()
 	local _prefix
 	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
 		_prefix='server {
-			listen       80;
-			listen  [::]:80;
+		listen       80;
+		listen  [::]:80;
 '
 	else
 		# nginx can't send proxy protocol AND route URIs at the same time
 		_prefix='server {
-			listen       80;
-			listen  [::]:80;
+		listen       80;
+		listen  [::]:80;
 '
 	fi
 

@@ -59,6 +59,7 @@ mail_privileged_group = 89
 login_greeting = Mail Toaster (Dovecot) ready.
 mail_plugins = $mail_plugins quota
 protocols = imap pop3 lmtp sieve
+
 service auth {
   unix_listener auth-client {
     mode = 0660
@@ -95,6 +96,11 @@ service lmtp {
     #mode = 0666
   }
 }
+service managesieve-login {
+  inet_listener sieve {
+    port = 4190
+  }
+}
 service tcpwrap {
   unix_listener login/tcpwrap {
     mode = 0600
@@ -102,11 +108,6 @@ service tcpwrap {
     group = $default_login_user
   }
   user = root
-}
-service managesieve-login {
-  inet_listener sieve {
-    port = 4190
-  }
 }
 
 passdb {
@@ -124,6 +125,7 @@ userdb {
 
 shutdown_clients = no
 verbose_proctitle = yes
+
 protocol imap {
   imap_client_workarounds = delay-newmail  tb-extra-mailbox-sep
   mail_max_userip_connections = 45
