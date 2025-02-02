@@ -123,7 +123,7 @@ EO_DLF
 file=/var/log/maillog
 EO_LRC
 
-	# absense of mailogs in jail prevents log-reader from working
+	# absence of mailogs in jail prevents log-reader from working
 	if ! grep -qs always_ok "$HARAKA_CONF/syslog.ini"; then
 		# don't write to daemon_log_file if syslog write was successful
 		echo "[general]
@@ -336,13 +336,9 @@ configure_haraka_tls() {
 
 configure_haraka_dnsbl()
 {
-	if ! grep -qs ^reject "$HARAKA_CONF/dnsbl.ini"; then
-		tell_status "configuring dnsbls"
-		echo 'reject=false
-search=all
-enable_stats=false
-zones=b.barracudacentral.org, truncate.gbudb.net, psbl.surriel.com, bl.spamcop.net, dnsbl-1.uceprotect.net, zen.spamhaus.org, dnsbl.sorbs.net, dnsbl.justspam.org
-' | tee -a "$HARAKA_CONF/dnsbl.ini"
+	if ! grep -qs ^reject "$HARAKA_CONF/dns-list.ini"; then
+		tell_status "configuring dns-list"
+		configure_install_default dns-list.ini
 	fi
 }
 
@@ -589,7 +585,7 @@ order=fail,pass,msg
 [uribl]
 hide=skip
 
-[dnsbl]
+[dns-list]
 hide=pass
 
 [dns-list]
