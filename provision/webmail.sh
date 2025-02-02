@@ -48,9 +48,19 @@ configure_nginx_server()
 
 		server_name  $TOASTER_HOSTNAME;
 
-		ssl_certificate	/data/etc/tls/certs/$TOASTER_MAIL_DOMAIN.pem;
-		ssl_certificate_key /data/etc/tls/private/$TOASTER_MAIL_DOMAIN.pem;
+		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
+		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
 
+		include /data/etc/nginx/webmail.conf;
+	}
+"
+		# shellcheck disable=SC2090
+		export _NGINX_SERVER
+
+		configure_nginx_server_d webmail $TOASTER_HOSTNAME
+	fi
+
+	tee "$ZFS_DATA_MNT/webmail/etc/nginx/webmail.conf" <<EO_WEBMAIL_INCLUDE
 		proxy_set_header X-Forwarded-For \$remote_addr;
 		proxy_set_header X-Forwarded-Proto \$scheme;
 		proxy_set_header Host \$host;
@@ -121,13 +131,7 @@ configure_nginx_server()
 		location = /50x.html {
 			root   /usr/local/www/nginx-dist;
 		}
-	}
-"
-		# shellcheck disable=SC2090
-		export _NGINX_SERVER
-
-		configure_nginx_server_d webmail webmail-tls
-	fi
+EO_WEBMAIL_INCLUDE
 }
 
 install_lighttpd()

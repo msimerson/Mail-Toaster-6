@@ -148,11 +148,11 @@ EO_SYSLOG
 	fi
 }
 
-configure_surbl()
+configure_rbl()
 {
-	store_config "$RSPAMD_ETC/local.d/surbl.conf" <<EO_SURBL
+	store_config "$RSPAMD_ETC/local.d/rbl.conf" <<EO_RBL
 redirector_hosts_map = "/usr/local/etc/rspamd/redirectors.inc";
-EO_SURBL
+EO_RBL
 }
 
 configure_worker()
@@ -193,7 +193,7 @@ configure_rspamd()
 	configure_phishing
 	configure_enable url_reputation
 	configure_enable url_tags
-	configure_surbl
+	configure_rbl
 	configure_worker
 	configure_controller
 
