@@ -111,6 +111,7 @@ monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
 security_show_info="YES"
+security_status_baseaudit_enable="NO"
 security_status_chksetuid_enable="NO"
 security_status_neggrpperm_enable="NO"
 security_status_pkgaudit_enable="YES"
