@@ -390,6 +390,17 @@ configure_haraka_smtp_ini()
 		"$HARAKA_CONF/smtp.ini"
 }
 
+configure_haraka_connection_ini() {
+	if [ ! -f "$HARAKA_CONF/connection.ini" ]; then
+		configure_install_default connection.ini
+	fi
+
+	sed -i.bak \
+		-e '/^deny_chars=/ s/=0/=12/' \
+		"$HARAKA_CONF/connection.ini"
+
+}
+
 configure_haraka_outbound_ini()
 {
 	if [ ! -f "$HARAKA_CONF/outbound.ini" ]; then
@@ -681,10 +692,6 @@ configure_haraka()
 		echo "$TOASTER_HOSTNAME" > "$HARAKA_CONF/me"
 	fi
 
-	if [ ! -f "$HARAKA_CONF/deny_includes_uuid" ]; then
-		echo '12' > "$HARAKA_CONF/deny_includes_uuid"
-	fi
-
 	if [ ! -f "$HARAKA_CONF/rate_limit.ini" ]; then
 		echo "redis_server = $(get_jail_ip redis)" > "$HARAKA_CONF/rate_limit.ini"
 	fi
@@ -694,6 +701,7 @@ configure_haraka()
 	fi
 
 	configure_haraka_smtp_ini
+	configure_haraka_connection_ini
 	configure_haraka_outbound_ini
 	configure_haraka_plugins
 	configure_haraka_limit
