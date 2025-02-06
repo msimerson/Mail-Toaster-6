@@ -11,13 +11,14 @@ mt6-include user
 install_knot()
 {
 	tell_status "installing Knot DNS 3"
-	stage_pkg_install knot3 rsync || exit
+	stage_pkg_install knot3 rsync sudo || exit
 
 	if [ ! -d "$STAGE_MNT/data/home" ]; then
 		mkdir -p "$STAGE_MNT/data/home" || exit
 	fi
 
 	install_nrpe
+	echo "@includedir /data/etc/sudoers.d" >> /usr/local/etc/sudoers
 }
 
 
