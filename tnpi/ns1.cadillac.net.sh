@@ -18,7 +18,6 @@ install_knot()
 	fi
 
 	install_nrpe
-	install_sentry
 }
 
 
@@ -31,6 +30,7 @@ install_nrpe()
 
 	tell_status "installing nrpe plugin"
 	stage_pkg_install nrpe
+	stage_pkg_install nagios-check_ports
 	stage_sysrc nrpe_enable=YES
 	stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 }
