@@ -60,14 +60,23 @@ install_lighttpd()
 	tell_status "installing lighttpd"
 	stage_pkg_install lighttpd
 
-	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	cat <<EO_LIGHTTPD >> "$_conf"
+	local _conf; _conf="$ZFS_DATA_MNT/vpopmail/etc/lighttpd.conf"
+	if [ -f "$_conf" ]; then
+		tell_status "preserving lighttpd.conf"
+	else
+		tell_status "installing lighttpd.conf"
+		cat <<EO_LIGHTTPD >> "$_conf"
+
+include "/usr/local/etc/lighttpd/lighttpd*annotated.conf"
+include "/usr/local/etc/lighttpd/conf-enabled/*.conf"
+
+server.document-root = "/data/htdocs"
 
 server.modules += ( "mod_alias", "mod_auth", "mod_authn_file" )
 
-alias.url = ( "/cgi-bin/"     => "/usr/local/www/cgi-bin/",
-              "/qmailadmin/"  => "/usr/local/www/data/qmailadmin/",
-           )
+alias.url = ( "/cgi-bin/"     => "/data/cgi-bin/",
+              "/qmailadmin/"  => "/data/htdocs/qmailadmin/",
+            )
 
 server.modules += ( "mod_cgi" )
 \$HTTP["url"] =~ "^/cgi-bin" {
@@ -96,14 +105,9 @@ auth.require   = ( "/cgi-bin/vqadmin" =>
 
 EO_LIGHTTPD
 
-	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
-		sed -i.bak \
-			-e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' \
-			"$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	fi
 
-	preserve_file vpopmail "/usr/local/etc/lighttpd/lighttpd.conf"
-
+	stage_sysrc lighttpd_conf=/data/etc/lighttpd.conf
 	stage_sysrc lighttpd_enable=YES
 	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
 	stage_exec service lighttpd start
@@ -127,9 +131,14 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 			"$STAGE_MNT/var/db/ports/mail_qmailadmin/"
 	fi
 
-	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+	for _d in htdocs cgi-bin; do
+		if [ ! -d "$ZFS_DATA_MNT/vpopmail/$_d" ]; then
+			mkdir "$ZFS_DATA_MNT/vpopmail/$_d"
+		fi
+	done
 
-	stage_port_install devel/autoconf
+	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+
 	stage_port_install mail/qmailadmin
 
 	install_lighttpd
