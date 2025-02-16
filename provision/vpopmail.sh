@@ -149,9 +149,9 @@ install_vqadmin()
 	if [ "$TOASTER_VQADMIN" != "1" ]; then return; fi
 
 	tell_status "installing vqadmin"
-	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
+	export WEBDATADIR=../../htdocs CGIBINDIR=../../cgi-bin
 	stage_port_install mail/vqadmin
-	stage_exec ln /usr/local/www/cgi-bin/vqadmin/html/en-us /usr/local/www/cgi-bin/vqadmin/html/en-US
+	stage_exec ln /data/cgi-bin/vqadmin/html/en-us /data/cgi-bin/vqadmin/html/en-US
 }
 
 mysql_error_warning()

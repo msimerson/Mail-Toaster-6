@@ -29,8 +29,18 @@ EO_DCC
 
 install_dcc_port_options()
 {
-	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
-	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
+	local SET=DCCIFD
+	local UNSET="DCCGREY DCCD DCCM PORTS_MILTER"
+
+	get_public_ip ipv6
+	if [ -z "$PUBLIC_IP6" ]; then
+		UNSET="$UNSET IPv6"
+	else
+		SET="$SET IPV6"
+	fi
+
+	stage_make_conf dcc-dccd_SET "mail_dcc-dccd_SET=$SET"
+	stage_make_conf dcc-dccd_UNSET "mail_dcc-dccd_UNSET=$UNSET"
 	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
 }
 
@@ -81,6 +91,7 @@ start_dcc()
 	tell_status "starting up dcc-ifd"
 	stage_sysrc dccifd_enable=YES
 	stage_exec service dccifd start
+	stage_exec cdcc IPv6=off info
 }
 
 test_dcc()
