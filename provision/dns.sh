@@ -185,7 +185,8 @@ switch_host_resolver()
 	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
 
 	echo "switching host resolver to local"
-	local _NSLIST="nameserver $(get_jail_ip dns)"
+	local _NSLIST
+	_NSLIST="nameserver $(get_jail_ip dns)"
 
 	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns)"
 	if [ -n "$PUBLIC_IP6" ]; then
