@@ -349,6 +349,7 @@ configure_ipv6()
 		sysrc ipv6_activate_all_interfaces="YES"
 		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
 		sysrc ipv6_gateway_enable="YES"
+		sysctl net.inet6.ip6.forwarding=1
 	fi
 }
 
@@ -368,7 +369,7 @@ ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
 jail_ip4="$JAIL_NET_PREFIX.0${JAIL_NET_MASK}"
-jail_ip6="$JAIL_NET6:1/112"
+jail_ip6="$JAIL_NET6:0/112"
 
 table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
 table <ext_ip4> { \$ext_ip4 } persist
@@ -563,7 +564,7 @@ assign_syslog_ip()
 
 	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET6:1 "; then
 		echo "assigning $JAIL_NET6:1 to lo1"
-		ifconfig inet6 lo1 "$JAIL_NET6:1/112"
+		ifconfig lo1 inet6 "$JAIL_NET6:1/112"
 	fi
 }
 
