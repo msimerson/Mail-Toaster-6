@@ -357,6 +357,9 @@ ext_if="$PUBLIC_NIC"
 ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
+jail_ip4="$JAIL_NET_PREFIX.0${JAIL_NET_MASK}"
+jail_ip6="$JAIL_NET6:1${JAIL_NET6_PREFIXLEN}"
+
 table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
 table <ext_ip4> { \$ext_ip4 } persist
 table <ext_ip6> { \$ext_ip6 } persist
@@ -369,8 +372,8 @@ table <sshguard> persist
 binat-anchor "binat/*"
 
 # default route to the internet for jails
-nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
+nat on \$ext_if inet  from \$jail_ip4 to any -> (\$ext_if)
+nat on \$ext_if inet6 from \$jail_ip6 to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
@@ -533,14 +536,24 @@ plumb_jail_nic()
 
 assign_syslog_ip()
 {
-	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
-		tell_status "adding syslog IP to lo1"
+	if ! sysrc -cq ifconfig_lo1; then
+		tell_status "adding syslog IPv4 to lo1"
 		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0"
+	fi
+
+	if ! sysrc -cq ifconfig_lo1_ipv6; then
+		tell_status "adding syslog IPv6 to lo1"
+		sysrc ifconfig_lo1_ipv6="$JAIL_NET6:1/112"
 	fi
 
 	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET_PREFIX.1 "; then
 		echo "assigning $JAIL_NET_PREFIX.1 to lo1"
 		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0
+	fi
+
+	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET6:1 "; then
+		echo "assigning $JAIL_NET6:1 to lo1"
+		ifconfig inet6 lo1 "$JAIL_NET6:1/112"
 	fi
 }
 

@@ -67,8 +67,6 @@ EO_UNBOUND_ACCESS
 
 install_local_conf()
 {
-	get_public_ip
-
 	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
@@ -151,7 +149,9 @@ configure_unbound()
 
 	enable_control
 	tweak_unbound_conf
+
 	get_public_ip
+	get_public_ip ipv6
 
 	install_access_conf
 	install_local_conf
