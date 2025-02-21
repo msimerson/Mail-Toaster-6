@@ -350,7 +350,7 @@ configure_ipv6()
 {
 	get_public_ip ipv6
 
-	if [ -n "$PUBLIC_IP4" ] && [ -n "$PUBLIC_NIC" ]; then
+	if [ -n "$PUBLIC_IP6" ] && [ -n "$PUBLIC_NIC" ]; then
 		sysrc ipv6_activate_all_interfaces="YES"
 		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
 		sysrc ipv6_gateway_enable="YES"
