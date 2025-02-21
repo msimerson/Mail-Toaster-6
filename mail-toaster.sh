@@ -516,13 +516,23 @@ add_jail_conf_d()
 		_IP6="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);"
 	fi
 
-	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
-$(jail_conf_header $1)
+	local _path="$ZFS_JAIL_MNT/$1"
+	if [ "$1" = "base" ]; then _path="$BASE_MNT"; fi
 
+	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
+		host.hostname = \$name;
+		path = "$_path";
 		mount.fstab = "$(get_jail_data $1)/etc/fstab";
+		devfs_ruleset=5;
+
+		interface = $JAIL_NET_INTERFACE;
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		${_IP6}${JAIL_CONF_EXTRA}
+
+		exec.clean;
+		exec.start = "/bin/sh /etc/rc";
+		exec.stop = "/bin/sh /etc/rc.shutdown";
 		exec.created = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh load";
 		exec.poststop = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh unload";
 	}
