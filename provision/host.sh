@@ -173,13 +173,18 @@ constrain_sshd_to_host()
 	get_public_ip
 	get_public_ip ipv6
 
+	local IP_MSG="	Your public IP(s) are detected as $PUBLIC_IP4"
+	if [ -n "$PUBLIC_IP6" ]; then
+		IP_MSG="$IP_MSG
+		and $PUBLIC_IP6"
+	fi
+
 	if [ -t 0 ]; then
 		local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
-	Your public IPs are detected as $PUBLIC_IP4
-		and $PUBLIC_IP6
+	$IP_MSG
 
 	May I update your sshd config?
 	"
