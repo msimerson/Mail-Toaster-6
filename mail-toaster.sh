@@ -234,7 +234,6 @@ if [ -z "$JAIL_NET6" ]; then
 	echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
 	export JAIL_NET6
 fi
-echo "IPv6 jail network: $JAIL_NET6"
 
 # little below here should need customizing. If so, consider opening
 # an issue or PR at https://github.com/msimerson/Mail-Toaster-6
@@ -269,7 +268,6 @@ safe_jailname()
 
 export SAFE_NAME; SAFE_NAME=$(safe_jailname stage)
 if [ -z "$SAFE_NAME" ]; then echo "unset SAFE_NAME"; exit; fi
-echo "safe name: $SAFE_NAME"
 
 zfs_filesystem_exists()
 {
@@ -1076,8 +1074,6 @@ get_public_facing_nic()
 		echo "public NIC detection failed"
 		exit 1
 	fi
-
-	echo "$PUBLIC_NIC"
 }
 
 get_public_ip()
