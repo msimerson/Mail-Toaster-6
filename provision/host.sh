@@ -78,7 +78,7 @@ disable_ntpd()
 
 update_syslogd()
 {
-	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/112:* -cc"
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
 
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
@@ -341,10 +341,20 @@ pf_bruteforce_expire()
 EO_PF_EXPIRE
 }
 
+configure_ipv6()
+{
+	get_public_ip ipv6
+
+	if [ -n "$PUBLIC_IP4" ] && [ -n "$PUBLIC_NIC" ]; then
+		sysrc ipv6_activate_all_interfaces="YES"
+		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
+		sysrc ipv6_gateway_enable="YES"
+	fi
+}
+
 add_jail_nat()
 {
 	get_public_ip
-	get_public_ip ipv6
 
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
 	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
@@ -358,7 +368,7 @@ ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
 jail_ip4="$JAIL_NET_PREFIX.0${JAIL_NET_MASK}"
-jail_ip6="$JAIL_NET6:1${JAIL_NET6_PREFIXLEN}"
+jail_ip6="$JAIL_NET6:1/112"
 
 table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
 table <ext_ip4> { \$ext_ip4 } persist
@@ -598,6 +608,7 @@ update_host() {
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
+	configure_ipv6
 	add_jail_nat
 	configure_tls_certs
 	configure_dhparams
