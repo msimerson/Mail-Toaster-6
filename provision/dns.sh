@@ -20,9 +20,9 @@ get_mt6_data()
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112"
 	else
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64 ip6:$PUBLIC_IP6"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112 ip6:$PUBLIC_IP6"
 	fi
 
 	echo "
@@ -60,15 +60,13 @@ install_access_conf()
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
-	   access-control: $JAIL_NET6::/64 allow
+	   access-control: $JAIL_NET6::/112 allow
 
 EO_UNBOUND_ACCESS
 }
 
 install_local_conf()
 {
-	get_public_ip
-
 	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
@@ -151,6 +149,8 @@ configure_unbound()
 
 	enable_control
 	tweak_unbound_conf
+
+	get_public_ip ipv6
 	get_public_ip
 
 	install_access_conf
@@ -185,9 +185,16 @@ switch_host_resolver()
 	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
 
 	echo "switching host resolver to local"
-	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns) $(get_jail_ip6 dns)"
-	echo "nameserver $(get_jail_ip dns)
-nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
+	local _NSLIST
+	_NSLIST="nameserver $(get_jail_ip dns)"
+
+	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns)"
+	if [ -n "$PUBLIC_IP6" ]; then
+		sysrc -f /etc/resolvconf.conf name_servers+=" $(get_jail_ip6 dns)"
+		_NSLIST="$_NSLIST
+nameserver $(get_jail_ip6 dns)"
+	fi
+	echo "$_NSLIST" | resolvconf -a "$PUBLIC_NIC"
 	sysrc -f /etc/resolvconf.conf resolvconf=NO
 }
 

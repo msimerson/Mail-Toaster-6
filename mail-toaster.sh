@@ -234,7 +234,6 @@ if [ -z "$JAIL_NET6" ]; then
 	echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
 	export JAIL_NET6
 fi
-echo "IPv6 jail network: $JAIL_NET6"
 
 # little below here should need customizing. If so, consider opening
 # an issue or PR at https://github.com/msimerson/Mail-Toaster-6
@@ -269,7 +268,6 @@ safe_jailname()
 
 export SAFE_NAME; SAFE_NAME=$(safe_jailname stage)
 if [ -z "$SAFE_NAME" ]; then echo "unset SAFE_NAME"; exit; fi
-echo "safe name: $SAFE_NAME"
 
 zfs_filesystem_exists()
 {
@@ -509,13 +507,30 @@ get_jail_data()
 
 add_jail_conf_d()
 {
-	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
-$(jail_conf_header $1)
+	# configure IPv6 if the system has an external/public IPv6 address
+	local _IP6=""
+	get_public_ip ipv6
+	if [ -n "$PUBLIC_IP6" ]; then
+		_IP6="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);"
+	fi
 
+	local _path="$ZFS_JAIL_MNT/$1"
+	if [ "$1" = "base" ]; then _path="$BASE_MNT"; fi
+
+	store_config "/etc/jail.conf.d/$(safe_jailname $1).conf" <<EO_JAIL_RC
 $(safe_jailname $1)	{$(get_safe_jail_path $1)
+		host.hostname = \$name;
+		path = "$_path";
 		mount.fstab = "$(get_jail_data $1)/etc/fstab";
+		devfs_ruleset=5;
+
+		interface = $JAIL_NET_INTERFACE;
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);${JAIL_CONF_EXTRA}
+		${_IP6}${JAIL_CONF_EXTRA}
+
+		exec.clean;
+		exec.start = "/bin/sh /etc/rc";
+		exec.stop = "/bin/sh /etc/rc.shutdown";
 		exec.created = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh load";
 		exec.poststop = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh unload";
 	}
@@ -1059,8 +1074,6 @@ get_public_facing_nic()
 		echo "public NIC detection failed"
 		exit 1
 	fi
-
-	echo "$PUBLIC_NIC"
 }
 
 get_public_ip()
@@ -1069,15 +1082,12 @@ get_public_ip()
 
 	get_public_facing_nic "$_ver"
 
-	export PUBLIC_IP6
-	export PUBLIC_IP4
-
 	if [ "$_ver" = "ipv6" ]; then
+		export PUBLIC_IP6
 		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
-		echo "$PUBLIC_IP6"
 	else
+		export PUBLIC_IP4
 		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
-		echo "$PUBLIC_IP4"
 	fi
 }
 

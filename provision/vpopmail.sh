@@ -67,13 +67,21 @@ install_lighttpd()
 		tell_status "installing lighttpd.conf"
 		cat <<EO_LIGHTTPD >> "$_conf"
 
-include "/usr/local/etc/lighttpd/lighttpd*annotated.conf"
-include "/usr/local/etc/lighttpd/conf-enabled/*.conf"
+#include "/usr/local/etc/lighttpd/lighttpd*annotated.conf"
+#include "/usr/local/etc/lighttpd/conf-enabled/*.conf"
+
+# server.modules += ( "mod_access" ) # for IP filtering
 
 server.document-root = "/data/htdocs"
+server.pid-file      = "/var/run/lighttpd/lighttpd.pid"
 
-server.modules += ( "mod_alias", "mod_auth", "mod_authn_file" )
+var.log_root         = "/var/log/lighttpd"
+server.errorlog      = log_root + "/error.log"
 
+#server.modules     += ( "mod_accesslog" )
+#accesslog.filename  = log_root + "/access.log"
+
+server.modules += ( "mod_alias" )
 alias.url = ( "/cgi-bin/"     => "/data/cgi-bin/",
               "/qmailadmin/"  => "/data/htdocs/qmailadmin/",
             )
@@ -89,6 +97,7 @@ extforward.forwarder = (
      "$(get_jail_ip6 haproxy)"  => "trust",
 )
 
+server.modules += ( "mod_auth", "mod_authn_file" )
 #auth.backend                   = "plain"
 auth.backend                   = "htdigest"
 auth.backend.plain.userfile    = "/data/etc/WebUsers.plain"
@@ -149,7 +158,7 @@ install_vqadmin()
 	if [ "$TOASTER_VQADMIN" != "1" ]; then return; fi
 
 	tell_status "installing vqadmin"
-	export WEBDATADIR=../../htdocs CGIBINDIR=../../cgi-bin
+	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin
 	stage_port_install mail/vqadmin
 	stage_exec ln /data/cgi-bin/vqadmin/html/en-us /data/cgi-bin/vqadmin/html/en-US
 }

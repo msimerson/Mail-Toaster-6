@@ -78,7 +78,7 @@ disable_ntpd()
 
 update_syslogd()
 {
-	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/112:* -cc"
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
 
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
@@ -173,13 +173,18 @@ constrain_sshd_to_host()
 	get_public_ip
 	get_public_ip ipv6
 
+	local IP_MSG="	Your public IP(s) are detected as $PUBLIC_IP4"
+	if [ -n "$PUBLIC_IP6" ]; then
+		IP_MSG="$IP_MSG
+		and $PUBLIC_IP6"
+	fi
+
 	if [ -t 0 ]; then
 		local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
-	Your public IPs are detected as $PUBLIC_IP4
-		and $PUBLIC_IP6
+	$IP_MSG
 
 	May I update your sshd config?
 	"
@@ -341,10 +346,21 @@ pf_bruteforce_expire()
 EO_PF_EXPIRE
 }
 
+configure_ipv6()
+{
+	get_public_ip ipv6
+
+	if [ -n "$PUBLIC_IP6" ] && [ -n "$PUBLIC_NIC" ]; then
+		sysrc ipv6_activate_all_interfaces="YES"
+		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
+		sysrc ipv6_gateway_enable="YES"
+		sysctl net.inet6.ip6.forwarding=1
+	fi
+}
+
 add_jail_nat()
 {
 	get_public_ip
-	get_public_ip ipv6
 
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
 	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
@@ -356,6 +372,9 @@ add_jail_nat()
 ext_if="$PUBLIC_NIC"
 ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
+
+jail_ip4="$JAIL_NET_PREFIX.0${JAIL_NET_MASK}"
+jail_ip6="$JAIL_NET6:0/112"
 
 table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
 table <ext_ip4> { \$ext_ip4 } persist
@@ -369,8 +388,8 @@ table <sshguard> persist
 binat-anchor "binat/*"
 
 # default route to the internet for jails
-nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
+nat on \$ext_if inet  from \$jail_ip4 to any -> (\$ext_if)
+nat on \$ext_if inet6 from \$jail_ip6 to any -> <ext_ip6>
 
 nat-anchor "nat/*"
 
@@ -533,14 +552,24 @@ plumb_jail_nic()
 
 assign_syslog_ip()
 {
-	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
-		tell_status "adding syslog IP to lo1"
+	if ! sysrc -cq ifconfig_lo1; then
+		tell_status "adding syslog IPv4 to lo1"
 		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0"
+	fi
+
+	if ! sysrc -cq ifconfig_lo1_ipv6; then
+		tell_status "adding syslog IPv6 to lo1"
+		sysrc ifconfig_lo1_ipv6="$JAIL_NET6:1/112"
 	fi
 
 	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET_PREFIX.1 "; then
 		echo "assigning $JAIL_NET_PREFIX.1 to lo1"
 		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0
+	fi
+
+	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET6:1 "; then
+		echo "assigning $JAIL_NET6:1 to lo1"
+		ifconfig lo1 inet6 "$JAIL_NET6:1/112"
 	fi
 }
 
@@ -585,6 +614,7 @@ update_host() {
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
+	configure_ipv6
 	add_jail_nat
 	configure_tls_certs
 	configure_dhparams

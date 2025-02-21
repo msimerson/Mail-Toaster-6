@@ -34,7 +34,7 @@ install_dcc_port_options()
 
 	get_public_ip ipv6
 	if [ -z "$PUBLIC_IP6" ]; then
-		UNSET="$UNSET IPv6"
+		UNSET="$UNSET IPV6"
 	else
 		SET="$SET IPV6"
 	fi
