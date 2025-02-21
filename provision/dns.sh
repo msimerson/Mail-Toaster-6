@@ -20,9 +20,9 @@ get_mt6_data()
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112"
 	else
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64 ip6:$PUBLIC_IP6"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112 ip6:$PUBLIC_IP6"
 	fi
 
 	echo "
@@ -60,7 +60,7 @@ install_access_conf()
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
-	   access-control: $JAIL_NET6::/64 allow
+	   access-control: $JAIL_NET6::/112 allow
 
 EO_UNBOUND_ACCESS
 }

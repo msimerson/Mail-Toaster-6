@@ -1079,11 +1079,9 @@ get_public_ip()
 	if [ "$_ver" = "ipv6" ]; then
 		export PUBLIC_IP6
 		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
-		echo "$PUBLIC_IP6"
 	else
 		export PUBLIC_IP4
 		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
-		echo "$PUBLIC_IP4"
 	fi
 }
 
