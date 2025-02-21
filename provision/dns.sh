@@ -150,8 +150,8 @@ configure_unbound()
 	enable_control
 	tweak_unbound_conf
 
-	get_public_ip
 	get_public_ip ipv6
+	get_public_ip
 
 	install_access_conf
 	install_local_conf
@@ -185,9 +185,15 @@ switch_host_resolver()
 	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
 
 	echo "switching host resolver to local"
-	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns) $(get_jail_ip6 dns)"
-	echo "nameserver $(get_jail_ip dns)
-nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
+	local _NSLIST="nameserver $(get_jail_ip dns)"
+
+	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns)"
+	if [ -n "$PUBLIC_IP6" ]; then
+		sysrc -f /etc/resolvconf.conf name_servers+=" $(get_jail_ip6 dns)"
+		_NSLIST="$_NSLIST
+nameserver $(get_jail_ip6 dns)"
+	fi
+	echo "$_NSLIST" | resolvconf -a "$PUBLIC_NIC"
 	sysrc -f /etc/resolvconf.conf resolvconf=NO
 }
 
