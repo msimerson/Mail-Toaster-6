@@ -530,8 +530,8 @@ $(safe_jailname $1)	{$(get_safe_jail_path $1)
 
 		exec.clean;
 		exec.start = "/bin/sh /etc/rc";
-		exec.created = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh load";
 		exec.stop = "/bin/sh /etc/rc.shutdown";
+		exec.created = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh load";
 		exec.poststop = "$(get_jail_data $1)/etc/pf.conf.d/pfrule.sh unload";
 	}
 EO_JAIL_RC

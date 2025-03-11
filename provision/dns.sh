@@ -7,8 +7,8 @@ set -e
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		allow.raw_sockets;
-		exec.poststart = \"/data/etc/rc.d/poststart.sh\";
-		exec.prestop = \"/data/etc/rc.d/prestop.sh\";
+		exec.poststart = \"$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh\";
+		exec.prestop = \"$$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh\";
 "
 export JAIL_FSTAB=""
 
