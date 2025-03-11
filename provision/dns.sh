@@ -7,8 +7,8 @@ set -e
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
 		allow.raw_sockets;
-		exec.poststart = \"echo 'nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)' | /sbin/resolvconf -a lo1.dns\";
-		exec.prestop = \"/sbin/resolvconv -d lo1.dns\";
+		exec.poststart = \"/data/etc/rc.d/poststart.sh\";
+		exec.prestop = \"/data/etc/rc.d/prestop.sh\";
 "
 export JAIL_FSTAB=""
 
@@ -189,6 +189,16 @@ switch_host_resolver()
 		echo "turning resolvconf back on"
 		truncate -s 0 /etc/resolvconf.conf
 	fi
+
+	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh" <<EO_POSTSTART
+#!/bin/sh
+echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns
+EO_POSTSTART
+
+	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh" <<EO_PRESTOP
+#!/bin/sh
+/sbin/resolvconv -d lo1.dns
+EO_PRESTOP
 }
 
 base_snapshot_exists || exit 1
