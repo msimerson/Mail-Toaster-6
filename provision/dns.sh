@@ -197,7 +197,7 @@ EO_POSTSTART
 
 	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh" <<EO_PRESTOP
 #!/bin/sh
-/sbin/resolvconv -d lo1.dns
+/sbin/resolvconf -d lo1.dns
 EO_PRESTOP
 }
 
