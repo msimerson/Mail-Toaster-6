@@ -602,7 +602,7 @@ update_mt6()
 }
 
 update_host() {
-	sysrc -q background_fsck=NO
+	sysrc -c -q background_fsck=NO || sysrc -q background_fsck=NO
 	update_mt6
 	update_freebsd
 	configure_pkg_latest ""
