@@ -6,7 +6,10 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		allow.raw_sockets;"
+		allow.raw_sockets;
+		exec.poststart = \"echo 'nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)' | /sbin/resolvconf -a lo1.dns\";
+		exec.prestop = \"/sbin/resolvconv -d lo1.dns\";
+"
 export JAIL_FSTAB=""
 
 install_unbound()
@@ -182,20 +185,10 @@ test_unbound()
 
 switch_host_resolver()
 {
-	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
-
-	echo "switching host resolver to local"
-	local _NSLIST
-	_NSLIST="nameserver $(get_jail_ip dns)"
-
-	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns)"
-	if [ -n "$PUBLIC_IP6" ]; then
-		sysrc -f /etc/resolvconf.conf name_servers+=" $(get_jail_ip6 dns)"
-		_NSLIST="$_NSLIST
-nameserver $(get_jail_ip6 dns)"
+	if sysrc -c -f /etc/resolvconf.conf resolvconf=NO; then
+		echo "turning resolvconf back on"
+		truncate -s 0 /etc/resolvconf.conf
 	fi
-	echo "$_NSLIST" | resolvconf -a "$PUBLIC_NIC"
-	sysrc -f /etc/resolvconf.conf resolvconf=NO
 }
 
 base_snapshot_exists || exit 1
