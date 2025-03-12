@@ -12,7 +12,7 @@ proc     $ZFS_JAIL_MNT/unifi/proc   procfs  rw 0 0"
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install mongodb44 openjdk17 snappyjava gmake
+	stage_pkg_install mongodb60 openjdk17 snappyjava gmake
 
 	tell_status "installing Unifi"
 	stage_port_install net-mgmt/unifi8
