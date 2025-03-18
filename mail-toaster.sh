@@ -511,7 +511,7 @@ add_jail_conf_d()
 	local _IP6=""
 	get_public_ip ipv6
 	if [ -n "$PUBLIC_IP6" ]; then
-		_IP6="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 $1);"
+		_IP6="ip6.addr = $(get_jail_ip6 $1);"
 	fi
 
 	local _path="$ZFS_JAIL_MNT/$1"
@@ -525,7 +525,7 @@ $(safe_jailname $1)	{$(get_safe_jail_path $1)
 		devfs_ruleset=5;
 
 		interface = $JAIL_NET_INTERFACE;
-		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
+		ip4.addr = ${_jail_ip};
 		${_IP6}${JAIL_CONF_EXTRA}
 
 		exec.clean;

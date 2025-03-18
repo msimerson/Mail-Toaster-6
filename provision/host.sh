@@ -546,7 +546,7 @@ plumb_jail_nic()
 
 	if ifconfig lo1 2>&1 | grep -q 'does not exist'; then
 		tell_status "plumb lo1 interface"
-		ifconfig lo1 create
+		ifconfig lo1 create description MT6-jails
 	fi
 }
 
@@ -602,7 +602,7 @@ update_mt6()
 }
 
 update_host() {
-	sysrc -q background_fsck=NO
+	sysrc -c -q background_fsck=NO || sysrc -q background_fsck=NO
 	update_mt6
 	update_freebsd
 	configure_pkg_latest ""

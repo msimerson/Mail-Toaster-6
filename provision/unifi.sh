@@ -12,10 +12,10 @@ proc     $ZFS_JAIL_MNT/unifi/proc   procfs  rw 0 0"
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install mongodb44 openjdk17 snappyjava gmake
+	stage_pkg_install snappyjava openjdk17 gmake
 
 	tell_status "installing Unifi"
-	stage_port_install net-mgmt/unifi8
+	stage_port_install net-mgmt/unifi9
 
 	tell_status "Enable UniFi"
 	stage_sysrc unifi_enable=YES
@@ -26,9 +26,9 @@ configure_unifi()
 	true;
 	# /usr/local/share/java/unifi/data/system.properties
 	#"db.mongo.local=false"
-	#"db.mongo.uri=mongodb://ubnt:password@IP_ADDRESS:PORT/unifi-test"
-	#"statdb.mongo.uri=mongodb://ubnt:password@IP_ADDRESS:PORT/unifi-test_stat"
-	#"unifi.db.name=unifi-test"
+	#"db.mongo.uri=mongodb://ubnt:password@IP_ADDRESS:PORT/unifi"
+	#"statdb.mongo.uri=mongodb://ubnt:password@IP_ADDRESS:PORT/unifi_stat"
+	#"unifi.db.name=unifi"
 }
 
 start_unifi()

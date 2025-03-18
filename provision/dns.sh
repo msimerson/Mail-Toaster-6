@@ -6,7 +6,10 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		allow.raw_sockets;"
+		allow.raw_sockets;
+		exec.poststart = \"$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh\";
+		exec.prestop = \"$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh\";
+"
 export JAIL_FSTAB=""
 
 install_unbound()
@@ -182,20 +185,20 @@ test_unbound()
 
 switch_host_resolver()
 {
-	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
-
-	echo "switching host resolver to local"
-	local _NSLIST
-	_NSLIST="nameserver $(get_jail_ip dns)"
-
-	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns)"
-	if [ -n "$PUBLIC_IP6" ]; then
-		sysrc -f /etc/resolvconf.conf name_servers+=" $(get_jail_ip6 dns)"
-		_NSLIST="$_NSLIST
-nameserver $(get_jail_ip6 dns)"
+	if sysrc -c -f /etc/resolvconf.conf resolvconf=NO; then
+		echo "turning resolvconf back on"
+		truncate -s 0 /etc/resolvconf.conf
 	fi
-	echo "$_NSLIST" | resolvconf -a "$PUBLIC_NIC"
-	sysrc -f /etc/resolvconf.conf resolvconf=NO
+
+	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh" <<EO_POSTSTART
+#!/bin/sh
+echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns
+EO_POSTSTART
+
+	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh" <<EO_PRESTOP
+#!/bin/sh
+/sbin/resolvconf -d lo1.dns
+EO_PRESTOP
 }
 
 base_snapshot_exists || exit 1
