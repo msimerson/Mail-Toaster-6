@@ -205,5 +205,5 @@ install_unbound
 configure_unbound
 start_unbound
 test_unbound
-promote_staged_jail dns
 switch_host_resolver
+promote_staged_jail dns
