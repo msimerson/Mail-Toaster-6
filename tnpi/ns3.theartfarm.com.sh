@@ -5,6 +5,8 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 
+mt6-include djb
+
 install_tinydns()
 {
 	tell_status "installing djbdns"
@@ -19,9 +21,7 @@ install_tinydns()
 	stage_make_conf sysutils_ucspi-tcp_SET 'sysutils_ucspi-tcp_SET=IPV6'
 	stage_port_install sysutils/ucspi-tcp || exit
 
-	tell_status "installing djbdns with IPv6"
-	stage_make_conf dns_djbdns_SET 'dns_djbdns_SET=IP6'
-	stage_port_install dns/djbdns || exit
+	install_djbdns_source
 }
 
 configure_svscan()
@@ -86,14 +86,14 @@ configure_tinydns()
 
 configure_tinydns_data()
 {
-	if [ -d "$ZFS_DATA_MNT/tinydns/root" ]; then
+	if [ -d "$ZFS_DATA_MNT/ns3.theartfarm.com/root" ]; then
 		tell_status "tinydns data already configured"
 		return
 	fi
 
 	tell_status "configuring tinydns data"
-	mv "$STAGE_MNT/var/service/tinydns/root" "$ZFS_DATA_MNT/tinydns/root"
-	tee -a "$ZFS_DATA_MNT/tinydns/root/data" <<EO_EXAMPLE
+	mv "$STAGE_MNT/var/service/tinydns/root" "$ZFS_DATA_MNT/ns3.theartfarm.com/root"
+	tee -a "$ZFS_DATA_MNT/ns3.theartfarm.com/root/data" <<EO_EXAMPLE
 .example.com:1.2.3.4:a:259200
 =www.example.com:1.2.3.5:86400
 EO_EXAMPLE
@@ -182,9 +182,9 @@ test_tinydns()
 	stage_exec service svscan stop || exit
 	for d in tinydns axfrdns tinydns-v6 axfrdns-v6
 	do
-		if [ ! -d "$ZFS_DATA_MNT/tinydns/service/$d" ]; then
+		if [ ! -d "$ZFS_DATA_MNT/ns3.theartfarm.com/service/$d" ]; then
 			tell_status "moving $d from staging to production"
-			mv "$STAGE_MNT/var/service/$d" "$ZFS_DATA_MNT/tinydns/service/"
+			mv "$STAGE_MNT/var/service/$d" "$ZFS_DATA_MNT/ns3.theartfarm.com/service/"
 		fi
 	done
 	stage_sysrc svscan_servicedir="/data/service"
