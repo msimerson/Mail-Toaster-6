@@ -118,6 +118,7 @@ base_snapshot_exists || exit 1
 create_staged_fs dcc
 preflight
 start_staged_jail dcc
+stage_remount_tmp_exec
 install_dcc
 configure_dcc
 start_dcc

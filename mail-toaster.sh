@@ -321,6 +321,13 @@ start_staged_jail()
 	pkg -j stage update
 }
 
+stage_remount_tmp_exec() {
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		umount $STAGE_MNT/tmp  # some ports needs exec while building
+		mount -t tmpfs -o rw,mode=01777,nosuid tmpfs $STAGE_MNT/tmp
+	fi
+}
+
 tell_settings()
 {
 	echo; echo "   ***   Configured $1 settings:   ***"; echo

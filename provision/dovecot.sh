@@ -651,6 +651,7 @@ base_snapshot_exists || exit
 create_staged_fs dovecot
 mkdir -p "$STAGE_MNT/usr/local/vpopmail"
 start_staged_jail dovecot
+stage_remount_tmp_exec
 allow_sysvipc_stage
 install_dovecot
 configure_dovecot

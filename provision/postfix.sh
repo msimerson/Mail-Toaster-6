@@ -150,6 +150,7 @@ test_postfix()
 base_snapshot_exists || exit 1
 create_staged_fs postfix
 start_staged_jail postfix
+stage_remount_tmp_exec
 install_postfix
 configure_postfix
 start_postfix
