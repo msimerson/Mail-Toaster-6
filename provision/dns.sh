@@ -275,6 +275,7 @@ EO_PRESTOP
 
 base_snapshot_exists || exit 1
 create_staged_fs dns
+install_minimal_hosts
 start_staged_jail dns
 install_unbound
 configure_unbound

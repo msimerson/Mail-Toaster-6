@@ -118,6 +118,7 @@ get_public_ip6()           { :; }
 get_public_facing_nic()    { :; }
 install_pfrule()           { :; }
 install_acme_sh()          { :; }
+install_minimal_hosts()    { :; }
 
 # Config / util
 sed_inplace()              { sed -i.bak "$@"; }
