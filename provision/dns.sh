@@ -192,7 +192,7 @@ switch_host_resolver()
 
 	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh" <<EO_POSTSTART
 #!/bin/sh
-echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns
+echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns -m 0
 EO_POSTSTART
 
 	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh" <<EO_PRESTOP

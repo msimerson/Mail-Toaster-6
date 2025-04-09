@@ -1038,6 +1038,9 @@ stage_enable_newsyslog()
 {
 	tell_status "enabling newsyslog"
 	sysrc -f "$STAGE_MNT/etc/rc.conf" newsyslog_enable=YES
+	if [ ! -d "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" ]; then
+		mkdir "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
+	fi
 	sed -i.bak \
 		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"

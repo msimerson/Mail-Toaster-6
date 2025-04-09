@@ -9,12 +9,12 @@ export JAIL_FSTAB=""
 install_grafana()
 {
 	tell_status "installing Grafana"
-	stage_pkg_install grafana9 || exit
+	stage_pkg_install grafana || exit
 }
 
 configure_grafana()
 {
-	for _d in etc db db/plugins logs; do
+	for _d in etc db db/plugins log; do
 		if [ ! -d "$STAGE_MNT/data/$_d" ]; then
 			tell_status "creating data/$_d dir"
 			mkdir "$STAGE_MNT/data/$_d" || exit
@@ -30,7 +30,7 @@ configure_grafana()
 		sed -i '' \
 			-e "/^;domain =/ s/^;//; s/localhost/${TOASTER_HOSTNAME}/" \
 			-e '/^data =/ s/\/.*/\/data\/db/' \
-			-e '/^logs =/ s/\/.*/\/data\/logs/' \
+			-e '/^logs =/ s/\/.*/\/data\/log/' \
 			-e '/^plugins =/ s/\/.*/\/data\/db\/plugins/' \
 			-e "/^;root_url =/ s/^;//; s/= .*/= https:\/\/${TOASTER_HOSTNAME}\/grafana\//" \
 			"$STAGE_MNT/data/etc/grafana.ini" || exit

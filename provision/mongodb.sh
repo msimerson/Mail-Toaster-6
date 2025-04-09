@@ -22,13 +22,13 @@ install_mongodb()
 	fi
 
 	tell_status "installing mongodb"
-	stage_pkg_install mongodb60 mongodb-tools
+	stage_pkg_install mongodb70 mongodb-tools
 }
 
 install_mongodb_port()
 {
 	stage_pkg_install python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp
-	stage_port_install databases/mongodb60
+	stage_port_install databases/mongodb70
 }
 
 check_max_wired() {
@@ -48,25 +48,48 @@ vm.max_wired="$((_count * 2))"
 EO_SYSCTL_MONGO
 }
 
-configure_mongodb()
+configure_mongod_syslog()
 {
-	tell_status "configuring mongodb"
+	sed -i '' \
+		-e '/destination:/ s/file/syslog/' \
+		"$STAGE_MNT/data/etc/mongodb.conf"
+}
 
-	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/log" "$STAGE_MNT/data/etc" \
-		"$STAGE_MNT/usr/local/etc/newsyslog.conf.d" || exit
-	stage_exec chown mongodb:mongodb /data/db /data/log /data/etc || exit
-
-	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
-		tell_status "installing /data/etc/mongodb.conf"
-		cp "$STAGE_MNT/usr/local/etc/mongodb.conf.sample" "$STAGE_MNT/data/etc/mongodb.conf"
-	fi
-
-	check_max_wired
+configure_mongod_logging()
+{
+	mkdir -p "$STAGE_MNT/data/log" || exit
+	stage_exec chown mongodb:mongodb /data/log || exit
 
 	stage_enable_newsyslog
 
 	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
 		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod.conf"
+}
+
+configure_mongodb()
+{
+	tell_status "configuring mongodb"
+
+	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/etc" || exit
+	stage_exec chown mongodb:mongodb /data/db /data/etc || exit
+
+	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
+		tell_status "installing /data/etc/mongodb.conf"
+		cat "$STAGE_MNT/usr/local/etc/mongodb.conf.sample" \
+			| sed -e 's|/var/log/mongodb|/data/log|' \
+			| sed -e '/logAppend: true:$/a\
+  quiet: false\
+  verbosity: 0' \
+			| sed -e '/dbPath:/ s|/var/lib/mongo|/data/db|' \
+			| sed -e '/processManagement:$/a\
+  fork: true\
+  pidFilePath: /var/run/mongod/mongod.pid' \
+			| sed -e '/bindIp:/ s/127.*/0.0.0.0,::/' \
+			> "$STAGE_MNT/data/etc/mongodb.conf"
+	fi
+
+	check_max_wired
+
 }
 
 start_mongodb()

@@ -96,6 +96,10 @@ configure_postfix()
 	stage_sysrc postfix_enable=YES
 	stage_sysrc postfix_flags="-c /data/etc"
 
+	if [ -d "$ZFS_DATA_MNT/spool" ]; then
+		stage_sysrc postfix_pidfile=/data/spool/pid/master.pid
+	fi
+
 	configure_postfix_main_cf
 	configure_postfix_master_cf
 
