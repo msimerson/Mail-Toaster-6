@@ -75,8 +75,8 @@ configure_mongodb()
 
 	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
 		tell_status "installing /data/etc/mongodb.conf"
-		cat "$STAGE_MNT/usr/local/etc/mongodb.conf.sample" \
-			| sed -e 's|/var/log/mongodb|/data/log|' \
+		sed -e 's|/var/log/mongodb|/data/log|' \
+			"$STAGE_MNT/usr/local/etc/mongodb.conf.sample" \
 			| sed -e '/logAppend: true:$/a\
   quiet: false\
   verbosity: 0' \
