@@ -22,7 +22,7 @@ install_mongodb()
 	fi
 
 	tell_status "installing mongodb"
-	stage_pkg_install mongodb70 mongodb-tools
+	stage_pkg_install mongodb70
 }
 
 install_mongodb_port()
