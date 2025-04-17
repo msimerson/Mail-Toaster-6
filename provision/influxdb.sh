@@ -9,7 +9,7 @@ export JAIL_FSTAB=""
 install_influxdb()
 {
 	tell_status "installing influxdb"
-	stage_pkg_install influxdb || exit
+	stage_pkg_install influxdb || stage_port_install databases/influxdb || exit
 
 	tell_status "Enable InfluxdDB"
 	stage_sysrc influxd_enable=YES

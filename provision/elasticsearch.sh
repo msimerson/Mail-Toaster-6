@@ -97,7 +97,7 @@ install_elasticsearch()
 
 install_beats()
 {
-	stage_pkg_install beats8
+	stage_pkg_install beats8 || stage_port_install sysutils/beats8
 
 	local _xcfg="$STAGE_MNT/usr/local/etc/beats/metricbeat.modules.d/elasticsearch-xpack.yml"
 	cp "$STAGE_MNT/usr/local/share/examples/beats/metricbeat.modules.d/elasticsearch-xpack.yml.disabled" "$_xcfg"

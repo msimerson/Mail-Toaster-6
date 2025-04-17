@@ -9,7 +9,7 @@ export JAIL_FSTAB=""
 install_grafana()
 {
 	tell_status "installing Grafana"
-	stage_pkg_install grafana || exit
+	stage_pkg_install grafana || stage_port_install www/grafana || exit
 }
 
 configure_grafana()
