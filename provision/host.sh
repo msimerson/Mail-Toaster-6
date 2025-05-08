@@ -624,7 +624,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
-	if [ ! -e "/etc/localtime" ]; then tzsetup; fi
+	test -e "/etc/localtime" || tzsetup
 	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }

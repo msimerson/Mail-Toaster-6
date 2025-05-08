@@ -179,9 +179,15 @@ PATH="$PATH:/usr/local/bin"|' \
  	fi
 }
 
+install_clamav_port()
+{
+	stage_pkg_install curl cmake expat gmake gettext curl libpsl ninja perl5 portconfig python3
+	stage_port_install security/clamav
+}
+
 install_clamav()
 {
-	stage_pkg_install clamav
+	stage_pkg_install clamav || install_clamav_port
 	echo "done"
 
 	for _d in etc db log; do
