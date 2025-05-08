@@ -181,6 +181,10 @@ test_unbound()
 	# set it back to production value
 	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
 	echo "it worked."
+
+	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf" ]; then
+		stage_sysrc unbound_conf=/data/unbound.conf
+	fi
 }
 
 switch_host_resolver()
