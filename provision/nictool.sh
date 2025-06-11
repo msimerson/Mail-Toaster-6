@@ -121,7 +121,15 @@ install_nictool_server() {
 
 install_apache_setup()
 {
+	_apa_installed="$ZFS_JAIL_MNT/nictool/usr/local/etc/apache24/Includes/nictool.conf"
 	_htcnf="$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf"
+
+	if [ -f "$_apa_installed" ]; then
+		tell_status "preserving apache24/Includes/nictool.conf"
+		cp "$_apa_installed" "$_htcnf"
+		return
+	fi
+
 	store_config "$_htcnf" <<EO_NICTOOL_APACHE24
 LoadModule perl_module libexec/apache24/mod_perl.so
 PerlRequire /usr/local/nictool/client/lib/nictoolclient.conf
