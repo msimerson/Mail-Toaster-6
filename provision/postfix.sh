@@ -127,6 +127,9 @@ start_postfix()
 	if [ -f "$_dkim_private_key" ]; then
 		stage_exec service milter-opendkim start
 	fi
+	if [ -d "$ZFS_DATA_MNT/spool/pid/master.pid" ]; then
+		jexec postfix service postfix start
+	fi
 	stage_exec service postfix start
 }
 

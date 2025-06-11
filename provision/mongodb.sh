@@ -22,13 +22,13 @@ install_mongodb()
 	fi
 
 	tell_status "installing mongodb"
-	stage_pkg_install mongodb70
+	stage_pkg_install mongodb80
 }
 
 install_mongodb_port()
 {
 	stage_pkg_install python scons-py37 boost-libs snappy pcre cyrus-sasl binutils gmp
-	stage_port_install databases/mongodb70
+	stage_port_install databases/mongodb80
 }
 
 check_max_wired() {
@@ -70,8 +70,8 @@ configure_mongodb()
 {
 	tell_status "configuring mongodb"
 
-	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/etc" || exit
-	stage_exec chown mongodb:mongodb /data/db /data/etc || exit
+	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/etc" "$STAGE_MNT/var/run/mongod" || exit
+	stage_exec chown mongodb:mongodb /data/db /data/etc "$STAGE_MNT/var/run/mongod" || exit
 
 	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
 		tell_status "installing /data/etc/mongodb.conf"

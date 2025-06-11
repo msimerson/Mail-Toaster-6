@@ -12,7 +12,11 @@ proc	$ZFS_JAIL_MNT/unifi/proc	procfs	rw	0	0"
 
 create_unifi_mountpoints()
 {
-	mkdir -p "$ZFS_JAIL_MNT/unifi/usr/local/share/java"
+	if [ ! -d "$ZFS_JAIL_MNT/unifi/usr/local/share/java" ]; then
+		mkdir -p "$ZFS_JAIL_MNT/unifi/usr/local/share/java"
+	fi
+
+	mkdir -p "$STAGE_MNT/usr/local/share/java"
 
 	if [ ! -d "$ZFS_DATA_MNT/unifi/java" ]; then
 		mkdir "$ZFS_DATA_MNT/unifi/java"
