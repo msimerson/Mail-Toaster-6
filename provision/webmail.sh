@@ -216,7 +216,7 @@ install_index()
   const adminPaths = {
     'admin'     : '',
     'qmailadmin': '/cgi-bin/qmailadmin/qmailadmin/',
-    # 'vqadmin'   : '/cgi-bin/vqadmin/vqadmin.cgi',
+    // 'vqadmin'   : '/cgi-bin/vqadmin/vqadmin.cgi',
     'rspamd'    : '/rspamd/',
     'watch'     : '/watch/',
     'snappymail': '/snappymail/?admin',

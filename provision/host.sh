@@ -60,7 +60,11 @@ configure_chrony()
 
 	pkg install -y chrony
 	sysrc chronyd_enable=YES
-	service chronyd start
+	if pgrep -q chronyd; then
+		service chronyd restart
+	else
+		service chronyd start
+	fi
 }
 
 disable_ntpd()

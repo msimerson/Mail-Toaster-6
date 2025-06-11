@@ -153,7 +153,7 @@ install_clamav_nrpe()
 	stage_pkg_install nagios-plugins
 
 	tell_status "installing clamav nrpe plugin"
-	stage_pkg_install nagios-check_clamav
+	stage_pkg_install nagios-check_clamav || stage_port_install net-mgmt/nagios-check_clamav
 	sed -i .bak \
 		-e 's|clamd_cmd -V|clamd_cmd --datadir=/data/db -V|' \
 		"$STAGE_MNT/usr/local/libexec/nagios/check_clamav"
@@ -181,7 +181,7 @@ PATH="$PATH:/usr/local/bin"|' \
 
 install_clamav_port()
 {
-	stage_pkg_install curl cmake expat gmake gettext curl libpsl ninja perl5 portconfig python3
+	stage_pkg_install arc arj curl cmake expat gmake gettext curl json-c libmspack libpsl libxml2 ninja pcre2 perl5 portconfig python3
 	stage_port_install security/clamav
 }
 
