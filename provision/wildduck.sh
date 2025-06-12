@@ -26,7 +26,7 @@ preflight_check()
 install_wildduck()
 {
 	tell_status "installing wildduck dependencies"
-	stage_pkg_install npm-node20 git-tiny || exit
+	stage_pkg_install npm-node20 git-tiny
 
 	if [ ! -e "$STAGE_MNT/data/wildduck" ]; then
 		tell_status "installing wildduck"
@@ -52,6 +52,19 @@ install_wildduck_webmail()
 		stage_exec bash -c "cd /data/wildduck-webmail && git pull && npm install && npm run bowerdeps"
 		stage_exec bash -c "cd /data/wildduck-webmail && mkdir -p public/components"
 		stage_exec bash -c "cd /data/wildduck-webmail && npx bower install --allow-root"
+	fi
+
+	if [ -f "$STAGE_MNT/data/etc/nginx/nginx.conf" ]; then
+		stage_pkg_install nginx acme.sh
+		stage_exec pw usermod root -d /data/home/root
+		stage_exec pw usermod acme -d /data/home/acme
+		stage_sysrc nginx_enable="YES"
+		stage_sysrc nginx_flags="-c /data/etc/nginx/nginx.conf"
+		store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME
+#!/bin/sh
+export LE_WORKING_DIR=/data/home/root/.acme.sh
+/usr/local/sbin/acme.sh --cron
+EO_ACME
 	fi
 }
 
@@ -411,7 +424,9 @@ EO_HELO
 
 	echo "$WILDDUCK_HOSTNAME" > "$_cfg/me"
 	echo "local_mx_ok=true" >> "$_cfg/outbound.ini"
-	echo "wildduck" >> "$_cfg/plugins"
+	if ! grep -q wildduck "$_cfg/plugins"; then
+		echo "wildduck" >> "$_cfg/plugins"
+	fi
 
 	tell_status "configuring $_cfg/plugins"
 	# shellcheck disable=1003
@@ -424,9 +439,14 @@ EO_HELO
 		-e '/^#attachment/ s/^#//' \
 		-e '/^#clamd/ s/^#//' \
 		-e '/^#spamassassin/ s/^#//' \
-		-e '/^spamassassin/ a\'$'\n''rspamd' \
 		-e '/^queue/ s/queue/#queue/' \
 		"$_cfg/plugins"
+
+	if ! grep -q rspamd "$_cfg/plugins"; then
+		sed -i '' \
+			-e '/^spamassassin/ a\'$'\n''rspamd' \
+			"$_cfg/plugins"
+	fi
 
 	tell_status "installing $_cfg/rspamd.ini"
 	cat <<EO_RSPAMD > "$_cfg/rspamd.ini"
@@ -560,7 +580,7 @@ test_zonemta()
 	echo "it worked"
 }
 
-base_snapshot_exists || exit 1
+base_snapshot_exists
 preflight_check
 create_staged_fs wildduck
 start_staged_jail wildduck
