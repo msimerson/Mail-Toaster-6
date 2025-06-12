@@ -443,6 +443,7 @@ EO_HELO
 		"$_cfg/plugins"
 
 	if ! grep -q rspamd "$_cfg/plugins"; then
+		# shellcheck disable=SC1003
 		sed -i '' \
 			-e '/^spamassassin/ a\'$'\n''rspamd' \
 			"$_cfg/plugins"
