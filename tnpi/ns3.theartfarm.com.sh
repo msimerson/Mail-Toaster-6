@@ -17,6 +17,8 @@ install_nsd()
 		chown 216:216 "$STAGE_MNT/data/home/nsd"
 	fi
 
+	stage_exec pw user mod root -d /data/home/root
+	stage_exec pw user mod toor -d /data/home/root
 	stage_exec pw user mod nsd -u 216 -g 216 -s /bin/sh -d /data/home/nsd
 }
 
@@ -25,6 +27,7 @@ configure_nsd()
 	stage_sysrc nsd_enable=YES
 	stage_sysrc nsd_config=/data/etc/nsd.conf
 	stage_sysrc sshd_enable=YES
+	stage_sysrc sshd_flags+=' \-o PermitRootLogin=without-password'
 
 	if [ ! -d "$STAGE_MNT/data/etc" ]; then
 		mkdir "$STAGE_MNT/data/etc"
@@ -264,10 +267,11 @@ install_nsd
 configure_nsd
 start_nsd
 test_nsd
+promote_staged_jail ns3.theartfarm.com
+
 # install_tinydns
 # configure_tinydns
 # configure_axfrdns
 # configure_axfrdns6
 # start_tinydns
 # test_tinydns
-promote_staged_jail ns3.theartfarm.com
