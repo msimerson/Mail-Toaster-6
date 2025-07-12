@@ -2,7 +2,7 @@
 
 set -e
 
-. mail-toaster.sh || exit
+. mail-toaster.sh
 
 export JAIL_START_EXTRA="allow.sysvipc=1 allow.mlock=1"
 export JAIL_CONF_EXTRA="
@@ -57,8 +57,8 @@ configure_mongod_syslog()
 
 configure_mongod_logging()
 {
-	mkdir -p "$STAGE_MNT/data/log" || exit
-	stage_exec chown mongodb:mongodb /data/log || exit
+	mkdir -p "$STAGE_MNT/data/log"
+	stage_exec chown mongodb:mongodb /data/log
 
 	stage_enable_newsyslog
 
@@ -70,8 +70,8 @@ configure_mongodb()
 {
 	tell_status "configuring mongodb"
 
-	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/etc" "$STAGE_MNT/var/run/mongod" || exit
-	stage_exec chown mongodb:mongodb /data/db /data/etc "$STAGE_MNT/var/run/mongod" || exit
+	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/etc" "$STAGE_MNT/var/run/mongod"
+	stage_exec chown mongodb:mongodb /data/db /data/etc /var/run/mongod
 
 	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
 		tell_status "installing /data/etc/mongodb.conf"
@@ -114,7 +114,7 @@ post_install_config()
 	stage_sysrc mongod_flags="--logpath /data/log/mongod.log --logappend"
 }
 
-base_snapshot_exists || exit
+base_snapshot_exists
 create_staged_fs mongodb
 start_staged_jail mongodb
 install_mongodb

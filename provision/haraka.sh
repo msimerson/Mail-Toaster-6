@@ -46,7 +46,7 @@ install_geoip_dbs()
 	fi
 
 	local _fstab="$ZFS_DATA_MNT/haraka/etc/fstab"
-	for _f in "$_fstab" "$_fstab}.stage"; do
+	for _f in "$_fstab" "$_fstab.stage"; do
 		if ! grep -qs GeoIP "$_f"; then
 			tell_status "adding GeoIP volume to $_f"
 			tee -a "$_f" <<EO_GEOIP
