@@ -15,7 +15,7 @@ mt6-include mua
 
 preflight_check()
 {
-	for _j in dns redis mongodb
+	for _j in dns redis mongodb jo
 	do
 		if ! jail_is_running "$_j"; then
 			fatal_err "jail $_j is required"
@@ -57,6 +57,7 @@ install_wildduck_webmail()
 	if [ -f "$STAGE_MNT/data/etc/nginx/nginx.conf" ]; then
 		stage_pkg_install nginx acme.sh
 		stage_exec pw usermod root -d /data/home/root
+		stage_exec pw usermod toor -d /data/home/root
 		stage_exec pw usermod acme -d /data/home/acme
 		stage_sysrc nginx_enable="YES"
 		stage_sysrc nginx_flags="-c /data/etc/nginx/nginx.conf"
