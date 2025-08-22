@@ -37,6 +37,13 @@ install_nt_prereqs()
 		tell_status "creating default /var/service for svscan"
 		mkdir -p "$STAGE_MNT/var/service"
 	fi
+
+	stage_pkg_install acme.sh
+	stage_exec pw usermod acme -d /data/home/acme
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME_CRON
+#!/usr/local/bin/bash
+/usr/local/sbin/acme.sh --home /data/home/acme/.acme.sh --cron
+EO_ACME_CRON
 }
 
 install_nt_from_git()
@@ -66,7 +73,8 @@ install_nt_from_tarball()
 	mv "NicToolClient-$NICTOOL_VER" client
 }
 
-install_nictool_client() {
+install_nictool_client()
+{
 	tell_status "install NicToolClient $NICTOOL_VER"
 
 	_ntcdir="/usr/local/nictool/client"
@@ -88,7 +96,8 @@ install_nictool_client() {
 	jexec stage bash -c "cd $_ntcdir; perl bin/install_deps.pl"
 }
 
-install_nictool_server() {
+install_nictool_server()
+{
 	tell_status "install NicToolServer $NICTOOL_VER"
 
 	_ntsdir="/usr/local/nictool/server"
