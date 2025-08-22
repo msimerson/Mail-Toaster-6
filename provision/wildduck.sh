@@ -34,7 +34,7 @@ install_wildduck()
 		stage_exec bash -c "cd /data/wildduck && npm install --omit=dev"
 	else
 		tell_status "updating wildduck"
-		stage_exec bash -c "cd /data/wildduck && git pull && npm install --omit=dev"
+		stage_exec bash -c "cd /data/wildduck && npm install --omit=dev"
 	fi
 
 	stage_exec npm install -g saslprep
@@ -49,7 +49,7 @@ install_wildduck_webmail()
 		stage_exec bash -c "cd /data/wildduck-webmail && npm run bowerdeps"
 	else
 		tell_status "updating wildduck webmail"
-		stage_exec bash -c "cd /data/wildduck-webmail && git pull && npm install && npm run bowerdeps"
+		stage_exec bash -c "cd /data/wildduck-webmail && npm install && npm run bowerdeps"
 		stage_exec bash -c "cd /data/wildduck-webmail && mkdir -p public/components"
 		stage_exec bash -c "cd /data/wildduck-webmail && npx bower install --allow-root"
 	fi
@@ -81,8 +81,8 @@ install_zonemta()
 		stage_exec bash -c "cd /data/zone-mta && $_npm_ins"
 	else
 		tell_status "updating ZoneMTA"
-		stage_exec bash -c "cd /data/zone-mta/plugins/wildduck && git pull && rm -f package-lock.json && $_npm_ins"
-		stage_exec bash -c "cd /data/zone-mta && git pull && $_npm_ins"
+		stage_exec bash -c "cd /data/zone-mta/plugins/wildduck && rm -f package-lock.json && $_npm_ins"
+		stage_exec bash -c "cd /data/zone-mta && $_npm_ins"
 	fi
 
 	# stage_exec bash -c "cd /data/zone-mta && npm install zonemta-delivery-counters --save"
@@ -95,7 +95,7 @@ install_zonemta_webadmin()
 		stage_exec bash -c "cd /data && git clone https://github.com/zone-eu/zmta-webadmin.git zone-mta-admin"
 		stage_exec bash -c "cd /data/zone-mta-admin && npm install --omit=dev"
 	else
-		stage_exec bash -c "cd /data/zone-mta-admin && git pull && npm install --omit=dev"
+		stage_exec bash -c "cd /data/zone-mta-admin && npm install --omit=dev"
 	fi
 }
 
@@ -109,7 +109,7 @@ install_haraka()
 		stage_exec bash -c "cd /data/haraka && $_npm_cmd"
 	else
 		tell_status "updating haraka"
-		stage_exec bash -c "cd /data/haraka && git pull && $_npm_cmd"
+		stage_exec bash -c "cd /data/haraka && $_npm_cmd"
 	fi
 
 	if [ ! -e "$STAGE_MNT/data/haraka/plugins/wildduck" ]; then
