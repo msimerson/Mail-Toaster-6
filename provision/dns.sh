@@ -145,10 +145,18 @@ configure_unbound()
 		mv unbound.conf.local "$ZFS_DATA_MNT/dns/"
 	fi
 
-	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
-		tell_status "activating unbound.conf.local"
-		UNBOUND_LOCAL='include: "/data/unbound.conf.local"'
+	_ub_local_conf="$ZFS_DATA_MNT/dns/unbound.conf.local"
+	if [ ! -f "$_ub_local_conf" ]; then
+		store_config "$_ub_local_conf" <<EO_UB_LOCAL_CONF
+
+	#local-data "example.tld.com	A 172.16.16.1"
+	#local-data "1.16.16.172.in-addr.arpa	PTR example.tld.com"
+
+EO_UB_LOCAL_CONF
 	fi
+
+	tell_status "activating unbound.conf.local"
+	UNBOUND_LOCAL='include: "/data/unbound.conf.local"'
 
 	enable_control
 	tweak_unbound_conf
