@@ -371,8 +371,8 @@ get_jail_ip()
 	local _start=${JAIL_NET_START:=1}
 
 	case "$1" in
-		syslog) echo "$JAIL_NET_PREFIX.$_start";   return;;
-		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))";   return;;
+		syslog) echo "$JAIL_NET_PREFIX.$_start"; return;;
+		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))"; return;;
 		stage)  echo "$JAIL_NET_PREFIX.254"; return;;
 	esac
 
@@ -1127,6 +1127,33 @@ provision_mt6()
 	done
 }
 
+provision_skeleton()
+{
+	if [ -z "$3" ]; then
+		echo "Usage:"; echo; echo "provision skel NAME IPv4 IPv6"; echo
+		return
+	fi
+
+	mt6-fetch provision "skel.sh"
+	sed -e "s/_skel/_$2/g" -e "s/ skel/ $2/g" provision/skel.sh > "provision/$2.sh"
+
+	local _ucl="$ZFS_DATA_MNT/dns/unbound.conf.local"
+	if ! grep -qs "$2" "$_ucl"; then
+		tell_status "adding DNS for $2"
+		tee -a "$_ucl" <<EO_UB_CONF
+
+	local-data: "$2		A $3"
+	local-data: "$2		AAAA $4"
+	local-data: "$(echo "$3" | awk '{split($1,a,".");printf("%s.%s.%s.%s",a[4],a[3],a[2],a[1])}').in-addr.arpa	PTR $2"
+	local-data: "$(echo "$4" | sed -e 's/://g' | rev | sed -e 's/./&./g')ip6.arpa	PTR $2"
+
+EO_UB_CONF
+		jexec dns service unbound reload
+	fi
+
+	sh "provision/$2.sh"
+}
+
 provision()
 {
 	for _var in JAIL_START_EXTRA JAIL_CONF_EXTRA JAIL_FSTAB; do
@@ -1134,14 +1161,18 @@ provision()
 	done
 
 	case "$1" in
-		host)   fetch_and_exec "$1"; return;;
-		web)    for _j in haproxy webmail roundcube snappymail; do fetch_and_exec "$_j"; done
+		host) fetch_and_exec "$1"; return;;
+		web)  for _j in haproxy webmail roundcube snappymail; do fetch_and_exec "$_j"; done
 			return;;
-		mt6)    provision_mt6; return;;
+		mt6)  provision_mt6; return;;
 	esac
 
 	if ! get_jail_ip "$1"; then
-		echo "unknown jail $1"
+		if [ "$1" = "skel" ]; then
+			provision_skeleton "$@"
+		else
+			echo "unknown jail $1"
+		fi
 		return
 	fi
 
