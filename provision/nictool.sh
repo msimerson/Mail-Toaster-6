@@ -51,9 +51,9 @@ install_nt_from_git()
 	stage_pkg_install git-tiny || exit
 	cd "$STAGE_MNT/usr/local" || exit
 	stage_exec git clone --depth=1 https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
-	stage_pkg_install p5-App-Cpanminus
-	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
-	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpanm -n .'
+	export PERL_MM_USE_DEFAULT=1
+	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpan -fiT install .'
+	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpan -fiT install .'
 }
 
 install_nt_from_tarball()
