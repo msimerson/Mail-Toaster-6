@@ -191,7 +191,7 @@ test_unbound()
 	echo "it worked."
 
 	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf" ]; then
-		stage_sysrc unbound_conf=/data/unbound.conf
+		stage_sysrc unbound_config=/data/unbound.conf
 	fi
 }
 
