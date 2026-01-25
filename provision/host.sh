@@ -192,7 +192,7 @@ constrain_sshd_to_host()
 
 	May I update your sshd config?
 	"
-		dialog --yesno "$_confirm_msg" 13 70 || return
+		bsddialog --yesno "$_confirm_msg" 13 70 || return
 	fi
 
 	tell_status "Limiting SSHd to host IP address"

@@ -69,7 +69,7 @@ install_clamav_unofficial()
 
 	Do you want to install ClamAV UNOFFICIAL?"
 
-		dialog --yesno "$_es_mess" 18 74 || return
+		bsddialog --yesno "$_es_mess" 18 74 || return
 	fi
 
 	local CLAMAV_UV=7.2.5
@@ -136,7 +136,7 @@ install_clamav_unofficial()
 	done
 
 	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
-		dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
+		bsddialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
 	 https://github.com/extremeshok/clamav-unofficial-sigs and follow
 	 the steps *after* the Quick Install Guide." 10 70
 	fi
@@ -305,7 +305,7 @@ migrate_clamav_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 13 70
+	bsddialog --yesno "$_confirm_msg" 13 70
 
 	if [ ! -d "$ZFS_DATA_MNT/clamav/db" ]; then
 		mkdir "$ZFS_DATA_MNT/clamav/db"
