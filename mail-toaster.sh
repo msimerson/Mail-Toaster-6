@@ -47,9 +47,9 @@ create_default_config()
 
 	if [ -t 0 ] && [ "$(uname)" = 'FreeBSD' ]; then
 		echo "editing prefs"
-		_HOSTNAME=$(bsddialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com")
-		_EMAIL_DOMAIN=$(bsddialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com")
-		_ORGNAME=$(bsddialog --stdout --nocancel --backtitle "mail-toaster.sh" --title TOASTER_ORG_NAME --inputbox "the name of your organization" 8 70 "Email Inc")
+		_HOSTNAME=$(bsddialog --nocancel --backtitle "mail-toaster.sh" --title TOASTER_HOSTNAME --inputbox "the hostname of this [virtual] machine" 8 70 "mail.example.com" 3>&1 1>&2 2>&3)
+		_EMAIL_DOMAIN=$(bsddialog --nocancel --backtitle "mail-toaster.sh" --title TOASTER_MAIL_DOMAIN --inputbox "the primary email domain" 8 70 "example.com" 3>&1 1>&2 2>&3)
+		_ORGNAME=$(bsddialog --nocancel --backtitle "mail-toaster.sh" --title TOASTER_ORG_NAME --inputbox "the name of your organization" 8 70 "Email Inc" 3>&1 1>&2 2>&3)
 	fi
 
 	# for dev/test environs where bsddialog doesn't exist
