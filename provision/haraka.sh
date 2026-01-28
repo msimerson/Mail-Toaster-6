@@ -651,9 +651,9 @@ EO_WL
 
 configure_haraka_dcc()
 {
-	if [ -f "$HARAKA_CONF/dcc.ini" ]; then return fi
+	if [ -f "$HARAKA_CONF/dcc.ini" ]; then return; fi
 
-	if grep -qs '^\[dccifd\]' "$HARAKA_CONF/dcc.ini"; then return fi
+	if grep -qs '^\[dccifd\]' "$HARAKA_CONF/dcc.ini"; then return; fi
 
 	tell_status "configuring DCC"
 	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC

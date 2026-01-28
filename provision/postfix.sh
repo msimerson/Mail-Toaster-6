@@ -14,6 +14,7 @@ install_postfix()
 {
 	tell_status "installing postfix"
 	stage_pkg_install postfix-sasl opendkim
+	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
 
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios-plugins"
