@@ -14,14 +14,11 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node20 gmake pkgconf git-tiny
+	stage_pkg_install npm-node22 gmake pkgconf git-tiny
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash
 	fi
-	# export PYTHON=/usr/local/bin/python3
-	# stage_exec ln -s /usr/local/bin/python3 /usr/local/bin/python
-	# stage_exec npm install -g --omit=dev node-gyp
 
 	# Workaround for NPM bug https://github.com/npm/cli/issues/2610
 	stage_exec bash -c 'git config --global url."https://github.com/".insteadOf git@github.com:'
@@ -44,6 +41,8 @@ install_geoip_dbs()
 		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
 		return
 	fi
+
+	mount_nullfs "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/stage/usr/local/share/GeoIP"
 
 	local _fstab="$ZFS_DATA_MNT/haraka/etc/fstab"
 	for _f in "$_fstab" "$_fstab.stage"; do
@@ -652,9 +651,9 @@ EO_WL
 
 configure_haraka_dcc()
 {
-	if [ -f "$HARAKA_CONF/dcc.ini" ]; then
-		return
-	fi
+	if [ -f "$HARAKA_CONF/dcc.ini" ]; then return fi
+
+	if grep -qs '^\[dccifd\]' "$HARAKA_CONF/dcc.ini"; then return fi
 
 	tell_status "configuring DCC"
 	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
