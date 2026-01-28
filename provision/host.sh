@@ -391,17 +391,21 @@ table <sshguard> persist
 
 binat-anchor "binat/*"
 
+nat-anchor "nat/*"
+
 # default route to the internet for jails
 nat on \$ext_if inet  from \$jail_ip4 to any -> (\$ext_if)
 nat on \$ext_if inet6 from \$jail_ip6 to any -> <ext_ip6>
-
-nat-anchor "nat/*"
 
 ## Redirection
 
 rdr-anchor "rdr/*"
 
 ## Filtering
+
+# allow anchor is deprecated, use filter instead
+anchor "allow/*"
+anchor "filter/*"
 
 # block everything by default. Be careful!
 #block in log on \$ext_if
@@ -415,9 +419,7 @@ pass in inet  proto udp from port 67 to port 68
 pass in inet6 proto udp from port 547 to port 546
 
 # IPv6 routing
-pass in inet6 proto ipv6-icmp icmp6-type 134
-pass in inet6 proto ipv6-icmp icmp6-type 135
-pass in inet6 proto ipv6-icmp icmp6-type 136
+pass in inet6 proto ipv6-icmp icmp6-type { 134, 135, 136 }
 
 # NTP
 pass out quick on \$ext_if proto udp to any port ntp keep state
@@ -426,9 +428,6 @@ pass in quick on \$ext_if proto tcp to port ssh \
         flags S/SA synproxy state \
         (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 
-# allow anchor is deprecated, use filter instead
-anchor "allow/*"
-anchor "filter/*"
 EO_PF_RULES
 
 	if [ -z "$PUBLIC_IP6" ]; then
@@ -480,6 +479,10 @@ enable_jails()
 	fi
 }
 
+is_installed() {
+	command -v "$1" >/dev/null 2>&1
+}
+
 update_ports_tree()
 {
 	if [ ! -t 0 ]; then
@@ -488,18 +491,25 @@ update_ports_tree()
 	fi
 
 	if [ -d "/usr/ports/.git" ]; then
-		tell_status "updating FreeBSD ports tree (git)"
-		cd "/usr/ports/" || return
-		git pull
-		cd - || return
+		if is_installed gitup; then
+			tell_status "updating FreeBSD ports tree (gitup)"
+			gitup ports
+		elif is_installed git; then
+			tell_status "updating FreeBSD ports tree (git)"
+			cd "/usr/ports/" || return
+			git pull
+			cd - || return
+		fi
 	else
-		tell_status "updating FreeBSD ports tree (portsnap)"
-		portsnap fetch
+		if is_installed portsnap; then
+			tell_status "updating FreeBSD ports tree (portsnap)"
+			portsnap fetch
 
-		if [ -d /usr/ports/mail/vpopmail ]; then
-			portsnap update || portsnap extract
-		else
-			portsnap extract
+			if [ -d /usr/ports/mail/vpopmail ]; then
+				portsnap update || portsnap extract
+			else
+				portsnap extract
+			fi
 		fi
 	fi
 }
