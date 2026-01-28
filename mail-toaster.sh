@@ -71,7 +71,7 @@ export PUBLIC_IP4=""
 export PUBLIC_IP6=""
 
 export JAIL_NET_PREFIX="172.16.15"
-export JAIL_NET_MASK="/12"
+export JAIL_NET_MASK="/19"
 export JAIL_NET_INTERFACE="lo1"
 export JAIL_NET6="$(get_random_ip6net)"
 export ZFS_VOL="zroot"
@@ -164,7 +164,7 @@ export TOASTER_ADMIN_EMAIL=${TOASTER_ADMIN_EMAIL:="postmaster@$TOASTER_MAIL_DOMA
 # export these in your environment to customize
 export BOURNE_SHELL=${BOURNE_SHELL:="bash"}
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:="172.16.15"}
-export JAIL_NET_MASK=${JAIL_NET_MASK:="/12"}
+export JAIL_NET_MASK=${JAIL_NET_MASK:="/19"}
 export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:="lo1"}
 export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin dspam vpopmail haraka webmail munin haproxy rspamd avg dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman"
 
@@ -713,8 +713,12 @@ EO_RESOLV
 	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
+	local _major_ver; _major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
+	local _repo_name="FreeBSD-ports"
+	if [ "$_major_ver" -lt "15" ]; then _repo_name="FreeBSD"; fi
+
 	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
-FreeBSD: {
+$_repo_name: {
 	enabled: no
 }
 EO_PKG_CONF
@@ -853,7 +857,7 @@ seed_pkg_audit()
 {
 	if [ "$TOASTER_PKG_AUDIT" = "1" ]; then
 		tell_status "installing FreeBSD package audit database"
-		stage_exec /usr/sbin/pkg audit -F
+		stage_exec /usr/sbin/pkg audit -F || echo ''
 	fi
 }
 
@@ -1376,10 +1380,14 @@ configure_pkg_latest()
 	local REPODIR="$1/usr/local/etc/pkg/repos"
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
+	local _major_ver; _major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
+	local _repo_name="FreeBSD-ports"
+	if [ "$_major_ver" -lt "15" ]; then _repo_name="FreeBSD"; fi
+
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
 	store_config "$REPODIR/FreeBSD.conf" "overwrite" <<EO_PKG
-FreeBSD: {
+$_repo_name: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
 }
 EO_PKG
