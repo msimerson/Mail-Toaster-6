@@ -25,6 +25,7 @@ configure_nsd()
 	stage_sysrc nsd_enable=YES
 	stage_sysrc nsd_config=/data/etc/nsd.conf
 	stage_sysrc sshd_enable=YES
+	stage_sysrc sshd_flags="-o KbdInteractiveAuthentication=no -o ListenAddress=172.16.16.3"
 
 	if [ ! -d "$STAGE_MNT/data/etc" ]; then
 		mkdir "$STAGE_MNT/data/etc"

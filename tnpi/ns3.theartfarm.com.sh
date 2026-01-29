@@ -27,7 +27,7 @@ configure_nsd()
 	stage_sysrc nsd_enable=YES
 	stage_sysrc nsd_config=/data/etc/nsd.conf
 	stage_sysrc sshd_enable=YES
-	stage_sysrc sshd_flags+=' \-o PermitRootLogin=without-password'
+	stage_sysrc sshd_flags='-o KbdInteractiveAuthentication=no -o PermitRootLogin=without-password -o ListenAddress=138.210.133.60'
 
 	if [ ! -d "$STAGE_MNT/data/etc" ]; then
 		mkdir "$STAGE_MNT/data/etc"
@@ -52,6 +52,15 @@ configure_nsd()
 	fi
 
 	preserve_passdb nsd
+	configure_tcpd
+}
+
+configure_tcpd()
+{
+	if [ -f "$STAGE_MNT/data/etc/hosts.allow" ]; then
+		tell_status "install hosts.allow"
+		cp "$STAGE_MNT/data/etc/hosts.allow" "$STAGE_MNT/etc/hosts.allow"
+	fi
 }
 
 start_nsd()

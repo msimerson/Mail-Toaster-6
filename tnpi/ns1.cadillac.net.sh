@@ -21,7 +21,6 @@ install_knot()
 	echo "@includedir /data/etc/sudoers.d" >> /usr/local/etc/sudoers
 }
 
-
 install_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
@@ -36,11 +35,21 @@ install_nrpe()
 	stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 }
 
+configure_tcpd()
+{
+	if [ -f "$STAGE_MNT/data/etc/hosts.allow" ]; then
+		tell_status "install hosts.allow"
+		cp "$STAGE_MNT/data/etc/hosts.allow" "$STAGE_MNT/etc/hosts.allow"
+	fi
+}
+
 configure_knot()
 {
 	stage_sysrc sshd_enable=YES
+	stage_sysrc sshd_flags="-o KbdInteractiveAuthentication=no -o ListenAddress=138.210.133.61 -o ListenAddress=2001:470:a:195:a::2"
 	stage_sysrc knot_enable=YES
 	stage_sysrc knot_config=/data/etc/knot.conf
+	configure_tcpd
 
 	preserve_passdb ns1.cadillac.net
 	stage_exec pw user mod knot -d /data/home/knot -s /bin/sh
