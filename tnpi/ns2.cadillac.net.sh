@@ -15,7 +15,17 @@ configure_tinydns()
 	configure_tinydns4
 	configure_tinydns_data
 	configure_tinydns6
+	configure_tcpd
 	stage_sysrc sshd_enable="YES"
+	stage_sysrc sshd_flags="-o KbdInteractiveAuthentication=no -o ListenAddress=204.11.96.99 -o ListenAddress=2605:7900:4:b::3"
+}
+
+configure_tcpd()
+{
+	if [ -f "$STAGE_MNT/data/etc/hosts.allow" ]; then
+		tell_status "install hosts.allow"
+		cp "$STAGE_MNT/data/etc/hosts.allow" "$STAGE_MNT/etc/hosts.allow"
+	fi
 }
 
 configure_tinydns_data()

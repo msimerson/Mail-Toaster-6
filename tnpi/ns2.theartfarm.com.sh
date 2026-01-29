@@ -54,6 +54,7 @@ configure_knot()
 	fi
 
 	stage_sysrc sshd_enable=YES
+	stage_sysrc sshd_flags="-o KbdInteractiveAuthentication=no -o ListenAddress=172.16.16.2"
 	stage_sysrc knot_enable=YES
 
 	preserve_passdb knot
