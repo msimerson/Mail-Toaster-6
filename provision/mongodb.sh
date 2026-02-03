@@ -67,7 +67,7 @@ configure_mongodb()
 	tell_status "configuring mongodb"
 
 	_data="$STAGE_MNT/data"
-	for _d in "$_data/db" "$_data/etc" "$_data/log" "$STAGE_MNT/var/run/mongod"; do
+	for _d in "$_data/db" "$_data/etc/tls" "$_data/log" "$STAGE_MNT/var/run/mongod"; do
 		if [ ! -d "$_d" ]; then
 			mkdir -p "$_d"
 			chown 922:922 "$_d"
@@ -87,9 +87,18 @@ configure_mongodb()
   fork: true\
   pidFilePath: /var/run/mongod/mongod.pid' \
 			| sed -e '/port: 27017$/a\
-  ipv6: true' \
+  ipv6: true\
+  tls:\
+    mode: preferTLS\
+    certificateKeyFile: /data/etc/tls/mongo.pem' \
 			| sed -e '/bindIp:/ s/127.*/0.0.0.0,::/' \
 			> "$STAGE_MNT/data/etc/mongodb.conf"
+	fi
+
+	if [ ! -f "$STAGE_MNT/data/etc/tls/mongo.pem" ]; then
+		tell_status "installing TLS certificate in etc/tls/mongo.pem"
+		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
+			> "$STAGE_MNT/data/etc/tls/mongo.pem"
 	fi
 
 	check_max_wired
