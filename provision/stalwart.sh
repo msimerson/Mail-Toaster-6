@@ -217,7 +217,7 @@ start_stalwart()
 test_stalwart()
 {
 	tell_status "testing Stalwart"
-	stage_test_running stalwart
+	stage_test_running tokio
 	stage_listening 993
 }
 
