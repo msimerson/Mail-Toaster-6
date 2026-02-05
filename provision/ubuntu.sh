@@ -28,6 +28,7 @@ linsysfs  $ZFS_JAIL_MNT/ubuntu/compat/linux/sys     linsysfs  rw,late  0 0
 
 install_ubuntu()
 {
+	tell_status "installing Ubuntu Jammy"
 	install_linux jammy
 }
 
