@@ -18,20 +18,20 @@ export JAIL_START_EXTRA="allow.mount
 export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB="
-devfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev     devfs     rw  0 0
-tmpfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/shm tmpfs     rw,size=1g,mode=1777  0 0
-fdescfs   $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/fd  fdescfs   rw,linrdlnk 0 0
-linprocfs $ZFS_JAIL_MNT/ubuntu/compat/linux/proc    linprocfs rw  0 0
-linsysfs  $ZFS_JAIL_MNT/ubuntu/compat/linux/sys     linsysfs  rw  0 0
-#/tmp      $ZFS_JAIL_MNT/ubuntu/compat/linux/tmp     nullfs    rw  0 0
-#/home     $ZFS_JAIL_MNT/ubuntu/compat/linux/home    nullfs    rw  0 0"
+devfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev     devfs     rw,late  0 0
+tmpfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/shm tmpfs     rw,late,size=1g,mode=1777  0 0
+fdescfs   $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/fd  fdescfs   rw,late,linrdlnk 0 0
+linprocfs $ZFS_JAIL_MNT/ubuntu/compat/linux/proc    linprocfs rw,late  0 0
+linsysfs  $ZFS_JAIL_MNT/ubuntu/compat/linux/sys     linsysfs  rw,late  0 0
+#/tmp      $ZFS_JAIL_MNT/ubuntu/compat/linux/tmp     nullfs    rw,late  0 0
+#/home     $ZFS_JAIL_MNT/ubuntu/compat/linux/home    nullfs    rw,late  0 0"
 
 install_ubuntu()
 {
 	install_linux jammy
 }
 
-base_snapshot_exists || exit 1
+base_snapshot_exists
 create_staged_fs ubuntu
 for _fs in dev proc sys tmp home; do
 	mkdir -p "$ZFS_JAIL_MNT/stage/compat/linux/$_fs"
