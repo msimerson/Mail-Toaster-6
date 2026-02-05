@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in this file effects provision scripts
-mt6_version() { echo "20241019"; }
+mt6_version() { echo "20260204"; }
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
