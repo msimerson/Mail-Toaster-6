@@ -14,7 +14,7 @@ export JAIL_FSTAB=""
 install_mongodb()
 {
 	if [ "$(uname -p)" = "amd64" ]; then
-		if ! grep Features /var/run/dmesg.boot | grep AVX; then
+		if ! grep Features /var/run/dmesg.boot | grep -q AVX; then
 			tell_status "WARNING: your CPU isn't supported by MongoDB 5+, installing 4.4"
 			stage_pkg_install mongodb44 mongodb-tools
 			return
@@ -57,9 +57,6 @@ configure_mongod_syslog()
 
 configure_mongod_logging()
 {
-	mkdir -p "$STAGE_MNT/data/log"
-	stage_exec chown mongodb:mongodb /data/log
-
 	stage_enable_newsyslog
 
 	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
@@ -70,26 +67,34 @@ configure_mongodb()
 {
 	tell_status "configuring mongodb"
 
-	mkdir -p "$STAGE_MNT/data/db" "$STAGE_MNT/data/etc" "$STAGE_MNT/var/run/mongod"
-	stage_exec chown mongodb:mongodb /data/db /data/etc /var/run/mongod
+	_data="$STAGE_MNT/data"
+	for _d in "$_data/db" "$_data/etc" "$_data/log" "$STAGE_MNT/var/run/mongod"; do
+		if [ ! -d "$_d" ]; then
+			mkdir -p "$_d"
+			chown 922:922 "$_d"
+		fi
+	done
 
 	if [ ! -f "$STAGE_MNT/data/etc/mongodb.conf" ]; then
 		tell_status "installing /data/etc/mongodb.conf"
 		sed -e 's|/var/log/mongodb|/data/log|' \
 			"$STAGE_MNT/usr/local/etc/mongodb.conf.sample" \
-			| sed -e '/logAppend: true:$/a\
+			| sed -e '/logAppend: true$/a\
+  #destination: syslog\
   quiet: false\
   verbosity: 0' \
 			| sed -e '/dbPath:/ s|/var/lib/mongo|/data/db|' \
 			| sed -e '/processManagement:$/a\
   fork: true\
   pidFilePath: /var/run/mongod/mongod.pid' \
+			| sed -e '/port: 27017$/a\
+  ipv6: true' \
 			| sed -e '/bindIp:/ s/127.*/0.0.0.0,::/' \
 			> "$STAGE_MNT/data/etc/mongodb.conf"
 	fi
 
 	check_max_wired
-
+	configure_mongod_logging
 }
 
 start_mongodb()
