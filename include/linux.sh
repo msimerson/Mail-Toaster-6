@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # see examples in provision/centos and provision/ubuntu
 
 configure_linuxulator()
@@ -18,7 +20,7 @@ configure_linuxulator()
 configure_apt_sources()
 {
 	case "$1" in
-		bionic|focal|jammy)
+		bionic|focal|jammy|noble)
 			tell_status "restoring APT sources"
 			tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_UB_SOURCES
 deb http://archive.ubuntu.com/ubuntu $1 main universe restricted multiverse
@@ -27,7 +29,7 @@ deb http://archive.ubuntu.com/ubuntu $1-backports universe multiverse restricted
 deb http://archive.ubuntu.com/ubuntu $1-updates universe multiverse restricted main
 EO_UB_SOURCES
 			;;
-		bullseye)
+		bullseye|bookworm|trixie)
 			tell_status "adding APT sources"
 			tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_DEB_SOURCES
 deb http://deb.debian.org/debian $1 main contrib non-free
@@ -41,29 +43,44 @@ EO_DEB_SOURCES
 install_apt_updates()
 {
 	tell_status "updating apt"
-	stage_exec chroot /compat/linux apt update || exit 1
+	stage_exec chroot /compat/linux apt update
 
 	tell_status "updating installed apt packages"
-	stage_exec chroot /compat/linux apt upgrade -y || exit 1
+	stage_exec chroot /compat/linux apt upgrade -y
 }
 
 install_linux()
 {
 	# tested with values of $1:
-	#   Ubuntu: bionic (18), focal (20) and jammy (22)
-	#   Debian: bullseye (11), bookwork (12)
+	#   Ubuntu: bionic (18), focal (20), jammy (22), noble (24)
+	#   Debian: bullseye (11), bookwork (12), trixie (13)
 	#   CentOS: centos (7)
+	#   Rocky Linux (9)
 
 	configure_linuxulator
 
 	case "$1" in
+		rocky)
+			tell_status "installing $1"
+			stage_pkg_install linux_base-rl9
+		;;
 		centos)
 			tell_status "installing $1"
-			stage_pkg_install linux_base-c7 || exit 1
+			stage_pkg_install linux_base-c7
 		;;
-		bionic|bookworm|bullseye|focal|jammy)
-			tell_status "installing (debian|ubuntu) $1"
-			stage_pkg_install debootstrap || exit 1
+		bionic|focal|jammy|noble)
+			tell_status "installing ubuntu $1"
+			stage_pkg_install debootstrap
+			_dbs_dir="$STAGE_MNT/usr/local/share/debootstrap/scripts"
+			if [ ! -e "$_dbs_dir/$1" ]; then
+				bash -c "cd $_dbs_dir && ln -s gutsy noble"
+			fi
+			stage_exec debootstrap $1 /compat/linux
+			configure_apt_sources $1
+		;;
+		bullseye|bookworm|trixie)
+			tell_status "installing debian) $1"
+			stage_pkg_install debootstrap
 			stage_exec debootstrap $1 /compat/linux
 			configure_apt_sources $1
 		;;
@@ -75,7 +92,7 @@ install_linux()
 	esac
 
 	case "$1" in
-		bionic|focal|jammy|bullseye) install_apt_updates ;;
+		bionic|focal|jammy|noble|bullseye|bookworm|trixie) install_apt_updates ;;
 	esac
 
 	case "$1" in
