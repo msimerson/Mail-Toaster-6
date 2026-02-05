@@ -14,6 +14,7 @@ install_postfix()
 {
 	tell_status "installing postfix"
 	stage_pkg_install postfix-sasl opendkim
+	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
 
 	if [ -n "$TOASTER_NRPE" ]; then
 		tell_status "installing nagios-plugins"
@@ -74,8 +75,8 @@ configure_postfix_main_cf()
 	fi
 
 	if [ -f "$_dkim_private_key" ]; then
-		postconf -e 'smtpd_milters = inet:localhost:8891'
-		postconf -e 'non_smtpd_milters = $smtpd_milters'
+		stage_exec postconf -e 'smtpd_milters = inet:localhost:8891'
+		stage_exec postconf -e 'non_smtpd_milters = $smtpd_milters'
 	fi
 }
 
@@ -95,6 +96,10 @@ configure_postfix()
 	stage_sysrc sendmail_enable=NONE
 	stage_sysrc postfix_enable=YES
 	stage_sysrc postfix_flags="-c /data/etc"
+
+	if [ -e "$ZFS_DATA_MNT/spool" ]; then
+		stage_sysrc postfix_pidfile=/data/spool/pid/master.pid
+	fi
 
 	configure_postfix_main_cf
 	configure_postfix_master_cf
@@ -122,6 +127,9 @@ start_postfix()
 	tell_status "starting postfix"
 	if [ -f "$_dkim_private_key" ]; then
 		stage_exec service milter-opendkim start
+	fi
+	if [ -d "$ZFS_DATA_MNT/spool/pid/master.pid" ]; then
+		jexec postfix service postfix start
 	fi
 	stage_exec service postfix start
 }

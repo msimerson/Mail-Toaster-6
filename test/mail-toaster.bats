@@ -9,7 +9,7 @@ setup() {
 @test "mt6_version" {
   run mt6_version
   assert_success
-  assert_output --partial "2024"
+  assert_output --partial "2026"
 }
 
 @test "mt6_version_check" {

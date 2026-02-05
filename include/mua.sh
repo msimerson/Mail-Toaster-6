@@ -40,11 +40,24 @@ test_imap_openssl()
 EOF
 }
 
+get_curl_cmd()
+{
+	if [ -x /usr/local/bin/curl ]; then
+		echo "curl"
+	elif [ -x "$STAGE_MNT/usr/local/bin/curl" ]; then
+		echo "stage_exec curl"
+	else
+		pkg install -qy curl
+		echo "curl"
+	fi
+}
+
 test_imap_curl()
 {
-	# shellcheck disable=SC2001
-	curl -k -v --login-options 'AUTH=PLAIN' \
-		"imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+	local _test_uri
+	_test_uri="imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+	_curl_cmd="$(get_curl_cmd)"
+	$_curl_cmd -k -v --login-options 'AUTH=PLAIN' "$_test_uri"
 }
 
 test_imap()
@@ -81,9 +94,11 @@ test_pop3_empty()
 
 test_pop3()
 {
+	local _test_uri
+	_test_uri="pop3s://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+	_curl_cmd="$(get_curl_cmd)"
 	# shellcheck disable=2001
-	curl -k -v --login-options 'AUTH=PLAIN' \
-		"pop3s://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+	$_curl_cmd -k -v --login-options 'AUTH=PLAIN' "$_test_uri"
 }
 
 uriencode() {

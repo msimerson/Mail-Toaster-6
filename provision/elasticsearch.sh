@@ -6,7 +6,8 @@ set -e -u
 
 export JAIL_START_EXTRA="enforce_statfs=1"
 # shellcheck disable=2016
-export JAIL_CONF_EXTRA="\n\t\tenforce_statfs = 1;"
+export JAIL_CONF_EXTRA="
+		enforce_statfs = 1;"
 export JAIL_FSTAB="fdescfs $ZFS_JAIL_MNT/elasticsearch/dev/fd fdescfs rw 0 0
 proc     $ZFS_JAIL_MNT/elasticsearch/proc   procfs  rw 0 0"
 
@@ -90,13 +91,13 @@ install_elasticsearch()
 {
 	#install_elasticsearch5
 	#install_elasticsearch6
-	# install_elasticsearch7
+	#install_elasticsearch7
 	install_elasticsearch8
 }
 
 install_beats()
 {
-	stage_pkg_install beats8
+	stage_pkg_install beats8 || stage_port_install sysutils/beats8
 
 	local _xcfg="$STAGE_MNT/usr/local/etc/beats/metricbeat.modules.d/elasticsearch-xpack.yml"
 	cp "$STAGE_MNT/usr/local/share/examples/beats/metricbeat.modules.d/elasticsearch-xpack.yml.disabled" "$_xcfg"
@@ -113,18 +114,8 @@ install_beats()
 
 configure_elasticsearch()
 {
-	local _data_conf="$STAGE_MNT/data/etc/elasticsearch.yml"
-	if [ -f "$_data_conf" ]; then
-		tell_status "preserving installed elasticsearch.yml"
-		return
-	fi
-
-	tell_status "installing elasticsearch.yml"
 	local _conf="$STAGE_MNT/usr/local/etc/elasticsearch/elasticsearch.yml"
-	mkdir -p "$STAGE_MNT/data/etc"
-	echo "cp $_conf $_data_conf"
-	cp "$_conf" "$_data_conf"
-	chown 965 "$_data_conf"
+	local _data_conf="$STAGE_MNT/data/etc/elasticsearch.yml"
 
 	if [ ! -f "$STAGE_MNT/data/etc/jvm.options" ]; then
 		if [ -f "$ZFS_JAIL_MNT/elasticsearch/usr/local/etc/elasticsearch/jvm.options" ]; then
@@ -136,6 +127,7 @@ configure_elasticsearch()
 	fi
 
 	if [ ! -f "$STAGE_MNT/data/etc/log4j2.properties" ]; then
+		tell_status "installing log4j2.properties"
 		cp "$STAGE_MNT/usr/local/etc/elasticsearch/log4j2.properties" "$STAGE_MNT/data/etc/"
 		chown 965 "$STAGE_MNT/data/etc/log4j2.properties"
 	fi
@@ -146,19 +138,31 @@ configure_elasticsearch()
 		-e '/^#cluster.initial/ s/^#//; s/node-1/stage/; s/, "node-2"//' \
 			"$_conf"
 
-	sed -i.bak \
-		-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip elasticsearch)/" \
-		-e '/^path.data: / s/var/data/' \
-		-e '/^path.logs: / s/var/data/' \
-		-e '/^path\./ s/\/elasticsearch//' \
-		-e '/^#cluster_name/ s/^#//; s/my-application/mail-toaster/' \
-		-e '/^#node.name/ s/^#//; s/node-1/mt1/' \
-		-e '/^#cluster.initial/ s/^#//; s/node-1/mt1/; s/, "node-2"//' \
-			"$_data_conf"
+	if [ -f "$_data_conf" ]; then
+		tell_status "preserving installed elasticsearch.yml"
+	else
+		tell_status "installing elasticsearch.yml"
+		mkdir -p "$STAGE_MNT/data/etc"
+		echo "cp $_conf $_data_conf"
+		cp "$_conf" "$_data_conf"
+		chown 965 "$_data_conf"
 
-	tee -a "$_data_conf" <<EO_ES_CONF
+		sed -i.bak \
+			-e "/^network.host:/ s/$(get_jail_ip stage)/$(get_jail_ip elasticsearch)/" \
+			-e '/^path.data: / s/var/data/' \
+			-e '/^path.logs: / s/var/data/' \
+			-e '/^path\./ s/\/elasticsearch//' \
+			-e '/^#cluster_name/ s/^#//; s/my-application/mail-toaster/' \
+			-e '/^node.name/ s/stage/mt1/' \
+			-e '/^cluster.initial/ s/stage/mt1/' \
+				"$_data_conf"
+
+		if ! grep -qs xpack.security.enabled "$_data_conf"; then
+			tee -a "$_data_conf" <<EO_ES_CONF
 xpack.security.enabled: false
 EO_ES_CONF
+		fi
+	fi
 }
 
 configure_kibana()
@@ -166,6 +170,7 @@ configure_kibana()
 	tell_status "configuring kibana"
 
 	stage_sysrc kibana_syslog_output_enable=YES
+	stage_sysrc kibana_enable=YES
 
 	if [ -f "$STAGE_MNT/data/etc/kibana.yml" ]; then
 		tell_status "preserving kibana.yml"
@@ -174,14 +179,12 @@ configure_kibana()
 
 	chown 80:80 "$STAGE_MNT/usr/local/etc/kibana/kibana.yml"
 
-	tell_status "installing default kibana.yml"
 	sed -i '' \
 		-e 's/^#server.basePath: ""/server.basePath: "\/kibana"/' \
 		"$STAGE_MNT/usr/local/etc/kibana/kibana.yml"
 
+	tell_status "installing default kibana.yml"
 	cp "$STAGE_MNT/usr/local/etc/kibana/kibana.yml" "$STAGE_MNT/data/etc/"
-
-	stage_sysrc kibana_enable=YES
 }
 
 start_elasticsearch()
@@ -195,13 +198,15 @@ start_elasticsearch()
 	tell_status "generating a Kibana setup token"
 	echo
 	export ES_JAVA_HOME=/usr/local/openjdk17
-	stage_exec /usr/local/lib/elasticsearch/bin/elasticsearch-create-enrollment-token --scope kibana
+	stage_exec /usr/local/lib/elasticsearch/bin/elasticsearch-create-enrollment-token \
+		--scope kibana --url http://172.16.15.254:9200 \
+		|| echo "ERROR: could not create Kibana enrollment token"
 	echo
 
 	tell_status "starting Kibana"
 	stage_exec service kibana start
-	stage_exec bash -c "cd /usr/local/www/kibana8 && su -m www -c /usr/local/www/kibana8/bin/kibana"
-	stage_exec service kibana start
+	#stage_exec bash -c "cd /usr/local/www/kibana8 && su -m www -c /usr/local/www/kibana8/bin/kibana"
+	#stage_exec service kibana start
 }
 
 test_elasticsearch()

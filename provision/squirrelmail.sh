@@ -74,14 +74,14 @@ EO_SQUIRREL_SQL
 
 install_squirrelmail()
 {
-	install_php 81 "fileinfo pecl-mcrypt exif"
+	install_php 84 "fileinfo pecl-mcrypt exif"
 	install_nginx || exit
 
 	tell_status "installing squirrelmail"
-	stage_pkg_install squirrelmail-php81 \
-		squirrelmail-sasql-plugin-php81 \
-		squirrelmail-quota_usage-plugin-php81 \
-		squirrelmail-abook_import_export-plugin-php81 || exit
+	stage_pkg_install squirrelmail-php84 \
+		squirrelmail-sasql-plugin-php84 \
+		squirrelmail-quota_usage-plugin-php84 \
+		squirrelmail-abook_import_export-plugin-php84 || exit
 
 	configure_squirrelmail_local
 

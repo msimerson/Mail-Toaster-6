@@ -29,8 +29,18 @@ EO_DCC
 
 install_dcc_port_options()
 {
-	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
-	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
+	local SET=DCCIFD
+	local UNSET="DCCGREY DCCD DCCM PORTS_MILTER"
+
+	get_public_ip ipv6
+	if [ -z "$PUBLIC_IP6" ]; then
+		UNSET="$UNSET IPV6"
+	else
+		SET="$SET IPV6"
+	fi
+
+	stage_make_conf dcc-dccd_SET "mail_dcc-dccd_SET=$SET"
+	stage_make_conf dcc-dccd_UNSET "mail_dcc-dccd_UNSET=$UNSET"
 	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
 }
 
@@ -54,11 +64,20 @@ configure_dcc()
 		"$STAGE_MNT/var/db/dcc/dcc_conf"
 
 	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
-	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-table <dcc_server> { $(get_jail_ip dcc), $(get_jail_ip6 dcc) }
-pass in quick proto udp from any port 6277 to <ext_ip>
-pass in quick proto udp from any port 6277 to <dcc_server>
-EO_PF_ALLOW
+
+	get_public_ip
+	get_public_ip ipv6
+
+	store_config "$_pf_etc/dcc.table" <<EO_DCC_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip dcc)
+$(get_jail_ip6 dcc)
+EO_DCC_TABLE
+
+	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
+pass in quick proto udp from any port 6277 to <dcc>
+EO_PF_FILTER
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port 6277 -> $(get_jail_ip  dcc)
@@ -72,6 +91,7 @@ start_dcc()
 	tell_status "starting up dcc-ifd"
 	stage_sysrc dccifd_enable=YES
 	stage_exec service dccifd start
+	stage_exec cdcc IPv6=off info
 }
 
 test_dcc()

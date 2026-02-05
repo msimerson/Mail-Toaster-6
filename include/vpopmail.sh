@@ -41,15 +41,22 @@ install_vpopmail_source()
 	stage_exec sh -c 'cd /data/src/vpopmail; aclocal' || exit 1
 	stage_exec sh -c "cd /data/src/vpopmail; CFLAGS=\"-fcommon\" ./configure $_conf_args" || exit 1
 	stage_exec sh -c 'cd /data/src/vpopmail; make install' || exit 1
+}
 
-	# TODO: check and automate this
-	echo; echo "
-	ALTER TABLE vpopmail MODIFY column pw_name char(64);
-	ALTER TABLE vpopmail MODIFY column pw_passwd char(128);
-	ALTER TABLE vpopmail MODIFY column pw_gecos char(64);
-	"; echo
-
-	tell_status "*** Run the above commands above to update MySQL. *** "
+vpopmail_port_fixups() {
+        sed -i '' \
+                -e '/pw_name char(32)/         s/char(32)/VARCHAR (64)/'  \
+                -e '/pw_domain char(96)/       s/char(96)/VARCHAR (96)/'  \
+                -e '/user char(32)/            s/char(32)/VARCHAR (64)/'  \
+                -e '/remote_ip char(18)/       s/char(18)/VARCHAR (39)/'  \
+                -e '/pw_passwd char(40)/       s/char(40)/VARCHAR (128)/' \
+                -e '/pw_clear_passwd char(16)/ s/char(16)/VARCHAR (128)/' \
+                -e '/pw_gecos char(48)/        s/char(48)/VARCHAR (64)/'  \
+                -e '/pw_dir char(160)/         s/char(160)/VARCHAR (160)/' \
+                -e '/pw_shell char(20)/        s/char(20)/VARCHAR (20)/'  \
+                -e '/domain CHAR(96)/          s/CHAR(96)/VARCHAR (96)/'  \
+                -e '/ip_addr char(18)/         s/char(18)/VARCHAR (39)/'  \
+                $STAGE_MNT/tmp/portbuild/usr/ports/mail/vpopmail/work/vpopmail-5.4.33/vmysql.h
 }
 
 install_vpopmail_port()
@@ -100,7 +107,14 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 	fi
 
 	tell_status "installing vpopmail port with custom options"
-	stage_port_install mail/vpopmail
+
+        stage_pkg_install pkgconf portconfig
+
+	stage_exec make -C "/usr/ports/mail/vpopmail" extract
+	vpopmail_port_fixups
+        stage_exec make -C "/usr/ports/mail/vpopmail" build deinstall install clean || return 1
+
+        tell_status "port mail/vpopmail installed"
 }
 
 install_qmail()

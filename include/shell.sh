@@ -28,6 +28,13 @@ install_zsh()
 	stage_exec chpass -s /usr/local/bin/zsh
 }
 
+install_fish()
+{
+	tell_status "installing fish"
+	stage_pkg_install fish
+	stage_exec chpass -s /usr/local/bin/fish
+}
+
 configure_bash()
 {
 	if ! grep -q profile "$1/root/.profile"; then
@@ -51,7 +58,7 @@ export HISTIGNORE="&:[bf]g:exit"
 
 shopt -s histappend
 shopt -s cdspell
-set -o vi
+#set -o vi
 
 if [[ $- == *i* ]]
 then

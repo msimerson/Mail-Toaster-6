@@ -384,8 +384,9 @@ EO_DELIVERABLED_RUN
 	pkg install -y p5-Package-Constants
 
 	echo "installing Qmail::Deliverable"
-	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-App-Cpanminus p5-libwww
-	cpanm Qmail::Deliverable
+	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-libwww
+	export PERL_MM_USE_DEFAULT=1
+	yes | cpan -fi install Qmail::Deliverable
 
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then
 		sed -i '' -e '/Getopt::Long::Configure("bundling");/a\

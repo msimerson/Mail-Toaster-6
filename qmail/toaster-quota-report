@@ -87,7 +87,7 @@ sub get_message {
     my ($name, $cnum, $usage, $email, $dir) = @_;
 
     chdir "$dir/Maildir";
-    my $report = `du -d1 -t3000000 -h .`;
+    my $report = `du -A -d1 -t3000000 -h .`;
     return <<EOT
 Dear $name,
 

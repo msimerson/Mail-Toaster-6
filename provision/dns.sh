@@ -6,7 +6,10 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-		allow.raw_sockets;"
+		allow.raw_sockets;
+		exec.poststart = \"$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh\";
+		exec.prestop = \"$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh\";
+"
 export JAIL_FSTAB=""
 
 install_unbound()
@@ -20,9 +23,9 @@ get_mt6_data()
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112"
 	else
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/64 ip6:$PUBLIC_IP6"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112 ip6:$PUBLIC_IP6"
 	fi
 
 	echo "
@@ -60,15 +63,13 @@ install_access_conf()
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 	   access-control: $PUBLIC_IP4 allow
-	   access-control: $JAIL_NET6::/64 allow
+	   access-control: $JAIL_NET6::/112 allow
 
 EO_UNBOUND_ACCESS
 }
 
 install_local_conf()
 {
-	get_public_ip
-
 	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
@@ -144,13 +145,23 @@ configure_unbound()
 		mv unbound.conf.local "$ZFS_DATA_MNT/dns/"
 	fi
 
-	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf.local" ]; then
-		tell_status "activating unbound.conf.local"
-		UNBOUND_LOCAL='include: "/data/unbound.conf.local"'
+	_ub_local_conf="$ZFS_DATA_MNT/dns/unbound.conf.local"
+	if [ ! -f "$_ub_local_conf" ]; then
+		store_config "$_ub_local_conf" <<EO_UB_LOCAL_CONF
+
+	#local-data "example.tld.com	A 172.16.16.1"
+	#local-data "1.16.16.172.in-addr.arpa	PTR example.tld.com"
+
+EO_UB_LOCAL_CONF
 	fi
+
+	tell_status "activating unbound.conf.local"
+	UNBOUND_LOCAL='include: "/data/unbound.conf.local"'
 
 	enable_control
 	tweak_unbound_conf
+
+	get_public_ip ipv6
 	get_public_ip
 
 	install_access_conf
@@ -178,17 +189,28 @@ test_unbound()
 	# set it back to production value
 	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
 	echo "it worked."
+
+	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf" ]; then
+		stage_sysrc unbound_config=/data/unbound.conf
+	fi
 }
 
 switch_host_resolver()
 {
-	if grep "^nameserver $(get_jail_ip dns)" /etc/resolv.conf; then return; fi
+	if sysrc -c -f /etc/resolvconf.conf resolvconf=NO; then
+		echo "turning resolvconf back on"
+		truncate -s 0 /etc/resolvconf.conf
+	fi
 
-	echo "switching host resolver to local"
-	sysrc -f /etc/resolvconf.conf name_servers="$(get_jail_ip dns) $(get_jail_ip6 dns)"
-	echo "nameserver $(get_jail_ip dns)
-nameserver $(get_jail_ip6 dns)" | resolvconf -a "$PUBLIC_NIC"
-	sysrc -f /etc/resolvconf.conf resolvconf=NO
+	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh" <<EO_POSTSTART
+#!/bin/sh
+echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns -m 0
+EO_POSTSTART
+
+	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh" <<EO_PRESTOP
+#!/bin/sh
+/sbin/resolvconf -d lo1.dns
+EO_PRESTOP
 }
 
 base_snapshot_exists || exit 1
@@ -198,5 +220,5 @@ install_unbound
 configure_unbound
 start_unbound
 test_unbound
-promote_staged_jail dns
 switch_host_resolver
+promote_staged_jail dns

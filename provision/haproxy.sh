@@ -82,7 +82,7 @@ defaults
 frontend http-in
 	#mode tcp
 	bind :::80 v4v6 alpn http/1.1
-	bind :::443 v4v6 alpn http/1.1 ssl crt /etc/ssl/private crt /data/ssl.d
+	bind :::443 v4v6 alpn http/1.1 ssl crt /data/etc/tls.d
 	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
@@ -173,21 +173,21 @@ frontend http-in
 	server haraka $(get_jail_ip haraka):80
 
 	backend www_webmail
-	server webmail $(get_jail_ip webmail):80 send-proxy-v2
+	server webmail $(get_jail_ip webmail):80
 
 	backend www_roundcube
-	server roundcube $(get_jail_ip roundcube):80 send-proxy-v2
+	server roundcube $(get_jail_ip roundcube):80
 	http-request replace-path /roundcube/(.*) /\1
 
 	backend www_squirrelmail
-	server squirrelmail $(get_jail_ip squirrelmail):80 send-proxy-v2
+	server squirrelmail $(get_jail_ip squirrelmail):80
 
 	backend www_rainloop
-	server rainloop $(get_jail_ip rainloop):80 send-proxy-v2
+	server rainloop $(get_jail_ip rainloop):80
 	http-request replace-path /rainloop/(.*) /\1
 
 	backend www_snappymail
-	server snappymail $(get_jail_ip snappymail):80 send-proxy-v2
+	server snappymail $(get_jail_ip snappymail):80
 	http-response del-header X-Frame-Options
 
 	backend www_munin
@@ -202,19 +202,19 @@ frontend http-in
 	http-request replace-path /nictool/(.*) /\1
 
 	backend www_mediawiki
-	server mediawiki $(get_jail_ip mediawiki):80 send-proxy-v2
+	server mediawiki $(get_jail_ip mediawiki):80
 
 	backend www_smf
-	server smf $(get_jail_ip smf):80 send-proxy-v2
+	server smf $(get_jail_ip smf):80
 
 	backend www_wordpress
-	server wordpress $(get_jail_ip wordpress):80 send-proxy-v2
+	server wordpress $(get_jail_ip wordpress):80
 
 	backend www_stage
-	server stage $(get_jail_ip stage):80 send-proxy-v2
+	server stage $(get_jail_ip stage):80
 
 	backend www_horde
-	server horde $(get_jail_ip horde):80 send-proxy-v2
+	server horde $(get_jail_ip horde):80
 
 	backend www_prometheus
 	server prometheus $(get_jail_ip prometheus):9090
@@ -228,7 +228,7 @@ frontend http-in
 	server dmarc $(get_jail_ip mail_dmarc):8080
 
 	backend www_nagios
-	server nagios $(get_jail_ip nagios):80 send-proxy-v2
+	server nagios $(get_jail_ip nagios):80
 
 	backend www_kibana
 	server kibana $(get_jail_ip elasticsearch):5601
@@ -241,6 +241,35 @@ frontend http-in
 	server zonemta 172.16.15.64:8082
 
 EO_HAPROXY_CONF
+
+	_data_cf="$STAGE_MNT/usr/local/etc/haproxy.conf"
+
+	store_config "$_data_cf" <<EO_HAPROXY_STAGE_CONF
+global
+    daemon
+    log 172.16.15.1 local0 err
+    tune.ssl.default-dh-param 2048
+
+defaults
+    mode        http
+    log         global
+    option      forwardfor
+    timeout     connect 5s
+    timeout     server 30s
+    timeout     client 30s
+
+frontend default-http
+    bind $(get_jail_ip stage):80
+    bind $(get_jail_ip stage):443 alpn http/1.1 ssl crt /data/etc/tls.d
+    bind [$(get_jail_ip6 stage)]:80
+    bind [$(get_jail_ip6 stage)]:443 alpn http/1.1 ssl crt /data/etc/tls.d
+
+    default_backend www_webmail
+
+backend www_webmail
+    server webmail80 172.16.15.10:80
+
+EO_HAPROXY_STAGE_CONF
 }
 
 install_ocsp_stapler()
@@ -258,18 +287,18 @@ install_ocsp_stapler()
 OPENSSL=/usr/bin/openssl
 
 # Path to certificates
-PEMSDIR=/data/ssl.d
+PEMSDIR=/data/etc/tls.d
 
 # Path to log output to
 LOGDIR=/var/log/haproxy
 
 # Create the log path if it doesn't already exist
-[ -d ${LOGDIR} ] || mkdir ${LOGDIR}
+[ -d $LOGDIR ] || mkdir $LOGDIR
 UPDATED=0
 
-cd ${PEMSDIR}
+cd $PEMSDIR
 for pem in *.pem; do
-    echo "= $(date)" >> ${LOGDIR}/${pem}.log
+    echo "= $(date)" >> "$LOGDIR/${pem}.log"
 
     # Get the OCSP URL from the certificate
     ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in $pem)
@@ -293,10 +322,10 @@ for pem in *.pem; do
 done
 
 if [ $UPDATED -gt 0 ]; then
-    echo "= $(date) - Updated $UPDATED OCSP responses" >> ${LOGDIR}/${pem}.log
-    service haproxy reload > ${LOGDIR}/service-reload.log 2>&1
+    echo "= $(date) - Updated $UPDATED OCSP responses" >> "$LOGDIR/${pem}.log"
+    service haproxy reload > $LOGDIR/service-reload.log 2>&1
 else
-    echo "= $(date) - No updates" >> ${LOGDIR}/${pem}.log
+    echo "= $(date) - No updates" >> $LOGDIR/${pem}.log
 fi
 
 EO_OCSP
@@ -304,20 +333,16 @@ EO_OCSP
 
 configure_haproxy_tls()
 {
-	if [ ! -f "$STAGE_MNT/etc/ssl/private/server.pem" ]; then
+	local _tls_dir="$ZFS_DATA_MNT/haproxy/etc/tls.d"
+	if [ ! -d "$_tls_dir" ]; then
+		tell_status "creating $_tls_dir"
+		mkdir -p "$_tls_dir"
+	fi
+
+	if [ ! -f "$_tls_dir/$TOASTER_HOSTNAME.pem" ]; then
 		tell_status "concatenating TLS key and crt to PEM"
 		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$STAGE_MNT/etc/ssl/private/server.pem"
-	fi
-
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl" ]; then
-		tell_status "creating /data/ssl"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl"
-	fi
-
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/ssl.d" ]; then
-		tell_status "creating /data/ssl.d"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/ssl.d"
+			> "$_tls_dir/$TOASTER_HOSTNAME.pem"
 	fi
 
 	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"
@@ -331,12 +356,6 @@ configure_haproxy()
 	fi
 
 	configure_haproxy_dot_conf
-	stage_sysrc haproxy_config="/data/etc/haproxy.conf"
-
-	if [ -f "$STAGE_MNT/usr/local/etc/haproxy.conf" ]; then
-		rm "$STAGE_MNT/usr/local/etc/haproxy.conf"
-	fi
-	stage_exec ln -s /data/etc/haproxy.conf /usr/local/etc/haproxy.conf
 
 	if [ ! -d "$STAGE_MNT/var/run/haproxy" ]; then
 		# useful for stats socket
@@ -344,18 +363,24 @@ configure_haproxy()
 	fi
 
 	_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
-	store_config "$_pf_etc/rdr.conf" <<EO_PF
+	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
-EO_PF
+EO_PF_RDR
 
 	get_public_ip
 	get_public_ip ipv6
 
-	store_config "$_pf_etc/allow.conf" <<EO_PF
-table <http_servers> { $PUBLIC_IP4 $PUBLIC_IP6 $(get_jail_ip haproxy) $(get_jail_ip6 haproxy) }
-pass in quick proto tcp from any to <http_servers> port { 80 443 }
-EO_PF
+	store_config "$_pf_etc/haproxy.table" <<EO_HAPROXY_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip haproxy)
+$(get_jail_ip6 haproxy)
+EO_HAPROXY_TABLE
+
+	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
+pass in quick proto tcp from any to <haproxy> port { 80 443 }
+EO_PF_FILTER
 
 	configure_haproxy_tls
 }
@@ -365,24 +390,16 @@ start_haproxy()
 	tell_status "starting haproxy"
 	stage_sysrc haproxy_enable=YES
 
-	if [ -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
-		echo "haproxy is running, this might fail."
-	fi
-
 	stage_exec service haproxy start
 }
 
 test_haproxy()
 {
 	tell_status "testing haproxy"
-	if [ ! -f "$ZFS_JAIL_MNT/haproxy/var/run/haproxy.pid" ]; then
-		stage_listening 443
-		echo "it worked"
-		return
-	fi
+	stage_listening 443
+	echo "it worked"
 
-	echo "previous haproxy is running, ignoring errors"
-	sockstat -l -4 -6 -p 443 -j "$(jls -j stage jid)"
+	stage_sysrc haproxy_config="/data/etc/haproxy.conf"
 }
 
 base_snapshot_exists || exit

@@ -69,7 +69,7 @@ install_clamav_unofficial()
 
 	Do you want to install ClamAV UNOFFICIAL?"
 
-		dialog --yesno "$_es_mess" 18 74 || return
+		bsddialog --yesno "$_es_mess" 18 74 || return
 	fi
 
 	local CLAMAV_UV=7.2.5
@@ -136,7 +136,7 @@ install_clamav_unofficial()
 	done
 
 	if [ -z "$CLAMAV_UNOFFICIAL" ]; then
-		dialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
+		bsddialog --msgbox "ClamAV UNOFFICIAL is installed. Be sure to visit
 	 https://github.com/extremeshok/clamav-unofficial-sigs and follow
 	 the steps *after* the Quick Install Guide." 10 70
 	fi
@@ -153,7 +153,11 @@ install_clamav_nrpe()
 	stage_pkg_install nagios-plugins
 
 	tell_status "installing clamav nrpe plugin"
-	stage_pkg_install nagios-check_clamav
+	stage_pkg_install nagios-check_clamav || stage_port_install net-mgmt/nagios-check_clamav
+	sed -i .bak \
+		-e 's|clamd_cmd -V|clamd_cmd --datadir=/data/db -V|' \
+		"$STAGE_MNT/usr/local/libexec/nagios/check_clamav"
+
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
 	sed -i.bak \
@@ -175,9 +179,15 @@ PATH="$PATH:/usr/local/bin"|' \
  	fi
 }
 
+install_clamav_port()
+{
+	stage_pkg_install arc arj curl cmake expat gmake gettext curl json-c libmspack libpsl libxml2 ninja pcre2 perl5 portconfig python3
+	stage_port_install security/clamav
+}
+
 install_clamav()
 {
-	stage_pkg_install clamav
+	stage_pkg_install clamav || install_clamav_port
 	echo "done"
 
 	for _d in etc db log; do
@@ -227,7 +237,7 @@ configure_clamd()
 	sed -i '' \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
-		"$STAGE_MNT/usr/local/etc/rc.d/clamav-clamd"
+		"$STAGE_MNT/usr/local/etc/rc.d/clamav_clamd"
 }
 
 configure_freshclam()
@@ -253,7 +263,7 @@ configure_freshclam()
 	sed -i '' \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
-		"$STAGE_MNT/usr/local/etc/rc.d/clamav-freshclam"
+		"$STAGE_MNT/usr/local/etc/rc.d/clamav_freshclam"
 }
 
 configure_clamav()
@@ -272,11 +282,11 @@ start_clamav()
 	tell_status "starting ClamAV daemons"
 	stage_sysrc clamav_clamd_enable=YES
 	stage_sysrc clamav_clamd_flags="-c /data/etc/clamd.conf"
-	stage_exec service clamav-clamd start
+	stage_exec service clamav_clamd start
 
 	stage_sysrc clamav_freshclam_enable=YES
 	stage_sysrc clamav_freshclam_flags="--config-file=/data/etc/freshclam.conf --datadir=/data/db"
-	stage_exec service clamav-freshclam start
+	stage_exec service clamav_freshclam start
 }
 
 migrate_clamav_dbs()
@@ -295,7 +305,7 @@ migrate_clamav_dbs()
 
 	Proceed?
 	"
-	dialog --yesno "$_confirm_msg" 13 70
+	bsddialog --yesno "$_confirm_msg" 13 70
 
 	if [ ! -d "$ZFS_DATA_MNT/clamav/db" ]; then
 		mkdir "$ZFS_DATA_MNT/clamav/db"

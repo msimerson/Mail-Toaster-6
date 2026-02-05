@@ -67,6 +67,7 @@ configure_fcgiwrap()
 	stage_sysrc fcgiwrap_enable="YES"
 	stage_sysrc fcgiwrap_user="www"
 	stage_sysrc fcgiwrap_group="www"
+	stage_sysrc fcgiwrap_socket="unix:/var/run/fcgiwrap/fcgiwrap.sock"
 	stage_sysrc fcgiwrap_socket_owner="www"
 	stage_sysrc fcgiwrap_socket_group="www"
 }

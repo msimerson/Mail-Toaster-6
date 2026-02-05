@@ -125,7 +125,7 @@ do
 done
 
 # packages to be updated automatically
-auto_upgrade="curl expat libxml2 pkg sudo vim-tiny"
+auto_upgrade="curl expat libxml2 pkg sudo unbound vim-tiny"
 
 # add packages with:
 #   sysrc -f /usr/local/etc/periodic/daily/auto_security_upgrades auto_upgrade+=" $NEW"
@@ -137,17 +137,15 @@ done
 EO_PKG_SECURITY
 }
 
-configure_ssl_dirs()
+configure_tls_dirs()
 {
 	if [ ! -d "$BASE_MNT/etc/ssl/certs" ]; then
-		mkdir "$BASE_MNT/etc/ssl/certs"
+		mkdir -m 0644 "$BASE_MNT/etc/ssl/certs"
 	fi
 
 	if [ ! -d "$BASE_MNT/etc/ssl/private" ]; then
-		mkdir "$BASE_MNT/etc/ssl/private"
+		mkdir -m 0640 "$BASE_MNT/etc/ssl/private"
 	fi
-
-	chmod o-r "$BASE_MNT/etc/ssl/private"
 }
 
 configure_tls_dhparams()
@@ -182,9 +180,7 @@ EO_MAKE_CONF
 configure_fstab() {
 	local _sub_dir=${1:-""}
 	local _etc_path="$BASE_MNT/${_sub_dir}etc"
-	if [ ! -d "$_etc_path" ]; then
-		mkdir -p "$_etc_path"
-	fi
+	if [ ! -d "$_etc_path" ]; then mkdir -p "$_etc_path"; fi
 
 	tee "$_etc_path/fstab" <<EO_FSTAB
 # Device                Mountpoint      FStype  Options         Dump    Pass#
@@ -194,15 +190,16 @@ EO_FSTAB
 
 configure_base()
 {
-	if [ ! -d "$BASE_MNT/usr/ports" ]; then
-		mkdir "$BASE_MNT/usr/ports"
-	fi
+	if [ ! -d "$BASE_MNT/usr/ports" ]; then mkdir "$BASE_MNT/usr/ports"; fi
 
 	tell_status "adding base jail resolv.conf"
 	cp /etc/resolv.conf "$BASE_MNT/etc"
 
 	tell_status "setting base jail timezone (to hosts)"
 	cp /etc/localtime "$BASE_MNT/etc"
+
+	tell_status "installing $BASE_MNT/etc/hosts"
+	cp /etc/hosts "$BASE_MNT/etc"
 
 	configure_make_conf
 
@@ -215,7 +212,7 @@ configure_base()
 		update_motd=NO
 
 	configure_pkg_latest "$BASE_MNT"
-	configure_ssl_dirs
+	configure_tls_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
 	enable_security_periodic
@@ -223,6 +220,7 @@ configure_base()
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
 	configure_fstab "data/"
+	install_pfrule base
 }
 
 install_periodic_conf()
@@ -244,6 +242,7 @@ monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
 security_show_info="NO"
+security_status_baseaudit_enable="NO"
 security_status_pkgaudit_enable="NO"
 security_status_pkgaudit_quiet="YES"
 daily_status_security_inline="NO"

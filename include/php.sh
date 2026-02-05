@@ -29,8 +29,10 @@ install_php()
 }
 
 install_php_newsyslog() {
+	stage_enable_newsyslog
+
 	tell_status "enabling PHP-FPM log file rotation"
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/php-fpm" <<EO_FPM_NSL
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/php-fpm.conf" <<EO_FPM_NSL
 # rotate the file after it reaches 1M
 /var/log/php-fpm.log 600 7	1024	*	BCX	/var/run/php-fpm.pid 30
 EO_FPM_NSL
@@ -86,7 +88,7 @@ configure_php_fpm() {
 	fi
 
 	sed -i.bak \
-		-e "/^listen =/      s/= .*/= '\/tmp\/php-cgi.socket';/" \
+		-e "/^listen =/      s|= .*|= '/tmp/php-cgi.socket';|" \
 		-e '/^;listen.owner/ s/^;//' \
 		-e '/^;listen.group/ s/^;//' \
 		-e '/^;listen.mode/  s/^;//' \
@@ -103,7 +105,7 @@ start_php_fpm()
 {
 	tell_status "starting PHP FPM"
 	stage_sysrc php_fpm_enable=YES
-	stage_exec service php-fpm start || stage_exec service php-fpm restart
+	stage_exec service php_fpm start || stage_exec service php_fpm restart
 }
 
 test_php_fpm()
@@ -111,10 +113,11 @@ test_php_fpm()
 	tell_status "testing PHP FPM (FastCGI Process Manager) is running"
 	stage_test_running php-fpm
 
-	tell_status "testing PHP FPM is listening"
 	if [ "$PHP_LISTEN_MODE" = "tcp" ]; then
+		tell_status "testing PHP FPM is listening"
 		stage_listening 9000
 	else
+		tell_status "testing PHP FPM socket exists"
 		if [ ! -S "$STAGE_MNT/tmp/php-cgi.socket" ]; then
 			echo "no PHP-FPM socket found!"
 			exit

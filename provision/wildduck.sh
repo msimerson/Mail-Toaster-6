@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3003
 
 set -e
 
@@ -10,9 +11,11 @@ export JAIL_FSTAB=""
 
 mt6-include mua
 
+# TODO: wildduck requires RSA certs (acme.sh --issue --keylength 2048|3072)
+
 preflight_check()
 {
-	for _j in dns redis mongodb
+	for _j in dns redis mongodb jo
 	do
 		if ! jail_is_running "$_j"; then
 			fatal_err "jail $_j is required"
@@ -23,7 +26,7 @@ preflight_check()
 install_wildduck()
 {
 	tell_status "installing wildduck dependencies"
-	stage_pkg_install npm-node20 git-tiny || exit
+	stage_pkg_install npm-node20 git-tiny
 
 	if [ ! -e "$STAGE_MNT/data/wildduck" ]; then
 		tell_status "installing wildduck"
@@ -31,7 +34,7 @@ install_wildduck()
 		stage_exec bash -c "cd /data/wildduck && npm install --omit=dev"
 	else
 		tell_status "updating wildduck"
-		stage_exec bash -c "cd /data/wildduck && git pull && npm install --omit=dev"
+		stage_exec bash -c "cd /data/wildduck && npm install --omit=dev"
 	fi
 
 	stage_exec npm install -g saslprep
@@ -46,9 +49,23 @@ install_wildduck_webmail()
 		stage_exec bash -c "cd /data/wildduck-webmail && npm run bowerdeps"
 	else
 		tell_status "updating wildduck webmail"
-		stage_exec bash -c "cd /data/wildduck-webmail && git pull && npm install && npm run bowerdeps"
+		stage_exec bash -c "cd /data/wildduck-webmail && npm install && npm run bowerdeps"
 		stage_exec bash -c "cd /data/wildduck-webmail && mkdir -p public/components"
 		stage_exec bash -c "cd /data/wildduck-webmail && npx bower install --allow-root"
+	fi
+
+	if [ -f "$STAGE_MNT/data/etc/nginx/nginx.conf" ]; then
+		stage_pkg_install nginx acme.sh
+		stage_exec pw usermod root -d /data/home/root
+		stage_exec pw usermod toor -d /data/home/root
+		stage_exec pw usermod acme -d /data/home/acme
+		stage_sysrc nginx_enable="YES"
+		stage_sysrc nginx_flags="-c /data/etc/nginx/nginx.conf"
+		store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME
+#!/bin/sh
+export LE_WORKING_DIR=/data/home/root/.acme.sh
+/usr/local/sbin/acme.sh --cron
+EO_ACME
 	fi
 }
 
@@ -64,8 +81,8 @@ install_zonemta()
 		stage_exec bash -c "cd /data/zone-mta && $_npm_ins"
 	else
 		tell_status "updating ZoneMTA"
-		stage_exec bash -c "cd /data/zone-mta/plugins/wildduck && git pull && rm -f package-lock.json && $_npm_ins"
-		stage_exec bash -c "cd /data/zone-mta && git pull && $_npm_ins"
+		stage_exec bash -c "cd /data/zone-mta/plugins/wildduck && rm -f package-lock.json && $_npm_ins"
+		stage_exec bash -c "cd /data/zone-mta && $_npm_ins"
 	fi
 
 	# stage_exec bash -c "cd /data/zone-mta && npm install zonemta-delivery-counters --save"
@@ -78,7 +95,7 @@ install_zonemta_webadmin()
 		stage_exec bash -c "cd /data && git clone https://github.com/zone-eu/zmta-webadmin.git zone-mta-admin"
 		stage_exec bash -c "cd /data/zone-mta-admin && npm install --omit=dev"
 	else
-		stage_exec bash -c "cd /data/zone-mta-admin && git pull && npm install --omit=dev"
+		stage_exec bash -c "cd /data/zone-mta-admin && npm install --omit=dev"
 	fi
 }
 
@@ -92,7 +109,7 @@ install_haraka()
 		stage_exec bash -c "cd /data/haraka && $_npm_cmd"
 	else
 		tell_status "updating haraka"
-		stage_exec bash -c "cd /data/haraka && git pull && $_npm_cmd"
+		stage_exec bash -c "cd /data/haraka && $_npm_cmd"
 	fi
 
 	if [ ! -e "$STAGE_MNT/data/haraka/plugins/wildduck" ]; then
@@ -113,9 +130,9 @@ install_pm2()
 configure_tls()
 {
 	local _tls_dir="$STAGE_MNT/data/etc/tls"
-	if [ ! -d "$_tls_dir" ];         then mkdir "$_tls_dir"         0755; fi
-	if [ ! -d "$_tls_dir/certs" ];   then mkdir "$_tls_dir/certs"   0755; fi
-	if [ ! -d "$_tls_dir/private" ]; then mkdir "$_tls_dir/private" 0700; fi
+	if [ ! -d "$_tls_dir" ];         then mkdir -m 0755 "$_tls_dir"        ; fi
+	if [ ! -d "$_tls_dir/certs" ];   then mkdir -m 0755 "$_tls_dir/certs"  ; fi
+	if [ ! -d "$_tls_dir/private" ]; then mkdir -m 0700 "$_tls_dir/private"; fi
 
 	if [ -f "/root/.acme/$WILDDUCK_HOSTNAME/$WILDDUCK_HOSTNAME.cer" ]; then
 		install "/root/.acme/$WILDDUCK_HOSTNAME/fullchain.cer" "$_tls_dir/certs/$WILDDUCK_HOSTNAME.pem"
@@ -357,6 +374,10 @@ rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_i
 # send HTTP traffic to haproxy
 rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
 rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
+
+# or send HTTP traffic to webmail
+#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip webmail)
+#rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 webmail)
 EO_PF_RDR
 
 	store_config "$_pf_etc/nat.conf" <<EO_PF_NAT
@@ -371,17 +392,16 @@ nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
 nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
 EO_PF_NAT
 
-	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-int_ip4 = "$(get_jail_ip wildduck)"
-int_ip6 = "$(get_jail_ip6 wildduck)"
-table <wildduck_int> persist { \$int_ip4, \$int_ip6 }
-pass in quick proto tcp from any to <wildduck_int> port { 25 465 587 80 443 993 995 }
+	store_config "$_pf_etc/wildduck.table" <<EO_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip wildduck)
+$(get_jail_ip6 wildduck)
+EO_TABLE
 
-# ext_ip4 = "$PUBLIC_IP4"
-# ext_ip6 = "$PUBLIC_IP6"
-# table <wildduck_ext> persist { \$ext_ip4, \$ext_ip6 }
-# pass in quick proto tcp from any to <wildduck_ext> port { 25 465 587 80 443 993 995 }
-EO_PF_ALLOW
+	store_config "$_pf_etc/filter.conf" <<EO_FILTER
+pass in quick proto tcp from any to <wildduck> port { 25 465 587 80 443 993 995 }
+EO_FILTER
 }
 
 configure_haraka()
@@ -405,7 +425,9 @@ EO_HELO
 
 	echo "$WILDDUCK_HOSTNAME" > "$_cfg/me"
 	echo "local_mx_ok=true" >> "$_cfg/outbound.ini"
-	echo "wildduck" >> "$_cfg/plugins"
+	if ! grep -q wildduck "$_cfg/plugins"; then
+		echo "wildduck" >> "$_cfg/plugins"
+	fi
 
 	tell_status "configuring $_cfg/plugins"
 	# shellcheck disable=1003
@@ -418,9 +440,15 @@ EO_HELO
 		-e '/^#attachment/ s/^#//' \
 		-e '/^#clamd/ s/^#//' \
 		-e '/^#spamassassin/ s/^#//' \
-		-e '/^spamassassin/ a\'$'\n''rspamd' \
 		-e '/^queue/ s/queue/#queue/' \
 		"$_cfg/plugins"
+
+	if ! grep -q rspamd "$_cfg/plugins"; then
+		# shellcheck disable=SC1003
+		sed -i '' \
+			-e '/^spamassassin/ a\'$'\n''rspamd' \
+			"$_cfg/plugins"
+	fi
 
 	tell_status "installing $_cfg/rspamd.ini"
 	cat <<EO_RSPAMD > "$_cfg/rspamd.ini"
@@ -554,7 +582,7 @@ test_zonemta()
 	echo "it worked"
 }
 
-base_snapshot_exists || exit 1
+base_snapshot_exists
 preflight_check
 create_staged_fs wildduck
 start_staged_jail wildduck

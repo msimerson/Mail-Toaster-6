@@ -16,7 +16,7 @@ install_wordpress()
 	assure_jail mysql
 
 	install_nginx
-	install_php 81 "ctype curl dom exif fileinfo filter ftp gd iconv intl mbstring mysqli pecl-imagick-im7 session tokenizer xml zip zlib"
+	install_php 83 "ctype curl dom exif fileinfo filter ftp gd iconv intl mbstring mysqli pdo pdo_mysql pecl-imagick session tokenizer xml zip zlib"
 
 	# stage_pkg_install wordpress
 	stage_port_install www/wordpress
@@ -62,56 +62,6 @@ configure_nginx_server()
 	# shellcheck disable=2090
 	export _NGINX_SERVER
 	configure_nginx_server_d wordpress
-}
-
-configure_nginx_with_path()
-{
-	if [ -f "$STAGE_MNT/data/etc/nginx-locations.conf" ]; then
-		tell_status "preserving /data/etc/nginx-locations.conf"
-		return
-	fi
-
-	local _uri_path="$1"
-	if [ -z "$_uri_path" ]; then
-		tell_status "using /wpn (wordpress network) for WP url path"
-		_uri_path="/wpn"
-	fi
-
-	store_config "$STAGE_MNT/data/etc/nginx-locations.conf" <<'EO_WP_NGINX'
-
-	server_name     wordpress;
-	index		index.php;
-	root		/usr/local/www/wordpress;
-
-	# all PHP scripts, optionally within /wpn/
-	location ~ ^/(?:wpn/)?(?<script>.+\.php)(?<path_info>.*)$ {
-
-		include        /usr/local/etc/nginx/fastcgi_params;
-		fastcgi_index  index.php;
-		fastcgi_intercept_errors on;
-
-		fastcgi_param SCRIPT_FILENAME $document_root/$script;
-		fastcgi_param SCRIPT_NAME $script;
-		fastcgi_param PATH_INFO $path_info;
-
-		fastcgi_pass   php;
-	}
-
-	# wordpress served with URL path
-	location /wpn/ {
-		alias          /usr/local/www/wordpress/;
-
-		# say "yes we can" to permalinks
-		try_files $uri $uri/ /index.php?q=$uri&$args;
-	}
-
-	location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf)$ {
-		expires max;
-		log_not_found off;
-	}
-
-EO_WP_NGINX
-
 }
 
 configure_wp_config()
@@ -180,7 +130,6 @@ configure_wordpress()
 	configure_nginx wordpress
 
 	configure_nginx_server
-	# configure_nginx_with_path /wpn
 
 	configure_wp_config
 }

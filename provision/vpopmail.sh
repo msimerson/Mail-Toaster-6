@@ -60,14 +60,31 @@ install_lighttpd()
 	tell_status "installing lighttpd"
 	stage_pkg_install lighttpd
 
-	local _conf; _conf="$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
-	cat <<EO_LIGHTTPD >> "$_conf"
+	local _conf; _conf="$ZFS_DATA_MNT/vpopmail/etc/lighttpd.conf"
+	if [ -f "$_conf" ]; then
+		tell_status "preserving lighttpd.conf"
+	else
+		tell_status "installing lighttpd.conf"
+		cat <<EO_LIGHTTPD >> "$_conf"
 
-server.modules += ( "mod_alias", "mod_auth", "mod_authn_file" )
+#include "/usr/local/etc/lighttpd/lighttpd*annotated.conf"
+#include "/usr/local/etc/lighttpd/conf-enabled/*.conf"
 
-alias.url = ( "/cgi-bin/"     => "/usr/local/www/cgi-bin/",
-              "/qmailadmin/"  => "/usr/local/www/data/qmailadmin/",
-           )
+# server.modules += ( "mod_access" ) # for IP filtering
+
+server.document-root = "/data/htdocs"
+server.pid-file      = "/var/run/lighttpd/lighttpd.pid"
+
+var.log_root         = "/var/log/lighttpd"
+server.errorlog      = log_root + "/error.log"
+
+#server.modules     += ( "mod_accesslog" )
+#accesslog.filename  = log_root + "/access.log"
+
+server.modules += ( "mod_alias" )
+alias.url = ( "/cgi-bin/"     => "/data/cgi-bin/",
+              "/qmailadmin/"  => "/data/htdocs/qmailadmin/",
+            )
 
 server.modules += ( "mod_cgi" )
 \$HTTP["url"] =~ "^/cgi-bin" {
@@ -80,6 +97,7 @@ extforward.forwarder = (
      "$(get_jail_ip6 haproxy)"  => "trust",
 )
 
+server.modules += ( "mod_auth", "mod_authn_file" )
 #auth.backend                   = "plain"
 auth.backend                   = "htdigest"
 auth.backend.plain.userfile    = "/data/etc/WebUsers.plain"
@@ -96,14 +114,9 @@ auth.require   = ( "/cgi-bin/vqadmin" =>
 
 EO_LIGHTTPD
 
-	if grep -q ^var.state_dir "$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"; then
-		sed -i.bak \
-			-e 's/^var.state_dir.*$/var.state_dir = "\/var\/run\/lighttpd"/' \
-			"$STAGE_MNT/usr/local/etc/lighttpd/lighttpd.conf"
 	fi
 
-	preserve_file vpopmail "/usr/local/etc/lighttpd/lighttpd.conf"
-
+	stage_sysrc lighttpd_conf=/data/etc/lighttpd.conf
 	stage_sysrc lighttpd_enable=YES
 	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
 	stage_exec service lighttpd start
@@ -127,9 +140,14 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 			"$STAGE_MNT/var/db/ports/mail_qmailadmin/"
 	fi
 
-	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+	for _d in htdocs cgi-bin; do
+		if [ ! -d "$ZFS_DATA_MNT/vpopmail/$_d" ]; then
+			mkdir "$ZFS_DATA_MNT/vpopmail/$_d"
+		fi
+	done
 
-	stage_port_install devel/autoconf
+	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+
 	stage_port_install mail/qmailadmin
 
 	install_lighttpd
@@ -140,9 +158,9 @@ install_vqadmin()
 	if [ "$TOASTER_VQADMIN" != "1" ]; then return; fi
 
 	tell_status "installing vqadmin"
-	export WEBDATADIR=www/data CGIBINDIR=www/cgi-bin
+	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin
 	stage_port_install mail/vqadmin
-	stage_exec ln /usr/local/www/cgi-bin/vqadmin/html/en-us /usr/local/www/cgi-bin/vqadmin/html/en-US
+	stage_exec ln /data/cgi-bin/vqadmin/html/en-us /data/cgi-bin/vqadmin/html/en-US
 }
 
 mysql_error_warning()
@@ -205,6 +223,22 @@ install_vpopmail_mysql_aliastable()
 	echo "CREATE TABLE IF NOT EXISTS aliasdomains (alias varchar(100) NOT NULL, domain varchar(100) NOT NULL, PRIMARY KEY (alias));" | mysql_query vpopmail || return 1
 }
 
+alter_vpopmail_tables()
+{
+        echo "ALTER TABLE vpopmail.vpopmail
+		MODIFY COLUMN pw_name   varchar(64),
+                MODIFY COLUMN pw_domain varchar(96),
+                MODIFY COLUMN pw_passwd varchar(128),
+                MODIFY COLUMN pw_gecos  varchar(64),
+                MODIFY COLUMN pw_dir    varchar(160),
+                MODIFY COLUMN pw_clear_passwd varchar(128);" | mysql_query
+
+        echo "ALTER TABLE vpopmail.lastauth
+		MODIFY COLUMN user      varchar(64),
+                MODIFY COLUMN domain    varchar(96),
+                MODIFY COLUMN remote_ip varchar(39);" | mysql_query
+}
+
 install_vpop_nrpe()
 {
 	if [ -z "$TOASTER_NRPE" ]; then
@@ -253,12 +287,12 @@ install_vpopmail()
 	fi
 
 	tell_status "installing vpopmail package"
-	stage_pkg_install vpopmail
-
-	stage_port_install devel/gmake
+	stage_pkg_install vpopmail gmake autoconf
+	#stage_port_install devel/gmake
 
 	install_vpopmail_port
 	#install_vpopmail_source
+
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		install_vpopmail_mysql_grants
 		install_vpopmail_mysql_aliastable
@@ -290,6 +324,10 @@ configure_vpopmail()
 		local _ppass; _ppass=$(get_random_pass 14)
 		tell_status "ATTN: Your postmaster password is: $_ppass"
 		stage_exec /usr/local/vpopmail/bin/vadddomain "$TOASTER_MAIL_DOMAIN" "$_ppass"
+	fi
+
+	if [ "$TOASTER_MYSQL" = "1" ]; then
+		alter_vpopmail_tables
 	fi
 }
 
@@ -346,7 +384,7 @@ migrate_vpopmail_home()
 +		mount += "/data/vpopmail $path/data nullfs rw 0 0";
 +		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
  	}
- 
+
  dovecot	{
  		ip4.addr = 172.16.15.15;
  		ip6.addr = lo1|fd7a:e5cd:1fc1:bc2c:dead:beef:cafe:000f;
@@ -354,7 +392,7 @@ migrate_vpopmail_home()
 -		mount += "/data/vpopmail $path/usr/local/vpopmail nullfs rw 0 0";
 +		mount += "/data/vpopmail/home $path/usr/local/vpopmail nullfs rw 0 0";
  	}
- 
+
 	4. start the dovecot and vpopmail jails
 
 		   service jail start vpopmail dovecot

@@ -8,7 +8,7 @@ export JAIL_START_EXTRA="devfs_ruleset=7
 		allow.raw_sockets=1"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;
-		allow.raw_sockets = 1;"
+		allow.raw_sockets;"
 export JAIL_FSTAB=""
 
 install_dhcpd()

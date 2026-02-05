@@ -15,17 +15,21 @@ configure_ntp()
 {
 	if [ "$TOASTER_NTP" = "ntimed" ]; then
 		configure_ntimed
+	elif [ "$TOASTER_NTP" = "openntpd" ]; then
+		configure_openntpd
+	elif [ "$TOASTER_NTP" = "chrony" ]; then
+		configure_chrony
 	else
+		tell_status "TOASTER_NTP unset, defaulting to ntpd"
 		configure_ntpd
 	fi
 }
 
 configure_ntimed()
 {
+	disable_ntpd
+
 	tell_status "installing and enabling Ntimed"
-	if grep -q ^ntpd_enable /etc/rc.conf; then
-		sysrc ntpd_enable=NO
-	fi
 	pkg install -y ntimed
 	sysrc ntimed_enable=YES
 	service ntimed start
@@ -33,19 +37,52 @@ configure_ntimed()
 
 configure_ntpd()
 {
+	if ! grep -q ^ntpd_enable /etc/rc.conf; then
+		tell_status "enabling NTPd"
+		sysrc ntpd_enable=YES
+		sysrc ntpd_sync_on_start=YES
+		/etc/rc.d/ntpd restart
+	fi
+}
+
+configure_openntpd()
+{
+	disable_ntpd
+
+	pkg install -y openntpd
+	sysrc openntpd_enable=YES
+	service openntpd restart
+}
+
+configure_chrony()
+{
+	disable_ntpd
+
+	pkg install -y chrony-lite
+	sysrc chronyd_enable=YES
+	if pgrep -q chronyd; then
+		service chronyd restart
+	else
+		service chronyd start
+	fi
+}
+
+disable_ntpd()
+{
 	if grep -q ^ntpd_enable /etc/rc.conf; then
-		return
+		tell_status "disabling NTPd"
+		service ntpd onestop || echo -n
+		sysrc ntpd_enable=NO
 	fi
 
-	tell_status "enabling NTPd"
-	sysrc ntpd_enable=YES
-	sysrc ntpd_sync_on_start=YES
-	/etc/rc.d/ntpd restart
+	if grep -q ^ntpd_sync_on_start /etc/rc.conf; then
+		sysrc ntpd_sync_on_start="NO"
+	fi
 }
 
 update_syslogd()
 {
-	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6]/112:* -cc"
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
 
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"
@@ -78,6 +115,7 @@ monthly_output="$TOASTER_ADMIN_EMAIL"
 
 security_show_success="NO"
 security_show_info="YES"
+security_status_baseaudit_enable="NO"
 security_status_chksetuid_enable="NO"
 security_status_neggrpperm_enable="NO"
 security_status_pkgaudit_enable="YES"
@@ -139,17 +177,22 @@ constrain_sshd_to_host()
 	get_public_ip
 	get_public_ip ipv6
 
+	local IP_MSG="	Your public IP(s) are detected as $PUBLIC_IP4"
+	if [ -n "$PUBLIC_IP6" ]; then
+		IP_MSG="$IP_MSG
+		and $PUBLIC_IP6"
+	fi
+
 	if [ -t 0 ]; then
 		local _confirm_msg="
 	To not interfere with the jails, sshd should be constrained to
 	listening on your hosts public facing IP(s).
 
-	Your public IPs are detected as $PUBLIC_IP4
-		and $PUBLIC_IP6
+	$IP_MSG
 
 	May I update your sshd config?
 	"
-		dialog --yesno "$_confirm_msg" 13 70 || return
+		bsddialog --yesno "$_confirm_msg" 13 70 || return
 	fi
 
 	tell_status "Limiting SSHd to host IP address"
@@ -172,6 +215,7 @@ sshd_reorder()
 	fi
 
 	tell_status "starting sshd earlier"
+	if [ ! -d "/usr/local/etc/rc.d" ]; then mkdir -p "/usr/local/etc/rc.d"; fi
 	tee "$_file" <<EO_SSHD_REORDER
 #!/bin/sh
 # start up sshd earlier, particularly before jails
@@ -306,10 +350,21 @@ pf_bruteforce_expire()
 EO_PF_EXPIRE
 }
 
+configure_ipv6()
+{
+	get_public_ip ipv6
+
+	if [ -n "$PUBLIC_IP6" ] && [ -n "$PUBLIC_NIC" ]; then
+		sysrc ipv6_activate_all_interfaces="YES"
+		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
+		sysrc ipv6_gateway_enable="YES"
+		sysctl net.inet6.ip6.forwarding=1
+	fi
+}
+
 add_jail_nat()
 {
 	get_public_ip
-	get_public_ip ipv6
 
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
 	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
@@ -322,6 +377,9 @@ ext_if="$PUBLIC_NIC"
 ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
+jail_ip4="$JAIL_NET_PREFIX.0${JAIL_NET_MASK}"
+jail_ip6="$JAIL_NET6:0/112"
+
 table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
 table <ext_ip4> { \$ext_ip4 } persist
 table <ext_ip6> { \$ext_ip6 } persist
@@ -331,17 +389,23 @@ table <sshguard> persist
 
 ## NAT / Network Address Translation
 
-# default route to the internet for jails
-nat on \$ext_if inet  from $JAIL_NET_PREFIX.0${JAIL_NET_MASK} to any -> (\$ext_if)
-nat on \$ext_if inet6 from (lo1) to any -> <ext_ip6>
+binat-anchor "binat/*"
 
 nat-anchor "nat/*"
+
+# default route to the internet for jails
+nat on \$ext_if inet  from \$jail_ip4 to any -> (\$ext_if)
+nat on \$ext_if inet6 from \$jail_ip6 to any -> <ext_ip6>
 
 ## Redirection
 
 rdr-anchor "rdr/*"
 
 ## Filtering
+
+# allow anchor is deprecated, use filter instead
+anchor "allow/*"
+anchor "filter/*"
 
 # block everything by default. Be careful!
 #block in log on \$ext_if
@@ -355,19 +419,22 @@ pass in inet  proto udp from port 67 to port 68
 pass in inet6 proto udp from port 547 to port 546
 
 # IPv6 routing
-pass in inet6 proto ipv6-icmp icmp6-type 134
-pass in inet6 proto ipv6-icmp icmp6-type 135
-pass in inet6 proto ipv6-icmp icmp6-type 136
+pass in inet6 proto ipv6-icmp icmp6-type { 134, 135, 136 }
 
 # NTP
 pass out quick on \$ext_if proto udp to any port ntp keep state
 
-pass  in quick on \$ext_if proto tcp to port ssh \
+pass in quick on \$ext_if proto tcp to port ssh \
         flags S/SA synproxy state \
         (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 
-anchor "allow/*"
 EO_PF_RULES
+
+	if [ -z "$PUBLIC_IP6" ]; then
+		sed -i '' \
+			-e '/^table <ext_ip>/ s/, \$ext_ip6//' \
+			/etc/pf.conf
+	fi
 
 	kldstat -q -m pf || kldload pf
 
@@ -386,6 +453,7 @@ install_jailmanage()
 	if [ -s /usr/local/bin/jailmanage ]; then return; fi
 
 	tell_status "installing jailmanage"
+	if [ ! -d "/usr/local/bin" ]; then mkdir -p "/usr/local/bin"; fi
 	fetch -o /usr/local/bin/jailmanage https://raw.githubusercontent.com/msimerson/jailmanage/master/jailmanage.sh
 	chmod 755 /usr/local/bin/jailmanage
 }
@@ -411,6 +479,10 @@ enable_jails()
 	fi
 }
 
+is_installed() {
+	command -v "$1" >/dev/null 2>&1
+}
+
 update_ports_tree()
 {
 	if [ ! -t 0 ]; then
@@ -419,18 +491,25 @@ update_ports_tree()
 	fi
 
 	if [ -d "/usr/ports/.git" ]; then
-		tell_status "updating FreeBSD ports tree (git)"
-		cd "/usr/ports/" || return
-		git pull
-		cd - || return
+		if is_installed gitup; then
+			tell_status "updating FreeBSD ports tree (gitup)"
+			gitup ports
+		elif is_installed git; then
+			tell_status "updating FreeBSD ports tree (git)"
+			cd "/usr/ports/" || return
+			git pull
+			cd - || return
+		fi
 	else
-		tell_status "updating FreeBSD ports tree (portsnap)"
-		portsnap fetch
+		if is_installed portsnap; then
+			tell_status "updating FreeBSD ports tree (portsnap)"
+			portsnap fetch
 
-		if [ -d /usr/ports/mail/vpopmail ]; then
-			portsnap update || portsnap extract
-		else
-			portsnap extract
+			if [ -d /usr/ports/mail/vpopmail ]; then
+				portsnap update || portsnap extract
+			else
+				portsnap extract
+			fi
 		fi
 	fi
 }
@@ -481,20 +560,30 @@ plumb_jail_nic()
 
 	if ifconfig lo1 2>&1 | grep -q 'does not exist'; then
 		tell_status "plumb lo1 interface"
-		ifconfig lo1 create
+		ifconfig lo1 create description MT6-jails
 	fi
 }
 
 assign_syslog_ip()
 {
-	if ! grep -q ifconfig_lo1 /etc/rc.conf; then
-		tell_status "adding syslog IP to lo1"
+	if ! sysrc -cq ifconfig_lo1; then
+		tell_status "adding syslog IPv4 to lo1"
 		sysrc ifconfig_lo1="$JAIL_NET_PREFIX.1 netmask 255.255.255.0"
+	fi
+
+	if ! sysrc -cq ifconfig_lo1_ipv6; then
+		tell_status "adding syslog IPv6 to lo1"
+		sysrc ifconfig_lo1_ipv6="$JAIL_NET6:1/112"
 	fi
 
 	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET_PREFIX.1 "; then
 		echo "assigning $JAIL_NET_PREFIX.1 to lo1"
 		ifconfig lo1 "$JAIL_NET_PREFIX.1" netmask 255.255.255.0
+	fi
+
+	if ! ifconfig lo1 2>&1 | grep -q "$JAIL_NET6:1 "; then
+		echo "assigning $JAIL_NET6:1 to lo1"
+		ifconfig lo1 inet6 "$JAIL_NET6:1/112"
 	fi
 }
 
@@ -527,7 +616,7 @@ update_mt6()
 }
 
 update_host() {
-	sysrc -q background_fsck=NO
+	sysrc -c -q background_fsck=NO || sysrc -q background_fsck=NO
 	update_mt6
 	update_freebsd
 	configure_pkg_latest ""
@@ -539,6 +628,7 @@ update_host() {
 	plumb_jail_nic
 	assign_syslog_ip
 	update_syslogd
+	configure_ipv6
 	add_jail_nat
 	configure_tls_certs
 	configure_dhparams
@@ -548,7 +638,7 @@ update_host() {
 	configure_etc_hosts
 	configure_csh_shell ""
 	configure_bourne_shell ""
-	if [ ! -e "/etc/localtime" ]; then tzsetup; fi
+	test -e "/etc/localtime" || tzsetup
 	check_global_listeners
 	echo; echo "Success! Your host is ready to install Mail Toaster 6!"; echo
 }

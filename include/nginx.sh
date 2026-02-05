@@ -26,7 +26,7 @@ install_nginx()
 		"$STAGE_MNT/var/db/ports/www_nginx/options" || exit
 
 	tell_status "installing nginx port with localized options"
-	stage_pkg_install GeoIP gettext
+	stage_pkg_install libmaxminddb gettext
 	if [ "$TLS_LIBRARY" = "libressl" ]; then
 		echo 'DEFAULT_VERSIONS+=ssl=libressl' >> "$STAGE_MNT/etc/make.conf"
 	else
@@ -37,8 +37,10 @@ install_nginx()
 
 install_nginx_newsyslog()
 {
+	stage_enable_newsyslog
+
 	tell_status "enabling nginx log file rotation"
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx" <<EO_NG_NSL
+	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf" <<EO_NG_NSL
 # rotate nightly (default)
 /var/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 
@@ -69,10 +71,20 @@ configure_nginx_server_d()
 	fi
 
 	# most calls get enclosing server block
-	local _prefix='server {
-		listen       80 proxy_protocol;
-		listen  [::]:80 proxy_protocol;
+	local _prefix
+	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
+		_prefix='server {
+		listen       80;
+		listen  [::]:80;
 '
+	else
+		# nginx can't send proxy protocol AND route URIs at the same time
+		_prefix='server {
+		listen       80;
+		listen  [::]:80;
+'
+	fi
+
 	local _suffix='location ~ /\.ht {
 			deny  all;
 		}
@@ -136,8 +148,10 @@ http {
 	keepalive_timeout  65;
 
 	set_real_ip_from $(get_jail_ip haproxy);
+	set_real_ip_from $(get_jail_ip webmail);
 	set_real_ip_from $(get_jail_ip6 haproxy);
-	real_ip_header   proxy_protocol;
+	set_real_ip_from $(get_jail_ip6 webmail);
+	real_ip_header   X-Forwarded-For;
 	real_ip_recursive on;
 	client_max_body_size 25m;
 

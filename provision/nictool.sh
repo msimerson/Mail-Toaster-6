@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
@@ -11,6 +13,7 @@ export NICTOOL_UPGRADE=""
 
 mt6-include mysql
 mt6-include user
+mt6-include djb
 
 install_nt_prereqs()
 {
@@ -20,12 +23,27 @@ install_nt_prereqs()
 	stage_pkg_install perl5 mysql80-client apache24 ap24-mod_perl2 rsync p5-DBD-mysql
 
 	tell_status "installing tools for NicTool exports"
-	stage_pkg_install daemontools ucspi-tcp djbdns
+	stage_pkg_install daemontools ucspi-tcp
+	install_djbdns
 	stage_pkg_install knot3
 
 	tell_status "setting up svscan"
 	stage_sysrc svscan_enable=YES
-	mkdir -p "$STAGE_MNT/var/service"
+
+	if [ -d "$STAGE_MNT/data/ns" ]; then
+		tell_status "pointing svscan at existing /data/ns"
+		stage_sysrc svscan_servicedir="/data/ns"
+	else
+		tell_status "creating default /var/service for svscan"
+		mkdir -p "$STAGE_MNT/var/service"
+	fi
+
+	stage_pkg_install acme.sh
+	stage_exec pw usermod acme -d /data/home/acme
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME_CRON
+#!/usr/local/bin/bash
+/usr/local/sbin/acme.sh --home /data/home/acme/.acme.sh --cron
+EO_ACME_CRON
 }
 
 install_nt_from_git()
@@ -33,9 +51,9 @@ install_nt_from_git()
 	stage_pkg_install git-tiny || exit
 	cd "$STAGE_MNT/usr/local" || exit
 	stage_exec git clone --depth=1 https://github.com/msimerson/NicTool.git /usr/local/nictool || exit
-	stage_pkg_install p5-App-Cpanminus
-	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpanm -n .'
-	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpanm -n .'
+	export PERL_MM_USE_DEFAULT=1
+	stage_exec sh -c 'cd /usr/local/nictool/server; perl Makefile.PL; cpan -fiT install .'
+	stage_exec sh -c 'cd /usr/local/nictool/client; perl Makefile.PL; cpan -fiT install .'
 }
 
 install_nt_from_tarball()
@@ -55,7 +73,8 @@ install_nt_from_tarball()
 	mv "NicToolClient-$NICTOOL_VER" client
 }
 
-install_nictool_client() {
+install_nictool_client()
+{
 	tell_status "install NicToolClient $NICTOOL_VER"
 
 	_ntcdir="/usr/local/nictool/client"
@@ -77,7 +96,8 @@ install_nictool_client() {
 	jexec stage bash -c "cd $_ntcdir; perl bin/install_deps.pl"
 }
 
-install_nictool_server() {
+install_nictool_server()
+{
 	tell_status "install NicToolServer $NICTOOL_VER"
 
 	_ntsdir="/usr/local/nictool/server"
@@ -110,7 +130,15 @@ install_nictool_server() {
 
 install_apache_setup()
 {
+	_apa_installed="$ZFS_JAIL_MNT/nictool/usr/local/etc/apache24/Includes/nictool.conf"
 	_htcnf="$STAGE_MNT/usr/local/etc/apache24/Includes/nictool.conf"
+
+	if [ -f "$_apa_installed" ]; then
+		tell_status "preserving apache24/Includes/nictool.conf"
+		cp "$_apa_installed" "$_htcnf"
+		return
+	fi
+
 	store_config "$_htcnf" <<EO_NICTOOL_APACHE24
 LoadModule perl_module libexec/apache24/mod_perl.so
 PerlRequire /usr/local/nictool/client/lib/nictoolclient.conf

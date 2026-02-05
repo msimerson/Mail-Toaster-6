@@ -59,6 +59,7 @@ mail_privileged_group = 89
 login_greeting = Mail Toaster (Dovecot) ready.
 mail_plugins = $mail_plugins quota
 protocols = imap pop3 lmtp sieve
+
 service auth {
   unix_listener auth-client {
     mode = 0660
@@ -71,7 +72,21 @@ service auth {
 #    mode = 0666
 #  }
 }
-
+service imap {
+  executable = imap lastauth
+}
+service pop3 {
+  executable = pop3 lastauth
+}
+service lastauth {
+  executable = script-login /data/bin/lastauth.sh
+  user = vpopmail
+  unix_listener lastauth {
+    user = vpopmail
+    group = vpopmail
+    mode = 0660
+  }
+}
 service lmtp {
   user = vpopmail
   inet_listener lmtp {
@@ -80,6 +95,19 @@ service lmtp {
   unix_listener lmtp {
     #mode = 0666
   }
+}
+service managesieve-login {
+  inet_listener sieve {
+    port = 4190
+  }
+}
+service tcpwrap {
+  unix_listener login/tcpwrap {
+    mode = 0600
+    user = $default_login_user
+    group = $default_login_user
+  }
+  user = root
 }
 
 passdb {
@@ -97,6 +125,7 @@ userdb {
 
 shutdown_clients = no
 verbose_proctitle = yes
+
 protocol imap {
   imap_client_workarounds = delay-newmail  tb-extra-mailbox-sep
   mail_max_userip_connections = 45
@@ -112,13 +141,13 @@ protocol lmtp {
 }
 
 # default TLS certificate (no SNI)
-ssl_cert = </data/etc/ssl/certs/dovecot.pem
-ssl_key = </data/etc/ssl/private/dovecot.pem
+ssl_cert = </data/etc/tls/certs/dovecot.pem
+ssl_key = </data/etc/tls/private/dovecot.pem
 
 # example TLS SNI (see https://wiki.dovecot.org/SSL/DovecotConfiguration)
 #local_name mail.example.com {
-#  ssl_cert = </data/etc/ssl/certs/mail.example.com.pem
-#  ssl_key = </data/etc/ssl/private/mail.example.com.pem
+#  ssl_cert = </data/etc/tls/certs/mail.example.com.pem
+#  ssl_key = </data/etc/tls/private/mail.example.com.pem
 #}
 
 # dovecot 2.3+ supports a ssl_dh file
@@ -130,19 +159,6 @@ ssl_cipher_list = AES128+EECDH:AES128+EDH
 
 login_access_sockets = tcpwrap
 
-service tcpwrap {
-  unix_listener login/tcpwrap {
-    mode = 0600
-    user = $default_login_user
-    group = $default_login_user
-  }
-  user = root
-}
-service managesieve-login {
-  inet_listener sieve {
-    port = 4190
-  }
-}
 plugin {
   quota = maildir:User quota
   quota_rule = *:storage=1G
@@ -322,29 +338,22 @@ configure_tls_certs()
 			"$_localconf"
 	fi
 
-	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/ssl"
+	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/tls"
 	if [ ! -d "$_ssldir/certs" ]; then
-		mkdir -p "$_ssldir/certs"
-		chmod 644 "$_ssldir/certs"
+		# shellcheck disable=SC2174
+		mkdir -m 644 -p "$_ssldir/certs"
 	fi
 
 	if [ ! -d "$_ssldir/private" ]; then
-		mkdir "$_ssldir/private"
-		chmod 644 "$_ssldir/private"
+		mkdir -m 0644 "$_ssldir/private"
 	fi
 
 	local _installed_crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	if [ -f "$_installed_crt" ]; then
-		tell_status "dovecot TLS certificates already installed"
-		return
+	if [ ! -f "$_installed_crt" ]; then
+		tell_status "installing dovecot TLS certificates"
+		cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+		cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 	fi
-
-	tell_status "installing dovecot TLS certificates"
-	cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	# sunset after Dovecot 2.3 released
-	cat /etc/ssl/dhparam.pem >> "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	# /sunset
-	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 }
 
 configure_postfix_with_sasl()
@@ -358,8 +367,8 @@ configure_postfix_with_sasl()
 	stage_exec postconf -e 'smtpd_sasl_path = private/auth'
 	stage_exec postconf -e 'smtpd_sasl_auth_enable = yes'
 	stage_exec postconf -e 'smtpd_recipient_restrictions = permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination'
-	stage_exec postconf -e "smtpd_tls_cert_file = /data/etc/ssl/certs/$TOASTER_HOSTNAME.pem"
-	stage_exec postconf -e "smtpd_tls_key_file = /data/etc/ssl/private/$TOASTER_HOSTNAME.pem"
+	stage_exec postconf -e "smtpd_tls_cert_file = /data/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+	stage_exec postconf -e "smtpd_tls_key_file = /data/etc/tls/private/$TOASTER_HOSTNAME.pem"
 	stage_exec postconf -e 'smtp_tls_security_level = may'
 
 	for _s in 512 1024 2048; do
@@ -521,37 +530,69 @@ configure_dovecot_pf()
 {
 	_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
 
-	store_config "$_pf_etc/insecure_mua" <<EO_PF_INSECURE
-# 10.0.0.0/8
-# 172.16.0.0/12
-# 192.168.0.0/16
+	store_config "$_pf_etc/insecure_mua.table" <<EO_PF_INSECURE
+# RFC 1918 Private IP blocks
+# 10/8
+# 172.16/12
+# 192.168/16
+EO_PF_INSECURE
+
+	get_public_ip
+	get_public_ip ipv6
+
+	store_config "$_pf_etc/dovecot.table" <<EO_PF_INSECURE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip dovecot)
+$(get_jail_ip6 dovecot)
 EO_PF_INSECURE
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip dovecot)"
 int_ip6 = "$(get_jail_ip6 dovecot)"
 
-# to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
-table <insecure_mua> persist file "$_pf_etc/insecure_mua"
-
 rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$int_ip4
 rdr inet6 proto tcp from any to <ext_ip6> port { 993 995 } -> \$int_ip6
 
+# to permit legacy users to access insecure POP3 & IMAP, add their IPs/masks
 rdr inet  proto tcp from <insecure_mua> to <ext_ip4> port { 110 143 } -> \$int_ip4
 rdr inet6 proto tcp from <insecure_mua> to <ext_ip6> port { 110 143 } -> \$int_ip6
 EO_PF_RDR
 
-	store_config "$_pf_etc/allow.conf" <<EO_PF_ALLOW
-int_ip4 = "$(get_jail_ip dovecot)"
-int_ip6 = "$(get_jail_ip6 dovecot)"
+	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
+pass in quick proto tcp from any to <dovecot> port { 993 995 }
 
-table <dovecot_int> persist { \$int_ip4, \$int_ip6 }
+pass in quick proto tcp from <insecure_mua> to <dovecot> port { 110 143 }
+EO_PF_FILTER
+}
 
-pass in quick proto tcp from any to <ext_ip> port { 993 995 }
-pass in quick proto tcp from any to <dovecot_int> port { 993 995 }
+configure_dovecot_lastauth()
+{
+	store_exec "$ZFS_DATA_MNT/dovecot/bin/lastauth.sh" <<EO_LASTAUTH
+#!/bin/sh
 
-pass in quick proto tcp from <insecure_mua> to <dovecot_int> port { 110 143 }
-EO_PF_ALLOW
+set -e
+
+domain=\$(echo \$USER | cut -f2 -d@)
+user=\$(echo \$USER | cut -f1 -d@)
+
+echo "UPDATE vpopmail.lastauth SET timestamp=UNIX_TIMESTAMP(now()), remote_ip='\$IP' WHERE user='\$user' AND domain='\$domain';" \
+ | mysql --defaults-extra-file=/data/etc/.my.cnf vpopmail
+
+exec "\$@"
+EO_LASTAUTH
+
+	_mycnf="$ZFS_DATA_MNT/dovecot/etc/.my.cnf"
+	store_config "$_mycnf" "overwrite" <<EO_DOVECOT_MY
+[client]
+host=mysql
+user=vpopmail
+password=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+database=vpopmail
+EO_DOVECOT_MY
+
+	chmod 0640 "$_mycnf"
+	chown 89:89 "$_mycnf"
 }
 
 configure_dovecot()
@@ -574,6 +615,7 @@ configure_dovecot()
 	configure_tls_certs
 	configure_sieve
 	configure_dovecot_pf
+	configure_dovecot_lastauth
 
 	mkdir -p "$STAGE_MNT/var/spool/postfix/private"
 }
