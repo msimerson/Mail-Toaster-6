@@ -133,6 +133,10 @@ innodb_file_per_table = 1
 innodb_checksum_algorithm = none
 innodb_flush_neighbors = 0
 EO_MY_CNF
+
+	store_config "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mysql.conf" <<EO_ERR
+/data/db/mysql.err    mysql:mysql    640  7  250000  *  Z
+EO_ERR
 }
 
 start_mysql()
