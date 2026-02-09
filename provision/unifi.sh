@@ -29,7 +29,7 @@ install_unifi()
 	stage_pkg_install snappyjava openjdk17 gmake
 
 	tell_status "installing Unifi"
-	stage_make_conf unifi_SET 'net-mgmt/unifi10_SET=EXTERNALDB'
+	stage_make_conf unifi10_SET 'net-mgmt/unifi10_SET=EXTERNALDB'
 	stage_port_install net-mgmt/unifi10
 }
 
