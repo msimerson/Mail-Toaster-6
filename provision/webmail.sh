@@ -119,7 +119,7 @@ configure_nginx_server()
 		}
 
 		location /dmarc {
-			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/;
+			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/dmarc;
 		}
 
 		location / {
