@@ -180,6 +180,7 @@ configure_spamassassin()
 loadplugin Mail::SpamAssassin::Plugin::TextCat
 loadplugin Mail::SpamAssassin::Plugin::ASN
 loadplugin Mail::SpamAssassin::Plugin::PDFInfo
+loadplugin Mail::SpamAssassin::Plugin::DMARC
 EO_LOCAL_PRE
 	fi
 
