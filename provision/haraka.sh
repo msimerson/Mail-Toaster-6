@@ -335,7 +335,7 @@ configure_haraka_tls() {
 
 configure_haraka_dnsbl()
 {
-	if ! grep -qs ^reject "$HARAKA_CONF/dns-list.ini"; then
+	if [ ! -f "$HARAKA_CONF/dns-list.ini" ]; then
 		tell_status "configuring dns-list"
 		configure_install_default dns-list.ini
 	fi

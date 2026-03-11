@@ -70,19 +70,16 @@ configure_nginx_server_d()
 		return
 	fi
 
-	# most calls get enclosing server block
-	local _prefix
-	if [ "$TOASTER_WEBMAIL_PROXY" = "haproxy" ]; then
-		_prefix='server {
+	# no more proxy protocol on backends, since nginx can't
+	# send proxy protocol AND route URIs at the same time
+	local _prefix='server {
 		listen       80;
-		listen  [::]:80;
 '
-	else
-		# nginx can't send proxy protocol AND route URIs at the same time
-		_prefix='server {
-		listen       80;
+
+	if [ -n "$PUBLIC_IP6" ]; then
+		_prefix="$_prefix
 		listen  [::]:80;
-'
+"
 	fi
 
 	local _suffix='location ~ /\.ht {

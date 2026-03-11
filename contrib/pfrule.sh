@@ -2,7 +2,7 @@
 
 # pfrule.sh
 #
-# Matt Simerson, matt@tnpi.net, 2024-11
+# Matt Simerson, matt@tnpi.net, 2026-02
 #
 # Use pfctl to load and unload PF rules into named anchors from config
 # files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
@@ -18,9 +18,14 @@ usage() {
 }
 
 cleanup() {
-    if [ -f allow.conf ] && [ ! -f filter.conf ]; then
-        echo "mv allow.conf filter.conf"
-        mv allow.conf filter.conf
+    if [ -f allow.conf ]; then
+        if [ -f filter.conf ]; then
+            echo "mv allow.conf allow.bak"
+            mv allow.conf allow.bak
+        else
+            echo "mv allow.conf filter.conf"
+            mv allow.conf filter.conf
+        fi
     fi
 }
 
@@ -28,6 +33,10 @@ load_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
         _table_name=$(basename $_f .table)
+        _hit=$(grep -EL "^table[[:space:]]+\<$_table_name\>" /etc/pf.conf $ETC_PATH/*.conf)
+        if [ $_hit != "" ]; then
+            echo "WARN: table $_table_name appears to ALSO exist in $_hit"
+        fi
         do_cmd "pfctl -t $_table_name -T replace -f $_f"
     done
 }
@@ -51,7 +60,7 @@ do_cmd() {
 flush() {
     case "$1" in
         "nat"   ) do_cmd "$2 -F nat"   ;;
-        "rdr"   ) do_cmd "$2 -F nat"   ;;
+        "rdr"   ) do_cmd "$2 -F rdr"   ;;
         "filter") do_cmd "$2 -F rules" ;;
     esac
 }

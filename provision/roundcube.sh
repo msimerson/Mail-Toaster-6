@@ -12,7 +12,7 @@ mt6-include php
 mt6-include nginx
 mt6-include mysql
 
-PHP_VER="82"
+PHP_VER="83"
 
 mysql_error_warning()
 {
