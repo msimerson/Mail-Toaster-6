@@ -6,7 +6,7 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/dcc/db		$ZFS_JAIL_MNT/dcc/var/db/dcc nullfs	rw	0	0"
 
 install_dcc_cleanup()
 {
@@ -100,8 +100,19 @@ test_dcc()
 	stage_listening 1025 3
 }
 
+preflight()
+{
+	for _d in etc db; do
+		_path="$ZFS_DATA_MNT/dcc/$_d"
+		[ -d "$_path" ] || mkdir "$_path"
+	done
+
+	mkdir "$STAGE_MNT/var/db/dcc"
+}
+
 base_snapshot_exists || exit 1
 create_staged_fs dcc
+preflight
 start_staged_jail dcc
 install_dcc
 configure_dcc
