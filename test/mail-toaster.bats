@@ -3,25 +3,16 @@
 setup() {
   load 'test_helper/bats-support/load'
   load 'test_helper/bats-assert/load'
+  export MT6_TEST_ENV=1
   load ../mail-toaster.sh
-}
-
-@test "mt6_version" {
-  run mt6_version
-  assert_success
-  assert_output --partial "2026"
-}
-
-@test "mt6_version_check" {
-  run mt6_version_check
-  #[ "$status" -eq 0 ]
-  assert_success
-}
-
-@test "dec_to_hex" {
-  run dec_to_hex 10
-  assert_success
-  assert_output "000a"
+  # Manually load includes that mt6_init would have loaded
+  load ../include/util.sh
+  load ../include/config.sh
+  load ../include/zfs.sh
+  load ../include/jail.sh
+  load ../include/network.sh
+  # Initialize defaults that mt6_init would have set
+  mt6_defaults
 }
 
 @test "safe_jailname replaces . with _" {

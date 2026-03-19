@@ -44,15 +44,7 @@ install_geoip_dbs()
 
 	mount_nullfs "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/stage/usr/local/share/GeoIP"
 
-	local _fstab="$ZFS_DATA_MNT/haraka/etc/fstab"
-	for _f in "$_fstab" "$_fstab.stage"; do
-		if ! grep -qs GeoIP "$_f"; then
-			tell_status "adding GeoIP volume to $_f"
-			tee -a "$_f" <<EO_GEOIP
-$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP nullfs rw 0 0"
-EO_GEOIP
-		fi
-	done
+	fstab_add_mount haraka "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP"
 
 	if ! grep -qs ^geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"

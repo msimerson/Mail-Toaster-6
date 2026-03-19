@@ -107,8 +107,8 @@ jexecl() {
 EO_BOURNE_SHELL
 	fi
 
-	if ! grep -qs profile "/root/.profile"; then
-		echo ". /etc/profile" >> "/root/.profile"
+	if ! grep -qs profile "$1/root/.profile"; then
+		echo ". /etc/profile" >> "$1/root/.profile"
 	fi
 }
 

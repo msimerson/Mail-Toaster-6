@@ -11,7 +11,7 @@ export JAIL_FSTAB=""
 mt6-include php
 mt6-include nginx
 
-PHP_VER="82"
+PHP_VER="83"
 
 install_snappymail()
 {
@@ -33,7 +33,7 @@ install_snappymail()
 	install_php "$PHP_VER" "$_php_modules"
 	install_nginx
 
-	if ! stage_exec pkg install -y php82-pecl-xxtea; then
+	if ! stage_exec pkg install -y php${PHP_VER}-pecl-xxtea; then
 		stage_pkg_install bsddialog gnupg autoconf automake re2c pcre2 pkgconf libxml2
 	fi
 
