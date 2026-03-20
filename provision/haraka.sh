@@ -451,7 +451,7 @@ configure_install_default()
 		fi
 	fi
 
-	echo "cp $_source/$1 $HARAKA_CONF/$1"
+	printf 'cp %s %s\n' "$_source/$1" "$HARAKA_CONF/$1"
 	cp "$_source/$1" "$HARAKA_CONF/$1"
 }
 

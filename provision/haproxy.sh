@@ -293,29 +293,29 @@ PEMSDIR=/data/etc/tls.d
 LOGDIR=/var/log/haproxy
 
 # Create the log path if it doesn't already exist
-[ -d $LOGDIR ] || mkdir $LOGDIR
+[ -d "$LOGDIR" ] || mkdir "$LOGDIR"
 UPDATED=0
 
-cd $PEMSDIR
+cd "$PEMSDIR"
 for pem in *.pem; do
     echo "= $(date)" >> "$LOGDIR/${pem}.log"
 
     # Get the OCSP URL from the certificate
-    ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in $pem)
+    ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in "$pem")
 
     # Extract the hostname from the OCSP URL
-    ocsp_host=$(echo $ocsp_url | cut -d/ -f3)
+    ocsp_host=$(echo "$ocsp_url" | cut -d/ -f3)
 
     # Only process the certificate if we have a .issuer file
-    if [ -r ${pem}.issuer ]; then
+    if [ -r "${pem}.issuer" ]; then
 
-        # Request the OCSP response from the issuer and store it
-        $OPENSSL ocsp \
-            -issuer ${pem}.issuer \
-            -cert ${pem} \
-            -url ${ocsp_url} \
-            -header Host=${ocsp_host} \
-            -respout ${pem}.ocsp || echo -n ""
+    # Request the OCSP response from the issuer and store it
+    $OPENSSL ocsp \
+        -issuer "${pem}.issuer" \
+        -cert "${pem}" \
+        -url "${ocsp_url}" \
+        -header "Host=${ocsp_host}" \
+        -respout "${pem}.ocsp" || echo -n ""
 
         UPDATED=$(( $UPDATED + 1 ))
     fi

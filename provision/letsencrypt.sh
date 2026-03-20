@@ -62,7 +62,7 @@ haproxy_deploy() {
 	_cca="$4"
 	_cfullchain="$5"
 
-	if [ ! -f $_ccert ]; then
+	if [ ! -f "$_ccert" ]; then
 		_err "missing certificate"
 		return 2
 	fi
@@ -79,7 +79,7 @@ haproxy_deploy() {
 	fi
 
 	local _tmp="/tmp/${_cdomain}.pem"
-	cat $_ckey $_cfullchain > $_tmp
+	cat "$_ckey" "$_cfullchain" > "$_tmp"
 	if [ ! -s "$_tmp" ]; then
 		_err "Unable to create $_tmp"
 		return 1

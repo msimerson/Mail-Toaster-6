@@ -12,9 +12,8 @@ install_qmail_smtp_run()
 	fi
 
 	echo "installing $RUN"
-	mkdir -p $SUP/qmail-smtpd/log/main
-#tee $RUN <<'EO_SMTP_RUN'
-	cat <<'EO_SMTP_RUN' > $RUN
+	mkdir -p "$SUP/qmail-smtpd/log/main"
+	cat <<'EO_SMTP_RUN' > "$RUN"
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/vpopmail/bin
 export PATH
@@ -33,7 +32,7 @@ exec /usr/local/bin/softlimit -m 51200000 \
 	/var/qmail/bin/splogger qmail
 EO_SMTP_RUN
 
-	chmod 755 $RUN
+	chmod 755 "$RUN"
 }
 
 install_qmail_smtp_log_run()
@@ -46,12 +45,12 @@ install_qmail_smtp_log_run()
 
 	echo "installing $RUN"
 	#tee $RUN <<'EO_SMTP_LOG_RUN'
-	cat <<'EO_SMTP_LOG_RUN' > $RUN
+	cat <<'EO_SMTP_LOG_RUN' > "$RUN"
 #!/bin/sh
 exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
 EO_SMTP_LOG_RUN
 
-	chmod 755 $RUN
+	chmod 755 "$RUN"
 }
 
 install_qmail_send_run()
@@ -63,9 +62,9 @@ install_qmail_send_run()
 	fi
 
 	echo "installing $RUN"
-	mkdir -p $SUP/qmail-send/log/main
+	mkdir -p "$SUP/qmail-send/log/main"
 	#tee $RUN <<'EO_SEND_RUN'
-	cat <<'EO_SEND_RUN' > $RUN
+	cat <<'EO_SEND_RUN' > "$RUN"
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
@@ -73,7 +72,7 @@ exec /var/qmail/bin/qmail-start ./Maildir/ \
 	/var/qmail/bin/splogger qmail
 EO_SEND_RUN
 
-	chmod 755 $RUN
+	chmod 755 "$RUN"
 }
 
 install_qmail_send_log_run()
@@ -86,12 +85,12 @@ install_qmail_send_log_run()
 
 	echo "installing $RUN"
 	#tee $RUN <<'EO_SEND_LOG_RUN'
-	cat <<'EO_SEND_LOG_RUN' > $RUN
+	cat <<'EO_SEND_LOG_RUN' > "$RUN"
 #!/bin/sh
 exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
 EO_SEND_LOG_RUN
 
-	chmod 755 $RUN
+	chmod 755 "$RUN"
 }
 
 install_qmailctl()
@@ -108,8 +107,7 @@ install_qmailctl()
 	fi
 
 	echo "installing $QCTL"
-	#tee $QCTL <<'EO_QMAILCTL'
-	cat <<'EO_QMAILCTL' >  $QCTL
+	cat <<'EO_QMAILCTL' > "$QCTL"
 #!/bin/sh
 # description: the qmail MTA
 # From LWQ: http://lifewithqmail.org/qmailctl-script-dt70
@@ -117,8 +115,8 @@ install_qmailctl()
 PATH=/var/qmail/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/sbin
 export PATH
 
-QMAILDUID=`id -u qmaild`
-NOFILESGID=`id -g qmaild`
+QMAILDUID=$(id -u qmaild)
+NOFILESGID=$(id -g qmaild)
 VPOPMAIL=/usr/local/vpopmail
 
 case "$1" in
@@ -247,11 +245,11 @@ esac
 
 exit 0
 EO_QMAILCTL
-	chmod 755 $QCTL
+	chmod 755 "$QCTL"
 	QCTLBIN="/usr/local/bin/qmailctl"
 	if [ ! -L "$QCTLBIN" ];
 	then
-		ln -s $QCTL $QCTLBIN
+		ln -s "$QCTL" "$QCTLBIN"
 	fi
 }
 
@@ -263,7 +261,7 @@ install_vpopmail_etc()
 	fi
 
 	echo "installing $ETC/tcp.smtp"
-	mkdir -p $ETC || exit
+	mkdir -p "$ETC" || exit
 	tee "$ETC/tcp.smtp" <<EO_VPOPMAIL_ETC
 # if the chkuser patch is compiled into qmail,
 # CHKUSER_MBXQUOTA rejects messages when the users mailbox quota is filled
@@ -334,7 +332,7 @@ PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
 exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | /usr/bin/logger -t vpopmaild
 EO_VPOPMAILD
-	chmod 755 $RUN
+	chmod 755 "$RUN"
 
 	echo "installing $LOGRUN"
 	tee "$LOGRUN" <<'EO_VPOPMAILD_LOG'
@@ -358,7 +356,7 @@ install_qmail_deliverabled()
 	echo "installing $RUN"
 	mkdir -p "$SUP/deliverabled/log/main"
 	#tee "$RUN" <<'EO_DELIVERABLED'
-	cat <<'EO_DELIVERABLED' > $RUN
+	cat <<'EO_DELIVERABLED' > "$RUN"
 #!/bin/sh
 MAXRAM=150000000
 BIN=/usr/local/bin
@@ -366,7 +364,7 @@ PATH=/usr/local/vpopmail/bin
 export PATH
 exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1 | /usr/bin/logger -t qmd
 EO_DELIVERABLED
-	chmod 755 $RUN
+	chmod 755 "$RUN"
 
 	#tee "$LOGRUN" <<'EO_DELIVERABLED_RUN'
 	cat <<'EO_DELIVERABLED_RUN' > "$LOGRUN"
@@ -404,7 +402,7 @@ install_qmail_chkuser()
 		PORTBUILDDIR=/tmp/portbuild/$PORTDIR/work/netqmail-1.06
 	fi
 
-	cd $PORTDIR && make clean && make
+	cd "$PORTDIR" && make clean && make
 	if [ ! -d "$PORTBUILDDIR" ]; then
 		echo "Build directory for qmail not found!";
 		exit
@@ -422,7 +420,7 @@ install_qmail_chkuser()
 
 	sed -i '' -e 's/VPOPMAIL_HOME=\/home\/vpopmail/VPOPMAIL_HOME=\/usr\/local\/vpopmail/g' Makefile
 	sed -i '' -e 's/home\/vpopmail/usr\/local\/vpopmail/' conf-cc
-	make && make setup && cd $PORTDIR && make deinstall && make install clean
+	make && make setup && cd "$PORTDIR" && make deinstall && make install clean
 }
 
 install_clear_run()
@@ -434,15 +432,15 @@ install_clear_run()
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/clear"
-	cat <<'EO_CLEAR' > $RUN
+	cat <<'EO_CLEAR' > "$RUN"
 	#!/bin/sh
 yes '' | head -4000 | tr '\n' .
 
 # To clear service errors, run this command:
 # svc -o /service/clear
 EO_CLEAR
-	chmod 755 $RUN
-	touch $SUP/clear/down
+	chmod 755 "$RUN"
+	touch "$SUP/clear/down"
 }
 
 install_clear_run
