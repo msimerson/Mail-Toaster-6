@@ -35,7 +35,7 @@ freebsd_update()
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 
 	echo "clearing freebsd-update cache"
-	rm -rf "$BASE_MNT/var/db/freebsd-update/*"
+	rm -rf "$BASE_MNT/var/db/freebsd-update"/*
 }
 
 install_freebsd()
