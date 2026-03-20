@@ -117,8 +117,8 @@ install_qmailctl()
 PATH=/var/qmail/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/sbin
 export PATH
 
-QMAILDUID=`id -u qmaild`
-NOFILESGID=`id -g qmaild`
+QMAILDUID=$(id -u qmaild)
+NOFILESGID=$(id -g qmaild)
 VPOPMAIL=/usr/local/vpopmail
 
 case "$1" in
@@ -404,7 +404,7 @@ install_qmail_chkuser()
 		PORTBUILDDIR=/tmp/portbuild/$PORTDIR/work/netqmail-1.06
 	fi
 
-	cd $PORTDIR && make clean && make
+	cd "$PORTDIR" && make clean && make
 	if [ ! -d "$PORTBUILDDIR" ]; then
 		echo "Build directory for qmail not found!";
 		exit
@@ -422,7 +422,7 @@ install_qmail_chkuser()
 
 	sed -i '' -e 's/VPOPMAIL_HOME=\/home\/vpopmail/VPOPMAIL_HOME=\/usr\/local\/vpopmail/g' Makefile
 	sed -i '' -e 's/home\/vpopmail/usr\/local\/vpopmail/' conf-cc
-	make && make setup && cd $PORTDIR && make deinstall && make install clean
+	make && make setup && cd "$PORTDIR" && make deinstall && make install clean
 }
 
 install_clear_run()
@@ -434,15 +434,15 @@ install_clear_run()
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/clear"
-	cat <<'EO_CLEAR' > $RUN
+	cat <<'EO_CLEAR' > "$RUN"
 	#!/bin/sh
 yes '' | head -4000 | tr '\n' .
 
 # To clear service errors, run this command:
 # svc -o /service/clear
 EO_CLEAR
-	chmod 755 $RUN
-	touch $SUP/clear/down
+	chmod 755 "$RUN"
+	touch "$SUP/clear/down"
 }
 
 install_clear_run

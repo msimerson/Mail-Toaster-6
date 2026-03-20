@@ -143,7 +143,7 @@ configure_elasticsearch()
 	else
 		tell_status "installing elasticsearch.yml"
 		mkdir -p "$STAGE_MNT/data/etc"
-		echo "cp $_conf $_data_conf"
+		printf 'cp %s %s\n' "$_conf" "$_data_conf"
 		cp "$_conf" "$_data_conf"
 		chown 965 "$_data_conf"
 
