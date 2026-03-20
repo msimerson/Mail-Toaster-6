@@ -115,6 +115,7 @@ configure_nginx_server()
 	if [ "$TOASTER_USE_TMPFS" = "1" ]; then
 		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
 TEMPDIRS="/tmp/nginx/fastcgi_temp /tmp/nginx/client_body_temp"
+# shellcheck disable=SC2086  # intentional word-splitting to expand TEMPDIRS into multiple args
 mkdir -p $TEMPDIRS
 chown www:www $TEMPDIRS
 chmod 0700 $TEMPDIRS

@@ -159,10 +159,10 @@ do_start() {
     start-stop-daemon --start \
         --background \
         --make-pidfile \
-        --pidfile $PIDFILE \
+        --pidfile "$PIDFILE" \
         --chuid $DAEMON_USER \
         --exec $DAEMON -- \
-            --config $CONFIG >> $LOGFILE 2>&1
+        --config "$CONFIG" >> "$LOGFILE" 2>&1
 
     log_end_msg $?
 }
@@ -174,7 +174,7 @@ do_stop() {
         --pidfile $PIDFILE \
         --retry=TERM/30/KILL/5
 
-    rm -f $PIDFILE
+    rm -f "$PIDFILE"
     log_end_msg $?
 }
 
