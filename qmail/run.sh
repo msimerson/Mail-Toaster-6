@@ -48,7 +48,7 @@ install_qmail_smtp_log_run()
 	cat <<'EO_SMTP_LOG_RUN' > "$RUN"
 #!/bin/sh
 exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
-EO_SMTP_LOG_RUN
+	EO_SMTP_LOG_RUN
 
 	chmod 755 "$RUN"
 }
@@ -70,7 +70,7 @@ PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
 exec /var/qmail/bin/qmail-start ./Maildir/ \
 	/var/qmail/bin/splogger qmail
-EO_SEND_RUN
+	EO_SEND_RUN
 
 	chmod 755 "$RUN"
 }
@@ -88,7 +88,7 @@ install_qmail_send_log_run()
 	cat <<'EO_SEND_LOG_RUN' > "$RUN"
 #!/bin/sh
 exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
-EO_SEND_LOG_RUN
+	EO_SEND_LOG_RUN
 
 	chmod 755 "$RUN"
 }
