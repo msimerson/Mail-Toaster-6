@@ -283,7 +283,7 @@ install_vpopmail()
 
 	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
 	if [ "$_fbsd_major" -gt "12" ]; then
-		echo "CFLAGS+= -fcommon" >> $STAGE_MNT/etc/make.conf
+		echo "CFLAGS+= -fcommon" >> "$STAGE_MNT/etc/make.conf"
 	fi
 
 	tell_status "installing vpopmail package"
