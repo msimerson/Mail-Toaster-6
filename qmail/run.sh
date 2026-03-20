@@ -13,7 +13,6 @@ install_qmail_smtp_run()
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/qmail-smtpd/log/main"
-#tee $RUN <<'EO_SMTP_RUN'
 	cat <<'EO_SMTP_RUN' > "$RUN"
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/vpopmail/bin
@@ -108,8 +107,7 @@ install_qmailctl()
 	fi
 
 	echo "installing $QCTL"
-	#tee $QCTL <<'EO_QMAILCTL'
-	cat <<'EO_QMAILCTL' >  "$QCTL"
+	cat <<'EO_QMAILCTL' > "$QCTL"
 #!/bin/sh
 # description: the qmail MTA
 # From LWQ: http://lifewithqmail.org/qmailctl-script-dt70
