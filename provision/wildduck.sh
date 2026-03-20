@@ -15,7 +15,7 @@ mt6-include mua
 
 preflight_check()
 {
-	for _j in dns redis mongodb jo
+	for _j in dns redis mongodb
 	do
 		if ! jail_is_running "$_j"; then
 			fatal_err "jail $_j is required"
@@ -26,7 +26,7 @@ preflight_check()
 install_wildduck()
 {
 	tell_status "installing wildduck dependencies"
-	stage_pkg_install npm-node20 git-tiny
+	stage_pkg_install npm-node20 git-tiny jo
 
 	if [ ! -e "$STAGE_MNT/data/wildduck" ]; then
 		tell_status "installing wildduck"

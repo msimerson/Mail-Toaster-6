@@ -323,9 +323,9 @@ done
 
 if [ $UPDATED -gt 0 ]; then
     echo "= $(date) - Updated $UPDATED OCSP responses" >> "$LOGDIR/${pem}.log"
-    service haproxy reload > $LOGDIR/service-reload.log 2>&1
+    service haproxy reload > "$LOGDIR/service-reload.log" 2>&1
 else
-    echo "= $(date) - No updates" >> $LOGDIR/${pem}.log
+    echo "= $(date) - No updates" >> "$LOGDIR/${pem}.log"
 fi
 
 EO_OCSP
