@@ -50,10 +50,15 @@ configure_haproxy_dot_conf()
 global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
-	ssl-default-bind-options no-sslv3 no-tls-tickets
+	stats socket :9999 level admin expose-fd listeners
+
+	# ssl-config.mozilla.org to configure, ssllabs.com/ssltest to verify
+	ssl-default-bind-curves X25519:prime256v1:secp384r1
+	ssl-default-bind-options prefer-client-ciphers ssl-min-ver TLSv1.2 no-tls-tickets
+	ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+	ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305
 	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
-	stats socket :9999 level admin expose-fd listeners
 
 defaults
 	mode        http
@@ -83,7 +88,6 @@ frontend http-in
 	#mode tcp
 	bind :::80 v4v6 alpn http/1.1
 	bind :::443 v4v6 alpn http/1.1 ssl crt /data/etc/tls.d
-	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
 	http-request  set-header X-Forwarded-Port %[dst_port]

@@ -24,16 +24,6 @@ PATH=/usr/local/bin:/usr/bin:/bin
 EO_SAUPD
 }
 
-install_sought_rules() {
-	if [ -f "$ZFS_DATA_MNT/spamassassin/var/3.004001/sought_rules_yerp_org.cf" ]; then
-		return
-	fi
-
-	tell_status "installing sought rules"
-	fetch -o - http://yerp.org/rules/GPG.KEY | stage_exec sa-update --import -
-	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
-}
-
 install_spamassassin_port()
 {
 	tell_status "install SpamAssassin from ports (w/opts)"
@@ -53,10 +43,6 @@ install_spamassassin_port()
 		echo "ports aren't mounted!" && exit 1
 	fi
 
-	#export BATCH=1  # if set, GPG key importing will fail
-	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
-		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
-	fi
 	stage_port_install mail/spamassassin
 }
 
@@ -221,7 +207,6 @@ EO_LOCAL_CONF
 	tell_status "initialize sa-update"
 	stage_exec sa-update && stage_exec sa-compile
 
-	#install_sought_rules
 	install_sa_update
 	configure_spamassassin_redis_bayes
 	configure_geoip

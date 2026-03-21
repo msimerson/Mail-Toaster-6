@@ -32,8 +32,8 @@ dec_to_hex() { printf '%04x\n' "$1"; }
 
 store_config()
 {
-	# $1 - path to config file, $2 - overwrite, STDIN is file contents
-	local _overwrite=${2:-""}
+	# $1 - path to config file, $2 - operation, STDIN is file contents
+	local _operation=${2:-""}
 
 	if [ ! -d "$(dirname "$1")" ]; then
 		tell_status "creating $(dirname "$1")"
@@ -42,9 +42,11 @@ store_config()
 
 	cat - > "$1.mt6"
 
-	if [ ! -f "$1" ] || [ "$_overwrite" = "overwrite" ]; then
+	if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
 		tell_status "installing $1"
 		cp "$1.mt6" "$1"
+	elif [ "$_operation" = "append" ]; then
+		cat "$1.mt6" >> "$1"
 	else
 		tell_status "preserving $1"
 	fi

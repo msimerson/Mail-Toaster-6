@@ -8,8 +8,11 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 - feat(haraka): enable LMTP to dovecot for new installs
 - feat(fstab_add_mount): added
+
 - fix(mailfilter): remove most of it, so maildrop sometimes works
 - feat(test/run.sh): run a single script
+- feat(rspamd): configure virustotal & metadefender if API key set
+- change(haproxy): updated the ssl ciphers & suites
 - change(NTP): switch default server to chrony
 - change(spamassassin): updated TxRep/AWL/userpref SQL
   - enable build options for DMARC & RELAY_COUNTRY
