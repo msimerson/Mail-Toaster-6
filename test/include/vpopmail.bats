@@ -76,7 +76,7 @@ stage_make_conf() { :; }
 
 @test "install_qmail - basic" {
   export TOASTER_HOSTNAME="mail.example.com"
-  
+
   stage_pkg_install() {
     echo "pkg install $*"
   }
@@ -86,15 +86,34 @@ stage_make_conf() { :; }
   stage_make_conf() {
     echo "make_conf $1 $2"
   }
-  
+
   # Mocking directory operations and file checks
   mkdir() { :; }
   rm() { :; }
   grep() { return 1; }
-  
+
   run install_qmail
   assert_success
   assert_output --partial "pkg install netqmail daemontools ucspi-tcp"
   assert_output --partial "exec ln -s /usr/local/vpopmail/qmail-control /var/qmail/control"
   assert_output --partial "make_conf mail_qmail_"
+}
+
+@test "install_vpopmail_source" {
+  export TOASTER_MYSQL="1"
+  export TOASTER_VPOPMAIL_EXT="1"
+  export TOASTER_VPOPMAIL_CLEAR="1"
+
+  stage_pkg_install() { echo "pkg install $*"; }
+  stage_exec() { echo "exec $*"; }
+
+  # Mock git and directory operations
+  git() { echo "git $*"; }
+  mkdir() { :; }
+
+  run install_vpopmail_source
+  assert_success
+  assert_output --partial "pkg install automake"
+  assert_output --partial "git clone https://github.com/brunonymous/vpopmail.git"
+  assert_output --partial "exec sh -c cd /data/src/vpopmail; CFLAGS=\"-fcommon\" ./configure --disable-users-big-dir --enable-logging=y --enable-md5-passwords --disable-sha512-passwords --enable-auth-module=mysql --enable-valias --enable-sql-aliasdomains --enable-qmail-ext --enable-clear-passwd"
 }

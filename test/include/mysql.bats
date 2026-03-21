@@ -85,3 +85,62 @@ jexec() {
   assert_failure
   assert_output --partial "testdb db does not exist"
 }
+
+@test "mysql_query - with db" {
+  mysql_bin() { echo "mysql"; }
+  jexec() {
+    echo "jexec called with $*"
+  }
+
+  run mysql_query testdb
+  assert_success
+  assert_output --partial "db: testdb"
+  assert_output --partial "jexec called with mysql mysql testdb"
+}
+
+@test "mysql_create_db - exists" {
+  mysql_db_exists() { return 0; }
+  tell_status() { echo "tell_status: $*"; }
+
+  run mysql_create_db testdb
+  assert_success
+  assert_output --partial "tell_status: testdb db exists in mysql"
+}
+
+@test "mysql_create_db - create" {
+  mysql_db_exists() { return 1; }
+  tell_status() { echo "tell_status: $*"; }
+  mysql_query() {
+    local _input; read -r _input
+    echo "mysql_query got: $_input"
+  }
+
+  run mysql_create_db testdb
+  assert_success
+  assert_output --partial "tell_status: creating mysql database testdb"
+  assert_output --partial "mysql_query got: CREATE DATABASE testdb"
+}
+
+@test "mysql_user_exists - exists" {
+  mysql_bin() { echo "mysql"; }
+  jexec() {
+    local _input; read -r _input
+    echo "user_record"
+  }
+
+  run mysql_user_exists user host
+  assert_success
+  assert_output --partial "user user exists"
+}
+
+@test "mysql_user_exists - does not exist" {
+  mysql_bin() { echo "mysql"; }
+  jexec() {
+    local _input; read -r _input
+    echo ""
+  }
+
+  run mysql_user_exists user host
+  assert_failure
+  assert_output --partial "user user does not exist"
+}

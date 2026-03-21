@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export MT6_TEST_ENV=0
+export MT6_TEST_ENV=${MT6_TEST_ENV:-0}
 
 tell_status()
 {

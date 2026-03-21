@@ -1,5 +1,10 @@
 #!/bin/sh
 
+tell_status()
+{
+        echo; echo "   ***   $1   ***"; echo
+}
+
 # bump version when a change in mail toaster effects provision scripts
 mt6_version() { echo "20260204"; }
 
@@ -188,9 +193,4 @@ EO_PKG_MT6
 
 	sed -i '' -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
 		"$ZFS_JAIL_MNT/stage/etc/freebsd-update.conf"
-}
-
-tell_status()
-{
-        echo; echo "   ***   $1   ***"; echo
 }

@@ -82,7 +82,7 @@ setup() {
 }
 
 @test "add_jail_conf" {
-  JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() {
     if [ "$1" -eq 3 ]; then echo "3"; fi
   }
@@ -94,7 +94,7 @@ setup() {
 
   # Mock grep to not find jail.conf
   grep() { return 1; }
-  get_public_ip() { :; }
+  get_public_ip() { export PUBLIC_IP6="2001:db8::1"; }
   store_config() {
     cat -
   }
@@ -103,13 +103,13 @@ setup() {
   assert_success
   assert_output --partial "mysql	{"
   assert_output --partial "ip4.addr = lo1|172.16.15.3;"
+  assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:3;"
 }
 
 @test "add_jail_conf_d" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
-  export PUBLIC_IP6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() { if [ "$1" -eq 3 ]; then echo "3"; fi; }
-  get_public_ip() { :; }
+  get_public_ip() { export PUBLIC_IP6="2001:db8::1"; }
   store_config() {
     cat -
   }
