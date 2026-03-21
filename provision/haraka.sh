@@ -164,7 +164,8 @@ configure_haraka_qmail_deliverable()
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
 host=$(get_jail_ip vpopmail)
-queue=smtp_forward" | \
+queue=smtp_forward
+next_hop=lmtp://$(get_jail_ip dovecot)" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
