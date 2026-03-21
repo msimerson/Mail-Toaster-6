@@ -91,7 +91,7 @@ disable_root_password()
 	# prevent a nightly email notice about the empty root password
 	tell_status "disabling passwordless root account"
 	sed -i.bak -e 's/^root::/root:*:/' "$BASE_MNT/etc/master.passwd"
-	stage_exec pwd_mkdb "$BASE_MNT/etc/master.passwd"
+	stage_exec pwd_mkdb /etc/master.passwd
 }
 
 disable_cron_jobs()

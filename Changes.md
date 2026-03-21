@@ -3,6 +3,23 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+
+## 2026-03
+
+- feat(haraka): enable LMTP to dovecot for new installs
+- feat(fstab_add_mount): added
+- fix(mailfilter): remove most of it, so maildrop sometimes works
+- feat(test/run.sh): run a single script
+- change(NTP): switch default server to chrony
+- change(spamassassin): updated TxRep/AWL/userpref SQL
+  - enable build options for DMARC & RELAY_COUNTRY
+  - inline SQL for tables, no longer installed
+- change(snappymail): php8.2 -> 8.3
+- maildrop: install from package (TODO: test)
+- change: refactored mail-toaster.sh into test covered modules
+  - config, jail, network, util, zfs
+- test: added more tests to other modules
+
 ## 2022-05
 
 ### Feature

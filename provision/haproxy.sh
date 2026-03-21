@@ -309,13 +309,13 @@ for pem in *.pem; do
     # Only process the certificate if we have a .issuer file
     if [ -r "${pem}.issuer" ]; then
 
-    # Request the OCSP response from the issuer and store it
-    $OPENSSL ocsp \
-        -issuer "${pem}.issuer" \
-        -cert "${pem}" \
-        -url "${ocsp_url}" \
-        -header "Host=${ocsp_host}" \
-        -respout "${pem}.ocsp" || echo -n ""
+        # Request the OCSP response from the issuer and store it
+        $OPENSSL ocsp \
+            -issuer "${pem}.issuer" \
+            -cert "${pem}" \
+            -url "${ocsp_url}" \
+            -header "Host=${ocsp_host}" \
+            -respout "${pem}.ocsp" || echo -n ""
 
         UPDATED=$(( $UPDATED + 1 ))
     fi

@@ -458,7 +458,7 @@ install_jailmanage()
 	chmod 755 /usr/local/bin/jailmanage
 }
 
-enable_jails()
+enable_jails_start()
 {
 	tell_status "enabling jails"
 	sysrc jail_enable=YES
@@ -633,7 +633,7 @@ update_host() {
 	configure_tls_certs
 	configure_dhparams
 	install_sshguard
-	enable_jails
+	enable_jails_start
 	install_jailmanage
 	configure_etc_hosts
 	configure_csh_shell ""
