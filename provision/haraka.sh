@@ -25,7 +25,11 @@ install_haraka()
 	stage_exec bash -c 'git config --global url."https://".insteadOf git://'
 
 	tell_status "installing Haraka"
-	stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git"
+	if [ -n "$TOASTER_HARAKA_VERSION" ]; then
+		stage_exec bash -c "npm install -g --omit=dev haraka@$TOASTER_HARAKA_VERSION"
+	else
+		stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git"
+	fi
 
 	local _plugins="ws express"
 	for _p in log-reader dmarc-perl; do

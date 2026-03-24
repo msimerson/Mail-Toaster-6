@@ -68,6 +68,46 @@ install_access_conf()
 EO_UNBOUND_ACCESS
 }
 
+install_forward_conf()
+{
+	store_config "$ZFS_DATA_MNT/dns/forward.conf" <<EO_UNBOUND_FORWARD
+# Comparison Table: Forward vs Stub Zones
+# | Feature         | Forward Zone                    | Stub Zone                      |
+# | :-------------- | :------------------------------ | :----------------------------- |
+# | Upstream Role   | Recursive Resolver (ISP, etc.)  | Authoritative Server (BIND)    |
+# | Query Type      | Recursive ("Find this for me")  | Iterative ("Give me what you") |
+# | Caching         | Relies on forwarder + local     | Builds own local cache         |
+# | Fallback        | Falls back to root hints        | Does not fall back             |
+
+# forward-zone:
+# 	name: "example.com"
+# 	forward-addr: 192.0.2.68
+# 	forward-addr: 192.0.2.73@5355  # port 5355.
+#   forward-host: fwd.example.com
+# 	forward-first: no
+
+EO_UNBOUND_FORWARD
+}
+
+install_stub_conf()
+{
+	store_config "$ZFS_DATA_MNT/dns/stub.conf" <<EO_UNBOUND_STUB
+# Comparison Table: Forward vs Stub Zones
+# | Feature         | Forward Zone                    | Stub Zone                      |
+# | :-------------- | :------------------------------ | :----------------------------- |
+# | Upstream Role   | Recursive Resolver (ISP, etc.)  | Authoritative Server (BIND)    |
+# | Query Type      | Recursive ("Find this for me")  | Iterative ("Give me what you") |
+# | Caching         | Relies on forwarder + local     | Builds own local cache         |
+# | Fallback        | Falls back to root hints        | Does not fall back             |
+
+# stub-zone:
+#       name: "example.com"
+#       stub-addr: 192.0.2.68
+
+
+EO_UNBOUND_STUB
+}
+
 install_local_conf()
 {
 	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
@@ -100,6 +140,12 @@ include: "/data/mt6-local.conf" \
 ' \
 		-e '/^remote-control:/ a\ 
 	include: "/data/control.conf" \
+' \
+		-e '/fwd.example.com$/ a\
+include: "/data/forward.conf" \
+' \
+		-e '/stub-host: ns.example.com.$/ a\
+include: "/data/stub.conf" \
 ' \
 		"$UNBOUND_DIR/unbound.conf"
 }
@@ -165,6 +211,8 @@ EO_UB_LOCAL_CONF
 	get_public_ip
 
 	install_access_conf
+	install_forward_conf
+	install_stub_conf
 	install_local_conf
 }
 

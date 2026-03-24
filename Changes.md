@@ -6,9 +6,10 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-03
 
+- feat(dns): add forward and stub.conf
+- feat(haraka): allow specifying a version of Haraka
 - feat(haraka): enable LMTP to dovecot for new installs
 - feat(fstab_add_mount): added
-
 - fix(mailfilter): remove most of it, so maildrop sometimes works
 - feat(test/run.sh): run a single script
 - feat(rspamd): configure virustotal & metadefender if API key set
