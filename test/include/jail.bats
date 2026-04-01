@@ -69,22 +69,22 @@ setup() {
 
 @test "get_reverse_ip" {
   run get_reverse_ip mysql
-  assert_output "6.15.16.172.in-addr.arpa"
+  assert_output "4.15.16.172.in-addr.arpa"
 }
 
 @test "get_reverse_ip6" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() {
-    if [ "$1" -eq 6 ]; then echo "6"; fi
+    if [ "$1" -eq 4 ]; then echo "4"; fi
   }
   run get_reverse_ip6 mysql
-  assert_output "6.7.9.5.c.1.c.f.1.d.c.5.e.a.7.d.f.ip6.arpa"
+  assert_output "4.7.9.5.c.1.c.f.1.d.c.5.e.a.7.d.f.ip6.arpa"
 }
 
 @test "add_jail_conf" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() {
-    if [ "$1" -eq 3 ]; then echo "3"; fi
+    if [ "$1" -eq 4 ]; then echo "4"; fi
   }
 
   # Mock tee to capture output
@@ -108,7 +108,7 @@ setup() {
 
 @test "add_jail_conf_d" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
-  dec_to_hex() { if [ "$1" -eq 3 ]; then echo "3"; fi; }
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
   get_public_ip() { export PUBLIC_IP6="2001:db8::1"; }
   store_config() {
     cat -
@@ -116,7 +116,7 @@ setup() {
 
   run add_jail_conf_d mysql
   assert_success
-  assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:3;"
+  assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
 
