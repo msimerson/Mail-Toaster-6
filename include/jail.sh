@@ -9,7 +9,7 @@ safe_jailname()
 
 get_jail_ip()
 {
-	local _start=${JAIL_NET_START:=3}
+	local _start=${JAIL_NET_START:=1}
 
 	case "$1" in
 		syslog) echo "$JAIL_NET_PREFIX.$_start"; return;;

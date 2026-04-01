@@ -6,8 +6,8 @@ setup() {
   # Mock variables
   export JAIL_NET_PREFIX="172.16.15"
   export JAIL_NET_INTERFACE="lo1"
-  export JAIL_NET_START=3
-  export JAIL_ORDERED_LIST="syslog dns mysql"
+  export JAIL_NET_START=1
+  export JAIL_ORDERED_LIST="syslog base dns mysql"
   export ZFS_JAIL_MNT="/jails"
   export BASE_MNT="/jails/base-13.2-RELEASE"
 
@@ -34,12 +34,12 @@ setup() {
 
 @test "get_jail_ip - dns" {
   run get_jail_ip dns
-  assert_output "172.16.15.2"
+  assert_output "172.16.15.3"
 }
 
 @test "get_jail_ip - mysql" {
   run get_jail_ip mysql
-  assert_output "172.16.15.3"
+  assert_output "172.16.15.4"
 }
 
 @test "jail_is_running - yes" {
@@ -69,16 +69,16 @@ setup() {
 
 @test "get_reverse_ip" {
   run get_reverse_ip mysql
-  assert_output "3.15.16.172.in-addr.arpa"
+  assert_output "6.15.16.172.in-addr.arpa"
 }
 
 @test "get_reverse_ip6" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() {
-    if [ "$1" -eq 3 ]; then echo "3"; fi
+    if [ "$1" -eq 6 ]; then echo "6"; fi
   }
   run get_reverse_ip6 mysql
-  assert_output "3.7.9.5.c.1.c.f.1.d.c.5.e.a.7.d.f.ip6.arpa"
+  assert_output "6.7.9.5.c.1.c.f.1.d.c.5.e.a.7.d.f.ip6.arpa"
 }
 
 @test "add_jail_conf" {
@@ -102,8 +102,8 @@ setup() {
   run add_jail_conf mysql
   assert_success
   assert_output --partial "mysql	{"
-  assert_output --partial "ip4.addr = lo1|172.16.15.3;"
-  assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:3;"
+  assert_output --partial "ip4.addr = lo1|172.16.15.4;"
+  assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
 @test "add_jail_conf_d" {
