@@ -207,7 +207,7 @@ install_vpopmail_mysql_grants()
 		"$_vpe"
 
 	tell_status "setting up mysql user vpopmail"
-	for _jail in stage vpopmail dovecot sqwebmail; do
+	for _jail in stage vpopmail dovecot; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			mysql_user_exists vpopmail $_ip \

@@ -6,7 +6,7 @@ setup() {
   # Mock variables
   export JAIL_NET_PREFIX="172.16.15"
   export JAIL_NET_INTERFACE="lo1"
-  export JAIL_NET_START=1
+  export JAIL_NET_START=3
   export JAIL_ORDERED_LIST="syslog dns mysql"
   export ZFS_JAIL_MNT="/jails"
   export BASE_MNT="/jails/base-13.2-RELEASE"
