@@ -90,14 +90,14 @@ rename_staged_to_ready()
 	# get the wait over with before shutting down production jail
 	local _tries=0
 	local _zfs_rename="zfs rename $ZFS_JAIL_VOL/stage $_new_vol"
-	/bin/sync
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ "$_tries" -gt 4 ]; then
+		if [ "$_tries" -gt 3 ]; then
 			echo "trying to force rename"
 			_zfs_rename="zfs rename -f $ZFS_JAIL_VOL/stage $_new_vol"
 		fi
 		echo "waiting for ZFS filesystem to quiet ($_tries)"
+		/bin/sync
 		_tries=$((_tries + 1))
 		sleep 2
 	done
@@ -114,16 +114,16 @@ rename_active_to_last()
 
 	local _tries=0
 	local _zfs_rename="zfs rename $ACTIVE $LAST"
-	/bin/sync
 	echo "$_zfs_rename"
 	until $_zfs_rename; do
-		if [ $_tries -gt 5 ]; then
+		if [ $_tries -gt 3 ]; then
 			echo "trying to force rename ($_tries)"
 			_zfs_rename="zfs rename -f $ACTIVE $LAST"
 		fi
+		/bin/sync
 		echo "waiting for ZFS filesystem to quiet ($_tries)"
 		_tries=$((_tries + 1))
-		sleep 4
+		sleep 2
 	done
 }
 
