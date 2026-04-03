@@ -63,3 +63,23 @@ port_is_listening()
 		false
 	fi
 }
+
+install_acme_sh()
+{
+	stage_pkg_install acme.sh
+
+	# use a home directory that persists across deployments
+	stage_exec [ -d /data/home/acme ] || mkdir -p /data/home/acme
+	stage_exec pw usermod acme -d /data/home/acme
+
+	if [ ! -e "$STAGE_MNT/data/home/acme/deploy" ]; then
+		stage_exec ln -s /usr/local/share/examples/acme.sh/deploy /data/home/acme/
+	fi
+	stage_exec ln -s /data/home/acme /root/.acme.sh
+
+	# renew the certs automatically
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME_CRON
+#!/usr/local/bin/bash
+/usr/local/sbin/acme.sh --cron
+EO_ACME_CRON
+}

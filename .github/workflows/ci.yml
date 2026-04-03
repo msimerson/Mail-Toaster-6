@@ -8,6 +8,8 @@ on:
 
 jobs:
   shellcheck:
+    permissions:
+      contents: read
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
@@ -33,6 +35,8 @@ jobs:
   freebsd:
     runs-on: ubuntu-latest
     name: FreeBSD
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v6
     - name: Test in FreeBSD
@@ -41,7 +45,7 @@ jobs:
       with:
         usesh: true
         prepare: |
-          pkg install -y curl
+          pkg install -y curl ca_root_nss
         run: |
           pwd
           ls -lah
@@ -49,3 +53,4 @@ jobs:
           env
           freebsd-version
           uname -a
+          fetch https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master/mail-toaster.sh

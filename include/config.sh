@@ -125,6 +125,7 @@ export ROUNDCUBE_DEFAULT_HOST=""
 export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
 export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export TOASTER_HARAKA_VERSION=""
+export UNIFI_MONGODB_DSN="mongodb://ubnt:<password>@mongodb:27017/unifi"
 export VIRUSTOTAL_API_KEY=""
 
 EO_MT_CONF

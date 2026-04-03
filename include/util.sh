@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # bump version when a change in mail toaster effects provision scripts
-mt6_version() { echo "20260204"; }
+mt6_version() { echo "20260403"; }
 
 tell_status() { echo; echo "   ***   $1   ***"; echo; }
 
