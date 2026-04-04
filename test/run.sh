@@ -19,3 +19,4 @@ shellcheck provision/*.sh
 
 bats test/*.bats
 bats test/include/*.bats
+bats test/provision/*.bats

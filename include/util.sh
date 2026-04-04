@@ -75,11 +75,11 @@ get_random_pass()
 		strong)
 			# https://unix.stackexchange.com/questions/230673/how-to-generate-a-random-string
 			# more entropy with 94 ASCII chars but special chars are often problematic
-			LC_ALL=C tr -dc '[:graph:]' </dev/urandom | head -c "$_pass_len"
+			LC_ALL=C tr -dc '[:graph:]' </dev/urandom 2>/dev/null | head -c "$_pass_len"
 			;;
 		safe)
 			# good entropy, limited by 62 alpha-num characters (no symbols)
-			LC_ALL=C tr -dc A-Za-z0-9 </dev/urandom | head -c "$_pass_len"
+			LC_ALL=C tr -dc A-Za-z0-9 </dev/urandom 2>/dev/null | head -c "$_pass_len"
 			;;
 		*)
 			# default, good, limited by base64 charset

@@ -64,7 +64,7 @@ install_acme_sh()
 	stage_pkg_install acme.sh
 
 	# use a home directory that persists across deployments
-	stage_exec [ -d /data/home/acme ] || mkdir -p /data/home/acme
+	stage_exec sh -c "[ -d /data/home/acme ] || mkdir -p /data/home/acme"
 	stage_exec pw usermod acme -d /data/home/acme
 
 	if [ ! -e "$STAGE_MNT/data/home/acme/deploy" ]; then
