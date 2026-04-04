@@ -12,9 +12,8 @@ get_public_facing_nic()
 		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
 	fi
 
-	if [ -z "$PUBLIC_NIC" ];
-	then
-		echo "public NIC detection failed"
+	if [ -z "$PUBLIC_NIC" ]; then
+		echo "public NIC detection failed" >&2
 		exit 1
 	fi
 }
@@ -45,7 +44,7 @@ get_random_ip6net()
 install_pfrule()
 {
 	local _pfdir
-	_pfdir="$(get_jail_data $1)/etc/pf.conf.d"
+	_pfdir="$(get_jail_data "$1")/etc/pf.conf.d"
 
 	mt6-fetch contrib pfrule.sh
 	install -d "$_pfdir"
@@ -57,9 +56,25 @@ port_is_listening()
 	local _port=${1:-"25"}
 	local _jail=${2:-"stage"}
 
-	if [ -n "$(sockstat -l -q -4 -6 -p "$_port" -j "$_jail")" ]; then
-		true
-	else
-		false
+	sockstat -l -q -4 -6 -p "$_port" -j "$_jail" | grep -q .
+}
+
+install_acme_sh()
+{
+	stage_pkg_install acme.sh
+
+	# use a home directory that persists across deployments
+	stage_exec [ -d /data/home/acme ] || mkdir -p /data/home/acme
+	stage_exec pw usermod acme -d /data/home/acme
+
+	if [ ! -e "$STAGE_MNT/data/home/acme/deploy" ]; then
+		stage_exec ln -s /usr/local/share/examples/acme.sh/deploy /data/home/acme/
 	fi
+	stage_exec ln -s /data/home/acme /root/.acme.sh
+
+	# renew the certs automatically
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME_CRON
+#!/usr/local/bin/bash
+/usr/local/sbin/acme.sh --cron
+EO_ACME_CRON
 }

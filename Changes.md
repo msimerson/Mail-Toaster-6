@@ -4,6 +4,19 @@
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
 
+## 2026-04
+
+- qmail: add smtpd ipv6 listener
+- vpopmail: remove qmailadmin SPAM_COMMAND
+- unifi: install pf rule for acme and config ext Mongo
+- nictool: bumped install version to 2.40
+- network: added install_acme_ms (for installing per-jail acme)
+- unifi: configure external mongodb when UNIFI_MONGODB_DSN
+- ci: added minimal permissions
+- ci: enabled FreeBSD basic tests
+- ci: set of kcov testing and codecov reporting
+- consistency: always quote variables, explicit exit codes
+
 ## 2026-03
 
 - feat(dns): add forward and stub.conf

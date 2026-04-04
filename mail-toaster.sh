@@ -16,16 +16,16 @@ mt6-update()
 }
 
 check_last_hour() {
-        timestamp_file="${TMPDIR:-/tmp}/.mt6_fetch"
-        current=$(date +%s)
-        last=$(cat "$timestamp_file" 2>/dev/null || echo 0)
+	timestamp_file="${TMPDIR:-/tmp}/.mt6_fetch"
+	current=$(date +%s)
+	last=$(cat "$timestamp_file" 2>/dev/null || echo 0)
 
-        if [ $((current - last)) -ge 3600 ]; then
-                echo "$current" > "$timestamp_file"
-                return 1  # Not within last hour (or first run)
-        else
-                return 0  # Within last hour
-        fi
+	if [ $((current - last)) -ge 3600 ]; then
+		echo "$current" > "$timestamp_file"
+		return 1  # Not within last hour (or first run)
+	else
+		return 0  # Within last hour
+	fi
 }
 
 mt6-fetch()
@@ -38,6 +38,7 @@ mt6-fetch()
 	fi
 
 	if [ -d ".git" ]; then
+		if [ "$CI" == "true" ]; then return; fi
 		if ! check_last_hour; then
 			tell_status "git repo, check status, skip fetch"
 			git remote update && git status
@@ -262,8 +263,8 @@ create_staged_fs()
 	echo "MASQUERADE $1@$TOASTER_MAIL_DOMAIN" >> "$STAGE_MNT/etc/dma/dma.conf"
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
-	install_fstab $1
-	install_pfrule $1
+	install_fstab "$1"
+	install_pfrule "$1"
 	echo
 }
 
@@ -273,7 +274,7 @@ start_staged_jail()
 	local _path=${2:-"$STAGE_MNT"}
 	local _fstab
 
-	_fstab="$(get_jail_data $_name)/etc/fstab"
+	_fstab="$(get_jail_data "$_name")/etc/fstab"
 	if [ "$_name" != "base" ]; then _fstab="$_fstab.stage"; fi
 
 	tell_status "stage jail $_name startup"

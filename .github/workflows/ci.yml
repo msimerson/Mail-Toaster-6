@@ -8,10 +8,12 @@ on:
 
 jobs:
   shellcheck:
+    permissions:
+      contents: read
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Run ShellCheck
       uses: ludeeus/action-shellcheck@master
       env:
@@ -22,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup Bats
       run: git submodule update --init --recursive
     - name: bats test
@@ -33,6 +35,7 @@ jobs:
   freebsd:
     runs-on: ubuntu-latest
     name: FreeBSD
+    permissions: {}
     steps:
     - uses: actions/checkout@v6
     - name: Test in FreeBSD
@@ -41,11 +44,13 @@ jobs:
       with:
         usesh: true
         prepare: |
-          pkg install -y curl
+          pkg install -y curl ca_root_nss git-lite
         run: |
           pwd
-          ls -lah
           whoami
-          env
           freebsd-version
           uname -a
+          git config --global --add safe.directory /home/runner/work/Mail-Toaster-6/Mail-Toaster-6
+          ./test/config.sh
+          . mail-toaster.conf
+          . mail-toaster.sh

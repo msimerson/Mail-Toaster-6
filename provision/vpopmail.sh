@@ -146,7 +146,7 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB DOMAIN_AUTOFILL IDX_SQL SPAM_DETECTION S
 		fi
 	done
 
-	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin
 
 	stage_port_install mail/qmailadmin
 

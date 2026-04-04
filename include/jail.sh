@@ -12,9 +12,9 @@ get_jail_ip()
 	local _start=${JAIL_NET_START:=1}
 
 	case "$1" in
-		syslog) echo "$JAIL_NET_PREFIX.$_start"; return;;
-		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))"; return;;
-		stage)  echo "$JAIL_NET_PREFIX.254"; return;;
+		syslog) echo "$JAIL_NET_PREFIX.$_start"; return ;;
+		base)   echo "$JAIL_NET_PREFIX.$((_start + 1))"; return ;;
+		stage)  echo "$JAIL_NET_PREFIX.254"; return ;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
@@ -47,9 +47,9 @@ get_jail_ip6()
 	local _start=${JAIL_NET_START:=1}
 
 	case "$1" in
-		syslog) echo "$JAIL_NET6:$(dec_to_hex "$_start")";       return;;
-		base)   echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"; return;;
-		stage)  echo "$JAIL_NET6:$(dec_to_hex 254)";             return;;
+		syslog) echo "$JAIL_NET6:$(dec_to_hex "$_start")";       return ;;
+		base)   echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"; return ;;
+		stage)  echo "$JAIL_NET6:$(dec_to_hex 254)";             return ;;
 	esac
 
 	if echo "$1" | grep -q ^base; then
@@ -81,8 +81,8 @@ get_reverse_ip()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
 	if [ -z "$_jail_ip" ]; then
-		echo "unknown jail: $1"
-		exit
+		echo "unknown jail: $1" >&2
+		exit 1
 	fi
 
 	local _rev_ip
@@ -159,8 +159,8 @@ stop_jail()
 jail_rename()
 {
 	if [ -z "$1" ] || [ -z "$2" ]; then
-		echo "$0 <existing jail name> <new jail name>"
-		exit
+		echo "usage: $0 <existing jail name> <new jail name>" >&2
+		exit 1
 	fi
 
 	echo "renaming $1 to $2"
@@ -169,8 +169,8 @@ jail_rename()
 	for _f in data jails
 	do
 		zfs unmount "$ZFS_VOL/$_f/$1"
-		zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2"  || exit
-		zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2"  || exit
+		zfs rename "$ZFS_VOL/$_f/$1" "$ZFS_VOL/$_f/$2" || exit 1
+		zfs set mountpoint="/$_f/$2" "$ZFS_VOL/$_f/$2" || exit 1
 		zfs mount "$ZFS_VOL/$_f/$2"
 	done
 
@@ -187,8 +187,8 @@ assure_jail()
 {
 	local _jid; _jid=$(jls -j "$1" jid)
 	if [ -z "$_jid" ]; then
-		echo "jail $1 is required but not available"
-		exit
+		echo "jail $1 is required but not available" >&2
+		exit 1
 	fi
 }
 

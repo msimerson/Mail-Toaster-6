@@ -1,13 +1,13 @@
 #!/bin/sh
 
+set -eu
+
 SUP="/var/qmail/supervise"
-mkdir -p /var/service
 
 install_qmail_smtp_run()
 {
 	RUN="$SUP/qmail-smtpd/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -35,20 +35,49 @@ EO_SMTP_RUN
 	chmod 755 "$RUN"
 }
 
-install_qmail_smtp_log_run()
+install_qmail_smtp6_run()
 {
-	RUN="$SUP/qmail-smtpd/log/run"
-	if [ -x "$RUN" ];
-	then
+	RUN="$SUP/qmail-smtpd-6/run"
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
 	echo "installing $RUN"
-	#tee $RUN <<'EO_SMTP_LOG_RUN'
-	cat <<'EO_SMTP_LOG_RUN' > "$RUN"
+	mkdir -p "$SUP/qmail-smtpd-6/log/main"
+	cat <<EO_SMTP_RUN > "$RUN"
+#!/bin/sh
+PATH=/var/qmail/bin:/usr/local/vpopmail/bin
+export PATH
+
+if [ ! -f /var/qmail/control/rcpthosts ]; then
+	echo "No /var/qmail/control/rcpthosts!"
+	echo "Refusing to start SMTP listener because it'll create an open relay"
+	exit 1
+fi
+
+exec /usr/local/bin/softlimit -m 51200000 \
+	/usr/local/bin/tcpserver -H -R -c10 \
+	-u 89 -g 82 $(get_jail_ip6 vpopmail) 25 \
+	/usr/local/bin/fixcrio \
+	/var/qmail/bin/qmail-smtpd /usr/local/vpopmail/bin/vchkpw /usr/bin/true \
+	/var/qmail/bin/splogger qmail
+EO_SMTP_RUN
+
+	chmod 755 "$RUN"
+}
+
+install_log_run()
+{
+	RUN="$SUP/$1/log/run"
+	if [ -x "$RUN" ]; then
+		echo -n "Re"
+	fi
+
+	echo "installing $RUN"
+	cat <<'EO_LOG_RUN' > "$RUN"
 #!/bin/sh
 exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
-EO_SMTP_LOG_RUN
+EO_LOG_RUN
 
 	chmod 755 "$RUN"
 }
@@ -56,8 +85,7 @@ EO_SMTP_LOG_RUN
 install_qmail_send_run()
 {
 	RUN="$SUP/qmail-send/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -75,34 +103,14 @@ EO_SEND_RUN
 	chmod 755 "$RUN"
 }
 
-install_qmail_send_log_run()
-{
-	RUN="$SUP/qmail-send/log/run"
-	if [ -x "$RUN" ];
-	then
-		echo -n "Re"
-	fi
-
-	echo "installing $RUN"
-	#tee $RUN <<'EO_SEND_LOG_RUN'
-	cat <<'EO_SEND_LOG_RUN' > "$RUN"
-#!/bin/sh
-exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
-EO_SEND_LOG_RUN
-
-	chmod 755 "$RUN"
-}
-
 install_qmailctl()
 {
-	if [ ! -d "/var/qmail/bin" ];
-	then
+	if [ ! -d "/var/qmail/bin" ]; then
 		mkdir -p /var/qmail/bin
 	fi
 
 	QCTL="/var/qmail/bin/qmailctl"
-	if [ -x "$QCTL" ];
-	then
+	if [ -x "$QCTL" ]; then
 		echo -n "Re"
 	fi
 
@@ -288,39 +296,18 @@ install_symlinks()
 		ln -s /var/service /service
 	fi
 
-	if [ ! -L "/service/qmail-smtpd" ]; then
-		echo "supervising qmail-smtpd"
-		ln -s /var/qmail/supervise/qmail-smtpd /service/qmail-smtpd
-	fi
-
-	if [ ! -L "/service/qmail-send" ]; then
-		echo "supervising qmail-send"
-		ln -s /var/qmail/supervise/qmail-send /service/qmail-send
-	fi
-
-	if [ ! -L "/service/vpopmaild" ]; then
-		echo "supervising vpopmaild"
-		ln -s /var/qmail/supervise/vpopmaild /service/vpopmaild
-	fi
-
-	if [ ! -L "/service/qmail-deliverabled" ]; then
-		echo "supervising qmail-deliverabled"
-		ln -s /var/qmail/supervise/deliverabled /service/qmail-deliverabled
-	fi
-
-	if [ ! -L "/service/clear" ]; then
-		if [ -d "/var/qmail/supervise/clear" ]; then
-			ln -s /var/qmail/supervise/clear /service/clear
+	for _srv in qmail-smtpd qmail-smtpd-6 qmail-send vpopmaild qmail-deliverabled clear; do
+		if [ ! -L "/service/$_srv" ] && [ -d "/var/qmail/supervise/$_srv" ]; then
+			echo "supervising $_srv"
+			ln -s "/var/qmail/supervise/$_srv" "/service/$_srv"
 		fi
-	fi
+	done
 }
 
 install_vpopmaild_run()
 {
 	RUN="$SUP/vpopmaild/run"
-	LOGRUN="$SUP/vpopmaild/log/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -333,23 +320,12 @@ export PATH
 exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | /usr/bin/logger -t vpopmaild
 EO_VPOPMAILD
 	chmod 755 "$RUN"
-
-	echo "installing $LOGRUN"
-	tee "$LOGRUN" <<'EO_VPOPMAILD_LOG'
-#!/bin/sh
-PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
-export PATH
-exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
-EO_VPOPMAILD_LOG
-	chmod 755 "$LOGRUN"
 }
 
 install_qmail_deliverabled()
 {
 	RUN="$SUP/deliverabled/run"
-	LOGRUN="$SUP/deliverabled/log/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -365,13 +341,6 @@ export PATH
 exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1 | /usr/bin/logger -t qmd
 EO_DELIVERABLED
 	chmod 755 "$RUN"
-
-	#tee "$LOGRUN" <<'EO_DELIVERABLED_RUN'
-	cat <<'EO_DELIVERABLED_RUN' > "$LOGRUN"
-#!/bin/sh
-exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
-EO_DELIVERABLED_RUN
-	chmod 755 "$LOGRUN"
 
 	if [ ! "$(pkg query %n -F p5-HTTP-Daemon)" ]; then
 		echo "Installing HTTP::Daemon"
@@ -395,28 +364,28 @@ $Qmail::Deliverable::VPOPMAIL_EXT = 1;
 
 install_qmail_chkuser()
 {
-	CHKPATCH=http://opensource.interazioni.it/fileadmin/opensource/pub/download/chkuser/chkuser-2.0.9-release.tar.gz
-	PORTDIR=/usr/ports/mail/qmail
-	PORTBUILDDIR=$PORTDIR/work/netqmail-1.06
+	CHKPATCH="http://opensource.interazioni.it/fileadmin/opensource/pub/download/chkuser/chkuser-2.0.9-release.tar.gz"
+	PORTDIR="/usr/ports/mail/qmail"
+	PORTBUILDDIR="$PORTDIR/work/netqmail-1.06"
 	if [ -d '/tmp/portbuild' ]; then
-		PORTBUILDDIR=/tmp/portbuild/$PORTDIR/work/netqmail-1.06
+		PORTBUILDDIR="/tmp/portbuild/$PORTDIR/work/netqmail-1.06"
 	fi
 
 	cd "$PORTDIR" && make clean && make
 	if [ ! -d "$PORTBUILDDIR" ]; then
-		echo "Build directory for qmail not found!";
-		exit
+		echo "Build directory for qmail not found!" >&2
+		exit 1
 	fi
 
-	cd $PORTBUILDDIR || exit
-	fetch -o - $CHKPATCH | tar -xzOf - | patch -p1
+	cd "$PORTBUILDDIR"
+	fetch -o - "$CHKPATCH" | tar -xzOf - | patch -p1
 	if stat -t ./*.rej >/dev/null 2>&1; then
-		echo "Patch did not apply cleanly, I refuse to proceed!"
-		exit
+		echo "Patch did not apply cleanly, I refuse to proceed!" >&2
+		exit 1
 	fi
 
 	echo "chkuser patch applied successfully"
-	sleep 2;
+	sleep 2
 
 	sed -i '' -e 's/VPOPMAIL_HOME=\/home\/vpopmail/VPOPMAIL_HOME=\/usr\/local\/vpopmail/g' Makefile
 	sed -i '' -e 's/home\/vpopmail/usr\/local\/vpopmail/' conf-cc
@@ -443,21 +412,27 @@ EO_CLEAR
 	touch "$SUP/clear/down"
 }
 
+mkdir -p /var/service
+
 install_clear_run
 install_qmail_send_run
-install_qmail_send_log_run
+install_log_run qmail-send
 install_qmail_smtp_run
-install_qmail_smtp_log_run
+install_log_run qmail-smtpd
+install_qmail_smtp6_run
+install_log_run qmail-smtpd-6
 install_qmailctl
 install_vpopmaild_run
+install_log_run vpopmaild
 install_vpopmail_etc
 #install_qmail_chkuser
 install_qmail_deliverabled
+install_log_run deliverabled
 install_symlinks
 
 chmod 755 /service/*/run
 chmod 755 /service/*/log/run
-chown -R qmaill $SUP/*/log
+chown -R qmaill "$SUP"/*/log
 
 if ! grep -qs svscan_enable /etc/rc.conf; then
 	sysrc svscan_enable=YES
