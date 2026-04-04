@@ -13,6 +13,8 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - network: added install_acme_ms (for installing per-jail acme)
 - unifi: configure external mongodb when UNIFI_MONGODB_DSN
 - ci: added minimal permissions
+- ci: enabled FreeBSD basic tests
+- ci: set of kcov testing and codecov reporting
 - consistency: always quote variables, explicit exit codes
 
 ## 2026-03
