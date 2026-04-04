@@ -64,9 +64,9 @@ disable_sendmail()
 	fi
 
 	local _periodic="sysrc -f $_base/etc/periodic.conf"
-	for _c in daily_clean_hoststat_enable daily_status_mail_rejects_enable daily_status_include_submit_mailq daily_submit_queuerun;
+	for _c in daily_clean_hoststat_enable daily_status_mail_rejects_enable daily_status_include_submit_mailq daily_submit_queuerun
 	do
-		if [ "$($_periodic -i -n $_c)" != "NO" ]; then $_periodic $_c=NO; fi
+		if [ "$($_periodic -i -n "$_c")" != "NO" ]; then $_periodic "$_c=NO"; fi
 	done
 }
 

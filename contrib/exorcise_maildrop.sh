@@ -1,12 +1,13 @@
 #!/bin/sh
 
-# shellcheck disable=SC2044
-for _f in $(find /data/vpopmail/ -type f -name .qmail); do
+set -eu
+
+find /data/vpopmail/ -type f -name .qmail | while IFS= read -r _f; do
 
 	# ignore files that don't specify maildrop
 	if ! grep -q maildrop "$_f"; then continue; fi
 
-	_lines=$(wc -l < "$_f" | bc)
+	_lines=$(wc -l < "$_f")
 	if [ "$_lines" = 1 ]; then
 		# files with only a mailfilter rule can be deleted
 		echo "$_lines: rm $_f"
@@ -30,10 +31,10 @@ for _f in $(find /data/vpopmail/ -type f -name .qmail); do
 	#echo
 
 	# write a new .qmail with the FQ Maildir + other delivery rules
-	echo "$_contents" > "$_f.new" || exit 1
-	echo "$_maildir" >> "$_f.new" || exit 1
-	chown 89:89 "$_f.new" || exit 1
-	chmod 600 "$_f.new" || exit 1
+	echo "$_contents" > "$_f.new"
+	echo "$_maildir" >> "$_f.new"
+	chown 89:89 "$_f.new"
+	chmod 600 "$_f.new"
 
 	# atomically replace the existing .qmail
 	#echo "mv $_f.new $_f"

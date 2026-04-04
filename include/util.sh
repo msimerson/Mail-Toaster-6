@@ -21,7 +21,7 @@ mt6_version_check()
 	fi
 
 	local _this
-	_this="$(mt6_version)";
+	_this="$(mt6_version)"
 	if [ -n "$_this" ] && [ "$_this" -lt "$_github" ]; then
 		echo "NOTICE: updating mail-toaster.sh"
 		mt6-update
@@ -83,7 +83,7 @@ get_random_pass()
 			;;
 		*)
 			# default, good, limited by base64 charset
-			openssl rand -base64 "$(echo "$_pass_len + 4" | bc)" | head -c "$_pass_len"
+			openssl rand -base64 "$((_pass_len + 4))" | head -c "$_pass_len"
 			;;
 	esac
 
@@ -141,9 +141,9 @@ preserve_file()
 
 reverse_list()
 {
-	# shellcheck disable=2068
-	for _j in $@; do
-		local _rev_list="${_j} ${_rev_list}"
+	local _rev_list=""
+	for _j in "$@"; do
+		_rev_list="${_j} ${_rev_list}"
 	done
 	echo "$_rev_list"
 }

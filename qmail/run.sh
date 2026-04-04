@@ -1,13 +1,13 @@
 #!/bin/sh
 
+set -eu
+
 SUP="/var/qmail/supervise"
-mkdir -p /var/service
 
 install_qmail_smtp_run()
 {
 	RUN="$SUP/qmail-smtpd/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -38,8 +38,7 @@ EO_SMTP_RUN
 install_qmail_smtp6_run()
 {
 	RUN="$SUP/qmail-smtpd-6/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -70,8 +69,7 @@ EO_SMTP_RUN
 install_log_run()
 {
 	RUN="$SUP/$1/log/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -87,8 +85,7 @@ EO_LOG_RUN
 install_qmail_send_run()
 {
 	RUN="$SUP/qmail-send/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -108,14 +105,12 @@ EO_SEND_RUN
 
 install_qmailctl()
 {
-	if [ ! -d "/var/qmail/bin" ];
-	then
+	if [ ! -d "/var/qmail/bin" ]; then
 		mkdir -p /var/qmail/bin
 	fi
 
 	QCTL="/var/qmail/bin/qmailctl"
-	if [ -x "$QCTL" ];
-	then
+	if [ -x "$QCTL" ]; then
 		echo -n "Re"
 	fi
 
@@ -304,7 +299,7 @@ install_symlinks()
 	for _srv in qmail-smtpd qmail-smtpd-6 qmail-send vpopmaild qmail-deliverabled clear; do
 		if [ ! -L "/service/$_srv" ] && [ -d "/var/qmail/supervise/$_srv" ]; then
 			echo "supervising $_srv"
-			ln -s /var/qmail/supervise/$_srv /service/$_srv
+			ln -s "/var/qmail/supervise/$_srv" "/service/$_srv"
 		fi
 	done
 }
@@ -312,8 +307,7 @@ install_symlinks()
 install_vpopmaild_run()
 {
 	RUN="$SUP/vpopmaild/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -331,8 +325,7 @@ EO_VPOPMAILD
 install_qmail_deliverabled()
 {
 	RUN="$SUP/deliverabled/run"
-	if [ -x "$RUN" ];
-	then
+	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
@@ -371,28 +364,28 @@ $Qmail::Deliverable::VPOPMAIL_EXT = 1;
 
 install_qmail_chkuser()
 {
-	CHKPATCH=http://opensource.interazioni.it/fileadmin/opensource/pub/download/chkuser/chkuser-2.0.9-release.tar.gz
-	PORTDIR=/usr/ports/mail/qmail
-	PORTBUILDDIR=$PORTDIR/work/netqmail-1.06
+	CHKPATCH="http://opensource.interazioni.it/fileadmin/opensource/pub/download/chkuser/chkuser-2.0.9-release.tar.gz"
+	PORTDIR="/usr/ports/mail/qmail"
+	PORTBUILDDIR="$PORTDIR/work/netqmail-1.06"
 	if [ -d '/tmp/portbuild' ]; then
-		PORTBUILDDIR=/tmp/portbuild/$PORTDIR/work/netqmail-1.06
+		PORTBUILDDIR="/tmp/portbuild/$PORTDIR/work/netqmail-1.06"
 	fi
 
 	cd "$PORTDIR" && make clean && make
 	if [ ! -d "$PORTBUILDDIR" ]; then
-		echo "Build directory for qmail not found!";
-		exit
+		echo "Build directory for qmail not found!" >&2
+		exit 1
 	fi
 
-	cd $PORTBUILDDIR || exit
-	fetch -o - $CHKPATCH | tar -xzOf - | patch -p1
+	cd "$PORTBUILDDIR"
+	fetch -o - "$CHKPATCH" | tar -xzOf - | patch -p1
 	if stat -t ./*.rej >/dev/null 2>&1; then
-		echo "Patch did not apply cleanly, I refuse to proceed!"
-		exit
+		echo "Patch did not apply cleanly, I refuse to proceed!" >&2
+		exit 1
 	fi
 
 	echo "chkuser patch applied successfully"
-	sleep 2;
+	sleep 2
 
 	sed -i '' -e 's/VPOPMAIL_HOME=\/home\/vpopmail/VPOPMAIL_HOME=\/usr\/local\/vpopmail/g' Makefile
 	sed -i '' -e 's/home\/vpopmail/usr\/local\/vpopmail/' conf-cc
@@ -419,6 +412,8 @@ EO_CLEAR
 	touch "$SUP/clear/down"
 }
 
+mkdir -p /var/service
+
 install_clear_run
 install_qmail_send_run
 install_log_run qmail-send
@@ -437,7 +432,7 @@ install_symlinks
 
 chmod 755 /service/*/run
 chmod 755 /service/*/log/run
-chown -R qmaill $SUP/*/log
+chown -R qmaill "$SUP"/*/log
 
 if ! grep -qs svscan_enable /etc/rc.conf; then
 	sysrc svscan_enable=YES
