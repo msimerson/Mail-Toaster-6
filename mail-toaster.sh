@@ -38,6 +38,7 @@ mt6-fetch()
 	fi
 
 	if [ -d ".git" ]; then
+		if [ "$CI" == "true" ]; then return; fi
 		if ! check_last_hour; then
 			tell_status "git repo, check status, skip fetch"
 			git remote update && git status

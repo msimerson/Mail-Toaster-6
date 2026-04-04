@@ -35,8 +35,7 @@ jobs:
   freebsd:
     runs-on: ubuntu-latest
     name: FreeBSD
-    permissions:
-      contents: read
+    permissions: {}
     steps:
     - uses: actions/checkout@v6
     - name: Test in FreeBSD
@@ -45,21 +44,12 @@ jobs:
       with:
         usesh: true
         prepare: |
-          pkg install -y curl ca_root_nss
+          pkg install -y curl ca_root_nss git-lite
         run: |
           pwd
-          ls -lah
           whoami
-          env
           freebsd-version
           uname -a
-          fetch https://raw.githubusercontent.com/msimerson/Mail-Toaster-6/master/mail-toaster.sh
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          git config --global --add safe.directory /home/runner/work/Mail-Toaster-6/Mail-Toaster-6
+          sh ./test/config.sh
+          . mail-toaster.sh
