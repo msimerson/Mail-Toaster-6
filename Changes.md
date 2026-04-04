@@ -16,6 +16,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - ci: enabled FreeBSD basic tests
 - ci: set of kcov testing and codecov reporting
 - consistency: always quote variables, explicit exit codes
+- test: added ./test/provision/*
 
 ## 2026-03
 
