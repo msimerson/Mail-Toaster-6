@@ -51,5 +51,5 @@ jobs:
           freebsd-version
           uname -a
           git config --global --add safe.directory /home/runner/work/Mail-Toaster-6/Mail-Toaster-6
-          sh ./test/config.sh
+          . mail-toaster.conf
           . mail-toaster.sh
