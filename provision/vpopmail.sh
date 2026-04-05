@@ -56,71 +56,71 @@ install_maildrop()
 	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter"
 }
 
-install_lighttpd()
+install_nginx_vpopmail()
 {
-	tell_status "installing lighttpd"
-	stage_pkg_install lighttpd
+	tell_status "installing nginx and fcgiwrap"
+	stage_pkg_install nginx fcgiwrap
 
-	local _conf; _conf="$ZFS_DATA_MNT/vpopmail/etc/lighttpd.conf"
+	local _conf="$ZFS_DATA_MNT/vpopmail/etc/nginx.conf"
 	if [ -f "$_conf" ]; then
-		tell_status "preserving lighttpd.conf"
+		tell_status "preserving nginx.conf"
 	else
-		tell_status "installing lighttpd.conf"
-		cat <<EO_LIGHTTPD >> "$_conf"
+		tell_status "installing nginx.conf"
+		tee "$_conf" <<EO_NGINX
+worker_processes  1;
 
-#include "/usr/local/etc/lighttpd/lighttpd*annotated.conf"
-#include "/usr/local/etc/lighttpd/conf-enabled/*.conf"
-
-# server.modules += ( "mod_access" ) # for IP filtering
-
-server.document-root = "/data/htdocs"
-server.pid-file      = "/var/run/lighttpd/lighttpd.pid"
-
-var.log_root         = "/var/log/lighttpd"
-server.errorlog      = log_root + "/error.log"
-
-#server.modules     += ( "mod_accesslog" )
-#accesslog.filename  = log_root + "/access.log"
-
-server.modules += ( "mod_alias" )
-alias.url = ( "/cgi-bin/"     => "/data/cgi-bin/",
-              "/qmailadmin/"  => "/data/htdocs/qmailadmin/",
-            )
-
-server.modules += ( "mod_cgi" )
-\$HTTP["url"] =~ "^/cgi-bin" {
-   cgi.assign = ( "" => "" )
+events {
+	worker_connections  256;
 }
 
-server.modules += ( "mod_extforward" )
-extforward.forwarder = (
-     "$(get_jail_ip haproxy)"  => "trust",
-     "$(get_jail_ip6 haproxy)"  => "trust",
-)
+http {
+	include       /usr/local/etc/nginx/mime.types;
+	default_type  application/octet-stream;
+	sendfile      on;
+	keepalive_timeout  65;
 
-server.modules += ( "mod_auth", "mod_authn_file" )
-#auth.backend                   = "plain"
-auth.backend                   = "htdigest"
-auth.backend.plain.userfile    = "/data/etc/WebUsers.plain"
-auth.backend.htdigest.userfile = "/data/etc/WebUsers.digest"
+	set_real_ip_from  $(get_jail_ip haproxy);
+	set_real_ip_from  $(get_jail_ip6 haproxy);
+	real_ip_header    X-Forwarded-For;
+	real_ip_recursive on;
 
-auth.require   = ( "/cgi-bin/vqadmin" =>
-                     (
-                         #"method"  => "basic",
-                         "method"  => "digest",
-                         "realm"   => "vqadmin",
-                         "require" => "valid-user"
-                      ),
-                 )
+	server {
+		listen 80;
+		root  /data/htdocs;
+		index index.html;
 
-EO_LIGHTTPD
+		location /qmailadmin/ {
+			alias /data/htdocs/qmailadmin/;
+		}
 
+		# vqadmin requires authentication
+		location ~ ^/cgi-bin/vqadmin {
+			auth_basic           "vqadmin";
+			auth_basic_user_file /data/etc/WebUsers;
+
+			fastcgi_pass  unix:/var/run/fcgiwrap.sock;
+			include       /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_param SCRIPT_FILENAME /data\$fastcgi_script_name;
+			fastcgi_param DOCUMENT_ROOT   /data;
+		}
+
+		location ~ ^/cgi-bin/ {
+			fastcgi_pass  unix:/var/run/fcgiwrap.sock;
+			include       /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_param SCRIPT_FILENAME /data\$fastcgi_script_name;
+			fastcgi_param DOCUMENT_ROOT   /data;
+		}
+	}
+}
+EO_NGINX
 	fi
 
-	stage_sysrc lighttpd_conf=/data/etc/lighttpd.conf
-	stage_sysrc lighttpd_enable=YES
-	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
-	stage_exec service lighttpd start
+	stage_sysrc nginx_flags="-c /data/etc/nginx.conf"
+	stage_sysrc nginx_enable=YES
+	stage_sysrc fcgiwrap_enable=YES
+	stage_sysrc fcgiwrap_socket="unix:/var/run/fcgiwrap.sock"
+	stage_exec service fcgiwrap start
+	stage_exec service nginx start
 }
 
 install_qmailadmin()
@@ -156,7 +156,7 @@ devel_autoconf_UNSET=INFO
 	stage_port_install devel/autoconf
 	stage_port_install mail/qmailadmin
 
-	install_lighttpd
+	install_nginx_vpopmail
 }
 
 install_vqadmin()
@@ -353,7 +353,7 @@ test_vpopmail()
 	stage_listening 89 1
 	stage_listening 8998 2
 
-	stage_test_running lighttpd
+	stage_test_running nginx
 }
 
 migrate_vpopmail_home()

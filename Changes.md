@@ -18,6 +18,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - unifi: install pf rule for acme and config ext Mongo
 - vpopmail: remove qmailadmin SPAM_COMMAND
 - vpopmail: build updates
+- vpopmail: replace lighttpd with nginx
 - unifi: configure external mongodb when UNIFI_MONGODB_DSN
 - ci: added minimal permissions
 - ci: enabled FreeBSD basic tests
