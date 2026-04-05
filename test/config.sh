@@ -1,3 +1,5 @@
+#!/bin/sh
+
 cat << 'EO_CONF' > mail-toaster.conf
 export TOASTER_ORG_NAME="test-runner.example.io"
 export TOASTER_HOSTNAME="test-runner.example.io"

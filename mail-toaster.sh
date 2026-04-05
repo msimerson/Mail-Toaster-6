@@ -1,6 +1,7 @@
 #!/bin/sh
 
 export MT6_TEST_ENV=${MT6_TEST_ENV:-0}
+export CI=${CI:-0}
 
 tell_status()
 {
@@ -38,7 +39,7 @@ mt6-fetch()
 	fi
 
 	if [ -d ".git" ]; then
-		if [ "$CI" == "true" ]; then return; fi
+		if [ "$CI" = "true" ]; then return; fi
 		if ! check_last_hour; then
 			tell_status "git repo, check status, skip fetch"
 			git remote update && git status
@@ -374,7 +375,7 @@ stage_port_install()
 
 	stage_pkg_install pkgconf portconfig
 
-	stage_exec make -C "/usr/ports/$1" build deinstall install clean || return 1
+	stage_exec make -C "/usr/ports/$1" reinstall clean || return 1
 
 	tell_status "port $1 installed"
 }

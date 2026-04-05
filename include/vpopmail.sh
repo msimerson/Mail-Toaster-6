@@ -100,7 +100,7 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 "
 	fi
 
-	if ! grep -qs ^CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
+	if ! grep -qs CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
 		# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=257672
 		tell_status "patching vpopmail Makefile"
 		echo "CFLAGS+=	-fcommon" | tee -a "/usr/ports/mail/vpopmail/Makefile" || exit

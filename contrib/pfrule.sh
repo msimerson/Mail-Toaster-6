@@ -11,7 +11,8 @@ set -eu
 
 ETC_PATH="$(dirname -- "$( readlink -f -- "$0"; )";)"
 JAIL_NAME=$(basename "$(dirname "$(dirname "$ETC_PATH")")")
-PREVIEW="$2"
+OPERATION=${1:-""}
+PREVIEW=${2:-""}
 
 usage() {
     echo "   usage: $0 [ load | unload ] [-n]"
@@ -62,7 +63,7 @@ do_cmd() {
 flush() {
     case "$1" in
         "nat"   ) do_cmd "$2 -F nat"   ;;
-        "rdr"   ) do_cmd "$2 -F rdr"   ;;
+        "rdr"   ) do_cmd "$2 -F nat"   ;;
         "filter") do_cmd "$2 -F rules" ;;
     esac
 }
@@ -70,7 +71,7 @@ flush() {
 cleanup
 
 # load tables first, they may be referenced in anchored files
-if [ "$1" = "load" ]; then load_tables; fi
+if [ "$OPERATION" = "load" ]; then load_tables; fi
 
 for _anchor in binat nat rdr filter; do
     _f="$ETC_PATH/$_anchor.conf"
@@ -78,11 +79,11 @@ for _anchor in binat nat rdr filter; do
 
     _pfctl="pfctl -a $_anchor/$JAIL_NAME"
 
-    case "$1" in
+    case "$OPERATION" in
         "load"   ) do_cmd "$_pfctl -f $_f" ;;
         "unload" ) flush "$_anchor" "$_pfctl" ;;
         *        ) usage ;;
     esac
 done
 
-if [ "$1" = "unload" ]; then flush_tables; fi
+if [ "$OPERATION" = "unload" ]; then flush_tables; fi

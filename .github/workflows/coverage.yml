@@ -47,6 +47,11 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./coverage/
+      - uses: qltysh/qlty-action/coverage@v2
+        with:
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: coverage/lcov.info
+
       # - name: Coveralls
       #   uses: coverallsapp/github-action@master
       #   with:

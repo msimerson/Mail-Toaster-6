@@ -45,4 +45,4 @@ node_modules
 .gemini/
 gha-creds-*.json
 CLAUDE.md
-
+.github/copilot-instructions.md
