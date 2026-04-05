@@ -112,7 +112,7 @@ EO_VPOPMAIL_ETC
 	if [ -f "$ETC/tcp.smtp.cdb" ]; then
 		if [ -f "$SUP/qmail-smtpd/run" ]; then
 			echo "adding tcp.smtp.cdb to qmail-smtpd/run"
-			sed_inplace \
+			sed -i '' \
 				-e '/-u 89/ s/-g 82/-g 82 -x \/usr\/local\/vpopmail\/etc\/tcp.smtp.cdb/' \
 				"$SUP/qmail-smtpd/run"
 		fi
@@ -172,7 +172,7 @@ install_qmail_deliverabled()
 	yes | cpan -fi install Qmail::Deliverable
 
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then
-		sed_inplace -e '/Getopt::Long::Configure("bundling");/a\
+		sed -i '' -e '/Getopt::Long::Configure("bundling");/a\
 $Qmail::Deliverable::VPOPMAIL_EXT = 1;
 ' /usr/local/bin/qmail-deliverabled
 	fi
