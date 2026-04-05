@@ -5,8 +5,6 @@
 PATH=/var/qmail/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/sbin
 export PATH
 
-QMAILDUID=$(id -u qmaild)
-NOFILESGID=$(id -g qmaild)
 VPOPMAIL=/usr/local/vpopmail
 
 case "$1" in
