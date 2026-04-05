@@ -104,6 +104,22 @@ configure_mysql_root_password()
 	write_pass_to_conf
 }
 
+configure_mysql_ram()
+{
+	local _my_cnf="$1"
+	local _physmem; _physmem=$(sysctl -n hw.physmem 2>/dev/null || echo 0)
+	local _8gb=8589934592
+
+	if [ "$_physmem" -le 0 ] || [ "$_physmem" -ge "$_8gb" ]; then
+		return
+	fi
+
+	tell_status "system RAM < 8GB, capping innodb_buffer_pool_size to 512M"
+	sed_inplace \
+		-e '/^innodb_buffer_pool_size/ s/=.*/= 512M/' \
+		"$_my_cnf"
+}
+
 configure_mysql()
 {
 	tell_status "configuring mysql"
@@ -133,6 +149,8 @@ innodb_file_per_table = 1
 innodb_checksum_algorithm = none
 innodb_flush_neighbors = 0
 EO_MY_CNF
+
+	configure_mysql_ram "$_my_cnf"
 
 	store_config "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mysql.conf" <<EO_ERR
 /data/db/mysql.err    mysql:mysql    640  7  250000  *  Z

@@ -8,6 +8,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 - mt: add sed_inplace, stop ci failures due to linux/bsd sed
 - host: disable IPv6 DAD
+- mysql: reduce innodb buffer size on system with < 8GB of RAM
 - network: added install_acme_ms (for installing per-jail acme)
   - get_public_ip -> get_public_ip4 & get_public_ip6
 - nictool: bumped install version to 2.40
