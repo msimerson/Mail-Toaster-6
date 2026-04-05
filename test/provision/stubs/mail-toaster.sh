@@ -184,6 +184,11 @@ install_linux()            { :; }
 install_daemontools()      { :; }
 configure_svscan()         { :; }
 
-# Misc provision helpers
+# FreeBSD system commands
+jexec()    { echo "stubpass"; }
+sysctl()   { echo "1073741824"; }  # ~1 GB; keeps phishing checks disabled
+sysrc()    { :; }
+rspamadm() { echo "stub-rspamadm-hash"; }
+chown()    { :; }  # non-root CI environments can't chown
 add_devfs_rule()           { :; }
 stage_enable_quotas()      { :; }

@@ -325,7 +325,7 @@ configure_vpopmail()
 	tell_status "setting up daemon supervision"
 	cp include/qmail.sh "$STAGE_MNT/tmp/qmail-run.sh"
 	chmod 755 "$STAGE_MNT/tmp/qmail-run.sh"
-	stage_exec sh /tmp/qmail-run.sh
+	stage_exec sh -c ". /tmp/qmail-run.sh && install_supervision"
 
 	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		local _ppass; _ppass=$(get_random_pass 14)
