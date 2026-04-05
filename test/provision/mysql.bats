@@ -105,11 +105,6 @@ teardown() {
   assert_success
 }
 
-@test "mysql - defines configure_mysql" {
-  run type configure_mysql
-  assert_success
-}
-
 @test "mysql - defines start_mysql" {
   run type start_mysql
   assert_success

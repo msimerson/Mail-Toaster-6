@@ -323,7 +323,7 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	fetch -o "$STAGE_MNT/tmp/qmail-run.sh" "$TOASTER_SRC_URL/qmail/run.sh"
+	cp include/qmail.sh "$STAGE_MNT/tmp/qmail-run.sh"
 	chmod 755 "$STAGE_MNT/tmp/qmail-run.sh"
 	stage_exec sh /tmp/qmail-run.sh
 

@@ -6,18 +6,23 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-04
 
-- qmail: add smtpd ipv6 listener
+- network: added install_acme_ms (for installing per-jail acme)
+  - get_public_ip -> get_public_ip4 & get_public_ip6
+- nictool: bumped install version to 2.40
+- qmail
+  - configure listener for IPv4 and IPv6
+  - ./qmail/run.sh -> ./include/qmail.sh
+  - refactored supervisor script generation
+- unifi: install pf rule for acme and config ext Mongo
 - vpopmail: remove qmailadmin SPAM_COMMAND
 - vpopmail: build updates
-- unifi: install pf rule for acme and config ext Mongo
-- nictool: bumped install version to 2.40
-- network: added install_acme_ms (for installing per-jail acme)
 - unifi: configure external mongodb when UNIFI_MONGODB_DSN
 - ci: added minimal permissions
 - ci: enabled FreeBSD basic tests
 - ci: set of kcov testing and codecov reporting
 - consistency: always quote variables, explicit exit codes
-- test: added ./test/provision/*
+- test: expanded ./test/mail-toaster.bats
+- test: added ./test/provision/*.bats
 
 ## 2026-03
 
