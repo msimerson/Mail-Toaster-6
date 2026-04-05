@@ -152,11 +152,11 @@ MT6: {
 EO_PKG_MT6
 
 		# cache pkg audit vulnerability db
-		sed -i '' \
+		sed_inplace \
 			-e '/^#VULNXML_SITE/ s/^#//; s/vuxml.freebsd.org/vulnxml/' \
 			"$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg.conf"
 
-		sed -i '' -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
+		sed_inplace -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
 			"$ZFS_JAIL_MNT/$_j/etc/freebsd-update.conf"
 
 		echo "done"

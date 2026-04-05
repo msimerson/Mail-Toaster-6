@@ -56,7 +56,7 @@ install_dcc()
 
 configure_dcc()
 {
-	sed -i.bak \
+	sed_inplace \
 		-e '/^DCCIFD_ENABLE=/ s/off/on/' \
 		-e '/^DCCM_LOG_AT=/ s/5/NEVER/' \
 		-e '/^DCCM_REJECT_AT/ s/=.*/=MANY/' \

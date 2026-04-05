@@ -6,6 +6,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-04
 
+- mt: add sed_inplace, stop ci failures due to linux/bsd sed
 - network: added install_acme_ms (for installing per-jail acme)
   - get_public_ip -> get_public_ip4 & get_public_ip6
 - nictool: bumped install version to 2.40

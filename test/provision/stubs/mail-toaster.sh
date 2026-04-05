@@ -110,6 +110,7 @@ install_pfrule()           { :; }
 install_acme_sh()          { :; }
 
 # Config / util
+sed_inplace()              { sed -i.bak "$@"; }
 store_config()             { cat - > /dev/null; }
 store_exec()               { cat - > /dev/null; }
 preserve_file()            { :; }

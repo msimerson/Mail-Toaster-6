@@ -31,7 +31,7 @@ freebsd_update()
 	fi
 
 	tell_status "apply FreeBSD security updates to base jail"
-	sed -i.bak -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
+	sed_inplace -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
 	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 
 	echo "clearing freebsd-update cache"
@@ -70,7 +70,7 @@ disable_newsyslog()
 {
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
-	sed -i.bak \
+	sed_inplace \
 		-e '/^0.*newsyslog/ s/^0/#0/' \
 		"$BASE_MNT/etc/crontab"
 }
@@ -90,7 +90,7 @@ disable_root_password()
 
 	# prevent a nightly email notice about the empty root password
 	tell_status "disabling passwordless root account"
-	sed -i.bak -e 's/^root::/root:*:/' "$BASE_MNT/etc/master.passwd"
+	sed_inplace -e 's/^root::/root:*:/' "$BASE_MNT/etc/master.passwd"
 	stage_exec pwd_mkdb /etc/master.passwd
 }
 
@@ -104,7 +104,7 @@ disable_cron_jobs()
 	tell_status "disabling adjkerntz, save-entropy, & atrun"
 	# nobody uses atrun, safe-entropy is done by the host, and
 	# the jail doesn't have permission to run adjkerntz.
-	sed -i.bak \
+	sed_inplace \
 		-e '/^1.*adjkerntz/ s/^1/#1/'  \
 		-e '/^\*.*entropy/  s/^\*/#*/' \
 		-e '/^\*.*atrun/    s/^\*/#*/' \

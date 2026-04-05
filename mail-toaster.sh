@@ -143,6 +143,23 @@ fi
 
 fatal_err() { echo; echo "FATAL: $1"; echo; exit 1; }
 
+sed_inplace() {
+    # Usage: sed_inplace 's/old/new/g' filename.txt
+
+    case "$(uname)" in
+        Linux*)  sed -i "$@" ;;
+        FreeBSD*|Darwin*) sed -i '' "$@" ;;
+        *)
+            # Fallback for POSIX-strict environments without -i support
+            echo "Unknown OS, using temp file fallback" >&2
+            pattern="$1"
+            file="$2"
+            tmp_file=$(mktemp)
+            sed "$pattern" "$file" > "$tmp_file" && mv "$tmp_file" "$file"
+            ;;
+    esac
+}
+
 stage_unmount()
 {
 	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
@@ -255,7 +272,7 @@ create_staged_fs()
 
 	stage_sysrc hostname="$1"
 	if [ -f "$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf" ]; then
-		sed -i '' -e "/^hostname=/ s/_HOSTNAME_/$1/" \
+		sed_inplace -e "/^hostname=/ s/_HOSTNAME_/$1/" \
 			"$STAGE_MNT/usr/local/etc/ssmtp/ssmtp.conf"
 	fi
 
@@ -499,7 +516,7 @@ stage_enable_newsyslog()
 	if [ ! -d "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" ]; then
 		mkdir "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
 	fi
-	sed -i.bak \
+	sed_inplace \
 		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"
 }
@@ -673,7 +690,7 @@ unprovision_files()
 	done
 
 	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
-		sed -i.bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+		sed_inplace -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
 	fi
 }
 
@@ -720,4 +737,3 @@ onexit() { while caller $((n++)); do :; done; }
 if [ "$TOASTER_BUILD_DEBUG" = "1" ]; then
 	trap onexit EXIT
 fi
-

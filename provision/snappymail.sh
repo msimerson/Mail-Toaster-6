@@ -202,7 +202,7 @@ set_application_path()
 		exit
 	fi
 
-	sed -i.bak \
+	sed_inplace \
 		-e '/^app_path =/ s/""/"\/snappymail"/' \
 		"$_appini"
 }
@@ -219,7 +219,7 @@ configure_admin_password()
 	fi
 
 	echo "hash: $_hash"
-	sed -i '' \
+	sed_inplace \
 		-e "/^admin_login/ s:\".*\":\"$_email\":" \
 		-e "/^admin_password/ s:\".*\":\"$_hash\":" \
 		"$STAGE_MNT/data/_data_/_default_/configs/application.ini"
