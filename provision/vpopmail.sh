@@ -9,7 +9,7 @@ export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 export VPOPMAIL_OPTIONS_SET=""
-export VPOPMAIL_OPTIONS_UNSET="ROAMING"
+export VPOPMAIL_OPTIONS_UNSET="ROAMING PGSQL LDAP ORACLE SYBASE"
 
 mt6-include vpopmail
 mt6-include mysql

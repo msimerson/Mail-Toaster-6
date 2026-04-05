@@ -8,6 +8,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 - qmail: add smtpd ipv6 listener
 - vpopmail: remove qmailadmin SPAM_COMMAND
+- vpopmail: build updates
 - unifi: install pf rule for acme and config ext Mongo
 - nictool: bumped install version to 2.40
 - network: added install_acme_ms (for installing per-jail acme)

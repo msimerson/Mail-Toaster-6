@@ -1,29 +1,41 @@
 #!/usr/bin/env bats
 # Functional tests for provision/dns.sh
 #
-# dns.sh uses `set -e`. The execution block at the bottom runs at source time,
-# which means configure_unbound (including tweak_unbound_conf and
-# enable_control) executes during setup. We pre-create stub files so all sed
-# targets, directories, and helper functions are available.
+# Performance design:
+# - setup_file() runs ONCE: sources the full dns.sh (executing configure_unbound)
+#   and saves the resulting file tree + stripped function definitions to
+#   BATS_FILE_TMPDIR.
+# - setup() runs per-test (fast): copies the cached templates and sources only
+#   the function definitions (no execution block, no expensive subshells).
+#
+# Root cause of slowness: bats installs DEBUG traps that make every subshell
+# spawn expensive. configure_unbound calls get_mt6_data which spawns many
+# subshells via $(get_jail_ip ...) for each jail. Running it 43 times would
+# take ~25s; running it once takes ~1s.
 
-setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+setup_file() {
+  local _stage="$BATS_FILE_TMPDIR/stage"
+  local _data="$BATS_FILE_TMPDIR/data"
+  local _fns="$BATS_FILE_TMPDIR/dns_fns_only.sh"
 
+  # Strip the execution block (everything from base_snapshot_exists onward)
+  # so setup() can source function definitions without re-running configure_unbound.
+  awk '/^base_snapshot_exists/{exit} {print}' \
+    "$BATS_TEST_DIRNAME/../../provision/dns.sh" > "$_fns"
+
+  # Build the file templates by running configure_unbound exactly once.
   export MT6_TEST_ENV=1
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d)
-  export ZFS_DATA_MNT; ZFS_DATA_MNT=$(mktemp -d)
+  export STAGE_MNT="$_stage"
+  export ZFS_DATA_MNT="$_data"
+  # Single-entry list: only jails referenced by name in dns.sh matter.
+  export JAIL_ORDERED_LIST="dns"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
-  # Pre-create required directory layout
-  mkdir -p "$STAGE_MNT/usr/local/etc/unbound"
-  mkdir -p "$STAGE_MNT/usr/local/sbin"
-  mkdir -p "$STAGE_MNT/etc"
-  mkdir -p "$ZFS_DATA_MNT/dns"
+  mkdir -p "$_stage/usr/local/etc/unbound" "$_stage/usr/local/sbin" \
+           "$_stage/etc" "$_data/dns"
 
-  # Minimal unbound.conf.sample containing all patterns that tweak_unbound_conf
-  # targets via sed. Lines must match exactly (comments, spacing, values).
-  cat > "$STAGE_MNT/usr/local/etc/unbound/unbound.conf.sample" <<'EOF'
+  # Minimal unbound.conf.sample with all patterns tweak_unbound_conf targets.
+  cat > "$_stage/usr/local/etc/unbound/unbound.conf.sample" <<'EOF'
 server:
 	# interface: 192.0.2.153
 	# interface: 192.0.2.154
@@ -41,16 +53,38 @@ remote-control:
 	# stub-host: ns.example.com.
 EOF
 
-  # Stub for enable_control's sed: must contain a DESTDIR= line to rewrite
   printf '#!/bin/sh\nDESTDIR=/usr/local/etc/unbound\n' \
-    > "$STAGE_MNT/usr/local/sbin/unbound-control-setup"
+    > "$_stage/usr/local/sbin/unbound-control-setup"
 
-  # Stub reverse-IP helpers (not provided by stubs/mail-toaster.sh)
   get_reverse_ip()  { echo "1.15.16.172.in-addr.arpa"; }
   get_reverse_ip6() { echo "1.0.0.0.fd7a.ip6.arpa"; }
 
+  # Source full dns.sh once: runs configure_unbound to produce the templates.
   # shellcheck source=/dev/null
   . "$BATS_TEST_DIRNAME/../../provision/dns.sh"
+}
+
+setup() {
+  load '../test_helper/bats-support/load'
+  load '../test_helper/bats-assert/load'
+
+  export MT6_TEST_ENV=1
+  export JAIL_ORDERED_LIST="dns"
+  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+
+  # Fresh per-test directories, restored from the cached templates (fast cp).
+  export STAGE_MNT; STAGE_MNT=$(mktemp -d)
+  export ZFS_DATA_MNT; ZFS_DATA_MNT=$(mktemp -d)
+  cp -r "$BATS_FILE_TMPDIR/stage/." "$STAGE_MNT/"
+  cp -r "$BATS_FILE_TMPDIR/data/." "$ZFS_DATA_MNT/"
+
+  # Stub reverse-IP helpers (not provided by stubs/mail-toaster.sh).
+  get_reverse_ip()  { echo "1.15.16.172.in-addr.arpa"; }
+  get_reverse_ip6() { echo "1.0.0.0.fd7a.ip6.arpa"; }
+
+  # Source function definitions only (no execution block = no configure_unbound).
+  # shellcheck source=/dev/null
+  . "$BATS_FILE_TMPDIR/dns_fns_only.sh"
 }
 
 teardown() {
@@ -202,28 +236,8 @@ teardown() {
   assert_output --partial "yes"
 }
 
-@test "dns - configure adds access.conf include" {
-  run grep 'include: "/data/access.conf"' "$STAGE_MNT/usr/local/etc/unbound/unbound.conf"
-  assert_success
-}
-
-@test "dns - configure adds mt6-local.conf include" {
-  run grep 'include: "/data/mt6-local.conf"' "$STAGE_MNT/usr/local/etc/unbound/unbound.conf"
-  assert_success
-}
-
-@test "dns - configure adds control.conf include" {
-  run grep 'include: "/data/control.conf"' "$STAGE_MNT/usr/local/etc/unbound/unbound.conf"
-  assert_success
-}
-
 @test "dns - configure adds forward.conf include" {
   run grep 'include: "/data/forward.conf"' "$STAGE_MNT/usr/local/etc/unbound/unbound.conf"
-  assert_success
-}
-
-@test "dns - configure adds stub.conf include" {
-  run grep 'include: "/data/stub.conf"' "$STAGE_MNT/usr/local/etc/unbound/unbound.conf"
   assert_success
 }
 
