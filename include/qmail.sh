@@ -108,6 +108,7 @@ ${JAIL_NET_PREFIX}.9:allow,RELAYCLIENT=""
 EO_VPOPMAIL_ETC
 
 	/usr/local/bin/qmailctl cdb
+
 	if [ -f "$ETC/tcp.smtp.cdb" ]; then
 		if [ -f "$SUP/qmail-smtpd/run" ]; then
 			echo "adding tcp.smtp.cdb to qmail-smtpd/run"
@@ -232,11 +233,4 @@ install_supervision()
 
 	install_vpopmail_etc
 	install_symlinks
-
-	if ! grep -qs ^svscan_enable /etc/rc.conf; then
-		sysrc svscan_enable=YES
-		service svscan start
-	else
-		service svscan restart
-	fi
 }

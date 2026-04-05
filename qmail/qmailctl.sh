@@ -103,7 +103,7 @@ case "$1" in
     then
       if [ -x /var/qmail/bin/qmail-newu ]
       then
-        /var/qmail/users/assign
+        /var/qmail/bin/qmail-newu
         echo "Reloaded /var/qmail/users/assign."
       fi
     fi

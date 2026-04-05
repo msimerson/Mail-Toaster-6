@@ -237,12 +237,12 @@ alter_vpopmail_tables()
                 MODIFY COLUMN pw_passwd varchar(128),
                 MODIFY COLUMN pw_gecos  varchar(64),
                 MODIFY COLUMN pw_dir    varchar(160),
-                MODIFY COLUMN pw_clear_passwd varchar(128);" | mysql_query
+                MODIFY COLUMN pw_clear_passwd varchar(128);" | mysql_query vpopmail
 
         echo "ALTER TABLE vpopmail.lastauth
 		MODIFY COLUMN user      varchar(64),
                 MODIFY COLUMN domain    varchar(96),
-                MODIFY COLUMN remote_ip varchar(39);" | mysql_query
+                MODIFY COLUMN remote_ip varchar(39);" | mysql_query vpopmail
 }
 
 install_vpop_nrpe()
@@ -340,7 +340,8 @@ configure_vpopmail()
 
 start_vpopmail()
 {
-	true
+	stage_sysrc svscan_enable=YES
+	stage_exec service svscan start
 }
 
 test_vpopmail()
