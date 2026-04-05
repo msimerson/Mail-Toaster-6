@@ -174,8 +174,8 @@ constrain_sshd_to_host()
 		return
 	fi
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	local IP_MSG="	Your public IP(s) are detected as $PUBLIC_IP4"
 	if [ -n "$PUBLIC_IP6" ]; then
@@ -239,7 +239,7 @@ update_openssl_defaults()
 	local _cc;    _cc=$(fetch -q -4 -o - https://ipinfo.io/country)
 	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
 	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
-	sed -i.bak \
+	sed_inplace \
 		-e "/^commonName_max.*/ a\ 
 commonName_default = $TOASTER_HOSTNAME" \
 		-e "/^emailAddress_max.*/ a\ 
@@ -319,7 +319,7 @@ install_sshguard()
 	pkg install -y sshguard
 
 	tell_status "configuring sshguard for PF"
-	sed -i.bak \
+	sed_inplace \
 		-e '/sshg-fw-null/ s/^B/#B/' \
 		-e '/sshg-fw-pf/ s/^#//' \
 		/usr/local/etc/sshguard.conf
@@ -352,19 +352,24 @@ EO_PF_EXPIRE
 
 configure_ipv6()
 {
-	get_public_ip ipv6
+	get_public_ip6
 
 	if [ -n "$PUBLIC_IP6" ] && [ -n "$PUBLIC_NIC" ]; then
 		sysrc ipv6_activate_all_interfaces="YES"
 		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
 		sysrc ipv6_gateway_enable="YES"
 		sysctl net.inet6.ip6.forwarding=1
+
+		# disable DAD so jailed daemons have IPv6 addrs ready when they start
+		sysctl net.inet6.ip6.dad_count=0
+		grep -q ^net.inet6.ip6.dad_count /etc/sysctl.conf || \
+		    echo "net.inet6.ip6.dad_count=0" >> /etc/sysctl.conf
 	fi
 }
 
 add_jail_nat()
 {
-	get_public_ip
+	get_public_ip4
 
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
 	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
@@ -431,7 +436,7 @@ pass in quick on \$ext_if proto tcp to port ssh \
 EO_PF_RULES
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		sed -i '' \
+		sed_inplace \
 			-e '/^table <ext_ip>/ s/, \$ext_ip6//' \
 			/etc/pf.conf
 	fi
@@ -523,7 +528,7 @@ update_freebsd()
 
 	if grep -q '^Components src' /etc/freebsd-update.conf; then
 		tell_status "remove src from freebsd-update"
-		sed -i.bak -e '/^Components/ s/src //' /etc/freebsd-update.conf
+		sed_inplace -e '/^Components/ s/src //' /etc/freebsd-update.conf
 	fi
 
 	tell_status "updating FreeBSD with security patches"
@@ -593,7 +598,7 @@ configure_etc_hosts()
 	# hosts DNS on *every* incoming syslog message.
 	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
 		tell_status "removing /etc/hosts toaster additions"
-		sed -i.bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+		sed_inplace -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
 	fi
 
 	tell_status "adding /etc/hosts entries"

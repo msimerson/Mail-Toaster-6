@@ -48,7 +48,7 @@ configure_knot()
 	fi
 
 	if grep -qs '^#[[:space:]]*listen' "$_cfg"; then
-		sed -i '' \
+		sed_inplace \
 			-e '/^#[[:space:]]*listen:/ s/^#//' \
 			"$_cfg"
 	fi

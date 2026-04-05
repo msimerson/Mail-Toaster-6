@@ -103,11 +103,14 @@ stage_resolv_conf()        { :; }
 port_is_listening()        { return 0; }
 get_random_ip6net()        { echo "fd7a:e5cd:1fc1:dead:beef:cafe:1"; }
 get_public_ip()            { :; }
+get_public_ip4()           { :; }
+get_public_ip6()           { :; }
 get_public_facing_nic()    { :; }
 install_pfrule()           { :; }
 install_acme_sh()          { :; }
 
 # Config / util
+sed_inplace()              { sed -i.bak "$@"; }
 store_config()             { cat - > /dev/null; }
 store_exec()               { cat - > /dev/null; }
 preserve_file()            { :; }
@@ -181,6 +184,11 @@ install_linux()            { :; }
 install_daemontools()      { :; }
 configure_svscan()         { :; }
 
-# Misc provision helpers
+# FreeBSD system commands
+jexec()    { echo "stubpass"; }
+sysctl()   { echo "1073741824"; }  # ~1 GB; keeps phishing checks disabled
+# sysrc()    { :; }
+rspamadm() { echo "stub-rspamadm-hash"; }
+chown()    { :; }  # non-root CI environments can't chown
 add_devfs_rule()           { :; }
 stage_enable_quotas()      { :; }

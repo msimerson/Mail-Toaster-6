@@ -83,7 +83,7 @@ configure_geoip()
 		tell_status "installing GeoIP.conf"
 		cp "$ZFS_DATA_MNT/geoip/GeoIP.conf" "$STAGE_MNT/usr/local/etc"
 	else
-		sed -i '' \
+		sed_inplace \
 			-e "/^AccountID/ s/YOUR_ACCOUNT_ID_HERE/$MAXMIND_ACCOUNT_ID/" \
 			-e "/^LicenseKey/ s/YOUR_LICENSE_KEY_HERE/$MAXMIND_LICENSE_KEY/" \
 			-e '/^EditionIDs/ s/GeoLite2-City/GeoLite2-City GeoLite2-ASN/' \

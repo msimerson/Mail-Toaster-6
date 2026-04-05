@@ -41,7 +41,7 @@ install_mariadb()
 write_pass_to_conf()
 {
 	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
-		sed -i '' \
+		sed_inplace \
 			-e "/^export TOASTER_MYSQL_PASS=/ s|=\"\"|=\"$TOASTER_MYSQL_PASS\"|" \
 			mail-toaster.conf
 	else
@@ -108,7 +108,7 @@ configure_mysql()
 {
 	tell_status "configuring mysql"
 	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
-		sed -i '' \
+		sed_inplace \
 			-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
 			"$STAGE_MNT/usr/local/etc/mysql/my.cnf"
 		# enable this when mysql port adds config setting to rc.d script

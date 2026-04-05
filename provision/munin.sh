@@ -29,7 +29,7 @@ configure_lighttpd()
 	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
 
 	# shellcheck disable=2016
-	sed -i.bak \
+	sed_inplace \
 		-e '/^var\.server_root/ s/""/"\/usr\/local\/www"/' \
 		-e '/^var\.log_root/ s/""/"\/var\/log\/lighttpd"/' \
 		-e '/^server\.username/ s/""/"www"/' \
@@ -109,7 +109,7 @@ configure_munin()
 	else
 		tell_status "update munin.conf to use ZFS_DATA_MNT"
 
-		sed -i.bak \
+		sed_inplace \
 			-e 's/^#dbdir.*/dbdir   \/data\/var\/munin/' \
 			-e 's/^#graph_strategy cron/graph_strategy cgi/' \
 			-e 's/^#html_strategy cron/html_strategy cgi/' \

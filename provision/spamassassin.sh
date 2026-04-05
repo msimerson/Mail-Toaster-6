@@ -71,7 +71,7 @@ install_spamassassin_razor()
 		exit
 	fi
 
-	sed -i.bak -e \
+	sed_inplace -e \
 		'/^logfile/ s/= /= \/var\/log\//' \
 		"$STAGE_MNT/etc/razor/razor-agent.conf"
 
@@ -295,7 +295,7 @@ start_spamassassin()
 	fi
 	SPAMD_ALLOW="$SPAMD_ALLOW -A $JAIL_NET6::/64"
 
-	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=* --min-spare=3 --max-spare=6 --max-conn-per-child=25 --allow-tell"
+	stage_sysrc spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=* --min-spare=3 --max-spare=6 --max-conn-per-child=25 --allow-tell"
 	stage_exec service sa-spamd start
 }
 

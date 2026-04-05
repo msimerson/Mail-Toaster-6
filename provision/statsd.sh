@@ -17,7 +17,7 @@ install_statsd()
 	mkdir -p "$STAGE_MNT/var/lib"
 	chown 907:907 "$STAGE_MNT/var/lib"
 
-	sed -i.bak \
+	sed_inplace \
 		-e "s/ process\./ require('events')\./" \
 		"$STAGE_MNT/usr/local/share/statsd/lib/config.js" && \
 		rm -f "$STAGE_MNT/usr/local/share/statsd/lib/config.js.bak"

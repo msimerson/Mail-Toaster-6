@@ -25,7 +25,8 @@ exit
 #  stopped working in March 2026 due to libidn build errors.
 
 #        THE SOLUTION (2026)
-#  Delete all .qmail files with maildrop in them. Configure Sieve:
-#  https://github.com/msimerson/Mail-Toaster-6/discussions/556
+#  1. Delete maildrop from all .qmail files:
+#  https://github.com/msimerson/Mail-Toaster-6/blob/master/contrib/exorcise_maildrop.sh
 #
-#  hint: find /data/vpopmail/home/domains -name .qmail -type f -exec grep -H maildrop {} \;
+#  2. Configure Sieve:
+#  https://github.com/msimerson/Mail-Toaster-6/discussions/556

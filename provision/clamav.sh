@@ -94,7 +94,7 @@ install_clamav_unofficial()
 		echo "done"
 	else
 		tell_status "completing user configuration"
-		sed -i.bak \
+		sed_inplace \
 			-e '/^#user_configuration_complete/ s/^#//' \
 			"$_conf/user.conf"
 		echo "done"
@@ -103,7 +103,7 @@ install_clamav_unofficial()
 	if grep -qs ^Antidebug_AntiVM "$_conf/master.conf"; then
 		tell_status "disabling error throwing rules"
 		echo "see https://github.com/extremeshok/clamav-unofficial-sigs/issues/151"
-		sed -i.bak \
+		sed_inplace \
 			-e '/^Antidebug_AntiVM/ s/^A/#A/' \
 			-e '/^email/ s/^e/#e/' \
 			"$_conf/master.conf"
@@ -111,7 +111,7 @@ install_clamav_unofficial()
 
 	tell_status "installing clamav-unofficial-sigs.sh"
 	local _sigs_sh="$_dist/clamav-unofficial-sigs.sh"
-	sed -i.bak -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' "$_sigs_sh"
+	sed_inplace -e 's/^#!\/bin\/bash/#!\/usr\/local\/bin\/bash/' "$_sigs_sh"
 	chmod 755 "$_sigs_sh"
 	cp "$_sigs_sh" "$STAGE_MNT/usr/local/bin"
 
@@ -154,13 +154,13 @@ install_clamav_nrpe()
 
 	tell_status "installing clamav nrpe plugin"
 	stage_pkg_install nagios-check_clamav || stage_port_install net-mgmt/nagios-check_clamav
-	sed -i .bak \
+	sed_inplace \
 		-e 's|clamd_cmd -V|clamd_cmd --datadir=/data/db -V|' \
 		"$STAGE_MNT/usr/local/libexec/nagios/check_clamav"
 
 	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
-	sed -i.bak \
+	sed_inplace \
 		-e 's|^#!/usr/bin/env bash|#!/usr/local/bin/bash\
 PATH="$PATH:/usr/local/bin"|' \
 		-e '/^CLAM_LIB_DIR/ s|=.*$|=/data/db|' \
@@ -210,7 +210,7 @@ configure_clamd()
 		cp "$STAGE_MNT/usr/local/etc/clamd.conf" "$_conf"
 	fi
 
-	sed -i.bak \
+	sed_inplace \
 		-e 's/^#TCPSocket/TCPSocket/' \
 		-e 's/^#LogFacility/LogFacility/' \
 		-e 's/^#LogSyslog no/LogSyslog yes/' \
@@ -234,7 +234,7 @@ configure_clamd()
 
 	echo "done"
 
-	sed -i '' \
+	sed_inplace \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
 		"$STAGE_MNT/usr/local/etc/rc.d/clamav_clamd"
@@ -249,7 +249,7 @@ configure_freshclam()
 		tell_status "configuring freshclam"
 		cp "$STAGE_MNT/usr/local/etc/freshclam.conf" "$_conf"
 
-		sed -i.bak \
+		sed_inplace \
 			-e 's/DatabaseDirectory \/var\/db\/clamav/DatabaseDirectory \/data\/db/' \
 			-e 's/^UpdateLogFile \/var\/log\/clamav/UpdateLogFile \/data\/log/' \
 			-e 's/^#LogSyslog/LogSyslog/' \
@@ -260,7 +260,7 @@ configure_freshclam()
 	fi
 
 	echo "done"
-	sed -i '' \
+	sed_inplace \
 		-e 's/\/usr\/local\/etc/\/data\/etc/g' \
 		-e 's/\/var\/db\/clamav/\/data\/db/g' \
 		"$STAGE_MNT/usr/local/etc/rc.d/clamav_freshclam"

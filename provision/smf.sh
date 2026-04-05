@@ -82,7 +82,7 @@ configure_smf()
 		cp "$STAGE_MNT/usr/local/www/smf/other/Settings.php" "$STAGE_MNT/usr/local/www/smf/" || exit
 
 		tell_status "post-install configuration will be required"
-		sed -i '' \
+		sed_inplace \
 			-e "/boardurl/ s/127.0.0.2/$TOASTER_HOSTNAME/" \
 			-e "/db_server/ s/localhost/mysql/" \
 			"$STAGE_MNT/usr/local/www/smf/Settings.php"

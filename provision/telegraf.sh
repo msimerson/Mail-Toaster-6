@@ -19,7 +19,7 @@ config_telegraf()
 {
 	local _conf="$STAGE_MNT/usr/local/etc/telegraf.conf"
 
-    sed -i.bak \
+    sed_inplace \
         -e "s/urls.*8086/ s/127.0.0.1/172.16.15.50/"
         "$_conf"
 }

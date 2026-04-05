@@ -146,7 +146,7 @@ configure_wildduck()
 
 	if grep -qE '^mongo.*127' "$_cfg/dbs.toml"; then
 		tell_status "configuring $_cfg/dbs.toml"
-		sed -i '' \
+		sed_inplace \
 			-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 			-e "/^#redis/ s/127.0.0.1/$(get_jail_ip redis)/; s|/3|/9|" \
 			-e "/^host=/ s/127.0.0.1/$(get_jail_ip redis)/" \
@@ -156,7 +156,7 @@ configure_wildduck()
 		if [ -z ${WILDDUCK_MONGO_DSN+x} ]; then
 			tell_status "If Mongo requires AUTH, you should set WILDDUCK_MONGO_DSN"
 		else
-			sed -i '' \
+			sed_inplace \
 				-e "/^mongo/ s|=.*$|=\"$WILDDUCK_MONGO_DSN\"|" \
 				"$_cfg/dbs.toml"
 		fi
@@ -164,7 +164,7 @@ configure_wildduck()
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/default.toml"; then
 		tell_status "configuring $_cfg/default.toml"
-		sed -i '' \
+		sed_inplace \
 			-e '/^#emailDomain/ s/^#//' \
 			-e "/^emailDomain/ s/mydomain.info/$WILDDUCK_MAIL_DOMAIN/" \
 			-e "/rpId/ s/example.com/$WILDDUCK_MAIL_DOMAIN/" \
@@ -175,14 +175,14 @@ configure_wildduck()
 
 	if ! grep -q "$TOASTER_ORG_NAME" "$_cfg/api.toml"; then
 		tell_status "configuring $_cfg/api.toml"
-		sed -i '' \
+		sed_inplace \
 			-e "/^organization/ s/WildDuck Mail Services/$TOASTER_ORG_NAME/" \
 			"$_cfg/api.toml"
 	fi
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/imap.toml"; then
 		tell_status "configuring $_cfg/imap.toml"
-		sed -i '' \
+		sed_inplace \
 			-e '/^host =/ s/0.0.0.0//' \
 			-e '/^port/ s/9993/993/' \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
@@ -191,7 +191,7 @@ configure_wildduck()
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/lmtp.toml"; then
 		tell_status "configuring $_cfg/lmtp.toml"
-		sed -i '' \
+		sed_inplace \
 			-e '/^enabled/ s/false/true/' \
 			-e '/^host/ s/127.0.0.1//' \
 			-e '/^port/ s/2424/24/' \
@@ -201,7 +201,7 @@ configure_wildduck()
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/pop3.toml"; then
 		tell_status "configuring $_cfg/pop3.toml"
-		sed -i '' \
+		sed_inplace \
 			-e '/^host =/ s/0.0.0.0//' \
 			-e '/^port/ s/9995/995/' \
 			-e "/^hostname/ s/localhost/$WILDDUCK_HOSTNAME/" \
@@ -230,7 +230,7 @@ configure_wildduck_webmail()
 
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/default.toml"; then
 		tell_status "configuring $_cfg/default.toml"
-		sed -i '' \
+		sed_inplace \
 			-e "/^name=/ s/Wild Duck/$TOASTER_ORG_NAME/" \
 			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
 			-e "/domain/ s/localhost/$WILDDUCK_MAIL_DOMAIN/" \
@@ -251,7 +251,7 @@ configure_zonemta()
 
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/dbs-production.toml"; then
 		tell_status "configuring $_cfg/dbs-production.toml"
-		sed -i '' \
+		sed_inplace \
 			-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 			-e "/^redis/ s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
 			"$_cfg/dbs-production.toml"
@@ -259,7 +259,7 @@ configure_zonemta()
 		if [ -z ${ZONEMTA_MONGO_DSN+x} ]; then
 			tell_status "If Mongo requires AUTH, you should set ZONEMTA_MONGO_DSN"
 		else
-			sed -i '' \
+			sed_inplace \
 				-e "/^mongo/ s|=.*$|=\"$ZONEMTA_MONGO_DSN\"|" \
 				"$_cfg/dbs-production.toml"
 		fi
@@ -270,20 +270,20 @@ configure_zonemta()
 
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/dbs-development.toml"; then
 		tell_status "configuring $_cfg/dbs-development.toml"
-		sed -i '' \
+		sed_inplace \
 			-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
 			-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
 			"$_cfg/dbs-development.toml"
 	fi
 
 	tell_status "disabling DNS cache"
-	sed -i '' \
+	sed_inplace \
 		-e '/^caching/ s/true/false/' \
 		"$_cfg/dns.toml"
 
 	tell_status "configuring $_cfg/interfaces/feeder.toml"
 	# shellcheck disable=1003
-	sed -i '' \
+	sed_inplace \
 		-e '/^host/ s/127.0.0.1//' \
 		-e '/^port=/ s/2525/587/' \
 		-e '/^authentication=/ s/false/true/' \
@@ -306,7 +306,7 @@ EO_POOLS
 	# 	"$_cfg/plugins/loop-breaker.toml"
 
 	tell_status "configuring $_cfg/zones/default.toml"
-	sed -i '' \
+	sed_inplace \
 		-e '/ignoreIPv6/ s/true/false/' \
 		"$_cfg/zones/default.toml"
 
@@ -340,14 +340,14 @@ EO_WILDDUCK
 
 configure_zonemta_admin()
 {
-	sed -i '' \
+	sed_inplace \
 		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 		-e "/^host/  s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
 		-e "/^db = / s/2/9/" \
 		"$STAGE_MNT/data/zone-mta-admin/config/default.toml"
 
 	if [ -n "$ZONEMTA_MONGO_DSN" ]; then
-		sed -i '' \
+		sed_inplace \
 			-e "/^mongo/ s|\".*\"|\"$ZONEMTA_MONGO_DSN\"|" \
 			"$STAGE_MNT/data/zone-mta-admin/config/default.toml"
 	fi
@@ -357,8 +357,8 @@ configure_pf()
 {
 	local _pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip wildduck)"
@@ -431,7 +431,7 @@ EO_HELO
 
 	tell_status "configuring $_cfg/plugins"
 	# shellcheck disable=1003
-	sed -i '' \
+	sed_inplace \
 		-e '/^#process_title/ s/#//' \
 		-e '/^# fcrdns/ s/^# //' \
 		-e '/^#early_talker/ s/^#//' \
@@ -445,7 +445,7 @@ EO_HELO
 
 	if ! grep -q rspamd "$_cfg/plugins"; then
 		# shellcheck disable=SC1003
-		sed -i '' \
+		sed_inplace \
 			-e '/^spamassassin/ a\'$'\n''rspamd' \
 			"$_cfg/plugins"
 	fi
@@ -466,16 +466,16 @@ authenticated=true
 private_ip=true
 EO_RSPAMD
 
-	get_public_ip
+	get_public_ip4
 
-	sed -i '' \
+	sed_inplace \
 		-e '/^;public_ip/ s/^;//' \
 		-e "/^public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
 		-e '/^;nodes/ s/^;//' \
 		-e '/^nodes/ s/cpus/1/' \
 		"$_cfg/smtp.ini"
 
-	sed -i '' \
+	sed_inplace \
 		-e '/^;spamd_socket/ s/^;//' \
 		-e "/^spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
 		-e '/^;spamd_user=first-recipient (see docs)/ s/^;//' \
@@ -486,7 +486,7 @@ EO_RSPAMD
 
 	tell_status "configuring $_cfg/tls.ini"
 	# shellcheck disable=1003
-	sed -i '' \
+	sed_inplace \
 		-e "/^; key/ s/^; //; /^key=/ s|=.*$|=/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem|" \
 		-e "/^; cert/ s/^; //; /^cert=/ s|=.*$|=/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem|" \
 		-e '/; dhparam/ s/; //; /^dhparam/ s|dhparams.pem|/etc/ssl/dhparam.pem|' \

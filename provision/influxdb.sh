@@ -24,7 +24,7 @@ configure_influxdb()
 {
 	local _conf="$STAGE_MNT/usr/local/etc/influxd.conf"
 
-	sed -i.bak \
+	sed_inplace \
 		-e '/dir =.*meta"/ s/\/var\/db\/influxdb/\/data\/db/' \
 		-e '/dir =.*data"/ s/\/var\/db\/influxdb/\/data\/db/' \
 		-e '/wal-dir =.*wal"/ s/\/var\/db\/influxdb/\/data\/db/' \
