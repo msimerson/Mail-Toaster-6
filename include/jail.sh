@@ -238,7 +238,7 @@ add_jail_conf_d()
 {
 	# configure IPv6 if the system has an external/public IPv6 address
 	local _IP6=""
-	get_public_ip ipv6
+	get_public_ip6
 	if [ -n "$PUBLIC_IP6" ]; then
 		_IP6="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");"
 	fi

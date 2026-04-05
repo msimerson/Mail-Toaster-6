@@ -103,6 +103,8 @@ stage_resolv_conf()        { :; }
 port_is_listening()        { return 0; }
 get_random_ip6net()        { echo "fd7a:e5cd:1fc1:dead:beef:cafe:1"; }
 get_public_ip()            { :; }
+get_public_ip4()           { :; }
+get_public_ip6()           { :; }
 get_public_facing_nic()    { :; }
 install_pfrule()           { :; }
 install_acme_sh()          { :; }

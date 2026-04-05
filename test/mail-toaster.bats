@@ -177,3 +177,108 @@ setup() {
 
   rm -rf "$STAGE_MNT"
 }
+
+@test "get_jail_ip dns" {
+  run get_jail_ip dns
+  assert_success
+  assert_output "172.16.15.3"
+}
+
+@test "get_jail_ip syslog" {
+  run get_jail_ip syslog
+  assert_success
+  assert_output "172.16.15.1"
+}
+
+@test "check_last_hour - returns failure when no timestamp exists" {
+  local tmp; tmp=$(mktemp -d)
+  TMPDIR="$tmp" run check_last_hour
+  assert_failure
+  rm -rf "$tmp"
+}
+
+@test "check_last_hour - returns success when timestamp is recent" {
+  local tmp; tmp=$(mktemp -d)
+  date +%s > "$tmp/.mt6_fetch"
+  TMPDIR="$tmp" run check_last_hour
+  assert_success
+  rm -rf "$tmp"
+}
+
+@test "fatal_err outputs FATAL message and exits non-zero" {
+  run fatal_err "something went wrong"
+  assert_failure
+  assert_output --partial "FATAL: something went wrong"
+}
+
+@test "fstab_add_mount - skips entry already present" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  mkdir -p "$tmpdir/myjail/etc"
+  local fstab="$tmpdir/myjail/etc/fstab"
+  printf '/src\t/dest\tnullfs\trw\t0\t0\n' > "$fstab"
+  printf '/src\t/dest\tnullfs\trw\t0\t0\n' > "${fstab}.stage"
+
+  tell_status() { :; }
+
+  run fstab_add_mount myjail /src /dest
+  assert_success
+
+  run grep -c "^/src" "$fstab"
+  assert_output "1"
+
+  rm -rf "$tmpdir"
+}
+
+@test "stage_listening - succeeds when port is immediately listening" {
+  port_is_listening() { return 0; }
+  run stage_listening 3306
+  assert_success
+  assert_output --partial "OK"
+}
+
+@test "stage_listening - fails after exhausting retries" {
+  port_is_listening() { return 1; }
+  run stage_listening 9999 2 0
+  assert_failure
+}
+
+@test "install_fstab creates fstab with data nullfs mount" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export ZFS_JAIL_MNT="$tmpdir/jails"
+  export STAGE_MNT="$tmpdir/jails/stage"
+  export JAIL_FSTAB=""
+  export TOASTER_USE_TMPFS=0
+  mkdir -p "$tmpdir/myjail/etc" "$tmpdir/stage/etc"
+
+  tell_status() { :; }
+
+  run install_fstab myjail
+  assert_success
+
+  run grep "nullfs" "$tmpdir/myjail/etc/fstab"
+  assert_success
+  assert_output --partial "$tmpdir/jails/myjail/data"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab appends JAIL_FSTAB when set" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export ZFS_JAIL_MNT="$tmpdir/jails"
+  export STAGE_MNT="$tmpdir/jails/stage"
+  export JAIL_FSTAB="/extra/src /extra/dest nullfs rw 0 0"
+  export TOASTER_USE_TMPFS=0
+  mkdir -p "$tmpdir/myjail/etc" "$tmpdir/stage/etc"
+
+  tell_status() { :; }
+
+  install_fstab myjail
+
+  run grep "/extra/src" "$tmpdir/myjail/etc/fstab"
+  assert_success
+
+  rm -rf "$tmpdir"
+}

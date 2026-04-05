@@ -13,6 +13,7 @@ export VPOPMAIL_OPTIONS_UNSET="ROAMING PGSQL LDAP ORACLE SYBASE"
 
 mt6-include vpopmail
 mt6-include mysql
+mt6-include qmail
 
 install_maildrop_port()
 {
@@ -322,8 +323,9 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	stage_pkg_install p5-Package-Constants
-	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
+	fetch -o "$STAGE_MNT/tmp/qmail-run.sh" "$TOASTER_SRC_URL/qmail/run.sh"
+	chmod 755 "$STAGE_MNT/tmp/qmail-run.sh"
+	stage_exec sh /tmp/qmail-run.sh
 
 	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		local _ppass; _ppass=$(get_random_pass 14)
@@ -351,8 +353,6 @@ test_vpopmail()
 	stage_listening 8998 2
 
 	stage_test_running lighttpd
-	#stage_test_running vpopmaild
-	echo "it worked"
 }
 
 migrate_vpopmail_home()

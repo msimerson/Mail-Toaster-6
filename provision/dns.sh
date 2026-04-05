@@ -207,8 +207,8 @@ EO_UB_LOCAL_CONF
 	enable_control
 	tweak_unbound_conf
 
-	get_public_ip ipv6
-	get_public_ip
+	get_public_ip6
+	get_public_ip4
 
 	install_access_conf
 	install_forward_conf

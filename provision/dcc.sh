@@ -32,7 +32,7 @@ install_dcc_port_options()
 	local SET=DCCIFD
 	local UNSET="DCCGREY DCCD DCCM PORTS_MILTER"
 
-	get_public_ip ipv6
+	get_public_ip6
 	if [ -z "$PUBLIC_IP6" ]; then
 		UNSET="$UNSET IPV6"
 	else
@@ -65,8 +65,8 @@ configure_dcc()
 
 	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/dcc.table" <<EO_DCC_TABLE
 $PUBLIC_IP4
@@ -91,7 +91,11 @@ start_dcc()
 	tell_status "starting up dcc-ifd"
 	stage_sysrc dccifd_enable=YES
 	stage_exec service dccifd start
-	stage_exec cdcc IPv6=off info
+	if [ -n "$PUBLIC_IP6" ]; then
+		stage_exec cdcc info
+	else
+		stage_exec cdcc IPv6=off info
+	fi
 }
 
 test_dcc()

@@ -174,8 +174,8 @@ constrain_sshd_to_host()
 		return
 	fi
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	local IP_MSG="	Your public IP(s) are detected as $PUBLIC_IP4"
 	if [ -n "$PUBLIC_IP6" ]; then
@@ -352,19 +352,24 @@ EO_PF_EXPIRE
 
 configure_ipv6()
 {
-	get_public_ip ipv6
+	get_public_ip6
 
 	if [ -n "$PUBLIC_IP6" ] && [ -n "$PUBLIC_NIC" ]; then
 		sysrc ipv6_activate_all_interfaces="YES"
 		sysrc ipv6_cpe_wanif="$PUBLIC_NIC"
 		sysrc ipv6_gateway_enable="YES"
 		sysctl net.inet6.ip6.forwarding=1
+
+		# disable DAD so jailed daemons have IPv6 addrs ready when they start
+		sysctl net.inet6.ip6.dad_count=0
+		grep -q ^net.inet6.ip6.dad_count /etc/sysctl.conf || \
+		    echo "net.inet6.ip6.dad_count=0" >> /etc/sysctl.conf
 	fi
 }
 
 add_jail_nat()
 {
-	get_public_ip
+	get_public_ip4
 
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
 	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi

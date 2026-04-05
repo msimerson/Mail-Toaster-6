@@ -380,8 +380,8 @@ rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> \$int_ip6
 EO_WEBMAIL_RDR
 	fi
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/webmail.table" <<EO_WEBMAIL_TABLE
 $PUBLIC_IP4

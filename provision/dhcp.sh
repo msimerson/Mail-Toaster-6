@@ -44,7 +44,7 @@ EO_PF_RDR
 		mkdir -p "$ZFS_DATA_MNT/dhcp/db"
 	fi
 
-	get_public_ip
+	get_public_ip4
 	store_config "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" <<EO_DHCP
 option domain-name "$TOASTER_MAIL_DOMAIN";
 # option domain-name-servers $PUBLIC_IP4;

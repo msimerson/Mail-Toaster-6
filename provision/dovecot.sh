@@ -537,8 +537,8 @@ configure_dovecot_pf()
 # 192.168/16
 EO_PF_INSECURE
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/dovecot.table" <<EO_PF_INSECURE
 $PUBLIC_IP4

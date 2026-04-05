@@ -25,39 +25,8 @@ if [ ! -f /var/qmail/control/rcpthosts ]; then
 fi
 
 exec /usr/local/bin/softlimit -m 51200000 \
-	/usr/local/bin/tcpserver -H -R -c10 \
-	-u 89 -g 82 0.0.0.0 25 \
-	/usr/local/bin/fixcrio \
-	/var/qmail/bin/qmail-smtpd /usr/local/vpopmail/bin/vchkpw /usr/bin/true \
-	/var/qmail/bin/splogger qmail
-EO_SMTP_RUN
-
-	chmod 755 "$RUN"
-}
-
-install_qmail_smtp6_run()
-{
-	RUN="$SUP/qmail-smtpd-6/run"
-	if [ -x "$RUN" ]; then
-		echo -n "Re"
-	fi
-
-	echo "installing $RUN"
-	mkdir -p "$SUP/qmail-smtpd-6/log/main"
-	cat <<EO_SMTP_RUN > "$RUN"
-#!/bin/sh
-PATH=/var/qmail/bin:/usr/local/vpopmail/bin
-export PATH
-
-if [ ! -f /var/qmail/control/rcpthosts ]; then
-	echo "No /var/qmail/control/rcpthosts!"
-	echo "Refusing to start SMTP listener because it'll create an open relay"
-	exit 1
-fi
-
-exec /usr/local/bin/softlimit -m 51200000 \
-	/usr/local/bin/tcpserver -H -R -c10 \
-	-u 89 -g 82 $(get_jail_ip6 vpopmail) 25 \
+	/usr/local/bin/tcpserver -H -R -c10 -6 \
+	-u 89 -g 82 ::0 25 \
 	/usr/local/bin/fixcrio \
 	/var/qmail/bin/qmail-smtpd /usr/local/vpopmail/bin/vchkpw /usr/bin/true \
 	/var/qmail/bin/splogger qmail
@@ -296,7 +265,7 @@ install_symlinks()
 		ln -s /var/service /service
 	fi
 
-	for _srv in qmail-smtpd qmail-smtpd-6 qmail-send vpopmaild qmail-deliverabled clear; do
+	for _srv in qmail-smtpd qmail-smtpd-6 qmail-send vpopmaild deliverabled clear; do
 		if [ ! -L "/service/$_srv" ] && [ -d "/var/qmail/supervise/$_srv" ]; then
 			echo "supervising $_srv"
 			ln -s "/var/qmail/supervise/$_srv" "/service/$_srv"
@@ -345,7 +314,6 @@ EO_DELIVERABLED
 	if [ ! "$(pkg query %n -F p5-HTTP-Daemon)" ]; then
 		echo "Installing HTTP::Daemon"
 		pkg install -y p5-HTTP-Daemon
-		# make -C /usr/ports/www/p5-HTTP-Daemon reinstall install clean
 	fi
 
 	pkg install -y p5-Package-Constants
@@ -419,8 +387,6 @@ install_qmail_send_run
 install_log_run qmail-send
 install_qmail_smtp_run
 install_log_run qmail-smtpd
-install_qmail_smtp6_run
-install_log_run qmail-smtpd-6
 install_qmailctl
 install_vpopmaild_run
 install_log_run vpopmaild

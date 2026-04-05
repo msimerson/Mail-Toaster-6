@@ -94,7 +94,7 @@ setup() {
 
   # Mock grep to not find jail.conf
   grep() { return 1; }
-  get_public_ip() { export PUBLIC_IP6="2001:db8::1"; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
   store_config() {
     cat -
   }
@@ -109,7 +109,7 @@ setup() {
 @test "add_jail_conf_d" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
-  get_public_ip() { export PUBLIC_IP6="2001:db8::1"; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
   store_config() {
     cat -
   }

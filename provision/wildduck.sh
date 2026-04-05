@@ -357,8 +357,8 @@ configure_pf()
 {
 	local _pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip wildduck)"
@@ -466,7 +466,7 @@ authenticated=true
 private_ip=true
 EO_RSPAMD
 
-	get_public_ip
+	get_public_ip4
 
 	sed -i '' \
 		-e '/^;public_ip/ s/^;//' \
