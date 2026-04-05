@@ -27,7 +27,7 @@ configure_redis()
 	mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
 	stage_exec chown redis:redis /data/db /data/log /data/etc
 
-	sed -i.bak \
+	sed_inplace \
 		-e '/^stop-writes-on-bgsave-error/ s/yes/no/' \
 		-e 's/^dir \/var\/db\/redis\//dir \/data\/db\//' \
 		-e 's/^# syslog-enabled no/syslog-enabled yes/' \

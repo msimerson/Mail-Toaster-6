@@ -22,15 +22,25 @@ get_public_ip()
 {
 	local _ver=${1:-"ipv4"}
 
-	get_public_facing_nic "$_ver"
-
 	if [ "$_ver" = "ipv6" ]; then
-		export PUBLIC_IP6
-		PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet | grep -v fe80 | awk '{print $2}' | head -n1)
+		get_public_ip6
 	else
-		export PUBLIC_IP4
-		PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
+		get_public_ip4
 	fi
+}
+
+get_public_ip4()
+{
+	get_public_facing_nic ipv4
+	export PUBLIC_IP4
+	PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
+}
+
+get_public_ip6()
+{
+	get_public_facing_nic ipv6
+	export PUBLIC_IP6
+	PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet6 | grep -v fe80 | awk '{print $2}' | head -n1)
 }
 
 get_random_ip6net()

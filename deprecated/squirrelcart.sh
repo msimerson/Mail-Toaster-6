@@ -129,7 +129,7 @@ configure_squirrelcart()
 		cp "$_cf_prev" "$_cf_stage" || exit
 	else
 		tell_status "customizing config.php"
-		sed -i.bak \
+		sed_inplace \
 			-e "/^\\\$sql_host /      s/= .*/= '$(get_jail_ip mysql)';/" \
 			-e "/^\\\$db /            s/= .*/= 'squirrelcart';/" \
 			-e "/^\\\$sql_username /  s/= .*/= 'squirrelcart';/" \

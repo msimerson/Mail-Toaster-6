@@ -71,7 +71,7 @@ install_spamassassin_razor()
 		exit
 	fi
 
-	sed -i.bak -e \
+	sed_inplace -e \
 		'/^logfile/ s/= /= \/var\/log\//' \
 		"$STAGE_MNT/etc/razor/razor-agent.conf"
 

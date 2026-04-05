@@ -13,6 +13,7 @@ export VPOPMAIL_OPTIONS_UNSET="ROAMING PGSQL LDAP ORACLE SYBASE"
 
 mt6-include vpopmail
 mt6-include mysql
+mt6-include qmail
 
 install_maildrop_port()
 {
@@ -22,7 +23,7 @@ mail_maildrop_UNSET=DOCS
 	# libidn is needed for 3.0.x versions
 	stage_pkg_install courier-unicode libidn2 pcre pcre2 perl5
 
-	sed -i '' \
+	sed_inplace \
 		-e 's/3\.[0-9]\.[0-9]/3.1.0/' \
 		/usr/ports/mail/maildrop/Makefile
 
@@ -205,7 +206,7 @@ install_vpopmail_mysql_grants()
 	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
 	local _ip="${JAIL_NET_PREFIX}.0/24"
 
-	sed -i.bak \
+	sed_inplace \
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
@@ -271,7 +272,7 @@ install_quota_report()
 	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
 	chmod 755 "$_qr"
 
-	sed -i '' \
+	sed_inplace \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
 		-e "s/My Great Company/$TOASTER_ORG_NAME/" \
@@ -322,8 +323,9 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	stage_pkg_install p5-Package-Constants
-	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
+	cp include/qmail.sh "$STAGE_MNT/tmp/qmail-run.sh"
+	chmod 755 "$STAGE_MNT/tmp/qmail-run.sh"
+	stage_exec sh -c ". /tmp/qmail-run.sh && install_supervision"
 
 	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		local _ppass; _ppass=$(get_random_pass 14)
@@ -351,8 +353,6 @@ test_vpopmail()
 	stage_listening 8998 2
 
 	stage_test_running lighttpd
-	#stage_test_running vpopmaild
-	echo "it worked"
 }
 
 migrate_vpopmail_home()

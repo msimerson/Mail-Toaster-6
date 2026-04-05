@@ -50,7 +50,7 @@ EO_SYSCTL_MONGO
 
 configure_mongod_syslog()
 {
-	sed -i '' \
+	sed_inplace \
 		-e '/destination:/ s/file/syslog/' \
 		"$STAGE_MNT/data/etc/mongodb.conf"
 }

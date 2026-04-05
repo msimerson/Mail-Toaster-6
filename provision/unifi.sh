@@ -41,7 +41,7 @@ pass in quick inet6 proto tcp from any to $(get_jail_ip6 unifi) port 443
 EO_FILTER
 
 	install_acme_sh
-	sed -i '' \
+	sed_inplace \
 		-e 's|^#DEPLOY_UNIFI_KEYSTORE.*|DEPLOY_UNIFI_KEYSTORE="/data/java/unifi/data/keystore"|' \
 		-e 's|^#DEPLOY_UNIFI_KEYPASS.*|DEPLOY_UNIFI_KEYPASS="aircontrolenterprise"|' \
 		-e 's|^#DEPLOY_UNIFI_RELOAD.*|DEPLOY_UNIFI_RELOAD="service unifi restart"|' \

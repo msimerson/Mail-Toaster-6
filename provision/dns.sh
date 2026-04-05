@@ -122,7 +122,7 @@ tweak_unbound_conf()
 	tell_status "configuring unbound.conf"
 	# control.conf for the munin stats plugin
 	# shellcheck disable=1004
-	sed -i.bak \
+	sed_inplace \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
 		-e '/# use-syslog/s/# //' \
@@ -173,7 +173,7 @@ enable_control()
 		control-cert-file: "/data/control/unbound_control.pem"
 EO_CONTROL_CONF
 
-	sed -i.bak \
+	sed_inplace \
 		-e '/^DESTDIR=/ s/=.*$/=\/data\/control/' \
 		"$STAGE_MNT/usr/local/sbin/unbound-control-setup"
 
@@ -207,8 +207,8 @@ EO_UB_LOCAL_CONF
 	enable_control
 	tweak_unbound_conf
 
-	get_public_ip ipv6
-	get_public_ip
+	get_public_ip6
+	get_public_ip4
 
 	install_access_conf
 	install_forward_conf

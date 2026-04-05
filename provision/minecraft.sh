@@ -41,7 +41,7 @@ configure_minecraft()
 		sleep 1
 	done
 	tell_status "accepting EULA"
-	sed -i.bak -e '/^eula/ s/false/true/' "$_eula"
+	sed_inplace -e '/^eula/ s/false/true/' "$_eula"
 	echo "done"
 	# stage_sysrc minecraft_memx=
 	# stage_sysrc minecraft_mems=
