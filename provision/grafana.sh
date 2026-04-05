@@ -27,7 +27,7 @@ configure_grafana()
 		tell_status "installing default grafana.ini"
 		cp "$STAGE_MNT/usr/local/etc/grafana/grafana.ini" "$_gini" || exit
 
-		sed -i '' \
+		sed_inplace \
 			-e "/^;domain =/ s/^;//; s/localhost/${TOASTER_HOSTNAME}/" \
 			-e '/^data =/ s/\/.*/\/data\/db/' \
 			-e '/^logs =/ s/\/.*/\/data\/log/' \

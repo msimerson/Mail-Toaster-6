@@ -101,7 +101,7 @@ install_beats()
 
 	local _xcfg="$STAGE_MNT/usr/local/etc/beats/metricbeat.modules.d/elasticsearch-xpack.yml"
 	cp "$STAGE_MNT/usr/local/share/examples/beats/metricbeat.modules.d/elasticsearch-xpack.yml.disabled" "$_xcfg"
-	sed -i '' \
+	sed_inplace \
 		-e "/hosts:/ s/localhost/$(get_jail_ip elasticsearch)/" \
 		"$_xcfg"
 
@@ -132,7 +132,7 @@ configure_elasticsearch()
 		chown 965 "$STAGE_MNT/data/etc/log4j2.properties"
 	fi
 
-	sed -i.bak \
+	sed_inplace \
 		-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip stage)/" \
 		-e '/^#node.name/ s/^#//; s/node-1/stage/' \
 		-e '/^#cluster.initial/ s/^#//; s/node-1/stage/; s/, "node-2"//' \
@@ -147,7 +147,7 @@ configure_elasticsearch()
 		cp "$_conf" "$_data_conf"
 		chown 965 "$_data_conf"
 
-		sed -i.bak \
+		sed_inplace \
 			-e "/^network.host:/ s/$(get_jail_ip stage)/$(get_jail_ip elasticsearch)/" \
 			-e '/^path.data: / s/var/data/' \
 			-e '/^path.logs: / s/var/data/' \
@@ -179,7 +179,7 @@ configure_kibana()
 
 	chown 80:80 "$STAGE_MNT/usr/local/etc/kibana/kibana.yml"
 
-	sed -i '' \
+	sed_inplace \
 		-e 's/^#server.basePath: ""/server.basePath: "\/kibana"/' \
 		"$STAGE_MNT/usr/local/etc/kibana/kibana.yml"
 

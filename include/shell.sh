@@ -39,7 +39,7 @@ configure_bash()
 {
 	if ! grep -q profile "$1/root/.profile"; then
 		tell_status "telling bash to read /etc/profile"
-		sed -i '' \
+		sed_inplace \
 			-e '/PAGER$/ a\
 \
 if [ -n "\$BASH" ]; then . /etc/profile; fi' \
@@ -166,5 +166,4 @@ configure_zsh_shell()
 	stage_exec sed -i.bak \
 		-e 's/^LP_HOSTNAME_ALWAYS=0/LP_HOSTNAME_ALWAYS=1/' \
 		"/root/.config/liquidpromptrc" || exit
-
 }

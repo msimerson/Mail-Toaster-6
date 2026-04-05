@@ -239,7 +239,7 @@ update_openssl_defaults()
 	local _cc;    _cc=$(fetch -q -4 -o - https://ipinfo.io/country)
 	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
 	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
-	sed -i.bak \
+	sed_inplace \
 		-e "/^commonName_max.*/ a\ 
 commonName_default = $TOASTER_HOSTNAME" \
 		-e "/^emailAddress_max.*/ a\ 
@@ -319,7 +319,7 @@ install_sshguard()
 	pkg install -y sshguard
 
 	tell_status "configuring sshguard for PF"
-	sed -i.bak \
+	sed_inplace \
 		-e '/sshg-fw-null/ s/^B/#B/' \
 		-e '/sshg-fw-pf/ s/^#//' \
 		/usr/local/etc/sshguard.conf
@@ -436,7 +436,7 @@ pass in quick on \$ext_if proto tcp to port ssh \
 EO_PF_RULES
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		sed -i '' \
+		sed_inplace \
 			-e '/^table <ext_ip>/ s/, \$ext_ip6//' \
 			/etc/pf.conf
 	fi
@@ -528,7 +528,7 @@ update_freebsd()
 
 	if grep -q '^Components src' /etc/freebsd-update.conf; then
 		tell_status "remove src from freebsd-update"
-		sed -i.bak -e '/^Components/ s/src //' /etc/freebsd-update.conf
+		sed_inplace -e '/^Components/ s/src //' /etc/freebsd-update.conf
 	fi
 
 	tell_status "updating FreeBSD with security patches"
@@ -598,7 +598,7 @@ configure_etc_hosts()
 	# hosts DNS on *every* incoming syslog message.
 	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
 		tell_status "removing /etc/hosts toaster additions"
-		sed -i.bak -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
+		sed_inplace -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
 	fi
 
 	tell_status "adding /etc/hosts entries"

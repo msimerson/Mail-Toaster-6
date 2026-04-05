@@ -174,7 +174,7 @@ jail_rename()
 		zfs mount "$ZFS_VOL/$_f/$2"
 	done
 
-	sed -i.bak \
+	sed_inplace \
 		-e "/^$1\s/ s/$1/$2/" \
 		/etc/jail.conf || exit
 
@@ -303,7 +303,7 @@ assure_ip6_addr_is_declared()
 	fi
 
 	tell_status "adding ip6.addr to $1 section in /etc/jail.conf"
-	sed -i.bak \
+	sed_inplace \
 		-e "/^$1/,/ip4/ s/ip4.*;/&\\
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
 		/etc/jail.conf

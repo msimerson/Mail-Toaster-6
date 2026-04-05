@@ -23,7 +23,7 @@ mail_maildrop_UNSET=DOCS
 	# libidn is needed for 3.0.x versions
 	stage_pkg_install courier-unicode libidn2 pcre pcre2 perl5
 
-	sed -i '' \
+	sed_inplace \
 		-e 's/3\.[0-9]\.[0-9]/3.1.0/' \
 		/usr/ports/mail/maildrop/Makefile
 
@@ -206,7 +206,7 @@ install_vpopmail_mysql_grants()
 	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
 	local _ip="${JAIL_NET_PREFIX}.0/24"
 
-	sed -i.bak \
+	sed_inplace \
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
@@ -272,7 +272,7 @@ install_quota_report()
 	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
 	chmod 755 "$_qr"
 
-	sed -i '' \
+	sed_inplace \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
 		-e "s/My Great Company/$TOASTER_ORG_NAME/" \

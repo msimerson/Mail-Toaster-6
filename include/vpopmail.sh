@@ -44,7 +44,7 @@ install_vpopmail_source()
 }
 
 vpopmail_port_fixups() {
-        sed -i '' \
+        sed_inplace \
                 -e '/pw_name char(32)/         s/char(32)/VARCHAR (64)/'  \
                 -e '/pw_domain char(96)/       s/char(96)/VARCHAR (96)/'  \
                 -e '/user char(32)/            s/char(32)/VARCHAR (64)/'  \
