@@ -6,7 +6,7 @@ SUP="/var/qmail/supervise"
 
 install_service_qmail_smtp()
 {
-	RUN="$SUP/qmail-smtpd/run"
+	local RUN="$SUP/qmail-smtpd/run"
 	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
@@ -37,7 +37,7 @@ EO_SMTP_RUN
 
 install_service_log_run()
 {
-	RUN="$SUP/$1/log/run"
+	local RUN="$SUP/$1/log/run"
 	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
@@ -53,14 +53,13 @@ EO_LOG_RUN
 
 install_service_qmail_send()
 {
-	RUN="$SUP/qmail-send/run"
+	local RUN="$SUP/qmail-send/run"
 	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/qmail-send/log/main"
-	#tee $RUN <<'EO_SEND_RUN'
 	cat <<'EO_SEND_RUN' > "$RUN"
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
@@ -102,7 +101,7 @@ install_vpopmail_etc()
 
 	echo "installing $ETC/tcp.smtp"
 	mkdir -p "$ETC" || exit
-	tee "$ETC/tcp.smtp" <<EO_VPOPMAIL_ETC
+	cat <<'EO_VPOPMAIL_ETC' > "$ETC/tcp.smtp"
 127.0.0.1:allow,RELAYCLIENT=""
 ${JAIL_NET_PREFIX}.9:allow,RELAYCLIENT=""
 :allow
@@ -126,45 +125,38 @@ install_symlinks()
 		ln -s /var/service /service
 	fi
 
-	for _srv in qmail-smtpd qmail-smtpd-6 qmail-send vpopmaild deliverabled clear; do
-		if [ ! -L "/service/$_srv" ] && [ -d "/var/qmail/supervise/$_srv" ]; then
+	for _srv in qmail-smtpd qmail-send vpopmaild deliverabled clear; do
+		if [ ! -L "/service/$_srv" ] && [ -d "$SUP/$_srv" ]; then
 			echo "supervising $_srv"
-			ln -s "/var/qmail/supervise/$_srv" "/service/$_srv"
+			ln -s "$SUP/$_srv" "/service/$_srv"
 		fi
 	done
 }
 
 install_service_vpopmaild()
 {
-	RUN="$SUP/vpopmaild/run"
+	local RUN="$SUP/vpopmaild/run"
 	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
 
 	echo "installing $RUN"
 	mkdir -p "$SUP/vpopmaild/log/main"
-	tee "$RUN" <<'EO_VPOPMAILD'
+	cat <<'EO_VPOPMAILD' > "$RUN"
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
-exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | /usr/bin/logger -t vpopmaild
+exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | \
+	/usr/bin/logger -t vpopmaild
 EO_VPOPMAILD
-	chmod 755 "$RUN"
 }
 
 install_qmail_deliverabled()
 {
-	RUN="$SUP/deliverabled/run"
-	if [ -x "$RUN" ]; then
-		echo -n "Re"
-	fi
-
 	if [ ! "$(pkg query %n -F p5-HTTP-Daemon)" ]; then
 		echo "Installing HTTP::Daemon"
 		pkg install -y p5-HTTP-Daemon
 	fi
-
-	# pkg install -y p5-Package-Constants
 
 	echo "installing Qmail::Deliverable"
 	pkg install -y p5-Log-Message p5-Archive-Extract p5-Object-Accessor p5-Module-Pluggable p5-libwww
@@ -180,23 +172,27 @@ $Qmail::Deliverable::VPOPMAIL_EXT = 1;
 
 install_service_qmail_deliverabled()
 {
+	local RUN="$SUP/deliverabled/run"
+	if [ -x "$RUN" ]; then
+		echo -n "Re"
+	fi
+
 	echo "installing $RUN"
 	mkdir -p "$SUP/deliverabled/log/main"
-	#tee "$RUN" <<'EO_DELIVERABLED'
 	cat <<'EO_DELIVERABLED' > "$RUN"
 #!/bin/sh
 MAXRAM=150000000
 BIN=/usr/local/bin
 PATH=/usr/local/vpopmail/bin
 export PATH
-exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1 | /usr/bin/logger -t qmd
+exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1 | \
+	/usr/bin/logger -t qmd
 EO_DELIVERABLED
-	chmod 755 "$RUN"
 }
 
 install_service_clear()
 {
-	RUN="$SUP/clear/run"
+	local RUN="$SUP/clear/run"
 	if [ -x "$RUN" ]; then
 		echo -n "Re"
 	fi
@@ -210,7 +206,6 @@ yes '' | head -4000 | tr '\n' .
 # To clear service errors, run this command:
 # svc -o /service/clear
 EO_CLEAR
-	chmod 755 "$RUN"
 	touch "$SUP/clear/down"
 }
 
@@ -226,13 +221,13 @@ install_supervision()
 	install_service_qmail_smtp
 	install_service_qmail_deliverabled
 	install_service_vpopmaild
-	chmod 755 /service/*/run
+	chmod 755 "$SUP"/*/run
 
 	install_service_log_run qmail-send
 	install_service_log_run qmail-smtpd
 	install_service_log_run deliverabled
 	install_service_log_run vpopmaild
-	chmod 755 /service/*/log/run
+	chmod 755 "$SUP"/*/log/run
 	chown -R qmaill "$SUP"/*/log
 
 	install_vpopmail_etc
