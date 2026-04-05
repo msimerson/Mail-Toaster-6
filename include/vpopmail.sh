@@ -66,7 +66,7 @@ install_vpopmail_port()
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "adding mysql dependency"
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
-		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
+		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB PGSQL LDAP ORACLE SYBASE"
 	fi
 
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then
@@ -100,7 +100,7 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 "
 	fi
 
-	if ! grep -qs ^CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
+	if ! grep -qs CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
 		# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=257672
 		tell_status "patching vpopmail Makefile"
 		echo "CFLAGS+=	-fcommon" | tee -a "/usr/ports/mail/vpopmail/Makefile" || exit

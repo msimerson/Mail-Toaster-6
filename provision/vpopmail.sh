@@ -148,6 +148,11 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB DOMAIN_AUTOFILL IDX_SQL SPAM_DETECTION S
 
 	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin
 
+	# port requires newer autoconf than pkg has, 2026-04-04
+	stage_make_conf devel_autoconf_ "
+devel_autoconf_UNSET=INFO
+"
+	stage_port_install devel/autoconf
 	stage_port_install mail/qmailadmin
 
 	install_lighttpd
@@ -416,7 +421,7 @@ migrate_vpopmail_home()
 	# fi
 
 	# # TODO: patch fstab mounts in /etc/jail.conf
-	# service jail stop dovecot vpopmail
+	# service jail start dovecot vpopmail
 }
 
 migrate_vpopmail_home

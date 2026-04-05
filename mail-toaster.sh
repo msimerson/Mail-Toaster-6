@@ -374,7 +374,7 @@ stage_port_install()
 
 	stage_pkg_install pkgconf portconfig
 
-	stage_exec make -C "/usr/ports/$1" build deinstall install clean || return 1
+	stage_exec make -C "/usr/ports/$1" reinstall clean || return 1
 
 	tell_status "port $1 installed"
 }

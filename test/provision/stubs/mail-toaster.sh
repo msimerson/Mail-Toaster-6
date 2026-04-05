@@ -50,7 +50,7 @@ mt6_init()       { :; }
 
 # ZFS / filesystem
 base_snapshot_exists()     { return 0; }
-zfs_filesystem_exists()    { return 1; }
+zfs_filesystem_exists()    { return 0; }
 zfs_snapshot_exists()      { return 0; }
 zfs_create_fs()            { :; }
 zfs_destroy_fs()           { :; }
