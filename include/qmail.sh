@@ -101,7 +101,7 @@ install_vpopmail_etc()
 
 	echo "installing $ETC/tcp.smtp"
 	mkdir -p "$ETC" || exit
-	cat <<'EO_VPOPMAIL_ETC' > "$ETC/tcp.smtp"
+	cat <<EO_VPOPMAIL_ETC > "$ETC/tcp.smtp"
 127.0.0.1:allow,RELAYCLIENT=""
 ${JAIL_NET_PREFIX}.9:allow,RELAYCLIENT=""
 :allow
