@@ -12,11 +12,24 @@ mt6-include nginx
 
 configure_nginx_server()
 {
-	_NGINX_SERVER='
-		server_name webmail default_server;
+	get_public_ip6
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		# nginx terminates TLS; ACME module intercepts challenges internally,
+		# so redirect all other HTTP traffic to HTTPS
+		_NGINX_SERVER="
+		server_name $TOASTER_HOSTNAME default_server;
+
+		location / {
+			return 301 https://\$server_name\$request_uri;
+		}
+"
+	else
+		# haproxy terminates TLS; serve ACME challenge files from disk
+		_NGINX_SERVER='
+		server_name $TOASTER_HOSTNAME default_server;
 		root /data/htdocs;
 
-		# serve ACME requests from /data
 		location /.well-known/acme-challenge {
 			try_files $uri =404;
 		}
@@ -31,11 +44,10 @@ configure_nginx_server()
 		}
 
 		location / {
-			# redirect to HTTPS, use with TOASTER_WEBMAIL_PROXY=nginx
-			#return 301 https://$server_name$request_uri;
 			index  index.html index.htm;
 		}
 '
+	fi
 	export _NGINX_SERVER
 	configure_nginx_server_d webmail
 
@@ -46,10 +58,13 @@ configure_nginx_server()
 		listen	    443 ssl;
 		listen [::]:443 ssl;
 
-		server_name  $TOASTER_HOSTNAME;
+		server_name $TOASTER_HOSTNAME;
 
-		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
-		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
+		acme_certificate letsencrypt;
+
+		ssl_certificate       \$acme_certificate;
+		ssl_certificate_key   \$acme_certificate_key;
+		ssl_certificate_cache max=2;
 
 		include /data/etc/nginx/webmail.conf;
 	}
@@ -88,18 +103,26 @@ configure_nginx_server()
 			rewrite /haraka/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass	http://$(get_jail_ip haraka):80;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade \$http_upgrade;
+			proxy_set_header Connection \$connection_upgrade;
+			proxy_read_timeout 86400;
 		}
 
 		location /watch/ {
 			proxy_pass	http://$(get_jail_ip haraka):80;
 			proxy_http_version 1.1;
 			proxy_set_header Upgrade \$http_upgrade;
-			proxy_set_header Connection \"upgrade\";
+			proxy_set_header Connection \$connection_upgrade;
 			proxy_read_timeout 86400;
 		}
 
 		location /logs/ {
 			proxy_pass	http://$(get_jail_ip haraka):80;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade \$http_upgrade;
+			proxy_set_header Connection \$connection_upgrade;
+			proxy_read_timeout 86400;
 		}
 
 		location ~ /(qmailadmin|vqadmin) {
@@ -134,62 +157,45 @@ configure_nginx_server()
 EO_WEBMAIL_INCLUDE
 }
 
-install_lighttpd()
+configure_nginx_acme()
 {
-	tell_status "installing lighttpd"
-	stage_pkg_install lighttpd
+	local _conf="$ZFS_DATA_MNT/webmail/etc/nginx/nginx.conf"
+	local _acme_conf="$ZFS_DATA_MNT/webmail/etc/nginx/acme.conf"
 
-	mkdir -p "$STAGE_MNT/var/spool/lighttpd/sockets"
-	chown -R www "$STAGE_MNT/var/spool/lighttpd/sockets"
-}
+	if [ -f "$_acme_conf" ]; then
+		tell_status "preserving $_acme_conf"
+		return
+	fi
 
-configure_lighttpd()
-{
-	local _lighttpd_dir="$STAGE_MNT/usr/local/etc/lighttpd"
-	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
+	tell_status "configuring ACME module"
 
-	# shellcheck disable=2016
 	sed_inplace \
-		-e 's/^#include_shell "cat/include_shell "cat/' \
-		-e '/^var.server_root/ s|/usr/local/www/data|/data/htdocs|' \
-		"$_lighttpd_conf"
+		-e 's|load_module /usr/local/libexec/nginx/ngx_mail_module\.so;|load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;\nload_module /usr/local/libexec/nginx/ngx_mail_module.so;|' \
+		"$_conf"
 
-	store_config "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
-server.modules += ( "mod_alias" )
+	mkdir -p "$ZFS_DATA_MNT/webmail/etc/acme/letsencrypt"
 
-alias.url = (
-		"/cgi-bin/"        => "/usr/local/www/cgi-bin/",
-	)
+	store_config "$_acme_conf" <<EO_NGINX_ACME
+	resolver $(get_jail_ip dns) valid=60s;
 
-server.modules += (
-		"mod_cgi",
-		"mod_fastcgi",
-		"mod_extforward",
-	)
+	acme_shared_zone zone=ngx_acme_shared:1M;
 
-\$HTTP["url"] =~ "^/awstats/" {
-   cgi.assign = ( "" => "/usr/bin/perl" )
-}
-\$HTTP["url"] =~ "^/cgi-bin" {
-   cgi.assign = ( "" => "" )
-}
-extforward.forwarder = (
-		"$(get_jail_ip haproxy)" => "trust",
-	)
-
-EO_LIGHTTPD_MT6
+	acme_issuer letsencrypt {
+		uri        https://acme-v02.api.letsencrypt.org/directory;
+		contact    $TOASTER_ADMIN_EMAIL;
+		state_path /data/etc/acme/letsencrypt;
+		accept_terms_of_service;
+	}
+EO_NGINX_ACME
 }
 
 install_webmail()
 {
 	stage_setup_tls
 
-	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		install_lighttpd
-	else
-		install_nginx
-		configure_nginx_server
-	fi
+	install_nginx
+
+	configure_nginx_server
 }
 
 install_index()
@@ -397,11 +403,10 @@ EO_WEBMAIL_FILTER
 
 configure_webmail()
 {
-	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		configure_lighttpd
-	else
-		configure_nginx webmail
-		configure_nginx_server
+	configure_nginx webmail
+	configure_nginx_server
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		configure_nginx_acme
 	fi
 
 	configure_webmail_pf

@@ -115,9 +115,13 @@ configure_mysql_ram()
 	fi
 
 	tell_status "system RAM < 8GB, capping innodb_buffer_pool_size to 512M"
-	sed_inplace \
-		-e '/^innodb_buffer_pool_size/ s/=.*/= 512M/' \
-		"$_my_cnf"
+	if grep -q innodb_buffer_pool_size "$_my_cnf"; then
+		sed_inplace \
+			-e '/^innodb_buffer_pool_size/ s/=.*/= 512M/' \
+			"$_my_cnf"
+	else
+		printf "\ninnodb_buffer_pool_size = 512M\n" >> "$_my_cnf"
+	fi
 }
 
 configure_mysql()

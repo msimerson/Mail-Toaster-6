@@ -93,33 +93,50 @@ http {
 			alias /data/htdocs/qmailadmin/;
 		}
 
-		# vqadmin requires authentication
-		location ~ ^/cgi-bin/vqadmin {
+		location ~ ^/cgi-bin/vqadmin/vqadmin(?<path_info>/.*|$) {
 			auth_basic           "vqadmin";
 			auth_basic_user_file /data/etc/WebUsers;
 
-			fastcgi_pass  unix:/var/run/fcgiwrap.sock;
+			fastcgi_pass  fcgi;
 			include       /usr/local/etc/nginx/fastcgi_params;
-			fastcgi_param SCRIPT_FILENAME /data\$fastcgi_script_name;
+
+			fastcgi_param PATH_INFO       $path_info;
+			fastcgi_param SCRIPT_FILENAME /data/cgi-bin/vqadmin/vqadmin;
+			fastcgi_param SCRIPT_NAME     /cgi-bin/vqadmin/vqadmin;
 			fastcgi_param DOCUMENT_ROOT   /data;
+			fastcgi_param QUERY_STRING    $query_string;
+			fastcgi_param REQUEST_METHOD  $request_method;
+			fastcgi_param CONTENT_TYPE    $content_type;
+			fastcgi_param CONTENT_LENGTH  $content_length;
 		}
 
-		location ~ ^/cgi-bin/ {
-			fastcgi_pass  unix:/var/run/fcgiwrap.sock;
+		location ~ ^/cgi-bin/qmailadmin/qmailadmin(?<path_info>/.*|$) {
+			fastcgi_pass  unix:/var/run/fcgiwrap/fcgiwrap.sock;
 			include       /usr/local/etc/nginx/fastcgi_params;
-			fastcgi_param SCRIPT_FILENAME /data\$fastcgi_script_name;
+
+			fastcgi_param PATH_INFO       $path_info;
+			fastcgi_param SCRIPT_FILENAME /data/cgi-bin/qmailadmin/qmailadmin;
+			fastcgi_param SCRIPT_NAME     /cgi-bin/qmailadmin/qmailadmin;
 			fastcgi_param DOCUMENT_ROOT   /data;
-		}
+			fastcgi_param QUERY_STRING    $query_string;
+			fastcgi_param REQUEST_METHOD  $request_method;
+			fastcgi_param CONTENT_TYPE    $content_type;
+			fastcgi_param CONTENT_LENGTH  $content_length;
+        }
 	}
 }
 EO_NGINX
 	fi
 
+	stage_sysrc fcgiwrap_enable=YES
+	stage_sysrc fcgiwrap_user="www"
+	stage_sysrc fcgiwrap_group="www"
+	stage_sysrc fcgiwrap_socket_owner="www"
+	stage_sysrc fcgiwrap_socket_group="www"
+	stage_exec service fcgiwrap start
+
 	stage_sysrc nginx_flags="-c /data/etc/nginx.conf"
 	stage_sysrc nginx_enable=YES
-	stage_sysrc fcgiwrap_enable=YES
-	stage_sysrc fcgiwrap_socket="unix:/var/run/fcgiwrap.sock"
-	stage_exec service fcgiwrap start
 	stage_exec service nginx start
 }
 

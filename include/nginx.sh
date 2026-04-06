@@ -1,29 +1,30 @@
 #!/bin/sh
 
+mt6-include util
+
 install_nginx()
 {
+	_jail="${1:-}"
+
 	tell_status "installing nginx"
 	stage_pkg_install nginx
 
 	install_nginx_newsyslog
 
-	if [ -z "$1" ]; then
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		stage_pkg_install nginx-acme
+	fi
+
+	if [ -z "$_jail" ]; then
 		tell_status "no jail name, skipping options checks"
 		return
 	fi
 
-	if [ ! -f "$ZFS_JAIL_MNT/$1/var/db/ports/www_nginx/options" ]; then
+	if [ ! -f "$ZFS_JAIL_MNT/$_jail/var/db/ports/www_nginx/options" ]; then
 		return
 	fi
 
-	if [ ! -d "$STAGE_MNT/var/db/ports/www_nginx" ]; then
-		tell_status "creating /var/db/ports/www_nginx"
-		mkdir -p  "$STAGE_MNT/var/db/ports/www_nginx" || exit
-	fi
-
-	tell_status "copying www_nginx/options"
-	cp "$ZFS_JAIL_MNT/$1/var/db/ports/www_nginx/options" \
-		"$STAGE_MNT/var/db/ports/www_nginx/options" || exit
+	preserve_file "$_jail" "/var/db/ports/www_nginx/options"
 
 	tell_status "installing nginx port with localized options"
 	stage_pkg_install libmaxminddb gettext
@@ -126,6 +127,7 @@ configure_nginx()
 
 	tell_status "saving $_installed"
 	tee "$_installed" <<EO_NGINX_CONF
+load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;
 
@@ -142,6 +144,11 @@ http {
 	sendfile        on;
 	gzip on;
 
+	map \$http_upgrade \$connection_upgrade {
+		default  upgrade;
+		''       close;
+	}
+
 	keepalive_timeout  65;
 
 	set_real_ip_from $(get_jail_ip haproxy);
@@ -155,6 +162,10 @@ http {
 	upstream php {
 		server unix:/tmp/php-cgi.socket;
 		#server 127.0.0.1:9000;
+	}
+
+	upstream fcgi {
+		server unix:/var/run/fcgiwrap/fcgiwrap.sock;
 	}
 
 	include /data/etc/nginx/server.d/*.conf;

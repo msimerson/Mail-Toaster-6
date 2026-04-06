@@ -53,7 +53,7 @@ configure_nginx_server()
 				fastcgi_param SCRIPT_FILENAME $request_filename;
 				fastcgi_param AUTH_USER $remote_user;
 				fastcgi_param REMOTE_USER $remote_user;
-				fastcgi_pass unix:/var/run/fcgiwrap/fcgiwrap.sock;
+				fastcgi_pass fcgi;
 			}
 		}
 '

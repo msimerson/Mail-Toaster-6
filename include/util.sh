@@ -125,17 +125,13 @@ preserve_file()
 
 	if [ -f "$_active_cfg" ]; then
 		tell_status "preserving $_active_cfg"
+		[ -d "$(dirname "$_stage_cfg")" ] || mkdir -p "$(dirname "$_stage_cfg")"
 		cp -p "$_active_cfg" "$_stage_cfg" || return 1
 		return
 	fi
 
-	if [ -d "$ZFS_JAIL_MNT/$_jail_name.last" ]; then
-		_active_cfg="$ZFS_JAIL_MNT/$_jail_name.last/$_file_path"
-		if [ -f "$_active_cfg" ]; then
-			tell_status "preserving $_active_cfg"
-			cp -p "$_active_cfg" "$_stage_cfg" || return 1
-			return
-		fi
+	if [ -d "$ZFS_JAIL_MNT/${_jail_name}.last" ]; then
+		preserve_file "${_jail_name}.last" "$_file_path"
 	fi
 }
 
