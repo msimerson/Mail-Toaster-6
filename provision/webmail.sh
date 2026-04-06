@@ -15,8 +15,8 @@ configure_nginx_server()
 	get_public_ip6
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		# nginx terminates TLS; ACME module intercepts challenges internally,
-		# so redirect all other HTTP traffic to HTTPS
+		# nginx terminates TLS; ACME intercepts challenges internally,
+		# redirect all else to HTTPS
 		_NGINX_SERVER="
 		server_name $TOASTER_HOSTNAME default_server;
 
@@ -25,7 +25,7 @@ configure_nginx_server()
 		}
 "
 	else
-		# haproxy terminates TLS; serve ACME challenge files from disk
+		# haproxy terminates TLS; serve ACME challenge from disk
 		_NGINX_SERVER='
 		server_name $TOASTER_HOSTNAME default_server;
 		root /data/htdocs;
@@ -103,26 +103,21 @@ configure_nginx_server()
 			rewrite /haraka/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass	http://$(get_jail_ip haraka):80;
-			proxy_http_version 1.1;
-			proxy_set_header Upgrade \$http_upgrade;
-			proxy_set_header Connection \$connection_upgrade;
-			proxy_read_timeout 86400;
 		}
 
-		location /watch/ {
+		location /watch {
 			proxy_pass	http://$(get_jail_ip haraka):80;
+
 			proxy_http_version 1.1;
 			proxy_set_header Upgrade \$http_upgrade;
 			proxy_set_header Connection \$connection_upgrade;
+
 			proxy_read_timeout 86400;
+			proxy_send_timeout 86400;
 		}
 
 		location /logs/ {
 			proxy_pass	http://$(get_jail_ip haraka):80;
-			proxy_http_version 1.1;
-			proxy_set_header Upgrade \$http_upgrade;
-			proxy_set_header Connection \$connection_upgrade;
-			proxy_read_timeout 86400;
 		}
 
 		location ~ /(qmailadmin|vqadmin) {
