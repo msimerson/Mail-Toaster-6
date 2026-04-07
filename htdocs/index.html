@@ -108,10 +108,6 @@
       cursor: pointer;
       font-size: 0.82rem;
       padding: 0.35rem 0.8rem;
-<<<<<<< HEAD
-=======
-      text-decoration: none;
->>>>>>> 993048a (nginx-webmail-auth)
       white-space: nowrap;
       transition: border-color 0.15s;
     }
@@ -136,43 +132,12 @@
 <main>
   <section>
     <h2>Webmail</h2>
-<<<<<<< HEAD
     <div class="cards" id="webmail-grid"></div>
-=======
-    <div class="cards">
-      <a class="card" href="/roundcube/">
-        <img src="/img/roundcube.png" alt="Roundcube">
-        <div class="card-name">Roundcube</div>
-      </a>
-      <a class="card" href="/snappymail/">
-        <img src="/img/snappymail.png" alt="Snappymail">
-        <div class="card-name">Snappymail</div>
-      </a>
-    </div>
->>>>>>> 993048a (nginx-webmail-auth)
   </section>
 
   <section id="admin-section" hidden>
     <h2>Admin</h2>
-<<<<<<< HEAD
     <div class="admin-grid" id="admin-grid"></div>
-=======
-    <div class="admin-grid">
-      <a class="admin-link" href="/cgi-bin/qmailadmin/qmailadmin/">qmailadmin</a>
-      <a class="admin-link" href="/rspamd/">rspamd</a>
-      <a class="admin-link" href="/haraka/">haraka</a>
-      <a class="admin-link" href="/watch">watch</a>
-      <a class="admin-link" href="/snappymail/?admin">snappymail</a>
-      <a class="admin-link" href="/dmarc">dmarc</a>
-      <a class="admin-link" href="/munin/">munin</a>
-      <a class="admin-link" href="/nagios">nagios</a>
-      <a class="admin-link" href="/grafana">grafana</a>
-      <a class="admin-link" href="/prometheus">prometheus</a>
-      <a class="admin-link" href="/kibana">kibana</a>
-      <!-- <a class="admin-link" href="/rainloop/?admin">rainloop</a> -->
-      <!-- <a class="admin-link" href="/cgi-bin/vqadmin/vqadmin.cgi">vqadmin</a> -->
-    </div>
->>>>>>> 993048a (nginx-webmail-auth)
   </section>
 
   <section id="auth-section">
@@ -188,7 +153,6 @@
 </footer>
 
 <script>
-<<<<<<< HEAD
   // Webmail clients: check URL is probed; href is the link destination.
   const WEBMAIL = [
     { label: 'Roundcube',  href: '/roundcube/',  img: '/img/roundcube.png',  check: '/roundcube/'  },
@@ -209,7 +173,7 @@
     { label: 'grafana',        href: '/grafana'           },
     { label: 'prometheus',     href: '/prometheus'        },
     { label: 'kibana',         href: '/kibana'            },
-    { label: 'vqadmin',        href: '/cgi-bin/vqadmin/vqadmin.cgi' },
+    // { label: 'vqadmin',     href: '/cgi-bin/vqadmin/vqadmin.cgi' },
     // { label: 'rainloop adm',href: '/rainloop/?admin', check: '/rainloop/' },
   ];
 
@@ -249,36 +213,22 @@
     return services.map(async (svc) => {
       if (await isAlive(svc.check || svc.href)) addFn(svc);
     });
-=======
-  function showAdmin() {
-    document.getElementById('admin-section').hidden = false;
-    document.getElementById('auth-section').hidden = true;
->>>>>>> 993048a (nginx-webmail-auth)
   }
 
   async function checkAuth() {
     try {
       const r = await fetch('/auth-check', { credentials: 'include' });
-<<<<<<< HEAD
       if (r.ok) {
         document.getElementById('admin-section').hidden = false;
         document.getElementById('auth-section').hidden = true;
         await Promise.all(probeAndAdd(ADMIN, addAdminLink));
         return true;
       }
-=======
-      if (r.ok) { showAdmin(); return true; }
->>>>>>> 993048a (nginx-webmail-auth)
     } catch (_) {}
     return false;
   }
 
   document.getElementById('auth-btn').addEventListener('click', function () {
-<<<<<<< HEAD
-=======
-    // Open a protected page in a new tab to trigger the browser's auth dialog.
-    // Poll until credentials are cached and /auth-check succeeds.
->>>>>>> 993048a (nginx-webmail-auth)
     window.open('/qmailadmin', '_blank', 'noopener,noreferrer');
     let attempts = 0;
     const poll = setInterval(async function () {
@@ -287,15 +237,11 @@
     }, 1000);
   });
 
-<<<<<<< HEAD
   // Probe webmail and auth in parallel on load.
   Promise.all([
     ...probeAndAdd(WEBMAIL, addCard),
     checkAuth(),
   ]);
-=======
-  checkAuth();
->>>>>>> 993048a (nginx-webmail-auth)
 </script>
 </body>
 </html>
