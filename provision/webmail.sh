@@ -10,10 +10,8 @@ export JAIL_FSTAB=""
 
 mt6-include nginx
 
-configure_nginx_server()
+configure_nginx_server_port_80()
 {
-	get_public_ip6
-
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 		# nginx terminates TLS; ACME intercepts challenges internally,
 		# redirect all else to HTTPS
@@ -25,17 +23,17 @@ configure_nginx_server()
 		}
 "
 	else
-		# haproxy terminates TLS; serve ACME challenge from disk
-		_NGINX_SERVER='
+		# haproxy terminates TLS; nginx on port 80
+		_NGINX_SERVER="
 		server_name $TOASTER_HOSTNAME default_server;
 		root /data/htdocs;
 
 		location /.well-known/acme-challenge {
-			try_files $uri =404;
+			try_files \$uri =404;
 		}
 
 		location /.well-known/pki-validation {
-			try_files $uri =404;
+			try_files \$uri =404;
 		}
 
 		# Forbid access to other dotfiles
@@ -46,34 +44,64 @@ configure_nginx_server()
 		location / {
 			index  index.html index.htm;
 		}
-'
+"
 	fi
 	export _NGINX_SERVER
 	configure_nginx_server_d webmail
+}
 
-	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		# shellcheck disable=SC2089
-		_NGINX_SERVER="
+configure_nginx_server_port_443()
+{
+	if [ "$TOASTER_WEBMAIL_PROXY" != "nginx" ]; then return; fi
+
+	local _NGINX_SERVER='
 	server {
-		listen	    443 ssl;
+		listen      443 ssl;
+'
+
+	if [ -n "$PUBLIC_IP6" ]; then
+		_NGINX_SERVER="$_NGINX_SERVER
 		listen [::]:443 ssl;
+"
+	fi
 
+
+	_NGINX_SERVER="$_NGINX_SERVER
 		server_name $TOASTER_HOSTNAME;
+"
 
+	if [ "$TOASTER_NGINX_ACME" = "1" ]; then
+		_NGINX_SERVER="$_NGINX_SERVER
 		acme_certificate letsencrypt;
 
 		ssl_certificate       \$acme_certificate;
 		ssl_certificate_key   \$acme_certificate_key;
 		ssl_certificate_cache max=2;
+"
+	else
+		_NGINX_SERVER="$_NGINX_SERVER
+		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
+		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
+"
+	fi
+
+	_NGINX_SERVER="$_NGINX_SERVER
 
 		include /data/etc/nginx/webmail.conf;
 	}
 "
-		# shellcheck disable=SC2090
-		export _NGINX_SERVER
 
-		configure_nginx_server_d webmail $TOASTER_HOSTNAME
-	fi
+	export _NGINX_SERVER
+
+	configure_nginx_server_d webmail $TOASTER_HOSTNAME
+}
+
+configure_nginx_server()
+{
+	get_public_ip6
+
+	configure_nginx_server_port_80
+	configure_nginx_server_port_443
 
 	tee "$ZFS_DATA_MNT/webmail/etc/nginx/webmail.conf" <<EO_WEBMAIL_INCLUDE
 		proxy_set_header X-Forwarded-For \$remote_addr;
@@ -154,6 +182,8 @@ EO_WEBMAIL_INCLUDE
 
 configure_nginx_acme()
 {
+	if [ "$TOASTER_NGINX_ACME" != "1" ]; then return; fi
+
 	local _conf="$ZFS_DATA_MNT/webmail/etc/nginx/nginx.conf"
 	local _acme_conf="$ZFS_DATA_MNT/webmail/etc/nginx/acme.conf"
 
@@ -165,7 +195,7 @@ configure_nginx_acme()
 	tell_status "configuring ACME module"
 
 	sed_inplace \
-		-e 's|load_module /usr/local/libexec/nginx/ngx_mail_module\.so;|load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;\nload_module /usr/local/libexec/nginx/ngx_mail_module.so;|' \
+		-e '\|^load_module /usr/local/libexec/nginx/ngx_http_acme_module.so| s/^# //;' \
 		"$_conf"
 
 	mkdir -p "$ZFS_DATA_MNT/webmail/etc/acme/letsencrypt"
@@ -191,180 +221,6 @@ install_webmail()
 	install_nginx
 
 	configure_nginx_server
-}
-
-install_index()
-{
-	store_config "$_htdocs/index.html" "overwrite" <<'EO_INDEX'
-<html>
-<head>
- <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>
- <script src="//code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
- <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css" />
- <script>
-  let loggedIn = false;
-  $(function() {
-    $( "#tabs" ).tabs({ disabled: [3] });
-  });
-  const webPaths = {
-    'webmail'     : '',
-    'roundcube'   : '/roundcube/',
-    'snappymail'  : '/snappymail/',
-    // 'rainloop'    : '/rainloop/',
-    // 'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
-    // 'squirrelmail': '/squirrelmail/src/webmail.php',
-  }
-  const adminPaths = {
-    'admin'     : '',
-    'qmailadmin': '/cgi-bin/qmailadmin/qmailadmin/',
-    // 'vqadmin'   : '/cgi-bin/vqadmin/vqadmin.cgi',
-    'rspamd'    : '/rspamd/',
-    'watch'     : '/watch/',
-    'snappymail': '/snappymail/?admin',
-    // 'rainloop'  : '/rainloop/?admin',
-  }
-  const statsPaths = {
-    'statistics': '',
-    'munin'     : '/munin/',
-    'nagios'    : '/nagios/',
-    'watch'     : '/watch/',
-    'grafana'   : '/grafana/',
-  }
-  function changeWebmail(sel) {
-    if (!sel || !sel.value) return;
-    $('#webmail-item').prop('src', webPaths[sel.value]);
-    $('#tabs').tabs({ active: [0] });
-  }
-  function changeAdmin(sel) {
-    if (!sel || !sel.value) return;
-    $('#admin-item').prop('src', adminPaths[sel.value]);
-    $('#tabs').tabs({ active: [1] });
-  }
-  function changeStats(sel) {
-    if (!sel || !sel.value) return;
-    $('#stats-item').prop('src', statsPaths[sel.value]);
-    $('#tabs').tabs({ active: [2] });
-  }
-  function checkSuccess(tab, w) {
-    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
-      // console.log(`${w} success, present, no action`)
-    }
-    else {
-      // console.log(`${w} success, missing, adding`)
-      $(`#${tab}-select`).append(`<option value="${w}">${w}</option>`);
-    }
-  }
-  function checkFail(tab, w) {
-    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
-      // console.log(`${w} not responding, present, removing`)
-      $(`#${tab}-select option[value=${w}]`).remove();
-    }
-    else {
-      // console.log(`${w} not responding,  missing, no action`)
-    }
-  }
-  function checkWebmail() {
-    for (const w in webPaths) {
-      if (w === 'webmail') continue
-      $.ajax({
-        url: `${webPaths[w]}`,
-        success: (data) => { checkSuccess('webmail', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('webmail', w); })
-    }
-  }
-  function checkAdmin() {
-    for (const w in adminPaths) {
-      if (w === 'admin') continue
-      $.ajax({
-        url: `${adminPaths[w]}`,
-        success: (data) => { checkSuccess('admin', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('admin', w); })
-    }
-  }
-  function checkStats() {
-    for (const w in statsPaths) {
-      if (w === 'statistics') continue
-      $.ajax({
-        url: `${statsPaths[w]}`,
-        success: (data) => { checkSuccess('stats', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('stats', w); })
-    }
-  }
-  function checkAll () {
-    checkWebmail();
-    checkAdmin();
-    checkStats();
-  }
-  </script>
-  <style>body { font-size: 9pt; }</style>
-</head>
-<body onLoad="checkAll()">
-<div id="tabs">
-   <ul>
-       <li id=tab_webmail><a href="#webmail">
-           <select id="webmail-select" onChange="changeWebmail(this);">
-               <option value=webmail>Webmail</option>
-               <option value=roundcube>Roundcube</option>
-               <option value=snappymail>Snappymail</option>
-               <!--<option value=squirrelmail>Squirrelmail</option>-->
-               <!--<option value=rainloop>Rainloop</option>-->
-               <!--<option value=sqwebmail>Sqwebmail</option>-->
-           </select>
-       </a>
-       </li>
-       <li id=tab_admin><a href="#admin">
-           <select id="admin-select" onChange="changeAdmin(this)">
-               <option value=admin>Administration</option>
-               <option value=qmailadmin>Qmailadmin</option>
-               <option value=rspamd>Rspamd</option>
-               <option value=watch>Haraka Watch</option>
-               <option value=snappymail>Snappymail Admin</option>
-               <!--<option value=rainloop>Rainloop Admin</option>-->
-           </select>
-       </a>
-       </li>
-       <li id=tab_stats><a href="#stats">
-           <select id="stats-select" onChange="changeStats(this)">
-               <option value=statistics>Statistics</option>
-               <option value=munin>Munin</option>
-               <option value=nagios>Nagios</option>
-               <option value=watch>Haraka Watch</option>
-               <option value=grafana>Grafana</option>
-           </select>
-       </a>
-       </li>
-       <!--<li><a href="#help">Help</a> </li>-->
-       <li><a href="#login">Login</a></li>
-   </ul>
- <div id="webmail">
-     <iframe id="webmail-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="admin">
-     <iframe id="admin-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="stats">
-     <iframe id="stats-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="login">
-     <fieldset>
-         <legend>Login</legend>
-         <input type=text id=login placeholder="user@domain.com"></input>
-         <input type=password id=password></input>
-     </fieldset>
- </div>
-<!-- <div id="help">
-  <p>Help</p>
- </div>-->
-</div>
-</body>
-</html>
-EO_INDEX
 }
 
 configure_webmail_pf()
@@ -414,7 +270,8 @@ configure_webmail()
 		tell_status "backing up index.html"
 		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
-	install_index
+
+	fetch -o "$_htdocs/index.html" https://raw.githubusercontent.com/mt6/mt6/master/htdocs/index.html
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
@@ -426,19 +283,17 @@ EO_ROBOTS_TXT
 
 start_webmail()
 {
-	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		tell_status "starting lighttpd"
-		stage_sysrc lighttpd_enable=YES
-		stage_exec service lighttpd start
-	else
-		start_nginx
-	fi
+	start_nginx
 }
 
 test_webmail()
 {
 	tell_status "testing webmail httpd"
 	stage_listening 80
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		stage_ssl_listening 443
+	fi
 }
 
 base_snapshot_exists || exit

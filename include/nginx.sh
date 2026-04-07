@@ -127,7 +127,7 @@ configure_nginx()
 
 	tell_status "saving $_installed"
 	tee "$_installed" <<EO_NGINX_CONF
-load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
+# load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;
 

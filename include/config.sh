@@ -24,6 +24,7 @@ mt6_defaults()
 	# See https://github.com/msimerson/Mail-Toaster-6/wiki/MySQL
 	export TOASTER_MYSQL=${TOASTER_MYSQL:="1"}
 	export TOASTER_MARIADB=${TOASTER_MARIADB:="0"}
+	export TOASTER_NGINX_ACME=${TOASTER_NGINX_ACME:="0"}
 	export TOASTER_NTP=${TOASTER_NTP:="chrony"}
 	export TOASTER_MSA=${TOASTER_MSA:="haraka"}
 	export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:="0"}
@@ -109,6 +110,7 @@ export TOASTER_EDITOR_PORT="vim-tiny"
 export TOASTER_MSA="haraka"
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
+export TOASTER_NGINX_ACME="0"
 export TOASTER_NRPE=""
 export TOASTER_NTP=""
 export TOASTER_PKG_AUDIT="0"
