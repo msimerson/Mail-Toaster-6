@@ -3,7 +3,6 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
-
 ## 2026-04
 
 - mt: stage_setup_tls, deploy certs to correct filename
