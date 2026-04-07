@@ -20,8 +20,7 @@ configure_nginx_server_port_80()
 
 		location / {
 			return 301 https://\$server_name\$request_uri;
-		}
-"
+		}"
 	else
 		# haproxy terminates TLS; nginx on port 80
 		_NGINX_SERVER="
@@ -43,8 +42,7 @@ configure_nginx_server_port_80()
 
 		location / {
 			index  index.html index.htm;
-		}
-"
+		}"
 	fi
 	export _NGINX_SERVER
 	configure_nginx_server_d webmail
@@ -56,42 +54,36 @@ configure_nginx_server_port_443()
 
 	local _NGINX_SERVER='
 	server {
-		listen      443 ssl;
-'
+		listen      443 ssl;'
 
 	if [ -n "$PUBLIC_IP6" ]; then
 		_NGINX_SERVER="$_NGINX_SERVER
-		listen [::]:443 ssl;
-"
+		listen [::]:443 ssl;"
 	fi
 
 	_NGINX_SERVER="$_NGINX_SERVER
-		server_name $TOASTER_HOSTNAME;
-"
+
+		server_name $TOASTER_HOSTNAME;"
 
 	if [ "$TOASTER_NGINX_ACME" = "1" ]; then
 		_NGINX_SERVER="$_NGINX_SERVER
-		acme_certificate letsencrypt;
+		acme_certificate      letsencrypt;
 
 		ssl_certificate       \$acme_certificate;
 		ssl_certificate_key   \$acme_certificate_key;
-		ssl_certificate_cache max=2;
-"
+		ssl_certificate_cache max=2;"
 	else
 		_NGINX_SERVER="$_NGINX_SERVER
 		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
-		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
-"
+		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;"
 	fi
 
 	_NGINX_SERVER="$_NGINX_SERVER
 
 		include /data/etc/nginx/webmail.conf;
-	}
-"
+	}"
 
 	export _NGINX_SERVER
-
 	configure_nginx_server_d webmail $TOASTER_HOSTNAME
 }
 
@@ -128,12 +120,14 @@ configure_nginx_server()
 		}
 
 		location /haraka/ {
+			include /data/etc/nginx/protected.conf;
 			rewrite /haraka/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass	http://$(get_jail_ip haraka):80;
 		}
 
 		location /watch {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip haraka):80;
 
 			proxy_http_version 1.1;
@@ -161,18 +155,22 @@ configure_nginx_server()
 		}
 
 		location /rspamd/ {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip rspamd):11334/;
 		}
 
 		location /dmarc {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/;
 		}
 
 		location /munin {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip munin):80;
 		}
 
 		location /nagios {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip nagios):80;
 		}
 
@@ -217,18 +215,21 @@ configure_nginx_server()
 		}
 
 		location /prometheus {
+			include /data/etc/nginx/protected.conf;
 			rewrite /prometheus/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass         http://$(get_jail_ip prometheus):9090;
 		}
 
 		location /grafana {
+			include /data/etc/nginx/protected.conf;
 			rewrite /grafana/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass         http://$(get_jail_ip grafana):3000;
 		}
 
 		location /kibana {
+			include /data/etc/nginx/protected.conf;
 			rewrite /kibana/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass         http://$(get_jail_ip elasticsearch):5601;
@@ -250,6 +251,11 @@ configure_nginx_server()
 			proxy_set_header   X-Forwarded-Proto \$scheme;
 		}
 
+		location = /auth-check {
+			include /data/etc/nginx/protected.conf;
+			return 204;
+		}
+
 		location / {
 			root   /data/htdocs;
 			index  index.html index.htm;
@@ -260,6 +266,59 @@ configure_nginx_server()
 			root   /usr/local/www/nginx-dist;
 		}
 EO_WEBMAIL_INCLUDE
+}
+
+configure_nginx_auth()
+{
+	local _etc="$ZFS_DATA_MNT/webmail/etc/nginx"
+
+	store_config "$_etc/protected.conf" <<'EO_PROTECTED'
+# Routes that include this file require a valid login unless the client IP
+# is explicitly allowed below.  Edit and reload nginx to apply changes:
+#   service nginx reload
+#
+# To bypass auth for a trusted network, add:
+#   allow  192.0.2.0/24;
+#
+# To remove auth from a route, delete its include line in webmail.conf.
+#
+# manage password entries with:
+#   htpasswd /data/etc/nginx/.htpasswd <username>
+
+satisfy any;
+allow   127.0.0.1;
+allow   ::1;
+deny    all;
+
+auth_basic           "Restricted";
+auth_basic_user_file /data/etc/nginx/.htpasswd;
+EO_PROTECTED
+
+	# Create an empty htpasswd file so nginx starts without errors.
+	if [ ! -f "$_etc/.htpasswd" ]; then
+		store_config "$_etc/.htpasswd" <<EO_HTPASSWD
+# Add password entries with:
+#   htpasswd /data/etc/nginx/.htpasswd <username>
+EO_HTPASSWD
+		chown 0:80 "$_etc/.htpasswd"
+		chmod 640 "$_etc/.htpasswd"
+	fi
+
+	store_exec "$STAGE_MNT/usr/local/bin/htpasswd" <<'EO_HTPASSWD'
+#!/bin/sh
+
+usage() {
+  cat <<EOF
+Usage: $0 <htpasswd-file> <username>
+EOF
+}
+
+if [ $# -eq 2 ]; then
+  printf "%s:%s\n" "$2" "$(openssl passwd -6)" >> "$1"
+else
+  usage
+fi
+EO_HTPASSWD
 }
 
 configure_nginx_acme()
@@ -337,6 +396,7 @@ configure_webmail()
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 		configure_nginx_acme
+		configure_nginx_auth
 	fi
 
 	configure_webmail_pf
