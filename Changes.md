@@ -3,11 +3,13 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
-
 ## 2026-04
 
+- mt: stage_setup_tls, deploy certs to correct filename
 - mt: add sed_inplace, stop ci failures due to linux/bsd sed
+- config: add note in m-t.conf for where to find more settings
 - host: disable IPv6 DAD
+- mysql: reduce innodb buffer size on system with < 8GB of RAM
 - network: added install_acme_ms (for installing per-jail acme)
   - get_public_ip -> get_public_ip4 & get_public_ip6
 - nictool: bumped install version to 2.40
@@ -18,11 +20,16 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - unifi: install pf rule for acme and config ext Mongo
 - vpopmail: remove qmailadmin SPAM_COMMAND
 - vpopmail: build updates
+- vpopmail: replace lighttpd with nginx
+- webmail: when nginx is the proxy...
+  - use ACME module for TLS
+  - proxy websockets to /watch
 - unifi: configure external mongodb when UNIFI_MONGODB_DSN
 - ci: added minimal permissions
 - ci: enabled FreeBSD basic tests
 - ci: set of kcov testing and codecov reporting
 - consistency: always quote variables, explicit exit codes
+- contrib/exorcise_maildrop: add -n dry-run mode
 - test: expanded ./test/mail-toaster.bats
 - test: added ./test/provision/*.bats
 

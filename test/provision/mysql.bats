@@ -38,7 +38,12 @@ setup_file() {
   cat > "$_stage/usr/local/etc/mysql/my.cnf" <<'EOF'
 [mysqld]
 datadir                         = /var/db/mysql
+innodb_buffer_pool_size         = 1G
 EOF
+
+  # store_config stub discards content, so pre-create extra.cnf so that
+  # configure_mysql_ram can append to it.
+  touch "$_stage/data/etc/extra.cnf"
 
   # Dummy key files so configure_mysql_keys skips the openssl calls.
   touch "$_data/mysql/db/private_key.pem"
@@ -253,6 +258,25 @@ teardown() {
   run grep "password" "$STAGE_MNT/root/.my.cnf"
   assert_success
   assert_output --partial "supersecret"
+}
+
+@test "mysql - configure_mysql_ram appends innodb_buffer_pool_size when RAM < 8GB" {
+  local _cnf="$BATS_FILE_TMPDIR/extra_ram_test.cnf"
+  touch "$_cnf"
+  # sysctl stub returns 1GB (< 8GB threshold) — low-memory path must fire.
+  configure_mysql_ram "$_cnf"
+  run grep "innodb_buffer_pool_size" "$_cnf"
+  assert_success
+  assert_output --partial "512M"
+}
+
+@test "mysql - configure_mysql_ram skips when RAM >= 8GB" {
+  local _cnf="$BATS_FILE_TMPDIR/extra_ram_high.cnf"
+  touch "$_cnf"
+  sysctl() { echo "8589934592"; }  # exactly 8GB — at or above threshold, skip
+  configure_mysql_ram "$_cnf"
+  run grep "innodb_buffer_pool_size" "$_cnf"
+  assert_failure  # nothing appended
 }
 
 # --- migrate_mysql_dbs behavior ---
