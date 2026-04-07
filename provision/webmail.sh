@@ -124,6 +124,7 @@ configure_nginx_server()
 
 		location /snappymail {
 			proxy_pass	http://$(get_jail_ip snappymail):80;
+			proxy_hide_header X-Frame-Options;
 		}
 
 		location /haraka/ {
@@ -167,6 +168,88 @@ configure_nginx_server()
 			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/;
 		}
 
+		location /munin {
+			proxy_pass	http://$(get_jail_ip munin):80;
+		}
+
+		location /nagios {
+			proxy_pass	http://$(get_jail_ip nagios):80;
+		}
+
+		location /squirrelmail {
+			proxy_pass	http://$(get_jail_ip squirrelmail):80;
+		}
+
+		location /rainloop {
+			rewrite /rainloop/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip rainloop):80;
+		}
+
+		location /nictool {
+			rewrite /nictool/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip nictool):80;
+		}
+
+		location /wiki {
+			proxy_pass	http://$(get_jail_ip mediawiki):80;
+		}
+
+		location /w/ {
+			proxy_pass	http://$(get_jail_ip mediawiki):80;
+		}
+
+		location /smf {
+			proxy_pass	http://$(get_jail_ip smf):80;
+		}
+
+		location /wordpress {
+			proxy_pass	http://$(get_jail_ip wordpress):80;
+		}
+
+		location /stage {
+			proxy_pass	http://$(get_jail_ip stage):80;
+		}
+
+		location /horde {
+			proxy_pass	http://$(get_jail_ip horde):80;
+		}
+
+		location /prometheus {
+			rewrite /prometheus/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip prometheus):9090;
+		}
+
+		location /grafana {
+			rewrite /grafana/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip grafana):3000;
+		}
+
+		location /kibana {
+			rewrite /kibana/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip elasticsearch):5601;
+		}
+
+		location /zonemta {
+			rewrite /zonemta/(.*) /\$1  break;
+			proxy_pass         http://$(get_jail_ip zonemta):8082;
+			proxy_set_header   Host \$host;
+			proxy_set_header   X-Forwarded-For \$remote_addr;
+			proxy_set_header   X-Forwarded-Proto \$scheme;
+		}
+
+		location /wildduck {
+			rewrite /wildduck/(.*) /\$1  break;
+			proxy_pass         http://$(get_jail_ip wildduck):3000;
+			proxy_set_header   Host \$host;
+			proxy_set_header   X-Forwarded-For \$remote_addr;
+			proxy_set_header   X-Forwarded-Proto \$scheme;
+		}
+
 		location / {
 			root   /data/htdocs;
 			index  index.html index.htm;
@@ -184,7 +267,7 @@ configure_nginx_acme()
 	if [ "$TOASTER_NGINX_ACME" != "1" ]; then return; fi
 
 	local _conf="$ZFS_DATA_MNT/webmail/etc/nginx/nginx.conf"
-	local _acme_conf="$ZFS_DATA_MNT/webmail/etc/nginx/acme.conf"
+	local _acme_conf="$ZFS_DATA_MNT/webmail/etc/nginx/server.d/acme.conf"
 
 	if [ -f "$_acme_conf" ]; then
 		tell_status "preserving $_acme_conf"
@@ -193,9 +276,7 @@ configure_nginx_acme()
 
 	tell_status "configuring ACME module"
 
-	sed_inplace \
-		-e '\|^load_module /usr/local/libexec/nginx/ngx_http_acme_module.so| s/^# //;' \
-		"$_conf"
+	sed_inplace -e '/ngx_http_acme_module.so/ s/^# //;' "$_conf"
 
 	mkdir -p "$ZFS_DATA_MNT/webmail/etc/acme/letsencrypt"
 
@@ -216,9 +297,7 @@ EO_NGINX_ACME
 install_webmail()
 {
 	stage_setup_tls
-
 	install_nginx
-
 	configure_nginx_server
 }
 
@@ -255,6 +334,7 @@ configure_webmail()
 {
 	configure_nginx webmail
 	configure_nginx_server
+
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 		configure_nginx_acme
 	fi
@@ -270,7 +350,7 @@ configure_webmail()
 		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
 
-	fetch -o "$_htdocs/index.html" https://raw.githubusercontent.com/mt6/mt6/master/htdocs/index.html
+	fetch -o "$_htdocs/index.html" "$TOASTER_SRC_URL/htdocs/index.html"
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
@@ -282,7 +362,9 @@ EO_ROBOTS_TXT
 
 start_webmail()
 {
-	start_nginx
+	tell_status "starting nginx"
+	stage_sysrc nginx_enable=YES
+	stage_exec service nginx start
 }
 
 test_webmail()
@@ -291,7 +373,7 @@ test_webmail()
 	stage_listening 80
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		stage_ssl_listening 443
+		stage_listening 443
 	fi
 }
 
