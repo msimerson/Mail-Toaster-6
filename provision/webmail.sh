@@ -403,14 +403,16 @@ configure_webmail()
 
 	_data="$ZFS_DATA_MNT/webmail"
 	_htdocs="$_data/htdocs"
-	if [ ! -d "$_htdocs" ]; then mkdir -p "$_htdocs"; fi
+	if [ ! -d "$_htdocs/img" ]; then mkdir -p "$_htdocs/img"; fi
 
 	if [ -f "$_htdocs/index.html" ]; then
 		tell_status "backing up index.html"
 		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
 
-	fetch -o "$_htdocs/index.html" "$TOASTER_SRC_URL/htdocs/index.html"
+	for _f in index.html img/snappymail.png img/roundcube.png; do
+		fetch -o "$_htdocs/$_f" "$TOASTER_SRC_URL/htdocs/$_f"
+	done
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
