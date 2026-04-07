@@ -442,6 +442,7 @@ migrate_vpopmail_home()
 	# service jail start dovecot vpopmail
 }
 
+tell_settings VPOPMAIL
 migrate_vpopmail_home
 base_snapshot_exists || exit 1
 create_staged_fs vpopmail

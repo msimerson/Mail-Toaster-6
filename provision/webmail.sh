@@ -65,7 +65,6 @@ configure_nginx_server_port_443()
 "
 	fi
 
-
 	_NGINX_SERVER="$_NGINX_SERVER
 		server_name $TOASTER_HOSTNAME;
 "

@@ -11,7 +11,7 @@ install_nginx()
 
 	install_nginx_newsyslog
 
-	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ] && [ "$TOASTER_NGINX_ACME" = "1" ]; then
 		stage_pkg_install nginx-acme
 	fi
 

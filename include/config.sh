@@ -136,6 +136,34 @@ EO_MT_CONF
 	chmod 600 mail-toaster.conf
 }
 
+_add_config_hint()
+{
+	if grep -q "grep.*config.sh" mail-toaster.conf; then
+		return
+	fi
+	printf '\n# To see all available settings and their defaults:\n# grep ^export ./include/config.sh\n' \
+		>> mail-toaster.conf
+}
+
+_fix_jail_ordered_list()
+{
+	if ! grep -q "^export JAIL_ORDERED_LIST=" mail-toaster.conf; then
+		return
+	fi
+	local _current
+	_current=$(grep "^export JAIL_ORDERED_LIST=" mail-toaster.conf \
+		| sed 's/^export JAIL_ORDERED_LIST="\(.*\)"$/\1/')
+	case "$_current" in
+		"syslog base "*) return ;;
+	esac
+	echo "fixing JAIL_ORDERED_LIST prefix in mail-toaster.conf"
+	local _rest
+	_rest=$(printf '%s' "$_current" | tr ' ' '\n' \
+		| grep -v -E '^(syslog|base)$' | tr '\n' ' ' | sed 's/ $//')
+	sed -i.bak "s|^export JAIL_ORDERED_LIST=.*|export JAIL_ORDERED_LIST=\"syslog base ${_rest}\"|" mail-toaster.conf
+	rm -f mail-toaster.conf.bak
+}
+
 config()
 {
 	if [ ! -f "mail-toaster.conf" ]; then
@@ -147,6 +175,9 @@ config()
 		echo "tightening permissions on mail-toaster.conf"
 		chmod 600 mail-toaster.conf
 	fi
+
+	_add_config_hint
+	_fix_jail_ordered_list
 
 	echo "loading mail-toaster.conf"
 	# shellcheck disable=SC1091,SC2039
