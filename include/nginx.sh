@@ -74,13 +74,11 @@ configure_nginx_server_d()
 	# no more proxy protocol on backends, since nginx can't
 	# send proxy protocol AND route URIs at the same time
 	local _prefix='server {
-		listen       80;
-'
+		listen       80;'
 
 	if [ -n "$PUBLIC_IP6" ]; then
 		_prefix="$_prefix
-		listen  [::]:80;
-"
+		listen  [::]:80;"
 	fi
 
 	local _suffix='location ~ /\.ht {

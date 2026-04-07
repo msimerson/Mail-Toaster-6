@@ -1,168 +1,247 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
- <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>
- <script src="//code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
- <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css" />
- <script>
-  let loggedIn = false;
-  $(function() {
-    $( "#tabs" ).tabs({ disabled: [3] });
-  });
-  const webPaths = {
-    'webmail'     : '',
-    'roundcube'   : '/roundcube/',
-    'snappymail'  : '/snappymail/',
-    // 'rainloop'    : '/rainloop/',
-    // 'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
-    // 'squirrelmail': '/squirrelmail/src/webmail.php',
-  }
-  const adminPaths = {
-    'admin'     : '',
-    'qmailadmin': '/cgi-bin/qmailadmin/qmailadmin/',
-    // 'vqadmin'   : '/cgi-bin/vqadmin/vqadmin.cgi',
-    'rspamd'    : '/rspamd/',
-    'watch'     : '/watch/',
-    'snappymail': '/snappymail/?admin',
-    // 'rainloop'  : '/rainloop/?admin',
-  }
-  const statsPaths = {
-    'statistics': '',
-    'munin'     : '/munin/',
-    'nagios'    : '/nagios/',
-    'watch'     : '/watch/',
-    'grafana'   : '/grafana/',
-  }
-  function changeWebmail(sel) {
-    if (!sel || !sel.value) return;
-    $('#webmail-item').prop('src', webPaths[sel.value]);
-    $('#tabs').tabs({ active: [0] });
-  }
-  function changeAdmin(sel) {
-    if (!sel || !sel.value) return;
-    $('#admin-item').prop('src', adminPaths[sel.value]);
-    $('#tabs').tabs({ active: [1] });
-  }
-  function changeStats(sel) {
-    if (!sel || !sel.value) return;
-    $('#stats-item').prop('src', statsPaths[sel.value]);
-    $('#tabs').tabs({ active: [2] });
-  }
-  function checkSuccess(tab, w) {
-    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
-      // console.log(`${w} success, present, no action`)
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>Mail Toaster</title>
+  <style>
+    :root {
+      --bg:      #0d1117;
+      --card:    #161b22;
+      --border:  #30363d;
+      --accent:  #58a6ff;
+      --text:    #c9d1d9;
+      --muted:   #8b949e;
+      --radius:  10px;
     }
-    else {
-      // console.log(`${w} success, missing, adding`)
-      $(`#${tab}-select`).append(`<option value="${w}">${w}</option>`);
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem 1.5rem;
     }
-  }
-  function checkFail(tab, w) {
-    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
-      // console.log(`${w} not responding, present, removing`)
-      $(`#${tab}-select option[value=${w}]`).remove();
+    main { width: 100%; max-width: 720px; flex: 1; }
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+      margin-bottom: 0.9rem;
     }
-    else {
-      // console.log(`${w} not responding,  missing, no action`)
+
+    /* Webmail cards */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      min-height: 220px; /* prevent layout jump while probing */
     }
-  }
-  function checkWebmail() {
-    for (const w in webPaths) {
-      if (w === 'webmail') continue
-      $.ajax({
-        url: `${webPaths[w]}`,
-        success: (data) => { checkSuccess('webmail', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('webmail', w); })
+    .card {
+      display: block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.15s, transform 0.15s;
     }
-  }
-  function checkAdmin() {
-    for (const w in adminPaths) {
-      if (w === 'admin') continue
-      $.ajax({
-        url: `${adminPaths[w]}`,
-        success: (data) => { checkSuccess('admin', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('admin', w); })
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      object-position: top left;
+      display: block;
+      border-bottom: 1px solid var(--border);
     }
-  }
-  function checkStats() {
-    for (const w in statsPaths) {
-      if (w === 'statistics') continue
-      $.ajax({
-        url: `${statsPaths[w]}`,
-        success: (data) => { checkSuccess('stats', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('stats', w); })
+    .card-name { padding: 0.6rem 1rem; font-size: 0.9rem; font-weight: 500; }
+
+    /* Admin grid */
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.6rem;
     }
-  }
-  function checkAll () {
-    checkWebmail();
-    checkAdmin();
-    checkStats();
-  }
-  </script>
-  <style>body { font-size: 9pt; }</style>
+    .admin-link {
+      display: block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.9rem;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .admin-link:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Auth prompt */
+    .auth-prompt {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.4rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .auth-prompt span { flex: 1; }
+    .auth-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 0.35rem 0.8rem;
+      white-space: nowrap;
+      transition: border-color 0.15s;
+    }
+    .auth-btn:hover { border-color: var(--accent); }
+
+    /* Footer */
+    footer {
+      width: 100%;
+      max-width: 720px;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
 </head>
-<body onLoad="checkAll()">
-<div id="tabs">
-   <ul>
-       <li id=tab_webmail><a href="#webmail">
-           <select id="webmail-select" onChange="changeWebmail(this);">
-               <option value=webmail>Webmail</option>
-               <option value=roundcube>Roundcube</option>
-               <option value=snappymail>Snappymail</option>
-               <!--<option value=squirrelmail>Squirrelmail</option>-->
-               <!--<option value=rainloop>Rainloop</option>-->
-               <!--<option value=sqwebmail>Sqwebmail</option>-->
-           </select>
-       </a>
-       </li>
-       <li id=tab_admin><a href="#admin">
-           <select id="admin-select" onChange="changeAdmin(this)">
-               <option value=admin>Administration</option>
-               <option value=qmailadmin>Qmailadmin</option>
-               <option value=rspamd>Rspamd</option>
-               <option value=watch>Haraka Watch</option>
-               <option value=snappymail>Snappymail Admin</option>
-               <!--<option value=rainloop>Rainloop Admin</option>-->
-           </select>
-       </a>
-       </li>
-       <li id=tab_stats><a href="#stats">
-           <select id="stats-select" onChange="changeStats(this)">
-               <option value=statistics>Statistics</option>
-               <option value=munin>Munin</option>
-               <option value=nagios>Nagios</option>
-               <option value=watch>Haraka Watch</option>
-               <option value=grafana>Grafana</option>
-           </select>
-       </a>
-       </li>
-       <!--<li><a href="#help">Help</a> </li>-->
-       <li><a href="#login">Login</a></li>
-   </ul>
- <div id="webmail">
-     <iframe id="webmail-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="admin">
-     <iframe id="admin-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="stats">
-     <iframe id="stats-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="login">
-     <fieldset>
-         <legend>Login</legend>
-         <input type=text id=login placeholder="user@domain.com"></input>
-         <input type=password id=password></input>
-     </fieldset>
- </div>
-<!-- <div id="help">
-  <p>Help</p>
- </div>-->
-</div>
+<body>
+<main>
+  <section>
+    <h2>Webmail</h2>
+    <div class="cards" id="webmail-grid"></div>
+  </section>
+
+  <section id="admin-section" hidden>
+    <h2>Admin</h2>
+    <div class="admin-grid" id="admin-grid"></div>
+  </section>
+
+  <section id="auth-section">
+    <div class="auth-prompt">
+      <span>Admin tools are available after authentication.</span>
+      <button class="auth-btn" id="auth-btn" type="button">Log in</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <a href="https://github.com/msimerson/Mail-Toaster-6" target="_blank" rel="noopener noreferrer">Powered by Mail Toaster</a>
+</footer>
+
+<script>
+  // Webmail clients: check URL is probed; href is the link destination.
+  const WEBMAIL = [
+    { label: 'Roundcube',  href: '/roundcube/',  img: '/img/roundcube.png',  check: '/roundcube/'  },
+    { label: 'Snappymail', href: '/snappymail/', img: '/img/snappymail.png', check: '/snappymail/' },
+  ];
+
+  // Admin tools: shown only after successful auth check.
+  // check defaults to href when omitted.
+  const ADMIN = [
+    { label: 'qmailadmin',     href: '/cgi-bin/qmailadmin/qmailadmin/' },
+    { label: 'rspamd',         href: '/rspamd/'           },
+    { label: 'haraka',         href: '/haraka/'           },
+    { label: 'watch',          href: '/watch',            },
+    { label: 'snappy adm',     href: '/snappymail/?admin', check: '/snappymail/' },
+    { label: 'dmarc',          href: '/dmarc'             },
+    { label: 'munin',          href: '/munin/'            },
+    { label: 'nagios',         href: '/nagios'            },
+    { label: 'grafana',        href: '/grafana'           },
+    { label: 'prometheus',     href: '/prometheus'        },
+    { label: 'kibana',         href: '/kibana'            },
+    { label: 'vqadmin',        href: '/cgi-bin/vqadmin/vqadmin.cgi' },
+    // { label: 'rainloop adm',href: '/rainloop/?admin', check: '/rainloop/' },
+  ];
+
+  // Returns true if the backend is reachable (any response except proxy errors).
+  async function isAlive(url) {
+    try {
+      const r = await fetch(url, {
+        credentials: 'include',
+        signal: AbortSignal.timeout(2000),
+      });
+      // 502/503/504 = nginx couldn't reach the backend jail
+      return [404, 502, 503, 504].includes(r.status) ? false : true;
+    } catch (_) {
+      return false; // network error or timeout
+    }
+  }
+
+  function addCard(service) {
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = service.href;
+    a.innerHTML =
+      `<img src="${service.img}" alt="${service.label}">` +
+      `<div class="card-name">${service.label}</div>`;
+    document.getElementById('webmail-grid').appendChild(a);
+  }
+
+  function addAdminLink(service) {
+    const a = document.createElement('a');
+    a.className = 'admin-link';
+    a.href = service.href;
+    a.textContent = service.label;
+    document.getElementById('admin-grid').appendChild(a);
+  }
+
+  function probeAndAdd(services, addFn) {
+    return services.map(async (svc) => {
+      if (await isAlive(svc.check || svc.href)) addFn(svc);
+    });
+  }
+
+  async function checkAuth() {
+    try {
+      const r = await fetch('/auth-check', { credentials: 'include' });
+      if (r.ok) {
+        document.getElementById('admin-section').hidden = false;
+        document.getElementById('auth-section').hidden = true;
+        await Promise.all(probeAndAdd(ADMIN, addAdminLink));
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  document.getElementById('auth-btn').addEventListener('click', function () {
+    window.open('/qmailadmin', '_blank', 'noopener,noreferrer');
+    let attempts = 0;
+    const poll = setInterval(async function () {
+      attempts++;
+      if (await checkAuth() || attempts > 30) clearInterval(poll);
+    }, 1000);
+  });
+
+  // Probe webmail and auth in parallel on load.
+  Promise.all([
+    ...probeAndAdd(WEBMAIL, addCard),
+    checkAuth(),
+  ]);
+</script>
 </body>
 </html>
