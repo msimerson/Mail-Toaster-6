@@ -429,7 +429,7 @@ configure_webmail()
 		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
 
-	for _f in index.html img/snappymail.png img/roundcube.png; do
+	for _f in index.html mt.js style.css img/snappymail.png img/roundcube.png img/qmailadmin.png; do
 		fetch -o "$_htdocs/$_f" "$TOASTER_SRC_URL/htdocs/$_f"
 	done
 
