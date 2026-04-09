@@ -76,13 +76,15 @@ defaults
 	compression algo gzip
 	compression type text/html "text/html; charset=utf-8" text/html;charset=utf-8 text/plain text/css text/javascript application/x-javascript application/javascript application/ecmascript application/rss+xml application/atomsvc+xml application/atom+xml application/atom+xml;type=entry application/atom+xml;type=feed application/cmisquery+xml application/cmisallowableactions+xml application/cmisatom+xml application/cmistree+xml application/cmisacl+xml image/svg+xml
 
-#frontend stats
-#    bind *:9000
-#    stats enable
-#    stats uri /haproxy_stats
-#    stats realm HAProxy\ Statistics
-#    stats auth admin:password
-#    stats admin if TRUE
+userlist adminusers
+    # user matt password $6$3S...........
+    # get password hashes with: 'openssl passwd -6'
+
+frontend stats
+	bind 127.0.0.1:9000
+	stats enable
+	stats uri /haproxy
+	stats admin if TRUE
 
 frontend http-in
 	#mode tcp
@@ -92,12 +94,15 @@ frontend http-in
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
 	http-request  set-header X-Forwarded-Port %[dst_port]
 	http-response set-header X-Frame-Options sameorigin
+	http-response set-header X-XSS-Protection "1; mode=block"
+	http-response set-header X-Content-Type-Options nosniff
+	http-response set-header Referrer-Policy strict-origin-when-cross-origin
+	http-response set-header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';"
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
 	acl letsencrypt  path_beg -i /.well-known/acme-challenge
 	acl letsencrypt  path_beg -i /.well-known/pki-validation
-	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	acl munin        path_beg /munin
 	acl nagios       path_beg /nagios
@@ -127,8 +132,30 @@ frontend http-in
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
 	acl kibana       path_beg /kibana
+	acl haproxy      path_beg /haproxy
 	acl zonemta      hdr_beg(host) -i zonemta
 	acl wildduck     hdr_beg(host) -i wildduck
+
+	acl auth_check   path /auth-check
+	acl auth_login   path /auth-login
+	acl is_local     src 127.0.0.1 ::1
+	acl protected    path_beg /munin /nagios /watch /haraka /haproxy
+	acl protected    path_beg /rspamd /dmarc /prometheus /grafana /kibana
+
+	# Auth probe (fetch): bare 401 so browsers don't pop a credential dialog
+	http-request return status 204 if auth_check { http_auth(adminusers) }
+	http-request return status 204 if auth_check is_local
+	http-request return status 401 if auth_check
+
+	# Auth login: on success return a tiny page that sets a session cookie
+	http-request return status 200 content-type "text/html" string "<html><script>document.cookie='is_admin=1;Path=/;SameSite=Strict;Secure';location.replace('/')</script></html>" if auth_login { http_auth(adminusers) }
+	http-request return status 200 content-type "text/html" string "<html><script>document.cookie='is_admin=1;Path=/;SameSite=Strict;Secure';location.replace('/')</script></html>" if auth_login is_local
+	http-request auth realm "Restricted" if auth_login
+
+	# Protect admin routes with basic auth (bypass for local clients)
+	http-request auth realm "Restricted" if protected !{ http_auth(adminusers) } !is_local
+
+	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
@@ -155,6 +182,7 @@ frontend http-in
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
 	use_backend www_kibana       if  kibana
+	use_backend www_haproxy      if  haproxy
 	use_backend www_zonemta      if  zonemta
 	use_backend www_wildduck     if  wildduck
 
@@ -237,6 +265,9 @@ frontend http-in
 	backend www_kibana
 	server kibana $(get_jail_ip elasticsearch):5601
 	http-request replace-uri /kibana/(.*) /\1
+
+	backend www_haproxy
+	server local 127.0.0.1:9000
 
 	backend www_wildduck
 	server wildduck 172.16.15.64:3000
