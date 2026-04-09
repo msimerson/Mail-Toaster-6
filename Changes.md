@@ -24,6 +24,9 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - webmail: when nginx is the proxy...
   - use ACME module for TLS
   - proxy websockets to /watch
+  - overhaul the index page, card based with buttons for admin
+  - password protect the admin routes (haproxy & nginx)
+  - add CSP & XSS protection
 - unifi: configure external mongodb when UNIFI_MONGODB_DSN
 - ci: added minimal permissions
 - ci: enabled FreeBSD basic tests
