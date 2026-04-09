@@ -54,10 +54,14 @@ function addAdminLink(service) {
     document.getElementById('admin-grid').appendChild(a);
 }
 
-function probeAndAdd(services, addFn) {
-    return services.map(async (svc) => {
-        if (await isAlive(svc.check || svc.href)) addFn(svc);
-    });
+async function probeAndAdd(services, addFn) {
+    const results = await Promise.all(
+        services.map(async (svc) => ({
+            svc,
+            alive: await isAlive(svc.check || svc.href),
+        }))
+    );
+    results.filter(r => r.alive).forEach(r => addFn(r.svc));
 }
 
 // Session cookie set by the /auth-login success page.
@@ -72,7 +76,7 @@ document.getElementById('auth-btn').addEventListener('click', function () {
 
 // --- page load ---
 // Webmail: probe unprotected URLs to find which clients are installed.
-Promise.all(probeAndAdd(WEBMAIL, addCard));
+probeAndAdd(WEBMAIL, addCard);
 
 // Admin: if authed, show every link (no probing — protected URLs would
 // trigger browser auth dialogs via fetch).
