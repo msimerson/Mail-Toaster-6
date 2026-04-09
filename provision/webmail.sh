@@ -99,6 +99,12 @@ configure_nginx_server()
 		proxy_set_header X-Forwarded-Proto \$scheme;
 		proxy_set_header Host \$host;
 
+		add_header X-XSS-Protection "1; mode=block" always;
+		add_header X-Content-Type-Options "nosniff" always;
+		add_header X-Frame-Options "SAMEORIGIN" always;
+		add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+		add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';" always;
+
 		# Forbid access to other dotfiles
 		location ~ /\.(?!well-known).* {
 			return 403;
@@ -251,9 +257,22 @@ configure_nginx_server()
 			proxy_set_header   X-Forwarded-Proto \$scheme;
 		}
 
+		# Auth probe (fetch): validate credentials but return bare 401 so
+		# browsers don't pop a credential dialog for background requests.
 		location = /auth-check {
 			include /data/etc/nginx/protected.conf;
+			error_page 401 =401 @auth_check_silent;
 			return 204;
+		}
+		location @auth_check_silent { internal; return 401; }
+
+		# Auth login: on success return a page that sets a session cookie
+		# and navigates to /. No redirect — avoids credential-cache
+		# confusion that causes brief dialog flashes after auth.
+		location = /auth-login {
+			include /data/etc/nginx/protected.conf;
+			default_type text/html;
+			return 200 '<html><script>document.cookie="is_admin=1;Path=/;SameSite=Strict;Secure";location.replace("/")</script></html>';
 		}
 
 		location / {
