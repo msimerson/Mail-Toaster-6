@@ -12,7 +12,7 @@ mt6-include php
 mt6-include nginx
 mt6-include mysql
 
-PHP_VER="83"
+PHP_VER="84"
 
 mysql_error_warning()
 {
@@ -93,7 +93,7 @@ install_roundcube_plugins()
 
 install_roundcube()
 {
-	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pdo_sqlite pspell session xml zip"
+	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pdo_sqlite session xml zip"
 
 	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		_php_modules="$_php_modules pdo_mysql"
