@@ -6,7 +6,7 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA="
-                allow.raw_sockets;
+		allow.raw_sockets;
 		allow.sysvipc;
 "
 export JAIL_FSTAB=""
@@ -187,7 +187,7 @@ status_cmd=${name}_status
 homeassistant_status() {
   if [ -n "$rc_pid" ]; then
     echo "${name} is running as pid $rc_pid."
-    echo "http://`ifconfig | sed -En \'s/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p\'`:8123"
+    echo "http://$(ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'):8123"
   else
     echo "${name} is not running."
     return 1

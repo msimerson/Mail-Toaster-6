@@ -41,3 +41,8 @@ node_modules
 *.txt
 *.php
 *.mt6
+
+.gemini/
+gha-creds-*.json
+CLAUDE.md
+.github/copilot-instructions.md

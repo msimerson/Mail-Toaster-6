@@ -49,7 +49,7 @@ install_roundcube_mysql()
 	fi
 
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
-	sed -i.bak \
+	sed_inplace \
 		-e "s/roundcube:pass@/roundcube:${_rcpass}@/" \
 		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
 		"$_rcc_dir/config.inc.php"
@@ -115,6 +115,7 @@ configure_nginx_server()
 	if [ "$TOASTER_USE_TMPFS" = "1" ]; then
 		tee -a $STAGE_MNT/etc/rc.local <<'EO_RC_LOCAL'
 TEMPDIRS="/tmp/nginx/fastcgi_temp /tmp/nginx/client_body_temp"
+# shellcheck disable=SC2086  # intentional word-splitting to expand TEMPDIRS into multiple args
 mkdir -p $TEMPDIRS
 chown www:www $TEMPDIRS
 chmod 0700 $TEMPDIRS
@@ -173,7 +174,7 @@ install_logo()
 configure_roundcube_php()
 {
 	tell_status "apply roundcube customizations to php.ini"
-	sed -i.bak \
+	sed_inplace \
 		-e "/^session.gc_maxlifetime/ s/= *[1-9][0-9]*/= 21600/" \
 		-e "/^post_max_size/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
 		-e "/^upload_max_filesize/ s/= *[1-9][0-9]*M/= ${ROUNDCUBE_ATTACHMENT_SIZE_MB}M/" \
@@ -185,14 +186,14 @@ configure_roundcube_plugins()
 	tell_status "configure the managesieve plugin"
 	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php.dist" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
-	sed -i.bak \
+	sed_inplace \
 		-e "/'managesieve_host'/s/localhost/dovecot/" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/managesieve/config.inc.php"
 
 	tell_status "configure the password plugin"
 	cp "$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php.dist" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php"
-	sed -i.bak \
+	sed_inplace \
 		-e "/'password_driver'/s/sql/vpopmaild/" \
 		-e "/'password_vpopmaild_host'/s/localhost/vpopmail/" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php"
@@ -210,7 +211,7 @@ configure_roundcube_plugins()
 		_sapass=$(grep user_scores_sql_password "$ZFS_DATA_MNT/spamassassin/etc/sql.cf" | awk '{ print $2 }')
 		if [ -n "$_sapass" ]; then
 			tell_status "configure the SA UserPrefs plugin"
-			sed -i.bak \
+			sed_inplace \
 				-e "/'sauserprefs_db_dsnw'/s|mysql://username:password@localhost/database|mysql://spamassassin:${_sapass}@mysql/spamassassin|" \
 				"$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php"
 		fi
@@ -244,7 +245,7 @@ configure_roundcube()
 		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
 	fi
 
-	sed -i.bak \
+	sed_inplace \
 		-e "/'default_host'/ s/'localhost'/'$_dovecot_ip'/" \
 		-e "/'smtp_server'/  s/= '.*'/= 'ssl:\/\/$TOASTER_MSA'/" \
 		-e "/'smtp_port'/    s/25;/465;/ ; s/587;/465;/" \
@@ -277,7 +278,7 @@ EO_RC_ADD
 	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		install_roundcube_mysql
 	else
-		sed -i.bak \
+		sed_inplace \
 			-e "/^\$config\['db_dsnw'/ s/= .*/= 'sqlite:\/\/\/\/data\/sqlite.db?mode=0646';/" \
 			"$_stage_cfg"
 
@@ -288,7 +289,7 @@ EO_RC_ADD
 		fi
 	fi
 
-	sed -i.bak \
+	sed_inplace \
 		-e "/enable_installer/ s/true/false/" \
 		"$_stage_cfg"
 }
@@ -297,7 +298,7 @@ fixup_url()
 {
 	# hack for roundcube 1.6.0 bug
 	# see https://github.com/roundcube/roundcubemail/issues/8738, #8170, #8770
-	sed -i.bak \
+	sed_inplace \
 		-e "/return \$prefix/    s/\./\. 'roundcube\/' \./" \
 		"$STAGE_MNT/usr/local/www/roundcube/program/include/rcmail.php"
 }

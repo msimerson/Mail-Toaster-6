@@ -18,7 +18,7 @@ install_zonemta_webadmin()
 		stage_exec bash -c "cd /data/admin && git pull && npm install --production"
 	fi
 
-	sed -i '' \
+	sed_inplace \
 		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 		-e "/^host/  s/localhost/$(get_jail_ip redis)/; s/\/2/\/7/" \
 		-e "/^db = / s/2/7/" \
@@ -41,12 +41,12 @@ install_zonemta()
 		stage_exec bash -c "cd /data/zone-mta && git pull && npm install --production"
 	fi
 
-	sed -i '' \
+	sed_inplace \
 		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
 		-e "/^redis/ s/localhost/$(get_jail_ip redis)/; s/\/2/\/7/" \
 		"$STAGE_MNT/data/zone-mta/config/dbs-production.toml"
 
-	sed -i '' \
+	sed_inplace \
 		-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
 		-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
 		"$STAGE_MNT/data/zone-mta/config/dbs-development.toml"

@@ -44,7 +44,7 @@ install_vpopmail_source()
 }
 
 vpopmail_port_fixups() {
-        sed -i '' \
+        sed_inplace \
                 -e '/pw_name char(32)/         s/char(32)/VARCHAR (64)/'  \
                 -e '/pw_domain char(96)/       s/char(96)/VARCHAR (96)/'  \
                 -e '/user char(32)/            s/char(32)/VARCHAR (64)/'  \
@@ -100,7 +100,7 @@ mail_vpopmail_UNSET=$VPOPMAIL_OPTIONS_UNSET
 "
 	fi
 
-	if ! grep -qs ^CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
+	if ! grep -qs CFLAGS "/usr/ports/mail/vpopmail/Makefile"; then
 		# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=257672
 		tell_status "patching vpopmail Makefile"
 		echo "CFLAGS+=	-fcommon" | tee -a "/usr/ports/mail/vpopmail/Makefile" || exit

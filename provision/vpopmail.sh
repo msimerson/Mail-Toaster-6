@@ -9,10 +9,11 @@ export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 export VPOPMAIL_OPTIONS_SET=""
-export VPOPMAIL_OPTIONS_UNSET="ROAMING"
+export VPOPMAIL_OPTIONS_UNSET="ROAMING PGSQL LDAP ORACLE SYBASE"
 
 mt6-include vpopmail
 mt6-include mysql
+mt6-include qmail
 
 install_maildrop_port()
 {
@@ -22,7 +23,7 @@ mail_maildrop_UNSET=DOCS
 	# libidn is needed for 3.0.x versions
 	stage_pkg_install courier-unicode libidn2 pcre pcre2 perl5
 
-	sed -i '' \
+	sed_inplace \
 		-e 's/3\.[0-9]\.[0-9]/3.1.0/' \
 		/usr/ports/mail/maildrop/Makefile
 
@@ -40,8 +41,8 @@ EO_MAILDROP_310
 install_maildrop()
 {
 	tell_status "installing maildrop"
-	# stage_pkg_install maildrop
-	install_maildrop_port
+	stage_pkg_install maildrop
+	#install_maildrop_port
 
 	tell_status "installing maildrop filter file"
 	fetch -o "$STAGE_MNT/etc/mailfilter" "$TOASTER_SRC_URL/qmail/filter.txt"
@@ -55,71 +56,88 @@ install_maildrop()
 	chmod 600 "$STAGE_MNT/etc/mailfilter" "$STAGE_MNT/usr/local/etc/mail/mailfilter"
 }
 
-install_lighttpd()
+install_nginx_vpopmail()
 {
-	tell_status "installing lighttpd"
-	stage_pkg_install lighttpd
+	tell_status "installing nginx and fcgiwrap"
+	stage_pkg_install nginx fcgiwrap
 
-	local _conf; _conf="$ZFS_DATA_MNT/vpopmail/etc/lighttpd.conf"
+	local _conf="$ZFS_DATA_MNT/vpopmail/etc/nginx.conf"
 	if [ -f "$_conf" ]; then
-		tell_status "preserving lighttpd.conf"
+		tell_status "preserving nginx.conf"
 	else
-		tell_status "installing lighttpd.conf"
-		cat <<EO_LIGHTTPD >> "$_conf"
+		tell_status "installing nginx.conf"
+		tee "$_conf" <<EO_NGINX
+worker_processes  1;
 
-#include "/usr/local/etc/lighttpd/lighttpd*annotated.conf"
-#include "/usr/local/etc/lighttpd/conf-enabled/*.conf"
-
-# server.modules += ( "mod_access" ) # for IP filtering
-
-server.document-root = "/data/htdocs"
-server.pid-file      = "/var/run/lighttpd/lighttpd.pid"
-
-var.log_root         = "/var/log/lighttpd"
-server.errorlog      = log_root + "/error.log"
-
-#server.modules     += ( "mod_accesslog" )
-#accesslog.filename  = log_root + "/access.log"
-
-server.modules += ( "mod_alias" )
-alias.url = ( "/cgi-bin/"     => "/data/cgi-bin/",
-              "/qmailadmin/"  => "/data/htdocs/qmailadmin/",
-            )
-
-server.modules += ( "mod_cgi" )
-\$HTTP["url"] =~ "^/cgi-bin" {
-   cgi.assign = ( "" => "" )
+events {
+	worker_connections  256;
 }
 
-server.modules += ( "mod_extforward" )
-extforward.forwarder = (
-     "$(get_jail_ip haproxy)"  => "trust",
-     "$(get_jail_ip6 haproxy)"  => "trust",
-)
+http {
+	include       /usr/local/etc/nginx/mime.types;
+	default_type  application/octet-stream;
+	sendfile      on;
+	keepalive_timeout  65;
 
-server.modules += ( "mod_auth", "mod_authn_file" )
-#auth.backend                   = "plain"
-auth.backend                   = "htdigest"
-auth.backend.plain.userfile    = "/data/etc/WebUsers.plain"
-auth.backend.htdigest.userfile = "/data/etc/WebUsers.digest"
+	set_real_ip_from  $(get_jail_ip haproxy);
+	set_real_ip_from  $(get_jail_ip6 haproxy);
+	real_ip_header    X-Forwarded-For;
+	real_ip_recursive on;
 
-auth.require   = ( "/cgi-bin/vqadmin" =>
-                     (
-                         #"method"  => "basic",
-                         "method"  => "digest",
-                         "realm"   => "vqadmin",
-                         "require" => "valid-user"
-                      ),
-                 )
+	server {
+		listen 80;
+		root  /data/htdocs;
+		index index.html;
 
-EO_LIGHTTPD
+		location /qmailadmin/ {
+			alias /data/htdocs/qmailadmin/;
+		}
 
+		location ~ ^/cgi-bin/vqadmin/vqadmin(?<path_info>/.*|$) {
+			auth_basic           "vqadmin";
+			auth_basic_user_file /data/etc/WebUsers;
+
+			fastcgi_pass  fcgi;
+			include       /usr/local/etc/nginx/fastcgi_params;
+
+			fastcgi_param PATH_INFO       $path_info;
+			fastcgi_param SCRIPT_FILENAME /data/cgi-bin/vqadmin/vqadmin;
+			fastcgi_param SCRIPT_NAME     /cgi-bin/vqadmin/vqadmin;
+			fastcgi_param DOCUMENT_ROOT   /data;
+			fastcgi_param QUERY_STRING    $query_string;
+			fastcgi_param REQUEST_METHOD  $request_method;
+			fastcgi_param CONTENT_TYPE    $content_type;
+			fastcgi_param CONTENT_LENGTH  $content_length;
+		}
+
+		location ~ ^/cgi-bin/qmailadmin/qmailadmin(?<path_info>/.*|$) {
+			fastcgi_pass  unix:/var/run/fcgiwrap/fcgiwrap.sock;
+			include       /usr/local/etc/nginx/fastcgi_params;
+
+			fastcgi_param PATH_INFO       $path_info;
+			fastcgi_param SCRIPT_FILENAME /data/cgi-bin/qmailadmin/qmailadmin;
+			fastcgi_param SCRIPT_NAME     /cgi-bin/qmailadmin/qmailadmin;
+			fastcgi_param DOCUMENT_ROOT   /data;
+			fastcgi_param QUERY_STRING    $query_string;
+			fastcgi_param REQUEST_METHOD  $request_method;
+			fastcgi_param CONTENT_TYPE    $content_type;
+			fastcgi_param CONTENT_LENGTH  $content_length;
+        }
+	}
+}
+EO_NGINX
 	fi
 
-	stage_sysrc lighttpd_conf=/data/etc/lighttpd.conf
-	stage_sysrc lighttpd_enable=YES
-	stage_sysrc lighttpd_pidfile="/var/run/lighttpd/lighttpd.pid"
-	stage_exec service lighttpd start
+	stage_sysrc fcgiwrap_enable=YES
+	stage_sysrc fcgiwrap_user="www"
+	stage_sysrc fcgiwrap_group="www"
+	stage_sysrc fcgiwrap_socket_owner="www"
+	stage_sysrc fcgiwrap_socket_group="www"
+	stage_exec service fcgiwrap start
+
+	stage_sysrc nginx_flags="-c /data/etc/nginx.conf"
+	stage_sysrc nginx_enable=YES
+	stage_exec service nginx start
 }
 
 install_qmailadmin()
@@ -127,8 +145,8 @@ install_qmailadmin()
 	tell_status "installing qmailadmin"
 	stage_pkg_install autorespond ezmlm-idx autoconf automake help2man
 	stage_make_conf mail_qmailadmin_ '
-mail_qmailadmin_SET=HELP IDX MODIFY_QUOTA TRIVIAL_PASSWORD USER_INDEX
-mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
+mail_qmailadmin_SET=HELP IDX IPAUTH MODIFY_QUOTA NOCACHE TRIVIAL_PASSWORD USER_INDEX
+mail_qmailadmin_UNSET=CATCHALL CRACKLIB DOMAIN_AUTOFILL IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 '
 
 	if [ -f "$ZFS_JAIL_MNT/vpopmail/var/db/ports/mail_qmailadmin/options" ]; then
@@ -146,11 +164,16 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB IDX_SQL SPAM_DETECTION SPAM_NEEDS_EMAIL
 		fi
 	done
 
-	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin SPAM_COMMAND="| /usr/local/bin/maildrop /usr/local/etc/mail/mailfilter"
+	export WEBDATADIR=../../data/htdocs CGIBINDIR=../../data/cgi-bin CGIBINSUBDIR=qmailadmin
 
+	# port requires newer autoconf than pkg has, 2026-04-04
+	stage_make_conf devel_autoconf_ "
+devel_autoconf_UNSET=INFO
+"
+	stage_port_install devel/autoconf
 	stage_port_install mail/qmailadmin
 
-	install_lighttpd
+	install_nginx_vpopmail
 }
 
 install_vqadmin()
@@ -200,14 +223,14 @@ install_vpopmail_mysql_grants()
 	# mysql doesn't allow a /24 (default prefix) within a /12 (default mask)
 	local _ip="${JAIL_NET_PREFIX}.0/24"
 
-	sed -i.bak \
+	sed_inplace \
 		-e "s/^localhost/$(get_jail_ip mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
 		"$_vpe"
 
 	tell_status "setting up mysql user vpopmail"
-	for _jail in stage vpopmail dovecot sqwebmail; do
+	for _jail in stage vpopmail dovecot; do
 		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			mysql_user_exists vpopmail $_ip \
@@ -231,12 +254,12 @@ alter_vpopmail_tables()
                 MODIFY COLUMN pw_passwd varchar(128),
                 MODIFY COLUMN pw_gecos  varchar(64),
                 MODIFY COLUMN pw_dir    varchar(160),
-                MODIFY COLUMN pw_clear_passwd varchar(128);" | mysql_query
+                MODIFY COLUMN pw_clear_passwd varchar(128);" | mysql_query vpopmail
 
         echo "ALTER TABLE vpopmail.lastauth
 		MODIFY COLUMN user      varchar(64),
                 MODIFY COLUMN domain    varchar(96),
-                MODIFY COLUMN remote_ip varchar(39);" | mysql_query
+                MODIFY COLUMN remote_ip varchar(39);" | mysql_query vpopmail
 }
 
 install_vpop_nrpe()
@@ -266,7 +289,7 @@ install_quota_report()
 	fetch -o "$_qr" "$TOASTER_SRC_URL/qmail/toaster-quota-report"
 	chmod 755 "$_qr"
 
-	sed -i '' \
+	sed_inplace \
 		-e "/\$admin/ s/postmaster@example.com/$TOASTER_ADMIN_EMAIL/" \
 		-e "/assistance/ s/example.com/$TOASTER_HOSTNAME/" \
 		-e "s/My Great Company/$TOASTER_ORG_NAME/" \
@@ -283,7 +306,7 @@ install_vpopmail()
 
 	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
 	if [ "$_fbsd_major" -gt "12" ]; then
-		echo "CFLAGS+= -fcommon" >> $STAGE_MNT/etc/make.conf
+		echo "CFLAGS+= -fcommon" >> "$STAGE_MNT/etc/make.conf"
 	fi
 
 	tell_status "installing vpopmail package"
@@ -317,8 +340,9 @@ configure_qmail()
 configure_vpopmail()
 {
 	tell_status "setting up daemon supervision"
-	stage_pkg_install p5-Package-Constants
-	fetch -o - "$TOASTER_SRC_URL/qmail/run.sh" | stage_exec sh
+	cp include/qmail.sh "$STAGE_MNT/tmp/qmail-run.sh"
+	chmod 755 "$STAGE_MNT/tmp/qmail-run.sh"
+	stage_exec sh -c ". /tmp/qmail-run.sh && install_supervision"
 
 	if [ ! -d "$STAGE_MNT/usr/local/vpopmail/domains/$TOASTER_MAIL_DOMAIN" ]; then
 		local _ppass; _ppass=$(get_random_pass 14)
@@ -333,7 +357,8 @@ configure_vpopmail()
 
 start_vpopmail()
 {
-	true
+	stage_sysrc svscan_enable=YES
+	stage_exec service svscan start
 }
 
 test_vpopmail()
@@ -345,9 +370,7 @@ test_vpopmail()
 	stage_listening 89 1
 	stage_listening 8998 2
 
-	stage_test_running lighttpd
-	#stage_test_running vpopmaild
-	echo "it worked"
+	stage_test_running nginx
 }
 
 migrate_vpopmail_home()
@@ -416,9 +439,10 @@ migrate_vpopmail_home()
 	# fi
 
 	# # TODO: patch fstab mounts in /etc/jail.conf
-	# service jail stop dovecot vpopmail
+	# service jail start dovecot vpopmail
 }
 
+tell_settings VPOPMAIL
 migrate_vpopmail_home
 base_snapshot_exists || exit 1
 create_staged_fs vpopmail

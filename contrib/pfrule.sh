@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -eu
+
 # pfrule.sh
 #
 # Matt Simerson, matt@tnpi.net, 2026-02
@@ -8,8 +10,9 @@
 # files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
 
 ETC_PATH="$(dirname -- "$( readlink -f -- "$0"; )";)"
-JAIL_NAME=$(basename "$(dirname "$(dirname $ETC_PATH)")")
-PREVIEW="$2"
+JAIL_NAME=$(basename "$(dirname "$(dirname "$ETC_PATH")")")
+OPERATION=${1:-""}
+PREVIEW=${2:-""}
 
 usage() {
     echo "   usage: $0 [ load | unload ] [-n]"
@@ -32,9 +35,9 @@ cleanup() {
 load_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
-        _table_name=$(basename $_f .table)
-        _hit=$(grep -EL "^table[[:space:]]+\<$_table_name\>" /etc/pf.conf $ETC_PATH/*.conf)
-        if [ $_hit != "" ]; then
+        _table_name=$(basename "$_f" .table)
+        _hit=$(grep -El "^table[[:space:]]+\<$_table_name\>" /etc/pf.conf "$ETC_PATH"/*.conf 2>/dev/null || true)
+        if [ -n "$_hit" ]; then
             echo "WARN: table $_table_name appears to ALSO exist in $_hit"
         fi
         do_cmd "pfctl -t $_table_name -T replace -f $_f"
@@ -44,7 +47,7 @@ load_tables() {
 flush_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
-        _table_name=$(basename $_f .table)
+        _table_name=$(basename "$_f" .table)
         do_cmd "pfctl -t $_table_name -T flush"
     done
 }
@@ -53,14 +56,14 @@ do_cmd() {
     if [ "$PREVIEW" = "-n" ]; then
         echo "$1"
     else
-        $1 || exit 1
+        eval "$1"
     fi
 }
 
 flush() {
     case "$1" in
         "nat"   ) do_cmd "$2 -F nat"   ;;
-        "rdr"   ) do_cmd "$2 -F rdr"   ;;
+        "rdr"   ) do_cmd "$2 -F nat"   ;;
         "filter") do_cmd "$2 -F rules" ;;
     esac
 }
@@ -68,7 +71,7 @@ flush() {
 cleanup
 
 # load tables first, they may be referenced in anchored files
-if [ "$1" = "load" ]; then load_tables; fi
+if [ "$OPERATION" = "load" ]; then load_tables; fi
 
 for _anchor in binat nat rdr filter; do
     _f="$ETC_PATH/$_anchor.conf"
@@ -76,13 +79,11 @@ for _anchor in binat nat rdr filter; do
 
     _pfctl="pfctl -a $_anchor/$JAIL_NAME"
 
-    case "$1" in
+    case "$OPERATION" in
         "load"   ) do_cmd "$_pfctl -f $_f" ;;
         "unload" ) flush "$_anchor" "$_pfctl" ;;
-        *        ) usage                 ;;
+        *        ) usage ;;
     esac
 done
 
-if [ "$1" = "unload" ]; then flush_tables; fi
-
-exit
+if [ "$OPERATION" = "unload" ]; then flush_tables; fi

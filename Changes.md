@@ -3,6 +3,59 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-04
+
+- mt: stage_setup_tls, deploy certs to correct filename
+- mt: add sed_inplace, stop ci failures due to linux/bsd sed
+- config: add note in m-t.conf for where to find more settings
+- host: disable IPv6 DAD
+- mysql: reduce innodb buffer size on system with < 8GB of RAM
+- network: added install_acme_ms (for installing per-jail acme)
+  - get_public_ip -> get_public_ip4 & get_public_ip6
+- nictool: bumped install version to 2.40
+- qmail
+  - configure listener for IPv4 and IPv6
+  - ./qmail/run.sh -> ./include/qmail.sh
+  - refactored supervisor script generation
+- unifi: install pf rule for acme and config ext Mongo
+- vpopmail: remove qmailadmin SPAM_COMMAND
+- vpopmail: build updates
+- vpopmail: replace lighttpd with nginx
+- webmail: when nginx is the proxy...
+  - use ACME module for TLS
+  - proxy websockets to /watch
+  - overhaul the index page, card based with buttons for admin
+  - password protect the admin routes (haproxy & nginx)
+  - add CSP & XSS protection
+- unifi: configure external mongodb when UNIFI_MONGODB_DSN
+- ci: added minimal permissions
+- ci: enabled FreeBSD basic tests
+- ci: set of kcov testing and codecov reporting
+- consistency: always quote variables, explicit exit codes
+- contrib/exorcise_maildrop: add -n dry-run mode
+- test: expanded ./test/mail-toaster.bats
+- test: added ./test/provision/*.bats
+
+## 2026-03
+
+- feat(dns): add forward and stub.conf
+- feat(haraka): allow specifying a version of Haraka
+- feat(haraka): enable LMTP to dovecot for new installs
+- feat(fstab_add_mount): added
+- fix(mailfilter): remove most of it, so maildrop sometimes works
+- feat(test/run.sh): run a single script
+- feat(rspamd): configure virustotal & metadefender if API key set
+- change(haproxy): updated the ssl ciphers & suites
+- change(NTP): switch default server to chrony
+- change(spamassassin): updated TxRep/AWL/userpref SQL
+  - enable build options for DMARC & RELAY_COUNTRY
+  - inline SQL for tables, no longer installed
+- change(snappymail): php8.2 -> 8.3
+- maildrop: install from package (TODO: test)
+- change: refactored mail-toaster.sh into test covered modules
+  - config, jail, network, util, zfs
+- test: added more tests to other modules
+
 ## 2022-05
 
 ### Feature

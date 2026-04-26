@@ -30,9 +30,10 @@ mysql_bin()
 
 mysql_query()
 {
-	if [ -n "$1" ]; then
-		echo "db: $1"
-		jexec mysql $(mysql_bin) "$1" || return 1
+	local _db=${1:-""}
+	if [ -n "$_db" ]; then
+		echo "db: $_db"
+		jexec mysql $(mysql_bin) "$_db" || return 1
 	else
 		jexec mysql $(mysql_bin) || return 1
 	fi

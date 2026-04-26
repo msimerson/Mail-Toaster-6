@@ -23,9 +23,9 @@ get_mt6_data()
 	local _spf_ips
 
 	if [ -z "$PUBLIC_IP6" ]; then
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112"
 	else
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/24 ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112 ip6:$PUBLIC_IP6"
+		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112 ip6:$PUBLIC_IP6"
 	fi
 
 	echo "
@@ -68,6 +68,46 @@ install_access_conf()
 EO_UNBOUND_ACCESS
 }
 
+install_forward_conf()
+{
+	store_config "$ZFS_DATA_MNT/dns/forward.conf" <<EO_UNBOUND_FORWARD
+# Comparison Table: Forward vs Stub Zones
+# | Feature         | Forward Zone                    | Stub Zone                      |
+# | :-------------- | :------------------------------ | :----------------------------- |
+# | Upstream Role   | Recursive Resolver (ISP, etc.)  | Authoritative Server (BIND)    |
+# | Query Type      | Recursive ("Find this for me")  | Iterative ("Give me what you") |
+# | Caching         | Relies on forwarder + local     | Builds own local cache         |
+# | Fallback        | Falls back to root hints        | Does not fall back             |
+
+# forward-zone:
+# 	name: "example.com"
+# 	forward-addr: 192.0.2.68
+# 	forward-addr: 192.0.2.73@5355  # port 5355.
+#   forward-host: fwd.example.com
+# 	forward-first: no
+
+EO_UNBOUND_FORWARD
+}
+
+install_stub_conf()
+{
+	store_config "$ZFS_DATA_MNT/dns/stub.conf" <<EO_UNBOUND_STUB
+# Comparison Table: Forward vs Stub Zones
+# | Feature         | Forward Zone                    | Stub Zone                      |
+# | :-------------- | :------------------------------ | :----------------------------- |
+# | Upstream Role   | Recursive Resolver (ISP, etc.)  | Authoritative Server (BIND)    |
+# | Query Type      | Recursive ("Find this for me")  | Iterative ("Give me what you") |
+# | Caching         | Relies on forwarder + local     | Builds own local cache         |
+# | Fallback        | Falls back to root hints        | Does not fall back             |
+
+# stub-zone:
+#       name: "example.com"
+#       stub-addr: 192.0.2.68
+
+
+EO_UNBOUND_STUB
+}
+
 install_local_conf()
 {
 	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
@@ -82,7 +122,7 @@ tweak_unbound_conf()
 	tell_status "configuring unbound.conf"
 	# control.conf for the munin stats plugin
 	# shellcheck disable=1004
-	sed -i.bak \
+	sed_inplace \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
 		-e '/# use-syslog/s/# //' \
@@ -100,6 +140,12 @@ include: "/data/mt6-local.conf" \
 ' \
 		-e '/^remote-control:/ a\ 
 	include: "/data/control.conf" \
+' \
+		-e '/fwd.example.com$/ a\
+include: "/data/forward.conf" \
+' \
+		-e '/stub-host: ns.example.com.$/ a\
+include: "/data/stub.conf" \
 ' \
 		"$UNBOUND_DIR/unbound.conf"
 }
@@ -127,7 +173,7 @@ enable_control()
 		control-cert-file: "/data/control/unbound_control.pem"
 EO_CONTROL_CONF
 
-	sed -i.bak \
+	sed_inplace \
 		-e '/^DESTDIR=/ s/=.*$/=\/data\/control/' \
 		"$STAGE_MNT/usr/local/sbin/unbound-control-setup"
 
@@ -161,10 +207,12 @@ EO_UB_LOCAL_CONF
 	enable_control
 	tweak_unbound_conf
 
-	get_public_ip ipv6
-	get_public_ip
+	get_public_ip6
+	get_public_ip4
 
 	install_access_conf
+	install_forward_conf
+	install_stub_conf
 	install_local_conf
 }
 

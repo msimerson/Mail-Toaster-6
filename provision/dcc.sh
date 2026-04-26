@@ -6,7 +6,7 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/dcc/db		$ZFS_JAIL_MNT/dcc/var/db/dcc nullfs	rw	0	0"
 
 install_dcc_cleanup()
 {
@@ -32,7 +32,7 @@ install_dcc_port_options()
 	local SET=DCCIFD
 	local UNSET="DCCGREY DCCD DCCM PORTS_MILTER"
 
-	get_public_ip ipv6
+	get_public_ip6
 	if [ -z "$PUBLIC_IP6" ]; then
 		UNSET="$UNSET IPV6"
 	else
@@ -56,7 +56,7 @@ install_dcc()
 
 configure_dcc()
 {
-	sed -i.bak \
+	sed_inplace \
 		-e '/^DCCIFD_ENABLE=/ s/off/on/' \
 		-e '/^DCCM_LOG_AT=/ s/5/NEVER/' \
 		-e '/^DCCM_REJECT_AT/ s/=.*/=MANY/' \
@@ -65,8 +65,8 @@ configure_dcc()
 
 	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/dcc.table" <<EO_DCC_TABLE
 $PUBLIC_IP4
@@ -91,7 +91,11 @@ start_dcc()
 	tell_status "starting up dcc-ifd"
 	stage_sysrc dccifd_enable=YES
 	stage_exec service dccifd start
-	stage_exec cdcc IPv6=off info
+	if [ -n "$PUBLIC_IP6" ]; then
+		stage_exec cdcc info
+	else
+		stage_exec cdcc IPv6=off info
+	fi
 }
 
 test_dcc()
@@ -100,8 +104,19 @@ test_dcc()
 	stage_listening 1025 3
 }
 
+preflight()
+{
+	for _d in etc db; do
+		_path="$ZFS_DATA_MNT/dcc/$_d"
+		[ -d "$_path" ] || mkdir "$_path"
+	done
+
+	mkdir "$STAGE_MNT/var/db/dcc"
+}
+
 base_snapshot_exists || exit 1
 create_staged_fs dcc
+preflight
 start_staged_jail dcc
 install_dcc
 configure_dcc

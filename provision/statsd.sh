@@ -14,12 +14,13 @@ install_statsd()
 	tell_status "Enable statsd"
 	stage_sysrc statsd_enable=YES
 
-	mkdir "$STAGE_MNT/var/lib"
+	mkdir -p "$STAGE_MNT/var/lib"
 	chown 907:907 "$STAGE_MNT/var/lib"
 
-	sed -i '' \
+	sed_inplace \
 		-e "s/ process\./ require('events')\./" \
-		"$STAGE_MNT/usr/local/share/statsd/lib/config.js"
+		"$STAGE_MNT/usr/local/share/statsd/lib/config.js" && \
+		rm -f "$STAGE_MNT/usr/local/share/statsd/lib/config.js.bak"
 }
 
 start_statsd()

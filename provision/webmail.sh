@@ -10,19 +10,29 @@ export JAIL_FSTAB=""
 
 mt6-include nginx
 
-configure_nginx_server()
+configure_nginx_server_port_80()
 {
-	_NGINX_SERVER='
-		server_name webmail default_server;
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		# nginx terminates TLS; ACME intercepts challenges internally,
+		# redirect all else to HTTPS
+		_NGINX_SERVER="
+		server_name $TOASTER_HOSTNAME default_server;
+
+		location / {
+			return 301 https://\$server_name\$request_uri;
+		}"
+	else
+		# haproxy terminates TLS; nginx on port 80
+		_NGINX_SERVER="
+		server_name $TOASTER_HOSTNAME default_server;
 		root /data/htdocs;
 
-		# serve ACME requests from /data
 		location /.well-known/acme-challenge {
-			try_files $uri =404;
+			try_files \$uri =404;
 		}
 
 		location /.well-known/pki-validation {
-			try_files $uri =404;
+			try_files \$uri =404;
 		}
 
 		# Forbid access to other dotfiles
@@ -31,39 +41,69 @@ configure_nginx_server()
 		}
 
 		location / {
-			# redirect to HTTPS, use with TOASTER_WEBMAIL_PROXY=nginx
-			#return 301 https://$server_name$request_uri;
 			index  index.html index.htm;
-		}
-'
+		}"
+	fi
 	export _NGINX_SERVER
 	configure_nginx_server_d webmail
+}
 
-	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
-		# shellcheck disable=SC2089
-		_NGINX_SERVER="
+configure_nginx_server_port_443()
+{
+	if [ "$TOASTER_WEBMAIL_PROXY" != "nginx" ]; then return; fi
+
+	local _NGINX_SERVER='
 	server {
-		listen	    443 ssl;
-		listen [::]:443 ssl;
+		listen      443 ssl;'
 
-		server_name  $TOASTER_HOSTNAME;
+	if [ -n "$PUBLIC_IP6" ]; then
+		_NGINX_SERVER="$_NGINX_SERVER
+		listen [::]:443 ssl;"
+	fi
 
+	_NGINX_SERVER="$_NGINX_SERVER
+
+		server_name $TOASTER_HOSTNAME;"
+
+	if [ "$TOASTER_NGINX_ACME" = "1" ]; then
+		_NGINX_SERVER="$_NGINX_SERVER
+		acme_certificate      letsencrypt;
+
+		ssl_certificate       \$acme_certificate;
+		ssl_certificate_key   \$acme_certificate_key;
+		ssl_certificate_cache max=2;"
+	else
+		_NGINX_SERVER="$_NGINX_SERVER
 		ssl_certificate	/data/etc/tls/certs/$TOASTER_HOSTNAME.pem;
-		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;
+		ssl_certificate_key /data/etc/tls/private/$TOASTER_HOSTNAME.pem;"
+	fi
+
+	_NGINX_SERVER="$_NGINX_SERVER
 
 		include /data/etc/nginx/webmail.conf;
-	}
-"
-		# shellcheck disable=SC2090
-		export _NGINX_SERVER
+	}"
 
-		configure_nginx_server_d webmail $TOASTER_HOSTNAME
-	fi
+	export _NGINX_SERVER
+	configure_nginx_server_d webmail $TOASTER_HOSTNAME
+}
+
+configure_nginx_server()
+{
+	get_public_ip6
+
+	configure_nginx_server_port_80
+	configure_nginx_server_port_443
 
 	tee "$ZFS_DATA_MNT/webmail/etc/nginx/webmail.conf" <<EO_WEBMAIL_INCLUDE
 		proxy_set_header X-Forwarded-For \$remote_addr;
 		proxy_set_header X-Forwarded-Proto \$scheme;
 		proxy_set_header Host \$host;
+
+		add_header X-XSS-Protection "1; mode=block" always;
+		add_header X-Content-Type-Options "nosniff" always;
+		add_header X-Frame-Options "SAMEORIGIN" always;
+		add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+		add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';" always;
 
 		# Forbid access to other dotfiles
 		location ~ /\.(?!well-known).* {
@@ -82,20 +122,26 @@ configure_nginx_server()
 
 		location /snappymail {
 			proxy_pass	http://$(get_jail_ip snappymail):80;
+			proxy_hide_header X-Frame-Options;
 		}
 
 		location /haraka/ {
+			include /data/etc/nginx/protected.conf;
 			rewrite /haraka/(.*) /\$1  break;
 			proxy_redirect     off;
 			proxy_pass	http://$(get_jail_ip haraka):80;
 		}
 
-		location /watch/ {
+		location /watch {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip haraka):80;
+
 			proxy_http_version 1.1;
 			proxy_set_header Upgrade \$http_upgrade;
-			proxy_set_header Connection \"upgrade\";
+			proxy_set_header Connection \$connection_upgrade;
+
 			proxy_read_timeout 86400;
+			proxy_send_timeout 86400;
 		}
 
 		location /logs/ {
@@ -115,11 +161,118 @@ configure_nginx_server()
 		}
 
 		location /rspamd/ {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip rspamd):11334/;
 		}
 
 		location /dmarc {
+			include /data/etc/nginx/protected.conf;
 			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/;
+		}
+
+		location /munin {
+			include /data/etc/nginx/protected.conf;
+			proxy_pass	http://$(get_jail_ip munin):80;
+		}
+
+		location /nagios {
+			include /data/etc/nginx/protected.conf;
+			proxy_pass	http://$(get_jail_ip nagios):80;
+		}
+
+		location /squirrelmail {
+			proxy_pass	http://$(get_jail_ip squirrelmail):80;
+		}
+
+		location /rainloop {
+			rewrite /rainloop/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip rainloop):80;
+		}
+
+		location /nictool {
+			rewrite /nictool/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip nictool):80;
+		}
+
+		location /wiki {
+			proxy_pass	http://$(get_jail_ip mediawiki):80;
+		}
+
+		location /w/ {
+			proxy_pass	http://$(get_jail_ip mediawiki):80;
+		}
+
+		location /smf {
+			proxy_pass	http://$(get_jail_ip smf):80;
+		}
+
+		location /wordpress {
+			proxy_pass	http://$(get_jail_ip wordpress):80;
+		}
+
+		location /stage {
+			proxy_pass	http://$(get_jail_ip stage):80;
+		}
+
+		location /horde {
+			proxy_pass	http://$(get_jail_ip horde):80;
+		}
+
+		location /prometheus {
+			include /data/etc/nginx/protected.conf;
+			rewrite /prometheus/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip prometheus):9090;
+		}
+
+		location /grafana {
+			include /data/etc/nginx/protected.conf;
+			rewrite /grafana/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip grafana):3000;
+		}
+
+		location /kibana {
+			include /data/etc/nginx/protected.conf;
+			rewrite /kibana/(.*) /\$1  break;
+			proxy_redirect     off;
+			proxy_pass         http://$(get_jail_ip elasticsearch):5601;
+		}
+
+		location /zonemta {
+			rewrite /zonemta/(.*) /\$1  break;
+			proxy_pass         http://$(get_jail_ip zonemta):8082;
+			proxy_set_header   Host \$host;
+			proxy_set_header   X-Forwarded-For \$remote_addr;
+			proxy_set_header   X-Forwarded-Proto \$scheme;
+		}
+
+		location /wildduck {
+			rewrite /wildduck/(.*) /\$1  break;
+			proxy_pass         http://$(get_jail_ip wildduck):3000;
+			proxy_set_header   Host \$host;
+			proxy_set_header   X-Forwarded-For \$remote_addr;
+			proxy_set_header   X-Forwarded-Proto \$scheme;
+		}
+
+		# Auth probe (fetch): validate credentials but return bare 401 so
+		# browsers don't pop a credential dialog for background requests.
+		location = /auth-check {
+			include /data/etc/nginx/protected.conf;
+			error_page 401 =401 @auth_check_silent;
+			return 204;
+		}
+		location @auth_check_silent { internal; return 401; }
+
+		# Auth login: on success return a page that sets a session cookie
+		# and navigates to /. No redirect — avoids credential-cache
+		# confusion that causes brief dialog flashes after auth.
+		location = /auth-login {
+			include /data/etc/nginx/protected.conf;
+			default_type text/html;
+			return 200 '<html><script>document.cookie="is_admin=1;Path=/;SameSite=Strict;Secure";location.replace("/")</script></html>';
 		}
 
 		location / {
@@ -134,236 +287,96 @@ configure_nginx_server()
 EO_WEBMAIL_INCLUDE
 }
 
-install_lighttpd()
+configure_nginx_auth()
 {
-	tell_status "installing lighttpd"
-	stage_pkg_install lighttpd
+	local _etc="$ZFS_DATA_MNT/webmail/etc/nginx"
 
-	mkdir -p "$STAGE_MNT/var/spool/lighttpd/sockets"
-	chown -R www "$STAGE_MNT/var/spool/lighttpd/sockets"
+	store_config "$_etc/protected.conf" <<'EO_PROTECTED'
+# Routes that include this file require a valid login unless the client IP
+# is explicitly allowed below.  Edit and reload nginx to apply changes:
+#   service nginx reload
+#
+# To bypass auth for a trusted network, add:
+#   allow  192.0.2.0/24;
+#
+# To remove auth from a route, delete its include line in webmail.conf.
+#
+# manage password entries with:
+#   htpasswd /data/etc/nginx/.htpasswd <username>
+
+satisfy any;
+allow   127.0.0.1;
+allow   ::1;
+deny    all;
+
+auth_basic           "Restricted";
+auth_basic_user_file /data/etc/nginx/.htpasswd;
+EO_PROTECTED
+
+	# Create an empty htpasswd file so nginx starts without errors.
+	if [ ! -f "$_etc/.htpasswd" ]; then
+		store_config "$_etc/.htpasswd" <<EO_HTPASSWD
+# Add password entries with:
+#   htpasswd /data/etc/nginx/.htpasswd <username>
+EO_HTPASSWD
+		chown 0:80 "$_etc/.htpasswd"
+		chmod 640 "$_etc/.htpasswd"
+	fi
+
+	store_exec "$STAGE_MNT/usr/local/bin/htpasswd" <<'EO_HTPASSWD'
+#!/bin/sh
+
+usage() {
+  cat <<EOF
+Usage: $0 <htpasswd-file> <username>
+EOF
 }
 
-configure_lighttpd()
+if [ $# -eq 2 ]; then
+  printf "%s:%s\n" "$2" "$(openssl passwd -6)" >> "$1"
+else
+  usage
+fi
+EO_HTPASSWD
+}
+
+configure_nginx_acme()
 {
-	local _lighttpd_dir="$STAGE_MNT/usr/local/etc/lighttpd"
-	local _lighttpd_conf="$_lighttpd_dir/lighttpd.conf"
+	if [ "$TOASTER_NGINX_ACME" != "1" ]; then return; fi
 
-	# shellcheck disable=2016
-	sed -i.bak \
-		-e 's/^#include_shell "cat/include_shell "cat/' \
-		-e '/^var.server_root/ s|/usr/local/www/data|/data/htdocs|' \
-		"$_lighttpd_conf"
+	local _conf="$ZFS_DATA_MNT/webmail/etc/nginx/nginx.conf"
+	local _acme_conf="$ZFS_DATA_MNT/webmail/etc/nginx/server.d/acme.conf"
 
-	store_config "$_lighttpd_dir/vhosts.d/mail-toaster.conf" <<EO_LIGHTTPD_MT6
-server.modules += ( "mod_alias" )
+	if [ -f "$_acme_conf" ]; then
+		tell_status "preserving $_acme_conf"
+		return
+	fi
 
-alias.url = (
-		"/cgi-bin/"        => "/usr/local/www/cgi-bin/",
-	)
+	tell_status "configuring ACME module"
 
-server.modules += (
-		"mod_cgi",
-		"mod_fastcgi",
-		"mod_extforward",
-	)
+	sed_inplace -e '/ngx_http_acme_module.so/ s/^# //;' "$_conf"
 
-\$HTTP["url"] =~ "^/awstats/" {
-   cgi.assign = ( "" => "/usr/bin/perl" )
-}
-\$HTTP["url"] =~ "^/cgi-bin" {
-   cgi.assign = ( "" => "" )
-}
-extforward.forwarder = (
-		"$(get_jail_ip haproxy)" => "trust",
-	)
+	mkdir -p "$ZFS_DATA_MNT/webmail/etc/acme/letsencrypt"
 
-EO_LIGHTTPD_MT6
+	store_config "$_acme_conf" <<EO_NGINX_ACME
+	resolver $(get_jail_ip dns) valid=60s;
+
+	acme_shared_zone zone=ngx_acme_shared:1M;
+
+	acme_issuer letsencrypt {
+		uri        https://acme-v02.api.letsencrypt.org/directory;
+		contact    $TOASTER_ADMIN_EMAIL;
+		state_path /data/etc/acme/letsencrypt;
+		accept_terms_of_service;
+	}
+EO_NGINX_ACME
 }
 
 install_webmail()
 {
 	stage_setup_tls
-
-	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		install_lighttpd
-	else
-		install_nginx
-		configure_nginx_server
-	fi
-}
-
-install_index()
-{
-	store_config "$_htdocs/index.html" "overwrite" <<'EO_INDEX'
-<html>
-<head>
- <script src="//code.jquery.com/jquery-3.6.2.min.js"></script>
- <script src="//code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
- <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css" />
- <script>
-  let loggedIn = false;
-  $(function() {
-    $( "#tabs" ).tabs({ disabled: [3] });
-  });
-  const webPaths = {
-    'webmail'     : '',
-    'roundcube'   : '/roundcube/',
-    'snappymail'  : '/snappymail/',
-    // 'rainloop'    : '/rainloop/',
-    // 'sqwebmail'   : '/cgi-bin/sqwebmail?index=1',
-    // 'squirrelmail': '/squirrelmail/src/webmail.php',
-  }
-  const adminPaths = {
-    'admin'     : '',
-    'qmailadmin': '/cgi-bin/qmailadmin/qmailadmin/',
-    // 'vqadmin'   : '/cgi-bin/vqadmin/vqadmin.cgi',
-    'rspamd'    : '/rspamd/',
-    'watch'     : '/watch/',
-    'snappymail': '/snappymail/?admin',
-    // 'rainloop'  : '/rainloop/?admin',
-  }
-  const statsPaths = {
-    'statistics': '',
-    'munin'     : '/munin/',
-    'nagios'    : '/nagios/',
-    'watch'     : '/watch/',
-    'grafana'   : '/grafana/',
-  }
-  function changeWebmail(sel) {
-    if (!sel || !sel.value) return;
-    $('#webmail-item').prop('src', webPaths[sel.value]);
-    $('#tabs').tabs({ active: [0] });
-  }
-  function changeAdmin(sel) {
-    if (!sel || !sel.value) return;
-    $('#admin-item').prop('src', adminPaths[sel.value]);
-    $('#tabs').tabs({ active: [1] });
-  }
-  function changeStats(sel) {
-    if (!sel || !sel.value) return;
-    $('#stats-item').prop('src', statsPaths[sel.value]);
-    $('#tabs').tabs({ active: [2] });
-  }
-  function checkSuccess(tab, w) {
-    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
-      // console.log(`${w} success, present, no action`)
-    }
-    else {
-      // console.log(`${w} success, missing, adding`)
-      $(`#${tab}-select`).append(`<option value="${w}">${w}</option>`);
-    }
-  }
-  function checkFail(tab, w) {
-    if ($(`#${tab}-select option[value=${w}]`).length > 0) {
-      // console.log(`${w} not responding, present, removing`)
-      $(`#${tab}-select option[value=${w}]`).remove();
-    }
-    else {
-      // console.log(`${w} not responding,  missing, no action`)
-    }
-  }
-  function checkWebmail() {
-    for (const w in webPaths) {
-      if (w === 'webmail') continue
-      $.ajax({
-        url: `${webPaths[w]}`,
-        success: (data) => { checkSuccess('webmail', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('webmail', w); })
-    }
-  }
-  function checkAdmin() {
-    for (const w in adminPaths) {
-      if (w === 'admin') continue
-      $.ajax({
-        url: `${adminPaths[w]}`,
-        success: (data) => { checkSuccess('admin', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('admin', w); })
-    }
-  }
-  function checkStats() {
-    for (const w in statsPaths) {
-      if (w === 'statistics') continue
-      $.ajax({
-        url: `${statsPaths[w]}`,
-        success: (data) => { checkSuccess('stats', w); },
-        timeout: 3000,
-      })
-      .fail(() => { checkFail('stats', w); })
-    }
-  }
-  function checkAll () {
-    checkWebmail();
-    checkAdmin();
-    checkStats();
-  }
-  </script>
-  <style>body { font-size: 9pt; }</style>
-</head>
-<body onLoad="checkAll()">
-<div id="tabs">
-   <ul>
-       <li id=tab_webmail><a href="#webmail">
-           <select id="webmail-select" onChange="changeWebmail(this);">
-               <option value=webmail>Webmail</option>
-               <option value=roundcube>Roundcube</option>
-               <option value=snappymail>Snappymail</option>
-               <!--<option value=squirrelmail>Squirrelmail</option>-->
-               <!--<option value=rainloop>Rainloop</option>-->
-               <!--<option value=sqwebmail>Sqwebmail</option>-->
-           </select>
-       </a>
-       </li>
-       <li id=tab_admin><a href="#admin">
-           <select id="admin-select" onChange="changeAdmin(this)">
-               <option value=admin>Administration</option>
-               <option value=qmailadmin>Qmailadmin</option>
-               <option value=rspamd>Rspamd</option>
-               <option value=watch>Haraka Watch</option>
-               <option value=snappymail>Snappymail Admin</option>
-               <!--<option value=rainloop>Rainloop Admin</option>-->
-           </select>
-       </a>
-       </li>
-       <li id=tab_stats><a href="#stats">
-           <select id="stats-select" onChange="changeStats(this)">
-               <option value=statistics>Statistics</option>
-               <option value=munin>Munin</option>
-               <option value=nagios>Nagios</option>
-               <option value=watch>Haraka Watch</option>
-               <option value=grafana>Grafana</option>
-           </select>
-       </a>
-       </li>
-       <!--<li><a href="#help">Help</a> </li>-->
-       <li><a href="#login">Login</a></li>
-   </ul>
- <div id="webmail">
-     <iframe id="webmail-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="admin">
-     <iframe id="admin-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="stats">
-     <iframe id="stats-item" src="" style="width: 100%; height: 100%;"></iframe>
- </div>
- <div id="login">
-     <fieldset>
-         <legend>Login</legend>
-         <input type=text id=login placeholder="user@domain.com"></input>
-         <input type=password id=password></input>
-     </fieldset>
- </div>
-<!-- <div id="help">
-  <p>Help</p>
- </div>-->
-</div>
-</body>
-</html>
-EO_INDEX
+	install_nginx
+	configure_nginx_server
 }
 
 configure_webmail_pf()
@@ -380,8 +393,8 @@ rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> \$int_ip6
 EO_WEBMAIL_RDR
 	fi
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/webmail.table" <<EO_WEBMAIL_TABLE
 $PUBLIC_IP4
@@ -397,24 +410,28 @@ EO_WEBMAIL_FILTER
 
 configure_webmail()
 {
-	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		configure_lighttpd
-	else
-		configure_nginx webmail
-		configure_nginx_server
+	configure_nginx webmail
+	configure_nginx_server
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		configure_nginx_acme
+		configure_nginx_auth
 	fi
 
 	configure_webmail_pf
 
 	_data="$ZFS_DATA_MNT/webmail"
 	_htdocs="$_data/htdocs"
-	if [ ! -d "$_htdocs" ]; then mkdir -p "$_htdocs"; fi
+	if [ ! -d "$_htdocs/img" ]; then mkdir -p "$_htdocs/img"; fi
 
 	if [ -f "$_htdocs/index.html" ]; then
 		tell_status "backing up index.html"
 		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
-	install_index
+
+	for _f in index.html mt.js style.css img/snappymail.png img/roundcube.png img/qmailadmin.png; do
+		fetch -o "$_htdocs/$_f" "$TOASTER_SRC_URL/htdocs/$_f"
+	done
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
@@ -426,19 +443,19 @@ EO_ROBOTS_TXT
 
 start_webmail()
 {
-	if [ "$WEBMAIL_HTTPD" = "lighttpd" ]; then
-		tell_status "starting lighttpd"
-		stage_sysrc lighttpd_enable=YES
-		stage_exec service lighttpd start
-	else
-		start_nginx
-	fi
+	tell_status "starting nginx"
+	stage_sysrc nginx_enable=YES
+	stage_exec service nginx start
 }
 
 test_webmail()
 {
 	tell_status "testing webmail httpd"
 	stage_listening 80
+
+	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+		stage_listening 443
+	fi
 }
 
 base_snapshot_exists || exit

@@ -1,15 +1,19 @@
 name: CI Tests
 
 on:
-  push:
   pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: master
 
 jobs:
   shellcheck:
+    permissions:
+      contents: read
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Run ShellCheck
       uses: ludeeus/action-shellcheck@master
       env:
@@ -18,37 +22,36 @@ jobs:
   bats:
     name: Bats
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup Bats
       run: git submodule update --init --recursive
     - name: bats test
       run: |
-        ./test/bats/bin/bats test/*.bats
-        ./test/bats/bin/bats test/include/*.bats
+        ./test/bats/bin/bats test/*.bats test/include/*.bats test/provision/*.bats
 
   freebsd:
-    if: false
     runs-on: ubuntu-latest
     name: FreeBSD
-    env:
-      MYTOKEN : ${{ secrets.MYTOKEN }}
-      MYTOKEN2: "value2"
+    permissions: {}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Test in FreeBSD
       id: test
       uses: vmactions/freebsd-vm@v1
       with:
-        envs: 'MYTOKEN MYTOKEN2'
         usesh: true
         prepare: |
-          pkg install -y curl
-
+          pkg install -y curl ca_root_nss git-lite
         run: |
           pwd
-          ls -lah
           whoami
-          env
           freebsd-version
+          uname -a
+          git config --global --add safe.directory /home/runner/work/Mail-Toaster-6/Mail-Toaster-6
+          ./test/config.sh
+          . mail-toaster.conf
+          . mail-toaster.sh

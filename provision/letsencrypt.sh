@@ -62,7 +62,7 @@ haproxy_deploy() {
 	_cca="$4"
 	_cfullchain="$5"
 
-	if [ ! -f $_ccert ]; then
+	if [ ! -f "$_ccert" ]; then
 		_err "missing certificate"
 		return 2
 	fi
@@ -79,7 +79,7 @@ haproxy_deploy() {
 	fi
 
 	local _tmp="/tmp/${_cdomain}.pem"
-	cat $_ckey $_cfullchain > $_tmp
+	cat "$_ckey" "$_cfullchain" > "$_tmp"
 	if [ ! -s "$_tmp" ]; then
 		_err "Unable to create $_tmp"
 		return 1
@@ -484,7 +484,7 @@ update_haproxy_ssld()
 	fi
 
 	tell_status "switching haproxy TLS cert dir to /data/etc/tls.d"
-	sed -i.bak \
+	sed_inplace \
 		-e 's!ssl crt /etc.*!ssl crt /data/etc/tls.d!' \
 		"$_haconf"
 }

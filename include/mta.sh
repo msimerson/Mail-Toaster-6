@@ -64,9 +64,9 @@ disable_sendmail()
 	fi
 
 	local _periodic="sysrc -f $_base/etc/periodic.conf"
-	for _c in daily_clean_hoststat_enable daily_status_mail_rejects_enable daily_status_include_submit_mailq daily_submit_queuerun;
+	for _c in daily_clean_hoststat_enable daily_status_mail_rejects_enable daily_status_include_submit_mailq daily_submit_queuerun
 	do
-		if [ "$($_periodic -i -n $_c)" != "NO" ]; then $_periodic $_c=NO; fi
+		if [ "$($_periodic -i -n "$_c")" != "NO" ]; then $_periodic "$_c=NO"; fi
 	done
 }
 
@@ -77,7 +77,7 @@ set_root_alias()
 	if grep -q my.domain "$_aliases"; then
 		tell_status "setting root email in $_aliases to $TOASTER_ADMIN_EMAIL"
 
-		sed -i '' \
+		sed_inplace \
 			-e "/^# root:/ s/^# //" \
 			-e "/^root/ s/me@my.domain/$TOASTER_ADMIN_EMAIL/" \
 			"$_aliases"
@@ -90,7 +90,7 @@ enable_dma()
 	cp "$_base/usr/share/examples/dma/mailer.conf" "$_base/etc/mail/mailer.conf"
 
 	echo "editing $_base/etc/dma/dma.conf"
-	sed -i '' \
+	sed_inplace \
 		-e "s/^#SMARTHOST/SMARTHOST $TOASTER_MSA/" \
 		"$_base/etc/dma/dma.conf"
 

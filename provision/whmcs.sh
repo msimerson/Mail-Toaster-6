@@ -82,6 +82,8 @@ configure_whmcs()
 EO_CRONTAB
 
 	configure_whmcs_nginx
+
+	fstab_add_mount whmcs "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP"
 }
 
 start_whmcs()

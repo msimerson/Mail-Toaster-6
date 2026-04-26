@@ -1,0 +1,60 @@
+name: CI Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: master
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            g++ \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libdw-dev \
+            binutils-dev \
+            libiberty-dev \
+            zlib1g-dev \
+            libelf-dev
+      - name: Cache kcov
+        id: cache-kcov
+        uses: actions/cache@v5
+        with:
+          path: /usr/local/bin/kcov
+          key: ${{ runner.os }}-kcov-v42
+      - name: Install kcov from source
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
+        run: |
+          KCOV_VERSION=42
+          wget https://github.com/SimonKagstrom/kcov/archive/v$KCOV_VERSION.tar.gz
+          tar xzf v$KCOV_VERSION.tar.gz && cd kcov-$KCOV_VERSION
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+          cd ../../
+      - uses: actions/checkout@v6
+      - name: Run kcov
+        run: sh ./test/coverage.sh
+      - name: codecov
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./coverage/
+      - uses: qltysh/qlty-action/coverage@v2
+        with:
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: coverage/lcov.info
+
+      # - name: Coveralls
+      #   uses: coverallsapp/github-action@master
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}

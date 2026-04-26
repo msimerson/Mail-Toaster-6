@@ -6,7 +6,7 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB=""
+export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
 
 mt6-include mysql
 
@@ -24,27 +24,17 @@ PATH=/usr/local/bin:/usr/bin:/bin
 EO_SAUPD
 }
 
-install_sought_rules() {
-	if [ -f "$ZFS_DATA_MNT/spamassassin/var/3.004001/sought_rules_yerp_org.cf" ]; then
-		return
-	fi
-
-	tell_status "installing sought rules"
-	fetch -o - http://yerp.org/rules/GPG.KEY | stage_exec sa-update --import -
-	stage_exec sa-update --gpgkey 6C6191E3 --channel sought.rules.yerp.org
-}
-
 install_spamassassin_port()
 {
 	tell_status "install SpamAssassin from ports (w/opts)"
-	stage_pkg_install p5-Encode-Detect p5-Test-NoWarnings
+	stage_pkg_install p5-Encode-Detect p5-Test-NoWarnings p5-HTTP-Tiny p5-Mail-DMARC
 
-	local _SA_OPTS="AS_ROOT DCC DKIM RAZOR SPF_QUERY GNUPG_NONE"
+	local _SA_OPTS="AS_ROOT DCC DKIM DMARC RAZOR SPF_QUERY GNUPG_NONE RELAY_COUNTRY"
 	if [    "$TOASTER_MYSQL" = "1" ]; then _SA_OPTS="MYSQL $_SA_OPTS"; fi
 	if [ -n "$MAXMIND_LICENSE_KEY" ]; then _SA_OPTS="RELAY_COUNTRY $_SA_OPTS"; fi
 
 	stage_make_conf mail_spamassassin_SET "mail_spamassassin_SET=$_SA_OPTS"
-	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=DOCS SSL GNUPG GNUPG2 PYZOR DMARC PGSQL RLIMIT'
+	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=DOCS SSL GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
 	stage_make_conf dcc-dccd_SET 'mail_dcc-dccd_SET=DCCIFD IPV6'
 	stage_make_conf dcc-dccd_UNSET 'mail_dcc-dccd_UNSET=DCCGREY DCCD DCCM PORTS_MILTER'
 	stage_make_conf LICENSES_ACCEPTED 'LICENSES_ACCEPTED=DCC'
@@ -53,10 +43,6 @@ install_spamassassin_port()
 		echo "ports aren't mounted!" && exit 1
 	fi
 
-	#export BATCH=1  # if set, GPG key importing will fail
-	if [ -x "$STAGE_MNT/usr/local/bin/perl5.26.2" ]; then
-		stage_exec ln /usr/local/bin/perl5.26.2 /usr/local/bin/perl5.26.1
-	fi
 	stage_port_install mail/spamassassin
 }
 
@@ -85,7 +71,7 @@ install_spamassassin_razor()
 		exit
 	fi
 
-	sed -i.bak -e \
+	sed_inplace -e \
 		'/^logfile/ s/= /= \/var\/log\//' \
 		"$STAGE_MNT/etc/razor/razor-agent.conf"
 
@@ -159,15 +145,7 @@ configure_geoip()
 		return
 	fi
 
-	local _fstab="$ZFS_DATA_MNT/spamassassin/etc/fstab"
-	for _f in "$_fstab" "${_fstab}.stage"; do
-		if ! grep -qs GeoIP "$_f"; then
-			tell_status "adding GeoIP volume to $_f"
-			tee -a "$_f" <<EO_GEOIP
-$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0
-EO_GEOIP
-		fi
-	done
+	fstab_add_mount spamassassin "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP"
 }
 
 configure_spamassassin()
@@ -181,6 +159,7 @@ loadplugin Mail::SpamAssassin::Plugin::TextCat
 loadplugin Mail::SpamAssassin::Plugin::ASN
 loadplugin Mail::SpamAssassin::Plugin::PDFInfo
 loadplugin Mail::SpamAssassin::Plugin::DMARC
+loadplugin Mail::SpamAssassin::Plugin::TxRep
 EO_LOCAL_PRE
 	fi
 
@@ -228,7 +207,6 @@ EO_LOCAL_CONF
 	tell_status "initialize sa-update"
 	stage_exec sa-update && stage_exec sa-compile
 
-	#install_sought_rules
 	install_sa_update
 	configure_spamassassin_redis_bayes
 	configure_geoip
@@ -265,8 +243,9 @@ configure_spamassassin_mysql()
     # bayes_sql_password              $_my_pass
     # bayes_sql_override_username     someusername
 
-    # Not commonly enabled.
+    # for AWL or TxRep plugin
     # auto_whitelist_factory       Mail::SpamAssassin::SQLBasedAddrList
+    # txrep_factory                Mail::SpamAssassin::DBBasedAddrList
     # user_awl_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
     # user_awl_sql_username        spamassassin
     # user_awl_sql_password        $_my_pass
@@ -275,13 +254,25 @@ EO_MYSQL_CONF
 
 	mysql_create_db spamassassin
 
-	# bayes_mysql
-	for _import_file in awl_mysql userpref_mysql;
-	do
-		local _f="$STAGE_MNT/usr/local/share/doc/spamassassin/sql/${_import_file}.sql"
-		# shellcheck disable=SC2002
-		cat "$_f" | sed -e 's/TYPE=MyISAM//' | mysql_query spamassassin
-	done
+	echo "CREATE TABLE IF NOT EXISTS userpref (
+  username   varchar(100) NOT NULL,
+  preference varchar(50) NOT NULL,
+  value      varchar(100) NOT NULL,
+  prefid     int(11) NOT NULL auto_increment,
+  PRIMARY KEY (prefid),
+  INDEX (username)
+) ENGINE=InnoDB;" | mysql_query spamassassin
+
+	echo "CREATE TABLE IF NOT EXISTS awl (
+  username   varchar(100) NOT NULL DEFAULT '',
+  email      varchar(200) NOT NULL DEFAULT '',
+  ip         varchar(10) NOT NULL DEFAULT '',
+  count      int DEFAULT '0',
+  totscore   float DEFAULT '0',
+  signedby   varchar(255) NOT NULL DEFAULT '',
+  lastupdate timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (username,email,ip)
+) ENGINE=InnoDB;" | mysql_query spamassassin
 
 	for _jail in spamassassin stage squirrelmail;
 	do
@@ -304,7 +295,7 @@ start_spamassassin()
 	fi
 	SPAMD_ALLOW="$SPAMD_ALLOW -A $JAIL_NET6::/64"
 
-	sysrc -j stage spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=* --min-spare=3 --max-spare=6 --max-conn-per-child=25 --allow-tell"
+	stage_sysrc spamd_flags="--siteconfigpath /data/etc -v -q -x -u spamd -H /var/spool/spamd $SPAMD_ALLOW --listen=* --min-spare=3 --max-spare=6 --max-conn-per-child=25 --allow-tell"
 	stage_exec service sa-spamd start
 }
 

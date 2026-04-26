@@ -11,7 +11,7 @@ configure_vim_tiny()
 	install_vimrc
 
 	# vim-tiny has no syntax or color files, so disable some stuff
-	sed -i '' \
+	sed_inplace \
 		-e 's/^syntax on/" syntax on/' \
 		-e 's/^colorscheme/" colorscheme/' \
 		-e 's/^set number/" set number/' \
@@ -30,7 +30,7 @@ configure_vim()
 
 	install_vimrc
 
-	sed -i '' \
+	sed_inplace \
 		-e 's/set termguicolors/" set termguicolors/' \
 		-e 's/^set number/" set number/' \
 		-e 's/^set cursorline/" set cursorline/' \
@@ -39,7 +39,7 @@ configure_vim()
 
 	if fetch -m -o /usr/local/share/vim/vim91/colors/gruvbox.vim https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim;
 	then
-		sed -i '' \
+		sed_inplace \
 			-e 's/^colorscheme.*/colorscheme gruvbox/' \
 			"$_base/usr/local/etc/vim/vimrc"
 	fi

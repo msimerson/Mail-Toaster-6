@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>Mail Toaster</title>
+  <style>
+    @import url('/style.css');
+  </style>
+</head>
+<body>
+<main>
+  <section>
+    <h2>Webmail</h2>
+    <div class="cards" id="webmail-grid"></div>
+  </section>
+
+  <section id="admin-section" hidden>
+    <h2>Admin</h2>
+    <div class="admin-grid" id="admin-grid"></div>
+  </section>
+
+  <section id="auth-section">
+    <div class="auth-prompt">
+      <span>Admin tools are available after authentication.</span>
+      <button class="auth-btn" id="auth-btn" type="button">Log in</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <a href="https://github.com/msimerson/Mail-Toaster-6" target="_blank" rel="noopener noreferrer">Powered by Mail Toaster</a>
+</footer>
+
+<script src="/mt.js"></script>
+</body>
+</html>

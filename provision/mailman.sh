@@ -4,6 +4,7 @@
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
+export JAIL_FSTAB=""
 
 _dkim_private_key="$ZFS_DATA_MNT/mailman/dkim/$TOASTER_MAIL_DOMAIN.private"
 _has_dkim=""

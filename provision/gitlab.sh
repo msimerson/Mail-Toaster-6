@@ -29,7 +29,7 @@ configure_nginx()
 		chown 80:80 "$STAGE_MNT/var/log/nginx"  || exit 1
 	fi
 
-	sed -i '' \
+	sed_inplace \
 		-e '/http {/a\
     include       /usr/local/www/gitlab-ce/lib/support/nginx/gitlab;
 '	"$STAGE_MNT/usr/local/etc/nginx/nginx.conf"
@@ -89,7 +89,7 @@ configure_gitlab()
 	configure_redis
 
 		# -e '/path: / s/\/usr\/local/\/data/' \
-	sed -i '' \
+	sed_inplace \
 		-e "/[[:space:]]host:/ s/localhost/${TOASTER_HOSTNAME}/" \
 		-e "/email_from:/ s/example@example.com/${TOASTER_ADMIN_EMAIL}/" \
 		-e '/# relative_url_root/ s/# //' \
@@ -99,7 +99,7 @@ configure_gitlab()
 #   ENV['RAILS_RELATIVE_URL_ROOT'] = "/gitlab"
 # EO_REL
 
-	sed -i '' \
+	sed_inplace \
 		-e '/gitlab_relative_url_root:/ s/# //; s/\//\/gitlab/' \
 		"$STAGE_MNT/usr/local/share/gitlab-shell/config.yml"
 

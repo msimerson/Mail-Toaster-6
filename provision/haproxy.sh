@@ -50,10 +50,15 @@ configure_haproxy_dot_conf()
 global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
-	ssl-default-bind-options no-sslv3 no-tls-tickets
+	stats socket :9999 level admin expose-fd listeners
+
+	# ssl-config.mozilla.org to configure, ssllabs.com/ssltest to verify
+	ssl-default-bind-curves X25519:prime256v1:secp384r1
+	ssl-default-bind-options prefer-client-ciphers ssl-min-ver TLSv1.2 no-tls-tickets
+	ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+	ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305
 	ssl-dh-param-file /etc/ssl/dhparam.pem
 	tune.ssl.default-dh-param 2048
-	stats socket :9999 level admin expose-fd listeners
 
 defaults
 	mode        http
@@ -71,29 +76,33 @@ defaults
 	compression algo gzip
 	compression type text/html "text/html; charset=utf-8" text/html;charset=utf-8 text/plain text/css text/javascript application/x-javascript application/javascript application/ecmascript application/rss+xml application/atomsvc+xml application/atom+xml application/atom+xml;type=entry application/atom+xml;type=feed application/cmisquery+xml application/cmisallowableactions+xml application/cmisatom+xml application/cmistree+xml application/cmisacl+xml image/svg+xml
 
-#frontend stats
-#    bind *:9000
-#    stats enable
-#    stats uri /haproxy_stats
-#    stats realm HAProxy\ Statistics
-#    stats auth admin:password
-#    stats admin if TRUE
+userlist adminusers
+    # user matt password $6$3S...........
+    # get password hashes with: 'openssl passwd -6'
+
+frontend stats
+	bind 127.0.0.1:9000
+	stats enable
+	stats uri /haproxy
+	stats admin if TRUE
 
 frontend http-in
 	#mode tcp
 	bind :::80 v4v6 alpn http/1.1
 	bind :::443 v4v6 alpn http/1.1 ssl crt /data/etc/tls.d
-	# ciphers AES128+EECDH:AES128+EDH
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
 	http-request  set-header X-Forwarded-Port %[dst_port]
 	http-response set-header X-Frame-Options sameorigin
+	http-response set-header X-XSS-Protection "1; mode=block"
+	http-response set-header X-Content-Type-Options nosniff
+	http-response set-header Referrer-Policy strict-origin-when-cross-origin
+	http-response set-header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.jquery.com; style-src 'self' 'unsafe-inline' https://code.jquery.com; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';"
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
 	acl letsencrypt  path_beg -i /.well-known/acme-challenge
 	acl letsencrypt  path_beg -i /.well-known/pki-validation
-	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	acl munin        path_beg /munin
 	acl nagios       path_beg /nagios
@@ -123,8 +132,30 @@ frontend http-in
 	acl grafana      path_beg /grafana
 	acl dmarc        path_beg /dmarc
 	acl kibana       path_beg /kibana
+	acl haproxy      path_beg /haproxy
 	acl zonemta      hdr_beg(host) -i zonemta
 	acl wildduck     hdr_beg(host) -i wildduck
+
+	acl auth_check   path /auth-check
+	acl auth_login   path /auth-login
+	acl is_local     src 127.0.0.1 ::1
+	acl protected    path_beg /munin /nagios /watch /haraka /haproxy
+	acl protected    path_beg /rspamd /dmarc /prometheus /grafana /kibana
+
+	# Auth probe (fetch): bare 401 so browsers don't pop a credential dialog
+	http-request return status 204 if auth_check { http_auth(adminusers) }
+	http-request return status 204 if auth_check is_local
+	http-request return status 401 if auth_check
+
+	# Auth login: on success return a tiny page that sets a session cookie
+	http-request return status 200 content-type "text/html" string "<html><script>document.cookie='is_admin=1;Path=/;SameSite=Strict;Secure';location.replace('/')</script></html>" if auth_login { http_auth(adminusers) }
+	http-request return status 200 content-type "text/html" string "<html><script>document.cookie='is_admin=1;Path=/;SameSite=Strict;Secure';location.replace('/')</script></html>" if auth_login is_local
+	http-request auth realm "Restricted" if auth_login
+
+	# Protect admin routes with basic auth (bypass for local clients)
+	http-request auth realm "Restricted" if protected !{ http_auth(adminusers) } !is_local
+
+	redirect scheme https code 301 if !is_websocket !letsencrypt !{ ssl_fc }
 
 	use_backend websocket_haraka if  is_websocket
 	use_backend www_webmail      if  letsencrypt
@@ -151,6 +182,7 @@ frontend http-in
 	use_backend www_grafana      if  grafana
 	use_backend www_dmarc        if  dmarc
 	use_backend www_kibana       if  kibana
+	use_backend www_haproxy      if  haproxy
 	use_backend www_zonemta      if  zonemta
 	use_backend www_wildduck     if  wildduck
 
@@ -234,6 +266,9 @@ frontend http-in
 	server kibana $(get_jail_ip elasticsearch):5601
 	http-request replace-uri /kibana/(.*) /\1
 
+	backend www_haproxy
+	server local 127.0.0.1:9000
+
 	backend www_wildduck
 	server wildduck 172.16.15.64:3000
 
@@ -293,29 +328,29 @@ PEMSDIR=/data/etc/tls.d
 LOGDIR=/var/log/haproxy
 
 # Create the log path if it doesn't already exist
-[ -d $LOGDIR ] || mkdir $LOGDIR
+[ -d "$LOGDIR" ] || mkdir "$LOGDIR"
 UPDATED=0
 
-cd $PEMSDIR
+cd "$PEMSDIR"
 for pem in *.pem; do
     echo "= $(date)" >> "$LOGDIR/${pem}.log"
 
     # Get the OCSP URL from the certificate
-    ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in $pem)
+    ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in "$pem")
 
     # Extract the hostname from the OCSP URL
-    ocsp_host=$(echo $ocsp_url | cut -d/ -f3)
+    ocsp_host=$(echo "$ocsp_url" | cut -d/ -f3)
 
     # Only process the certificate if we have a .issuer file
-    if [ -r ${pem}.issuer ]; then
+    if [ -r "${pem}.issuer" ]; then
 
         # Request the OCSP response from the issuer and store it
         $OPENSSL ocsp \
-            -issuer ${pem}.issuer \
-            -cert ${pem} \
-            -url ${ocsp_url} \
-            -header Host=${ocsp_host} \
-            -respout ${pem}.ocsp || echo -n ""
+            -issuer "${pem}.issuer" \
+            -cert "${pem}" \
+            -url "${ocsp_url}" \
+            -header "Host=${ocsp_host}" \
+            -respout "${pem}.ocsp" || echo -n ""
 
         UPDATED=$(( $UPDATED + 1 ))
     fi
@@ -323,9 +358,9 @@ done
 
 if [ $UPDATED -gt 0 ]; then
     echo "= $(date) - Updated $UPDATED OCSP responses" >> "$LOGDIR/${pem}.log"
-    service haproxy reload > $LOGDIR/service-reload.log 2>&1
+    service haproxy reload > "$LOGDIR/service-reload.log" 2>&1
 else
-    echo "= $(date) - No updates" >> $LOGDIR/${pem}.log
+    echo "= $(date) - No updates" >> "$LOGDIR/${pem}.log"
 fi
 
 EO_OCSP
@@ -368,8 +403,8 @@ rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip hapro
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
 EO_PF_RDR
 
-	get_public_ip
-	get_public_ip ipv6
+	get_public_ip4
+	get_public_ip6
 
 	store_config "$_pf_etc/haproxy.table" <<EO_HAPROXY_TABLE
 $PUBLIC_IP4

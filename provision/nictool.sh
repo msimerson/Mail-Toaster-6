@@ -8,12 +8,13 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
-export NICTOOL_VER=${NICTOOL_VER:="2.33"}
+export NICTOOL_VER=${NICTOOL_VER:="2.40"}
 export NICTOOL_UPGRADE=""
 
 mt6-include mysql
 mt6-include user
 mt6-include djb
+mt6-include network
 
 install_nt_prereqs()
 {
@@ -38,12 +39,7 @@ install_nt_prereqs()
 		mkdir -p "$STAGE_MNT/var/service"
 	fi
 
-	stage_pkg_install acme.sh
-	stage_exec pw usermod acme -d /data/home/acme
-	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME_CRON
-#!/usr/local/bin/bash
-/usr/local/sbin/acme.sh --home /data/home/acme/.acme.sh --cron
-EO_ACME_CRON
+	install_acme_sh
 }
 
 install_nt_from_git()
@@ -114,7 +110,7 @@ install_nictool_server()
 	else
 		tell_status "installing default $_ntsconf"
 		cp "${_ntsconf}.dist" "$_ntsconf"
-		sed -i.bak -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
+		sed_inplace -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
 
 		for _jail in nictool stage; do
 			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");

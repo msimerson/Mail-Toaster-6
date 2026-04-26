@@ -131,6 +131,19 @@ configure_stats()
 		autolearn = [-5, 5];
 	}
 EO_RSPAMD_STAT
+
+	store_config "$RSPAMD_ETC/local.d/bayes_expiry.conf"  << EO_RSPAMD_EXPIRE
+interval = 90;
+count = 15000;
+EO_RSPAMD_EXPIRE
+
+	store_config "$RSPAMD_ETC/local.d/classifier-bayes.conf" << EO_RSPAMD_CLASS
+backend = "redis";
+new_schema = true;
+
+# Token expiry time (seconds, or -1 for persistent, or false to disable)
+expire = 8640000;  # ~100 days
+EO_RSPAMD_CLASS
 }
 
 configure_logging()
@@ -153,6 +166,77 @@ configure_rbl()
 	store_config "$RSPAMD_ETC/local.d/rbl.conf" <<EO_RBL
 redirector_hosts_map = "/usr/local/etc/rspamd/redirectors.inc";
 EO_RBL
+}
+
+configure_virus_total()
+{
+	if [ -z "$VIRUSTOTAL_API_KEY" ]; then
+		tell_status "skipping, VIRUSTOTAL_API_KEY not set"
+		return;
+	fi
+
+	store_config "$RSPAMD_ETC/local.d/antivirus.conf" "append" <<EO_AV
+virustotal {
+  apikey = "$VIRUSTOTAL_API_KEY";
+  #url = 'https://www.virustotal.com/vtapi/v2/file';
+  minimum_engines = 3;
+  full_score_engines = 7;
+}
+EO_AV
+}
+
+configure_metadefender()
+{
+	if [ -z "$METADEFENDER_API_KEY" ]; then
+		tell_status "skipping, METADEFENDER_API_KEY not set"
+		return;
+	fi
+
+	store_config "$RSPAMD_ETC/local.d/antivirus.conf" "append" <<EO_MD
+metadefender {
+  apikey = "$METADEFENDER_API_KEY";
+  symbol = "METADEFENDER";
+  type = "metadefender";
+  scan_mime_parts = true;
+  scan_text_mime = false;
+  scan_image_mime = false;
+  max_size = 20000000;
+  log_clean = false;
+  minimum_engines = 3;
+  low_category = 5;
+  medium_category = 10;
+  timeout = 5.0;
+  cache_expire = 7200;
+
+  # Symbol categories with scores (can be customized)
+  symbols = {
+    clean = {
+      symbol = "METADEFENDER_CLEAN";
+      score = -0.5;
+      description = "MetaDefender threats: none";
+    };
+    low = {
+      symbol = "METADEFENDER_LOW";
+      score = 2.0;
+      description = "MetaDefender threats low: (3-4 engines)";
+    };
+    medium = {
+      symbol = "METADEFENDER_MEDIUM";
+      score = 5.0;
+      description = "MetaDefender threats medium (5-9 engines)";
+    };
+    high = {
+      symbol = "METADEFENDER_HIGH";
+      score = 8.0;
+      description = "MetaDefender threats high (10+ engines)";
+    };
+  }
+
+  # Optional: Force an action when malware is detected
+  # action = "reject";
+  # message = '${SCANNER}: virus found: "${VIRUS}"';
+}
+EO_MD
 }
 
 configure_worker()
@@ -194,6 +278,8 @@ configure_rspamd()
 	configure_enable url_reputation
 	configure_enable url_tags
 	configure_rbl
+	configure_virus_total
+	configure_metadefender
 	configure_worker
 	configure_controller
 

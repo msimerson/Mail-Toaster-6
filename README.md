@@ -5,4 +5,5 @@ Mail Toaster version 6
 To build a Mail Toaster, [start here](https://github.com/msimerson/Mail-Toaster-6/wiki)
 
 [![Build Status](https://github.com/msimerson/Mail-Toaster-6/actions/workflows/ci.yml/badge.svg)](https://github.com/msimerson/Mail-Toaster-6/actions/workflows/ci.yml)
-[![Issue Count](https://codeclimate.com/github/msimerson/Mail-Toaster-6/badges/issue_count.svg)](https://codeclimate.com/github/msimerson/Mail-Toaster-6)
+[![Code Quality](https://qlty.sh/gh/msimerson/projects/Mail-Toaster-6/maintainability.svg)](https://qlty.sh/gh/msimerson/projects/Mail-Toaster-6)
+[![Test Coverage](https://codecov.io/github/msimerson/Mail-Toaster-6/graph/badge.svg?token=pMWJPAr8DG)](https://codecov.io/github/msimerson/Mail-Toaster-6)
