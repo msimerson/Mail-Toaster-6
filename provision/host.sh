@@ -531,11 +531,15 @@ update_freebsd()
 		sed_inplace -e '/^Components/ s/src //' /etc/freebsd-update.conf
 	fi
 
-	tell_status "updating FreeBSD with security patches"
-	freebsd-update fetch install
+	if pkg info -e FreeBSD-bootloader; then
+		echo "FreBSD pkgbase detected"
+	else
+		tell_status "updating FreeBSD with security patches"
+		freebsd-update fetch install
 
-	tell_status "clearing freebsd-update cache"
-	rm -rf /var/db/freebsd-update/*
+		tell_status "clearing freebsd-update cache"
+		rm -rf /var/db/freebsd-update/*
+	fi
 
 	tell_status "updating FreeBSD pkg collection"
 	pkg update
