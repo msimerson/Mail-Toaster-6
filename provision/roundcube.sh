@@ -106,6 +106,7 @@ install_roundcube()
 	stage_pkg_install roundcube-php${PHP_VER}
 
 	install_roundcube_plugins
+	install_logo
 }
 
 configure_nginx_server()
