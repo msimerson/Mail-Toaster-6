@@ -14,7 +14,7 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node22 gmake pkgconf git-tiny
+	stage_pkg_install npm-node24 gmake pkgconf git-tiny
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash
@@ -32,7 +32,7 @@ install_haraka()
 	fi
 
 	local _plugins="ws express"
-	for _p in log-reader dmarc-perl; do
+	for _p in dmarc-perl elasticsearch log-reader p0f watch; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
 	stage_exec bash -c "if [ -f /data/package.json ]; then rm /data/package.json; fi"
@@ -83,7 +83,7 @@ install_p0f()
 	tell_status "installing p0f startup file"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 	local _start="$STAGE_MNT/usr/local/etc/rc.d/p0f"
-	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start"
+	cp "$STAGE_MNT/data/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start"
 	chmod 755 "$_start"
 
 	get_public_facing_nic
