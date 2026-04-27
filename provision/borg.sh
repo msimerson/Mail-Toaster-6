@@ -9,7 +9,7 @@ export JAIL_FSTAB=""
 install_borg()
 {
 	tell_status "installing borg"
-	stage_pkg_install py39-borgbackup || exit
+	stage_pkg_install py311-borgbackup || exit
 }
 
 configure_borg()
