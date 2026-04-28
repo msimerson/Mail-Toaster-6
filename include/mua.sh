@@ -55,7 +55,7 @@ get_curl_cmd()
 test_imap_curl()
 {
 	local _test_uri
-	_test_uri="imaps://$(uriencode $MUA_TEST_USER):$(uriencode $MUA_TEST_PASS)@${MUA_TEST_HOST}/"
+	_test_uri="imaps://$(uriencode "$MUA_TEST_USER"):$(uriencode "$MUA_TEST_PASS")@${MUA_TEST_HOST}/"
 	_curl_cmd="$(get_curl_cmd)"
 	$_curl_cmd -k -v --login-options 'AUTH=PLAIN' "$_test_uri"
 }

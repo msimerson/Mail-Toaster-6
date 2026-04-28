@@ -14,14 +14,6 @@ mt6-include mysql
 
 PHP_VER="84"
 
-mysql_error_warning()
-{
-    echo; echo "-----------------"
-    echo "WARNING: could not connect to MySQL. (Is it password protected?) If"
-    echo "this is a new install, manually set up MySQL for roundcube."
-    echo "-----------------"; echo
-    sleep 5
-}
 
 install_roundcube_mysql()
 {
@@ -57,13 +49,9 @@ install_roundcube_mysql()
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
 
-		for _jail in roundcube stage; do
-			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
-			do
-				echo "CREATE USER IF NOT EXISTS 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" | mysql_query
-				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}';" | mysql_query
-			done
-		done
+		mysql_create_user roundcube "$_rcpass" roundcubemail \
+			"$(get_jail_ip roundcube)" "$(get_jail_ip stage)" \
+			"$(get_jail_ip6 roundcube)" "$(get_jail_ip6 stage)"
 
 		roundcube_init_db
 	fi

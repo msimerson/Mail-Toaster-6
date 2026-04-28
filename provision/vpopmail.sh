@@ -14,6 +14,7 @@ export VPOPMAIL_OPTIONS_UNSET="ROAMING PGSQL LDAP ORACLE SYBASE"
 mt6-include vpopmail
 mt6-include mysql
 mt6-include qmail
+mt6-include nginx
 
 install_maildrop_port()
 {
@@ -61,33 +62,16 @@ install_nginx_vpopmail()
 	tell_status "installing nginx and fcgiwrap"
 	stage_pkg_install nginx fcgiwrap
 
-	local _conf="$ZFS_DATA_MNT/vpopmail/etc/nginx.conf"
-	if [ -f "$_conf" ]; then
-		tell_status "preserving nginx.conf"
-	else
-		tell_status "installing nginx.conf"
-		tee "$_conf" <<EO_NGINX
-worker_processes  1;
+	configure_nginx vpopmail
 
-events {
-	worker_connections  256;
-}
-
-http {
-	include       /usr/local/etc/nginx/mime.types;
-	default_type  application/octet-stream;
-	sendfile      on;
-	keepalive_timeout  65;
-
-	set_real_ip_from  $(get_jail_ip haproxy);
-	set_real_ip_from  $(get_jail_ip6 haproxy);
-	real_ip_header    X-Forwarded-For;
-	real_ip_recursive on;
-
+	_NGINX_SERVER='
 	server {
-		listen 80;
+		server_name vpopmail;
+
 		root  /data/htdocs;
 		index index.html;
+
+		listen 80;
 
 		location /qmailadmin/ {
 			alias /data/htdocs/qmailadmin/;
@@ -122,11 +106,9 @@ http {
 			fastcgi_param REQUEST_METHOD  $request_method;
 			fastcgi_param CONTENT_TYPE    $content_type;
 			fastcgi_param CONTENT_LENGTH  $content_length;
-        }
-	}
-}
-EO_NGINX
-	fi
+		}
+	}'
+	configure_nginx_server_d vpopmail
 
 	stage_sysrc fcgiwrap_enable=YES
 	stage_sysrc fcgiwrap_user="www"
@@ -135,7 +117,7 @@ EO_NGINX
 	stage_sysrc fcgiwrap_socket_group="www"
 	stage_exec service fcgiwrap start
 
-	stage_sysrc nginx_flags="-c /data/etc/nginx.conf"
+	stage_sysrc nginx_flags="-c /data/etc/nginx/nginx.conf"
 	stage_sysrc nginx_enable=YES
 	stage_exec service nginx start
 }
@@ -172,8 +154,6 @@ devel_autoconf_UNSET=INFO
 "
 	stage_port_install devel/autoconf
 	stage_port_install mail/qmailadmin
-
-	install_nginx_vpopmail
 }
 
 install_vqadmin()
@@ -186,16 +166,6 @@ install_vqadmin()
 	stage_exec ln /data/cgi-bin/vqadmin/html/en-us /data/cgi-bin/vqadmin/html/en-US
 }
 
-mysql_error_warning()
-{
-	echo; echo "-----------------"
-	echo "WARNING: could not connect to MySQL. (Maybe it's password protected?)"
-	echo "If this is a new install, you will need to manually set up MySQL for"
-	echo "vpopmail use. "
-	echo "-----------------"; echo
-	sleep 5
-}
-
 install_vpopmail_mysql_grants()
 {
 	tell_status "enabling vpopmail MySQL access"
@@ -206,9 +176,7 @@ install_vpopmail_mysql_grants()
 		exit 1
 	fi
 
-	if ! mysql_db_exists vpopmail; then
-		mysql_create_db vpopmail || mysql_error_warning
-	fi
+	mysql_create_db vpopmail || mysql_error_warning
 
 	mysql_db_exists vpopmail || return
 
@@ -230,15 +198,9 @@ install_vpopmail_mysql_grants()
 		"$_vpe"
 
 	tell_status "setting up mysql user vpopmail"
-	for _jail in stage vpopmail dovecot; do
-		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
-		do
-			mysql_user_exists vpopmail $_ip \
-				|| echo "CREATE USER 'vpopmail'@'$_ip' IDENTIFIED BY '$_vpass'; FLUSH PRIVILEGES;" | mysql_query
-
-			echo "GRANT ALL PRIVILEGES ON vpopmail.* to 'vpopmail'@'$_ip'" | mysql_query
-		done
-	done
+	mysql_create_user vpopmail "$_vpass" vpopmail stage vpopmail dovecot \
+		"$(get_jail_ip stage)" "$(get_jail_ip vpopmail)" "$(get_jail_ip dovecot)" \
+		"$(get_jail_ip6 stage)" "$(get_jail_ip6 vpopmail)" "$(get_jail_ip6 dovecot)"
 }
 
 install_vpopmail_mysql_aliastable()
@@ -322,6 +284,7 @@ install_vpopmail()
 	fi
 
 	install_qmailadmin
+	install_nginx_vpopmail
 	install_vqadmin
 	install_vpop_nrpe
 }

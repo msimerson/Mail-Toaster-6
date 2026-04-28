@@ -274,14 +274,9 @@ EO_MYSQL_CONF
   PRIMARY KEY (username,email,ip)
 ) ENGINE=InnoDB;" | mysql_query spamassassin
 
-	for _jail in spamassassin stage squirrelmail;
-	do
-		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
-		do
-			echo "CREATE USER IF NOT EXISTS 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query
-			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" | mysql_query
-		done
-	done
+	mysql_create_user spamassassin "$_my_pass" spamassassin \
+		"$(get_jail_ip spamassassin)" "$(get_jail_ip stage)" "$(get_jail_ip squirrelmail)" \
+		"$(get_jail_ip6 spamassassin)" "$(get_jail_ip6 stage)" "$(get_jail_ip6 squirrelmail)"
 }
 
 start_spamassassin()
