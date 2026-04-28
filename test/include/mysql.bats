@@ -144,3 +144,13 @@ jexec() {
   assert_failure
   assert_output --partial "user missing"
 }
+
+@test "mysql_error_warning - prints warning and sleeps" {
+  sleep() { echo "sleep $*"; }
+
+  run mysql_error_warning
+  assert_success
+  assert_output --partial "WARNING"
+  assert_output --partial "MySQL"
+  assert_output --partial "sleep 5"
+}

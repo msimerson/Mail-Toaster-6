@@ -56,6 +56,7 @@ mysql_create_db()
 mysql_db_exists()
 {
 	local _query="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$1';"
+	local result
 	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
 
 	if [ -z "$result" ]; then
@@ -70,6 +71,7 @@ mysql_db_exists()
 mysql_user_exists()
 {
 	local _query="SELECT * FROM mysql.user WHERE User='$1' AND Host='$2';"
+	local result
 	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
 
 	if [ -z "$result" ]; then
@@ -81,6 +83,15 @@ mysql_user_exists()
 	return 0
 }
 
+mysql_error_warning()
+{
+	echo; echo "-----------------"
+	echo "WARNING: could not connect to MySQL. (Maybe it's password protected?)"
+	echo "If this is a new install, you will need to manually set up MySQL."
+	echo "-----------------"; echo
+	sleep 5
+}
+
 mysql_create_user()
 {
 	local _user="$1"
@@ -88,7 +99,6 @@ mysql_create_user()
 	local _db="$3"
 
 	shift 3
-	local _host="$4"
 
 	for _host in "$@"; do
 		local _query="CREATE USER '$_user'@'$_host' IDENTIFIED BY '$_pass';"

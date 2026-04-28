@@ -166,16 +166,6 @@ install_vqadmin()
 	stage_exec ln /data/cgi-bin/vqadmin/html/en-us /data/cgi-bin/vqadmin/html/en-US
 }
 
-mysql_error_warning()
-{
-	echo; echo "-----------------"
-	echo "WARNING: could not connect to MySQL. (Maybe it's password protected?)"
-	echo "If this is a new install, you will need to manually set up MySQL for"
-	echo "vpopmail use. "
-	echo "-----------------"; echo
-	sleep 5
-}
-
 install_vpopmail_mysql_grants()
 {
 	tell_status "enabling vpopmail MySQL access"

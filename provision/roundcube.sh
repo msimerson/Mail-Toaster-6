@@ -14,14 +14,6 @@ mt6-include mysql
 
 PHP_VER="84"
 
-mysql_error_warning()
-{
-    echo; echo "-----------------"
-    echo "WARNING: could not connect to MySQL. (Is it password protected?) If"
-    echo "this is a new install, manually set up MySQL for roundcube."
-    echo "-----------------"; echo
-    sleep 5
-}
 
 install_roundcube_mysql()
 {
