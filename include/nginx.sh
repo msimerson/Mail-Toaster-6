@@ -60,12 +60,13 @@ contains() {
 
 configure_nginx_server_d()
 {
-	# $1 is jail name, $2 is 'server' name, defaults to $1
-	local _server_d="$ZFS_DATA_MNT/$1/etc/nginx/server.d"
+	local _jail="$1"
+	local _server_name="${2:-$_jail}"
+
+	local _server_d="$ZFS_DATA_MNT/$_jail/etc/nginx/server.d"
 	if [ ! -d "$_server_d" ]; then mkdir -p "$_server_d" || exit 1; fi
 
-	# shellcheck disable=2155
-	local _server_conf="$_server_d/$([ -z "$2" ] && echo "$1" || echo "$2").conf"
+	local _server_conf="$_server_d/$_server_name.conf"
 	if [ -f "$_server_conf" ]; then
 		tell_status "preserving $_server_conf"
 		return

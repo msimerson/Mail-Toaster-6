@@ -44,11 +44,11 @@ mysql_query()
 mysql_create_db()
 {
 	if mysql_db_exists "$1"; then
-		tell_status "$1 db exists in mysql"
+		tell_status "mysql db exists: $1"
 		return 0
 	fi
 
-	tell_status "creating mysql database $1"
+	tell_status "mysql creating db $1"
 	echo "CREATE DATABASE $1 CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;" | mysql_query || return 1
 	return 0
 }
@@ -59,11 +59,11 @@ mysql_db_exists()
 	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
 
 	if [ -z "$result" ]; then
-		echo "$1 db does not exist"
+		echo "mysql db missing: $1"
 		return 1
 	fi
 
-	echo "$1 db exists"
+	echo "mysql db exists: $1"
 	return 0
 }
 
@@ -73,10 +73,33 @@ mysql_user_exists()
 	result=$(echo "$_query" | jexec mysql $(mysql_bin) -s -N)
 
 	if [ -z "$result" ]; then
-		echo "$1 user does not exist"
+		echo "mysql user missing: $1@$2"
 		return 1
 	fi
 
-	echo "$1 user exists"
+	echo "mysql user exists: $1@$2"
 	return 0
 }
+
+mysql_create_user()
+{
+	local _user="$1"
+	local _pass="$2"
+	local _db="$3"
+
+	shift 3
+	local _host="$4"
+
+	for _host in "$@"; do
+		local _query="CREATE USER '$_user'@'$_host' IDENTIFIED BY '$_pass';"
+		local _grant="GRANT ALL PRIVILEGES ON $_db.* to '$_user'@'$_host';"
+
+		if ! mysql_user_exists "$_user" "$_host"; then
+			echo "$_query"
+			echo "$_query" | mysql_query
+			echo "$_grant"
+			echo "$_grant" | mysql_query
+		fi
+	done
+}
+
