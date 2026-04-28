@@ -127,12 +127,18 @@ configure_mysql_ram()
 configure_mysql()
 {
 	tell_status "configuring mysql"
+	local _my_cnf="$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+
 	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
-		sed_inplace \
-			-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
-			"$STAGE_MNT/usr/local/etc/mysql/my.cnf"
-		# enable this when mysql port adds config setting to rc.d script
-		# cp "$STAGE_MNT/usr/local/etc/mysql/my.cnf" "$STAGE_MNT/data/etc/my.cnf"
+		if [ -f "$_my_cnf" ]; then
+			sed_inplace \
+				-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
+				"$_my_cnf"
+		else
+			sed \
+				-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
+				"${_my_cnf}.sample" > "$_my_cnf"
+		fi
 	fi
 
 	stage_sysrc mysql_enable=YES
