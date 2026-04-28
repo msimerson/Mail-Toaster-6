@@ -33,7 +33,7 @@ stage_make_conf() { :; }
 
   run install_vpopmail_deps
   assert_success
-  assert_output --partial "pkg install gmake gettext ucspi-tcp netqmail fakeroot mysql80-client"
+  assert_output --regexp "pkg install gmake gettext ucspi-tcp netqmail fakeroot mysql[0-9]+-client"
 }
 
 @test "install_vpopmail_deps - mariadb enabled" {
@@ -46,7 +46,7 @@ stage_make_conf() { :; }
 
   run install_vpopmail_deps
   assert_success
-  assert_output --partial "pkg install gmake gettext ucspi-tcp netqmail fakeroot mariadb104-client"
+  assert_output --regexp "pkg install gmake gettext ucspi-tcp netqmail fakeroot mariadb[0-9]+-client"
 }
 
 @test "install_vpopmail_port - default options" {

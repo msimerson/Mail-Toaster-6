@@ -6,6 +6,7 @@ setup() {
   load '../../include/nginx.sh'
 }
 
+mt6-include() { :; }
 tell_status() { :; }
 
 # contains() - pure string membership test
