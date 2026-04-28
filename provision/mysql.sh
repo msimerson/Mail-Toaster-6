@@ -29,7 +29,7 @@ install_db_server()
 install_mysql()
 {
 	tell_status "installing mysql"
-	stage_pkg_install mysql80-server
+	stage_pkg_install mysql84-server
 }
 
 install_mariadb()
