@@ -21,7 +21,7 @@ install_nt_prereqs()
 	assure_jail mysql
 
 	tell_status "installing NicTool app prerequisites"
-	stage_pkg_install perl5 mysql80-client apache24 ap24-mod_perl2 rsync p5-DBD-mysql
+	stage_pkg_install perl5 mysql84-client apache24 ap24-mod_perl2 rsync p5-DBD-mysql
 
 	tell_status "installing tools for NicTool exports"
 	stage_pkg_install daemontools ucspi-tcp

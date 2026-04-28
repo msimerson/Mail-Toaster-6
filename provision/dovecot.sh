@@ -20,7 +20,7 @@ allow_sysvipc_stage()
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql80-client
+	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql84-client
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=MYSQL LIBWRAP EXAMPLES'
