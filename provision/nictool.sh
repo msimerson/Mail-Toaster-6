@@ -112,12 +112,9 @@ install_nictool_server()
 		cp "${_ntsconf}.dist" "$_ntsconf"
 		sed_inplace -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
 
-		for _jail in nictool stage; do
-			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
-			do
-				echo "GRANT ALL PRIVILEGES ON nictool.* TO 'nictool'@'${_ip}' IDENTIFIED BY 'lootcin205';" | mysql_query || exit
-			done
-		done
+		mysql_create_user nictool lootcin205 nictool \
+			"$(get_jail_ip nictool)" "$(get_jail_ip stage)" \
+			"$(get_jail_ip6 nictool)" "$(get_jail_ip6 stage)"
 	fi
 
 	tell_status "installing NicToolServer dependencies"
