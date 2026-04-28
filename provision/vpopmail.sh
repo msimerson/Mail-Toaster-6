@@ -270,7 +270,6 @@ install_quota_report()
 
 install_vpopmail()
 {
-	install_nginx_vpopmail
 	install_qmail
 	configure_qmail
 	install_maildrop
@@ -295,6 +294,7 @@ install_vpopmail()
 	fi
 
 	install_qmailadmin
+	install_nginx_vpopmail
 	install_vqadmin
 	install_vpop_nrpe
 }
