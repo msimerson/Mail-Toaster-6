@@ -15,16 +15,18 @@ PHP_VER="84"
 
 # Override AFTERLOGIC_URL in mail-toaster.conf to pin a specific version.
 # Find releases at https://github.com/afterlogic/webmail-lite-8/releases
-AFTERLOGIC_URL="${AFTERLOGIC_URL:="https://afterlogic.org/download/webmail-lite-8"}"
+AFTERLOGIC_URL="${AFTERLOGIC_URL:="https://afterlogic.org/download/webmail_php.zip"}"
 
 install_afterlogic()
 {
-	local _php_modules="curl dom fileinfo gd iconv mbstring pdo_sqlite xml zip"
+	tell_status "downloading AfterLogic WebMail Lite 8"
+	fetch -o "$STAGE_MNT/tmp/afterlogic.zip" "$AFTERLOGIC_URL"
 
-	install_php $PHP_VER "$_php_modules"
-	install_nginx
-
+	tell_status "extracting AfterLogic WebMail Lite 8"
 	local _www="$STAGE_MNT/usr/local/www/afterlogic"
+	mkdir -p "$_www"
+	bsdtar -xf "$STAGE_MNT/tmp/afterlogic.zip" -C "$_www"
+	rm -f "$STAGE_MNT/tmp/afterlogic.zip"
 
 	if [ -f "$ZFS_JAIL_MNT/afterlogic/usr/local/www/afterlogic/index.php" ]; then
 		tell_status "preserving existing afterlogic installation"
@@ -33,15 +35,11 @@ install_afterlogic()
 		return
 	fi
 
-	tell_status "downloading AfterLogic WebMail Lite 8"
-	fetch -o "$STAGE_MNT/tmp/afterlogic.zip" "$AFTERLOGIC_URL"
-
-	tell_status "extracting AfterLogic WebMail Lite 8"
-	mkdir -p "$_www"
-	bsdtar -xf "$STAGE_MNT/tmp/afterlogic.zip" -C "$_www"
-	rm -f "$STAGE_MNT/tmp/afterlogic.zip"
-
 	chown -R 80:80 "$_www"
+
+	local _php_modules="curl dom fileinfo gd iconv mbstring pdo_sqlite xml zip"
+	install_php $PHP_VER "$_php_modules"
+	install_nginx
 }
 
 configure_nginx_server()
