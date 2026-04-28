@@ -121,6 +121,7 @@ frontend http-in
 	acl rainloop     path_beg /rainloop
 	acl snappymail   path_beg /snappymail
 	acl squirrelmail path_beg /squirrelmail
+	acl afterlogic   path_beg /afterlogic
 	acl nictool      path_beg /nictool
 	acl mediawiki    path_beg /wiki
 	acl mediawiki    path_beg /w/
@@ -170,6 +171,7 @@ frontend http-in
 	use_backend www_rspamd       if  rspamd
 	use_backend www_roundcube    if  roundcube
 	use_backend www_rainloop     if  rainloop
+	use_backend www_afterlogic   if  afterlogic
 	use_backend www_snappymail   if  snappymail
 	use_backend www_squirrelmail if  squirrelmail
 	use_backend www_nictool      if  nictool
@@ -221,6 +223,9 @@ frontend http-in
 	backend www_snappymail
 	server snappymail $(get_jail_ip snappymail):80
 	http-response del-header X-Frame-Options
+
+	backend www_afterlogic
+	server afterlogic $(get_jail_ip afterlogic):80
 
 	backend www_munin
 	server munin $(get_jail_ip munin):80

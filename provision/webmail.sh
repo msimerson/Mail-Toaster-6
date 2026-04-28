@@ -125,6 +125,11 @@ configure_nginx_server()
 			proxy_hide_header X-Frame-Options;
 		}
 
+		location /afterlogic {
+			proxy_pass	http://$(get_jail_ip afterlogic):80;
+			proxy_hide_header X-Frame-Options;
+		}
+
 		location /haraka/ {
 			include /data/etc/nginx/protected.conf;
 			rewrite /haraka/(.*) /\$1  break;
