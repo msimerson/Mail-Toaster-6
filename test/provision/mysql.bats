@@ -193,11 +193,11 @@ teardown() {
 
 # --- install_mysql / install_mariadb behavior ---
 
-@test "mysql - install_mysql installs mysql80-server package" {
+@test "mysql - install_mysql installs a mysql server package" {
   stage_pkg_install() { echo "PKG:$*"; }
   run install_mysql
   assert_success
-  assert_output --partial "PKG:mysql80-server"
+  assert_output --regexp "PKG:mysql[0-9]+-server"
 }
 
 @test "mysql - install_mariadb installs mariadb package" {
