@@ -58,6 +58,19 @@ tell_status() { :; }
 
 # configure_nginx_server_d - creates nginx server block config
 
+@test "configure_nginx_server_d - works when PUBLIC_IP6 is unset" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  unset PUBLIC_IP6
+  export _NGINX_SERVER="server_name test.example.com;"
+
+  configure_nginx_server_d myjail
+
+  [ -f "$tmpdir/myjail/etc/nginx/server.d/myjail.conf" ]
+
+  rm -rf "$tmpdir"
+}
+
 @test "configure_nginx_server_d - creates config file" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"

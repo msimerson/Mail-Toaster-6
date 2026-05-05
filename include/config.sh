@@ -44,6 +44,10 @@ mt6_defaults()
 	export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:="$TOASTER_MAIL_DOMAIN"}
 	export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:="$TOASTER_HOSTNAME"}
 
+	# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
+	export PUBLIC_IP4=${PUBLIC_IP4:=""}
+	export PUBLIC_IP6=${PUBLIC_IP6:=""}
+
 	# little below here should need customizing. If so, consider opening
 	# an issue or PR at https://github.com/msimerson/Mail-Toaster-6
 	export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
