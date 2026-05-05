@@ -334,8 +334,10 @@ stage_clear_caches()
 {
 	for _c in "$STAGE_MNT/var/cache/pkg" "$STAGE_MNT/var/db/freebsd-update"
 	do
-		echo "clearing cache ($_c)"
-		rm -rf "${_c:?}"/*
+		if [ -d "$_c" ]; then
+			echo "clearing cache ($_c)"
+			rm -rf "${_c:?}"/*
+		fi
 	done
 }
 
