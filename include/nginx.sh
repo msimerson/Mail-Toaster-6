@@ -77,7 +77,7 @@ configure_nginx_server_d()
 	local _prefix='server {
 		listen       80;'
 
-	if [ -n "$PUBLIC_IP6" ]; then
+	if [ -n "${PUBLIC_IP6:-}" ]; then
 		_prefix="$_prefix
 		listen  [::]:80;"
 	fi
