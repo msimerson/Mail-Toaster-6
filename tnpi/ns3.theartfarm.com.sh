@@ -52,6 +52,7 @@ configure_nsd()
 	fi
 
 	preserve_passdb nsd
+	stage_exec nsd-control-setup
 	configure_tcpd
 }
 
