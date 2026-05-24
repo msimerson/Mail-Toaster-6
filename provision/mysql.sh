@@ -221,6 +221,58 @@ migrate_mysql_dbs()
 	fi
 }
 
+check_mysql_native_passwords()
+{
+	# MySQL 8.4 removes the mysql_native_password and sha256_password auth
+	# plugins. Before staging an 8.4 install over a running 8.0, verify no
+	# accounts still depend on them; if any do, halt with the ALTER USER
+	# statements needed to migrate them to caching_sha2_password.
+	jail_is_running mysql || return 0
+
+	local _my_ver
+	_my_ver=$(pkg -j mysql info | grep mysql | grep server | cut -f1 -d' ' | cut -d- -f3)
+	[ -z "$_my_ver" ] && return 0
+
+	local _major _minor
+	_major=$(echo "$_my_ver" | cut -f1 -d'.')
+	_minor=$(echo "$_my_ver" | cut -f2 -d'.')
+
+	if [ "$_major" != "8" ] || [ "$_minor" != "0" ]; then
+		return 0
+	fi
+
+	tell_status "MySQL 8.0 detected — scanning for accounts using deprecated auth plugins"
+
+	local _query="SELECT CONCAT('ALTER USER ''', user, '''@''', host, ''' IDENTIFIED WITH caching_sha2_password BY ''<new_password>'';') FROM mysql.user WHERE plugin IN ('mysql_native_password','sha256_password') AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');"
+
+	local _alters
+	_alters=$(echo "$_query" | jexec mysql mysql -N -B 2>/dev/null) || _alters=""
+
+	if [ -z "$_alters" ]; then
+		tell_status "no accounts using deprecated auth plugins; safe to upgrade to 8.4"
+		return 0
+	fi
+
+	echo "
+	HALT: MySQL 8.0 is EOL and 8.4 removes the mysql_native_password and
+	sha256_password authentication plugins. The accounts below still use a
+	deprecated plugin and must be migrated to caching_sha2_password before
+	the 8.4 upgrade can proceed.
+
+	Connect to the running mysql 8.0 jail and run each statement, substituting
+	a real password for each <new_password> placeholder:
+
+		jexec mysql mysql
+
+$_alters
+
+	After migrating every account, re-run this provision script.
+
+	See https://dev.mysql.com/doc/refman/8.4/en/mysql-nutshell.html
+	"
+	exit 1
+}
+
 if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
 	tell_status "installing MySQL"
 else
@@ -230,6 +282,7 @@ fi
 
 base_snapshot_exists || exit 1
 migrate_mysql_dbs
+check_mysql_native_passwords
 create_staged_fs mysql
 start_staged_jail mysql
 install_db_server
