@@ -28,7 +28,7 @@ create_unifi_mountpoints()
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install snappyjava openjdk17 gmake
+	stage_pkg_install snappyjava openjdk25 gmake
 
 	tell_status "installing Unifi"
 	stage_make_conf unifi10_SET 'net-mgmt_unifi10_SET=EXTERNALDB'
