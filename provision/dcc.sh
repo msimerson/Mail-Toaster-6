@@ -106,7 +106,7 @@ test_dcc()
 
 preflight()
 {
-	for _d in etc db; do
+	for _d in etc db log; do
 		_path="$ZFS_DATA_MNT/dcc/$_d"
 		[ -d "$_path" ] || mkdir "$_path"
 	done
