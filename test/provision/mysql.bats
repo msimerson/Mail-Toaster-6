@@ -145,6 +145,11 @@ teardown() {
   assert_success
 }
 
+@test "mysql - defines check_mysql_native_passwords" {
+  run type check_mysql_native_passwords
+  assert_success
+}
+
 # --- configure_mysql outcomes (verified against the post-setup_file my.cnf) ---
 
 @test "mysql - configure rewrites datadir from /var/db/mysql to /data/db" {
@@ -285,4 +290,41 @@ teardown() {
   jail_is_running() { return 1; }
   run migrate_mysql_dbs
   assert_success
+}
+
+# --- check_mysql_native_passwords behavior ---
+
+@test "mysql - check_mysql_native_passwords skips when jail is not running" {
+  jail_is_running() { return 1; }
+  run check_mysql_native_passwords
+  assert_success
+}
+
+@test "mysql - check_mysql_native_passwords skips when running version is 8.4" {
+  jail_is_running() { return 0; }
+  pkg() { echo "mysql84-server-8.4.0"; }
+  run check_mysql_native_passwords
+  assert_success
+}
+
+@test "mysql - check_mysql_native_passwords passes when 8.0 has no deprecated plugins" {
+  jail_is_running() { return 0; }
+  pkg() { echo "mysql80-server-8.0.36"; }
+  jexec() { :; }  # empty output: no rows returned
+  run check_mysql_native_passwords
+  assert_success
+  refute_output --partial "HALT"
+}
+
+@test "mysql - check_mysql_native_passwords halts when 8.0 has deprecated plugins" {
+  jail_is_running() { return 0; }
+  pkg() { echo "mysql80-server-8.0.36"; }
+  jexec() {
+    echo "ALTER USER 'app'@'%' IDENTIFIED WITH caching_sha2_password BY '<new_password>';"
+  }
+  run check_mysql_native_passwords
+  assert_failure
+  assert_output --partial "HALT"
+  assert_output --partial "ALTER USER 'app'@'%'"
+  assert_output --partial "caching_sha2_password"
 }
