@@ -223,9 +223,9 @@ migrate_mysql_dbs()
 
 check_mysql_native_passwords()
 {
-	# MySQL 8.4 removes the mysql_native_password and sha256_password auth
-	# plugins. Before staging an 8.4 install over a running 8.0, verify no
-	# accounts still depend on them; if any do, halt with the ALTER USER
+	# MySQL 8.4 disables mysql_native_password and 9.0 removes it.
+	# Before staging an 8.4 install over a running 8.0, verify no
+	# accounts still depend on it; if any do, halt with the ALTER USER
 	# statements needed to migrate them to caching_sha2_password.
 	jail_is_running mysql || return 0
 
@@ -241,9 +241,24 @@ check_mysql_native_passwords()
 		return 0
 	fi
 
+	# Operator opt-in: MySQL 8.4 still ships the mysql_native_password plugin
+	# but leaves it disabled by default. Setting mysql_native_password=ON in
+	# [mysqld] re-enables it, so the upgrade is safe even with accounts that
+	# still use the plugin.
+	local _extra_cnf="$ZFS_DATA_MNT/mysql/etc/extra.cnf"
+	if [ -f "$_extra_cnf" ] && awk '
+		/^[[:space:]]*\[mysqld\][[:space:]]*$/ { in_section = 1; next }
+		/^[[:space:]]*\[/                      { in_section = 0 }
+		in_section && tolower($0) ~ /^[[:space:]]*mysql_native_password[[:space:]]*=[[:space:]]*on[[:space:]]*(#.*)?$/ { found = 1; exit }
+		END { exit !found }
+	' "$_extra_cnf"; then
+		tell_status "mysql_native_password=ON set in $_extra_cnf; allowing 8.4 upgrade"
+		return 0
+	fi
+
 	tell_status "MySQL 8.0 detected — scanning for accounts using deprecated auth plugins"
 
-	local _query="SELECT CONCAT('ALTER USER ''', user, '''@''', host, ''' IDENTIFIED WITH caching_sha2_password BY ''<new_password>'';') FROM mysql.user WHERE plugin IN ('mysql_native_password','sha256_password') AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');"
+	local _query="SELECT CONCAT('ALTER USER ''', user, '''@''', host, ''' IDENTIFIED WITH caching_sha2_password BY ''<new_password>'';') FROM mysql.user WHERE plugin IN ('mysql_native_password') AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');"
 
 	local _alters
 	_alters=$(echo "$_query" | jexec mysql mysql -N -B 2>/dev/null) || _alters=""
