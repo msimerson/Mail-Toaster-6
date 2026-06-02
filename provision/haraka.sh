@@ -526,8 +526,10 @@ configure_haraka_redis()
 		tee "$HARAKA_CONF/redis.ini" <<EO_REDIS_CONF
 [server]
 host=$(get_jail_ip redis)
-; port=6379
 db=3
+
+[pubsub]
+host=$(get_jail_ip redis)
 EO_REDIS_CONF
 	fi
 }
