@@ -28,7 +28,8 @@ install_haraka()
 	if [ -n "$TOASTER_HARAKA_VERSION" ]; then
 		stage_exec bash -c "npm install -g --omit=dev haraka@$TOASTER_HARAKA_VERSION"
 	else
-		stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git"
+	    stage_exec bash -c "git clone https://github.com/haraka/Haraka.git /usr/local/lib/node_modules/Haraka"
+		stage_exec bash -c "cd /usr/local/lib/node_modules/Haraka && npm install --omit=dev"
 	fi
 
 	local _plugins="ws express"
