@@ -53,6 +53,11 @@ mt6_defaults()
 	export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 	export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
+	# how the base jail is built: fetch (base.txz) | bsdinstall | pkgbase
+	export TOASTER_BASE_METHOD=${TOASTER_BASE_METHOD:="fetch"}
+	# pkgbase base repo branch; empty derives base_release_<minor> from the host
+	export TOASTER_BASE_PKG_BRANCH=${TOASTER_BASE_PKG_BRANCH:=""}
+
 	export FBSD_REL_VER FBSD_PATCH_VER
 	if [ "$(uname)" = 'FreeBSD' ]; then
 		FBSD_REL_VER=$(/bin/freebsd-version | /usr/bin/cut -f1-2 -d'-')
@@ -117,6 +122,8 @@ export TOASTER_MYSQL_PASS=""
 export TOASTER_NGINX_ACME="0"
 export TOASTER_NRPE=""
 export TOASTER_NTP=""
+export TOASTER_BASE_METHOD="fetch"  # fetch | bsdinstall | pkgbase
+export TOASTER_BASE_PKG_BRANCH=""   # pkgbase: base_release_N (default), base_latest, base_weekly
 export TOASTER_PKG_AUDIT="0"
 export TOASTER_PKG_BRANCH="latest"
 export TOASTER_USE_TMPFS="0"

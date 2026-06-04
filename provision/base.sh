@@ -25,6 +25,11 @@ create_base_filesystem()
 
 freebsd_update()
 {
+	if [ "$TOASTER_BASE_METHOD" = "pkgbase" ]; then
+		echo "skipping freebsd-update (base installed via pkgbase)"
+		return
+	fi
+
 	if [ ! -t 0 ]; then
 		echo "No tty, can't update FreeBSD with freebsd-update"
 		return
@@ -45,13 +50,22 @@ install_freebsd()
 		return
 	fi
 
-	if [ -n "$USE_BSDINSTALL" ]; then
-		export BSDINSTALL_DISTSITE;
-		BSDINSTALL_DISTSITE="$(freebsd_release_url_base)/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
-		bsdinstall jail "$BASE_MNT"
-	else
-		stage_fbsd_package base "$BASE_MNT"
-	fi
+	local _method="${TOASTER_BASE_METHOD:-fetch}"
+	if [ -n "$USE_BSDINSTALL" ]; then _method="bsdinstall"; fi
+
+	case "$_method" in
+		bsdinstall)
+			export BSDINSTALL_DISTSITE;
+			BSDINSTALL_DISTSITE="$(freebsd_release_url_base)/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
+			bsdinstall jail "$BASE_MNT"
+			;;
+		pkgbase)
+			stage_fbsd_pkgbase base "$BASE_MNT"
+			;;
+		*)
+			stage_fbsd_package base "$BASE_MNT"
+			;;
+	esac
 
 	configure_fstab
 }

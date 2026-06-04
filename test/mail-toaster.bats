@@ -282,3 +282,43 @@ setup() {
 
   rm -rf "$tmpdir"
 }
+
+@test "stage_fbsd_pkgbase derives base_release_<minor> and invokes pkg" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export FBSD_REL_VER="15.0-RELEASE"
+  export TOASTER_BASE_PKG_BRANCH=""
+
+  # capture pkg args instead of touching the network
+  pkg() { echo "$*" > "$tmpdir/pkg.args"; }
+
+  run stage_fbsd_pkgbase base "$tmpdir/dest"
+  assert_success
+
+  run cat "$tmpdir/dest/usr/local/etc/pkg/repos/FreeBSD-base.conf"
+  assert_success
+  assert_output --partial 'pkg+https://pkg.freebsd.org/${ABI}/base_release_0'
+
+  run cat "$tmpdir/pkg.args"
+  assert_output --partial "--rootdir $tmpdir/dest"
+  assert_output --partial "FreeBSD-base"
+  assert_output --partial "FreeBSD-set-minimal-jail"
+
+  rm -rf "$tmpdir"
+}
+
+@test "stage_fbsd_pkgbase honors TOASTER_BASE_PKG_BRANCH override" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export FBSD_REL_VER="15.0-RELEASE"
+  export TOASTER_BASE_PKG_BRANCH="base_latest"
+
+  pkg() { :; }
+
+  run stage_fbsd_pkgbase base "$tmpdir/dest"
+  assert_success
+
+  run cat "$tmpdir/dest/usr/local/etc/pkg/repos/FreeBSD-base.conf"
+  assert_output --partial 'base_latest'
+  refute_output --partial 'base_release'
+
+  rm -rf "$tmpdir"
+}

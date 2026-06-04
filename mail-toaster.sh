@@ -488,6 +488,37 @@ stage_fbsd_package()
 	echo "done"
 }
 
+stage_fbsd_pkgbase()
+{
+	local _dest="$2"
+	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
+
+	local _abi _minor _branch _repo_dir
+	_abi="FreeBSD:$(uname -r | cut -f1 -d.):$(uname -p)"
+	_minor="$(echo "$FBSD_REL_VER" | cut -f2 -d.)"
+	_branch="$TOASTER_BASE_PKG_BRANCH"
+	if [ -z "$_branch" ]; then _branch="base_release_${_minor}"; fi
+
+	# persisted so the base jail can later update its base with `pkg upgrade`
+	_repo_dir="$_dest/usr/local/etc/pkg/repos"
+	mkdir -p "$_repo_dir"
+	store_config "$_repo_dir/FreeBSD-base.conf" "overwrite" <<EO_BASE_REPO
+FreeBSD-base: {
+  url: "pkg+https://pkg.freebsd.org/\${ABI}/${_branch}",
+  mirror_type: "srv",
+  signature_type: "fingerprints",
+  fingerprints: "/usr/share/keys/pkg",
+  enabled: yes
+}
+EO_BASE_REPO
+
+	tell_status "installing FreeBSD base packages ($_branch, $_abi) to $_dest"
+	pkg --rootdir "$_dest" --repo-conf-dir "$_repo_dir" \
+		-o ABI="$_abi" -o IGNORE_OSVERSION=yes \
+		install -y --repository FreeBSD-base FreeBSD-set-minimal-jail || exit
+	echo "done"
+}
+
 stage_setup_tls()
 {
 	# static TLS certificates (installed at deploy)
