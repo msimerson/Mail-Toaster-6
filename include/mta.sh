@@ -5,7 +5,7 @@ configure_mta()
 	local _base=${1:-""}
 	local _mta=${2:-"$TOASTER_BASE_MTA"}
 
-	if [ "$_mta" = "dma" ] && [ -x "$_base/usr/libexec/dma" ]; then
+	if [ "$_mta" = "dma" ]; then
 		disable_sendmail
 		enable_dma
 	elif [ "$_mta" = "sendmail" ]; then
@@ -13,12 +13,21 @@ configure_mta()
 	elif [ "$_mta" = "postfix" ]; then
 		disable_sendmail
 		enable_postfix
-	elif [ -x "$_base/usr/libexec/dma" ]; then
+	elif has_dma; then
 		disable_sendmail
 		enable_dma
 	else
 		disable_sendmail
 		install_ssmtp
+	fi
+}
+
+has_dma()
+{
+	if [ -x "$_base/usr/libexec/dma" ] || [ -x "$_base/usr/local/libexec/dma" ]; then
+		return 0
+	else
+		return 1
 	fi
 }
 
@@ -86,13 +95,28 @@ set_root_alias()
 
 enable_dma()
 {
+	local _dma_path="$_base/usr/libexec/dma"
+
+	if [ ! -x "$_dma_path" ]; then
+		stage_pkg_install dma
+		_dma_path="$_base/usr/local/libexec/dma"
+	fi
+
+	_relative_path="${_dma_path#"$_base"}"
+
 	tell_status "setting up dma"
-	cp "$_base/usr/share/examples/dma/mailer.conf" "$_base/etc/mail/mailer.conf"
+	tee "$_base/etc/mail/mailer.conf" <<EO_MAILER_CONF
+sendmail        $_relative_path
+mailq           $_relative_path
+newaliases      $_relative_path
+EO_MAILER_CONF
 
 	echo "editing $_base/etc/dma/dma.conf"
-	sed_inplace \
-		-e "s/^#SMARTHOST/SMARTHOST $TOASTER_MSA/" \
-		"$_base/etc/dma/dma.conf"
+	tee "$_base/etc/mail/mailer.conf" <<EO_DMA_CONF
+SMARTHOST=vpopmail
+MAILNAME $TOASTER_HOSTNAME
+NULLCLIENT
+EO_DMA_CONF
 
 	set_root_alias
 }

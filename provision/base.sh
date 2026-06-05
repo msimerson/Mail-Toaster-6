@@ -233,6 +233,7 @@ configure_base()
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
+	touch "$BASE_MNT/etc/fstab"
 	configure_fstab "data/"
 	install_pfrule base
 }
@@ -319,8 +320,6 @@ install_base()
 {
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install $TOASTER_BASE_PKGS
-
-	stage_exec newaliases
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash "$BASE_MNT"
