@@ -3,6 +3,8 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+- base: added pkgbase support
+
 ## 2026-04
 
 - mt: stage_setup_tls, deploy certs to correct filename

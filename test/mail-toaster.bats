@@ -296,7 +296,10 @@ setup() {
 
   run cat "$tmpdir/dest/usr/local/etc/pkg/repos/FreeBSD-base.conf"
   assert_success
-  assert_output --partial 'pkg+https://pkg.freebsd.org/${ABI}/base_release_0'
+  assert_output --partial 'pkg+https://pkg.freebsd.org/${ABI}/base_release_0"'
+  refute_output --partial 'base_release_0-RELEASE'
+  # base_release_* is signed with the pkgbase-<major> fingerprints
+  assert_output --partial 'fingerprints: "/usr/share/keys/pkgbase-'
 
   run cat "$tmpdir/pkg.args"
   assert_output --partial "--rootdir $tmpdir/dest"
@@ -319,6 +322,8 @@ setup() {
   run cat "$tmpdir/dest/usr/local/etc/pkg/repos/FreeBSD-base.conf"
   assert_output --partial 'base_latest'
   refute_output --partial 'base_release'
+  # base_latest uses the standard pkg fingerprints
+  assert_output --partial 'fingerprints: "/usr/share/keys/pkg"'
 
   rm -rf "$tmpdir"
 }

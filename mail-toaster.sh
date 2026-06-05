@@ -493,11 +493,20 @@ stage_fbsd_pkgbase()
 	local _dest="$2"
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
-	local _abi _minor _branch _repo_dir
-	_abi="FreeBSD:$(uname -r | cut -f1 -d.):$(uname -p)"
-	_minor="$(echo "$FBSD_REL_VER" | cut -f2 -d.)"
+	local _abi _major _minor _rel _branch _fingerprints _repo_dir
+	_major="$(uname -r | cut -f1 -d.)"
+	_abi="FreeBSD:${_major}:$(uname -p)"
+	_minor="$(echo "$FBSD_REL_VER" | cut -f2 -d. | cut -f1 -d-)"
+	_rel="${FBSD_REL_VER%%-*}"
 	_branch="$TOASTER_BASE_PKG_BRANCH"
 	if [ -z "$_branch" ]; then _branch="base_release_${_minor}"; fi
+
+	# base_release_* repos are signed with the pkgbase-<major> fingerprints;
+	# base_latest/base_weekly use the standard pkg fingerprints.
+	case "$_branch" in
+		base_release_*) _fingerprints="/usr/share/keys/pkgbase-${_major}" ;;
+		*)              _fingerprints="/usr/share/keys/pkg" ;;
+	esac
 
 	# persisted so the base jail can later update its base with `pkg upgrade`
 	_repo_dir="$_dest/usr/local/etc/pkg/repos"
@@ -507,10 +516,24 @@ FreeBSD-base: {
   url: "pkg+https://pkg.freebsd.org/\${ABI}/${_branch}",
   mirror_type: "srv",
   signature_type: "fingerprints",
-  fingerprints: "/usr/share/keys/pkg",
+  fingerprints: "${_fingerprints}",
   enabled: yes
 }
 EO_BASE_REPO
+
+	# with --rootdir, pkg resolves the fingerprints path inside the rootdir.
+	# Seed the signing keys: copy from the host when present, else fetch the
+	# official bootstrap package (pkgbase-<major> keys ship with no base.txz).
+	if [ ! -d "$_dest$_fingerprints" ]; then
+		if [ -d "$_fingerprints" ]; then
+			mkdir -p "$_dest$(dirname "$_fingerprints")"
+			cp -R "$_fingerprints" "$_dest$(dirname "$_fingerprints")/"
+		else
+			tell_status "bootstrapping pkgbase signing keys"
+			pkg --rootdir "$_dest" -o ABI="$_abi" -o IGNORE_OSVERSION=yes \
+				add -f "https://pkg.freebsd.org/${_abi}/${_branch}/FreeBSD-pkg-bootstrap-${_rel}.pkg" || exit
+		fi
+	fi
 
 	tell_status "installing FreeBSD base packages ($_branch, $_abi) to $_dest"
 	pkg --rootdir "$_dest" --repo-conf-dir "$_repo_dir" \
