@@ -12,7 +12,7 @@ mt6_version_check()
 	if [ -d ".git" ]; then echo "v: $(mt6_version)"; return; fi
 
 	local _github
-	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep '^mt6_version(' | cut -f2 -d'"')
+	_github=$(fetch -o - -q "$TOASTER_SRC_URL/include/util.sh" | grep '^mt6_version(' | cut -f2 -d'"')
 	if [ -z "$_github" ]; then
 		echo "v: <failed lookup>"
 		return
