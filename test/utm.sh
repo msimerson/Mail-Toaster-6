@@ -64,11 +64,18 @@ setup_iso()
 	zfs destroy zroot/var/audit
 	zfs destroy zroot/var/mail
 
+	sed -i '' -e '/^ttyv[2-7]/ s/onifexists/off/' /etc/ttys
+	kill -HUP 1
+
+	echo "
+Welcome to $(hostname)!
+" > /etc/motd.template
 	service motd onestart
+
 	pkg install FreeBSD-ssh FreeBSD-bsdconfig FreeBSD-pf FreeBSD-jail
 	sysrc sshd_enable="YES"
 	sysrc sshd_flags="-o PermitRootLogin=without-password -o KbdInteractiveAuthentication=no"
-	service sshd start
+	service sshd start || service sshd restart
 	mkdir -m 700 ~/.ssh
 	cat <<EOF >> ~/.ssh/authorized_keys
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKworNI/GGwoLV6vvgoI2yd1cp5UObK6aPZkthkCnyjP matt@imac27.simerson.net
@@ -85,7 +92,8 @@ EOF
 
 }
 
-
+echo 'autoboot_delay="2"' >> /boot/loader.conf
+echo 'vfs.zfs.arc.max=1073741824' >> /etc/sysctl.conf
 poweroff
 qemu-img snapshot -c 15.0 freebsd-15.qcow2
 qemu-img snapshot -l freebsd-15.qcow2
