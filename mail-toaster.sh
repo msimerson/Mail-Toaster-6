@@ -71,10 +71,10 @@ mt6_init()
 		mt6-include "$_i"
 	done
 
-	mt6_defaults
-	mt6_version_check
 	# load the local config file
 	config
+	mt6_defaults
+	mt6_version_check
 
 	# Required settings
 	export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit 1
