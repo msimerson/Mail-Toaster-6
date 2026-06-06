@@ -84,9 +84,11 @@ disable_newsyslog()
 {
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
-	sed_inplace \
-		-e '/^0.*newsyslog/ s/^0/#0/' \
-		"$BASE_MNT/etc/crontab"
+	if grep -q '^0.*newsyslog' "$BASE_MNT/etc/crontab"; then
+		sed_inplace \
+			-e '/^0.*newsyslog/ s/^0/#0/' \
+			"$BASE_MNT/etc/crontab"
+	fi
 }
 
 disable_syslog()
