@@ -95,25 +95,26 @@ set_root_alias()
 
 enable_dma()
 {
-	local _dma_path="$_base/usr/libexec/dma"
+	local _dma_path="$_base/usr/local/libexec/dma"
 
+	if [ ! -x "$_dma_path" ]; then _dma_path="$_base/usr/libexec/dma"; fi
 	if [ ! -x "$_dma_path" ]; then
 		stage_pkg_install dma
 		_dma_path="$_base/usr/local/libexec/dma"
 	fi
 
+	tell_status "pointing mailer.conf at dma"
 	_relative_path="${_dma_path#"$_base"}"
-
-	tell_status "setting up dma"
 	tee "$_base/etc/mail/mailer.conf" <<EO_MAILER_CONF
 sendmail        $_relative_path
 mailq           $_relative_path
 newaliases      $_relative_path
 EO_MAILER_CONF
 
+	tell_status "configuring dma"
 	echo "editing $_base/etc/dma/dma.conf"
-	tee "$_base/etc/mail/mailer.conf" <<EO_DMA_CONF
-SMARTHOST=vpopmail
+	tee "$_base/etc/dma/dma.conf" <<EO_DMA_CONF
+SMARTHOST vpopmail
 MAILNAME $TOASTER_HOSTNAME
 NULLCLIENT
 EO_DMA_CONF
