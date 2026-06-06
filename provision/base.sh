@@ -25,10 +25,7 @@ create_base_filesystem()
 
 freebsd_update()
 {
-	if [ "$TOASTER_BASE_METHOD" = "pkgbase" ]; then
-		echo "skipping freebsd-update (base installed via pkgbase)"
-		return
-	fi
+	if [ "$TOASTER_BASE_METHOD" = "pkgbase" ]; then return; fi
 
 	if [ ! -t 0 ]; then
 		echo "No tty, can't update FreeBSD with freebsd-update"
@@ -84,7 +81,7 @@ disable_newsyslog()
 {
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
-	if grep -q '^0.*newsyslog' "$BASE_MNT/etc/crontab"; then
+	if grep -qs '^0.*newsyslog' "$BASE_MNT/etc/crontab"; then
 		sed_inplace \
 			-e '/^0.*newsyslog/ s/^0/#0/' \
 			"$BASE_MNT/etc/crontab"

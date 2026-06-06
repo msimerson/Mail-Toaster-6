@@ -115,7 +115,7 @@ EO_BOURNE_SHELL
 configure_csh_shell()
 {
 	_cshrc="$1/etc/csh.cshrc"
-	if grep -q prompt "$_cshrc"; then
+	if grep -qs prompt "$_cshrc"; then
 		tell_status "preserving $_cshrc"
 		return
 	fi

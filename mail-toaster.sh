@@ -538,7 +538,7 @@ EO_BASE_REPO
 	tell_status "installing FreeBSD base packages ($_branch, $_abi) to $_dest"
 	pkg --rootdir "$_dest" --repo-conf-dir "$_repo_dir" \
 		-o ABI="$_abi" -o IGNORE_OSVERSION=yes \
-		install -y --repository FreeBSD-base FreeBSD-set-devel || exit
+		install -y --repository FreeBSD-base FreeBSD-set-base-jail FreeBSD-set-devel || exit
 	echo "done"
 }
 
