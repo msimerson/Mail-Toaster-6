@@ -1,5 +1,15 @@
 #!/bin/sh
 
+# pkgbase hosts ship the base as packages; FreeBSD-bootloader is one of them
+default_base_method()
+{
+	if [ "$(uname)" = 'FreeBSD' ] && pkg info -e FreeBSD-bootloader 2>/dev/null; then
+		echo "pkgbase"
+	else
+		echo "fetch"
+	fi
+}
+
 mt6_defaults()
 {
 	# export these in your environment to customize
@@ -54,7 +64,8 @@ mt6_defaults()
 	export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
 	# how the base jail is built: fetch (base.txz) | bsdinstall | pkgbase
-	export TOASTER_BASE_METHOD=${TOASTER_BASE_METHOD:="fetch"}
+	# default to pkgbase when the host itself was installed via pkgbase
+	export TOASTER_BASE_METHOD=${TOASTER_BASE_METHOD:="$(default_base_method)"}
 	# pkgbase base repo branch; empty derives base_release_<minor> from the host
 	export TOASTER_BASE_PKG_BRANCH=${TOASTER_BASE_PKG_BRANCH:=""}
 
@@ -122,7 +133,7 @@ export TOASTER_MYSQL_PASS=""
 export TOASTER_NGINX_ACME="0"
 export TOASTER_NRPE=""
 export TOASTER_NTP=""
-export TOASTER_BASE_METHOD="fetch"  # fetch | bsdinstall | pkgbase
+export TOASTER_BASE_METHOD="$(default_base_method)"  # fetch | bsdinstall | pkgbase
 export TOASTER_BASE_PKG_BRANCH=""   # pkgbase: base_release_N (default), base_latest, base_weekly
 export TOASTER_PKG_AUDIT="0"
 export TOASTER_PKG_BRANCH="latest"

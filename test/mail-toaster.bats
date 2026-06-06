@@ -304,7 +304,7 @@ setup() {
   run cat "$tmpdir/pkg.args"
   assert_output --partial "--rootdir $tmpdir/dest"
   assert_output --partial "FreeBSD-base"
-  assert_output --partial "FreeBSD-set-minimal-jail"
+  assert_output --partial "FreeBSD-set-devel"
 
   rm -rf "$tmpdir"
 }
