@@ -64,9 +64,7 @@ mt6_defaults()
 	export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 
 	# how the base jail is built: fetch (base.txz) | bsdinstall | pkgbase
-	# default to pkgbase when the host itself was installed via pkgbase
 	export TOASTER_BASE_METHOD=${TOASTER_BASE_METHOD:="$(default_base_method)"}
-	# pkgbase base repo branch; empty derives base_release_<minor> from the host
 	export TOASTER_BASE_PKG_BRANCH=${TOASTER_BASE_PKG_BRANCH:=""}
 
 	export FBSD_REL_VER FBSD_PATCH_VER
