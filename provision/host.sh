@@ -247,12 +247,12 @@ update_openssl_defaults()
 	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
 	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
 	sed_inplace \
-		-e "/^commonName_max.*/ a\
-commonName_default = $TOASTER_HOSTNAME" \
-		-e "/^emailAddress_max.*/ a\
-emailAddress_default = $TOASTER_ADMIN_EMAIL" \
-		-e "/^localityName.*/ a\
-localityName_default = $_city" \
+		-e '/^commonName_max.*/ a\
+commonName_default = '"$TOASTER_HOSTNAME" \
+		-e '/^emailAddress_max.*/ a\
+emailAddress_default = '"$TOASTER_ADMIN_EMAIL" \
+		-e '/^localityName.*/ a\
+localityName_default = '"$_city" \
 		-e "/^countryName_default/ s/AU/$_cc/" \
 		-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
 		-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \
