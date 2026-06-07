@@ -25,6 +25,8 @@ create_base_filesystem()
 
 freebsd_update()
 {
+	if [ "$TOASTER_BASE_METHOD" = "pkgbase" ]; then return; fi
+
 	if [ ! -t 0 ]; then
 		echo "No tty, can't update FreeBSD with freebsd-update"
 		return
@@ -45,13 +47,22 @@ install_freebsd()
 		return
 	fi
 
-	if [ -n "$USE_BSDINSTALL" ]; then
-		export BSDINSTALL_DISTSITE;
-		BSDINSTALL_DISTSITE="$(freebsd_release_url_base)/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
-		bsdinstall jail "$BASE_MNT"
-	else
-		stage_fbsd_package base "$BASE_MNT"
-	fi
+	local _method="${TOASTER_BASE_METHOD:-fetch}"
+	if [ -n "$USE_BSDINSTALL" ]; then _method="bsdinstall"; fi
+
+	case "$_method" in
+		bsdinstall)
+			export BSDINSTALL_DISTSITE;
+			BSDINSTALL_DISTSITE="$(freebsd_release_url_base)/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
+			bsdinstall jail "$BASE_MNT"
+			;;
+		pkgbase)
+			stage_fbsd_pkgbase base "$BASE_MNT"
+			;;
+		*)
+			stage_fbsd_package base "$BASE_MNT"
+			;;
+	esac
 
 	configure_fstab
 }
@@ -70,9 +81,11 @@ disable_newsyslog()
 {
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
-	sed_inplace \
-		-e '/^0.*newsyslog/ s/^0/#0/' \
-		"$BASE_MNT/etc/crontab"
+	if grep -qs '^0.*newsyslog' "$BASE_MNT/etc/crontab"; then
+		sed_inplace \
+			-e '/^0.*newsyslog/ s/^0/#0/' \
+			"$BASE_MNT/etc/crontab"
+	fi
 }
 
 disable_syslog()
@@ -219,6 +232,7 @@ configure_base()
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
+	touch "$BASE_MNT/etc/fstab"
 	configure_fstab "data/"
 	install_pfrule base
 }
@@ -305,8 +319,6 @@ install_base()
 {
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install $TOASTER_BASE_PKGS
-
-	stage_exec newaliases
 
 	if [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash "$BASE_MNT"

@@ -59,7 +59,7 @@ configure_mongod_logging()
 {
 	stage_enable_newsyslog
 
-	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
+	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /data/db/mongod.lock' \
 		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod.conf"
 }
 

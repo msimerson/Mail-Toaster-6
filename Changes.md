@@ -3,6 +3,15 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-06
+
+- base: added pkgbase support
+- dma: add support for local (port/package) install
+- haraka: use git directly, vs NPM's goofiness
+- roundcube: update for version 1.7.0
+- mongodb: fix newsyslog path to pid file
+- mt: fix version reporting
+
 ## 2026-04
 
 - mt: stage_setup_tls, deploy certs to correct filename

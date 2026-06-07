@@ -84,6 +84,25 @@ setup() {
   assert_equal "$TOASTER_MSA" "haraka"
 }
 
+@test "mt6_defaults - preserves explicit TOASTER_BASE_METHOD" {
+  export TOASTER_BASE_METHOD="bsdinstall"
+  mt6_defaults
+  assert_equal "$TOASTER_BASE_METHOD" "bsdinstall"
+}
+
+@test "default_base_method - returns fetch on non-pkgbase host" {
+  uname() { echo "Linux"; }
+  run default_base_method
+  assert_output "fetch"
+}
+
+@test "default_base_method - returns pkgbase when FreeBSD-bootloader installed" {
+  uname() { echo "FreeBSD"; }
+  pkg() { [ "$1 $2" = "info -e" ] && [ "$3" = "FreeBSD-bootloader" ]; }
+  run default_base_method
+  assert_output "pkgbase"
+}
+
 @test "mt6_defaults - computes ZFS_JAIL_VOL" {
   unset ZFS_VOL ZFS_JAIL_MNT ZFS_JAIL_VOL
   mt6_defaults

@@ -12,7 +12,7 @@ mt6-include php
 mt6-include nginx
 mt6-include mysql
 
-PHP_VER="84"
+PHP_VER="85"
 
 
 install_roundcube_mysql()
@@ -117,30 +117,34 @@ EO_RC_LOCAL
 	_NGINX_SERVER="
 		server_name  roundcube;
 
-		root   /usr/local/www/roundcube;
+		root   /usr/local/www/roundcube/public_html;
 		index  index.php;
 
 		$_add_server
-		location /roundcube {
-			alias /usr/local/www/roundcube;
-		}
+		location = /roundcube { return 301 /roundcube/; }
+		rewrite ^/roundcube/(.*)\$ /\$1 last;
+		location = / { rewrite ^ /index.php last; }
 
-		location ~ ^/(bin|SQL|config|temp|logs)$ {
-			deny all;
-		}
-
-		location ~ \\.php\$ {
-			include        /usr/local/etc/nginx/fastcgi_params;
-			fastcgi_index  index.php;
-			fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
-			fastcgi_pass   php;
-			$_add_location
-		}
-
-		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf|webp|ttf)$ {
+		# for performance, robustness, and security, bypass static.php for assets
+		location ~* ^/static.php/(?<asset_path>.+\.(?:css|gif|htc|ico|js|jpe?g|png|swf|webp|ttf|svg|woff|woff2|eot))\$ {
+			alias /usr/local/www/roundcube/\$asset_path;
 			expires       max;
 			access_log    off;
 			log_not_found off;
+		}
+
+		location / {
+			try_files \$uri /static.php\$uri\$is_args\$args;
+		}
+
+		location ~ \\.php(/|\$) {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_split_path_info ^(.+\\.php)(/.*)\$;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
+			fastcgi_param  PATH_INFO        \$fastcgi_path_info;
+			fastcgi_pass   php;
+			$_add_location
 		}
 "
 	export _NGINX_SERVER
