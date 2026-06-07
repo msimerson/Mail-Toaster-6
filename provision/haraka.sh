@@ -14,21 +14,20 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node24 gmake pkgconf git-tiny
+	stage_pkg_install npm-node24 gmake pkgconf git-tiny python3
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash
 	fi
 
-	# Workaround for NPM bug https://github.com/npm/cli/issues/2610
-	stage_exec bash -c 'git config --global url."https://github.com/".insteadOf git@github.com:'
-	stage_exec bash -c 'git config --global url."https://".insteadOf git://'
-
 	tell_status "installing Haraka"
 	if [ -n "$TOASTER_HARAKA_VERSION" ]; then
 		stage_exec bash -c "npm install -g --omit=dev haraka@$TOASTER_HARAKA_VERSION"
 	else
-		stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git"
+		stage_exec bash -c "git clone https://github.com/haraka/Haraka.git /usr/local/lib/node_modules/haraka"
+		stage_exec bash -c "cd /usr/local/lib/node_modules/haraka && npm install --omit=dev"
+		stage_exec bash -c "ln -s /usr/local/lib/node_modules/haraka/bin/haraka /usr/local/bin/haraka"
+		stage_exec bash -c "ln -s /usr/local/lib/node_modules/haraka/bin/haraka_grep /usr/local/bin/haraka_grep"
 	fi
 
 	local _plugins="ws express"
@@ -433,7 +432,7 @@ configure_haraka_plugins()
 
 configure_install_default()
 {
-	local _haraka="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
+	local _haraka="$STAGE_MNT/usr/local/lib/node_modules/haraka"
 	local _source="$_haraka/config"
 
 	if [ ! -f "$_source/$1" ]; then
@@ -481,7 +480,7 @@ configure_haraka_dkim()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/dkim/dkim_key_gen.sh" ]; then
-		cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-dkim/config/dkim_key_gen.sh" \
+		cp "$STAGE_MNT/usr/local/lib/node_modules/haraka/node_modules/haraka-plugin-dkim/config/dkim_key_gen.sh" \
 			"$HARAKA_CONF/dkim/dkim_key_gen.sh"
 	fi
 
@@ -742,7 +741,7 @@ EO_PF
 start_haraka()
 {
 	tell_status "starting haraka"
-	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/contrib/bsd-rc.d/haraka" \
+	cp "$STAGE_MNT/usr/local/lib/node_modules/haraka/contrib/bsd-rc.d/haraka" \
 		"$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	chmod 555 "$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	stage_sysrc haraka_enable=YES

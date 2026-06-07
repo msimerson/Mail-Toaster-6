@@ -37,11 +37,18 @@ configure_ntimed()
 
 configure_ntpd()
 {
+	if [ -e /etc/rc.d/ntpd ]; then
+		tell_status "NTPd is part of base system"
+	else
+		tell_status "installing NTPd from ports"
+		pkg install -y ntp
+	fi
+
 	if ! grep -q ^ntpd_enable /etc/rc.conf; then
 		tell_status "enabling NTPd"
 		sysrc ntpd_enable=YES
 		sysrc ntpd_sync_on_start=YES
-		/etc/rc.d/ntpd restart
+		service ntpd restart
 	fi
 }
 
@@ -69,7 +76,7 @@ configure_chrony()
 
 disable_ntpd()
 {
-	if grep -q ^ntpd_enable /etc/rc.conf; then
+	if grep -qs ^ntpd_enable /etc/rc.conf; then
 		tell_status "disabling NTPd"
 		service ntpd onestop || echo -n
 		sysrc ntpd_enable=NO
@@ -240,12 +247,12 @@ update_openssl_defaults()
 	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
 	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
 	sed_inplace \
-		-e "/^commonName_max.*/ a\ 
-commonName_default = $TOASTER_HOSTNAME" \
-		-e "/^emailAddress_max.*/ a\ 
-emailAddress_default = $TOASTER_ADMIN_EMAIL" \
-		-e "/^localityName.*/ a\ 
-localityName_default = $_city" \
+		-e '/^commonName_max.*/ a\
+commonName_default = '"$TOASTER_HOSTNAME" \
+		-e '/^emailAddress_max.*/ a\
+emailAddress_default = '"$TOASTER_ADMIN_EMAIL" \
+		-e '/^localityName.*/ a\
+localityName_default = '"$_city" \
 		-e "/^countryName_default/ s/AU/$_cc/" \
 		-e "/^stateOrProvinceName_default/ s/Some-State/$_state/" \
 		-e "/^0.organizationName_default/ s/Internet Widgits Pty Ltd/$TOASTER_ORG_NAME/" \

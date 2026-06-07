@@ -24,6 +24,8 @@ export TOASTER_MSA=${TOASTER_MSA:-"haraka"}
 export TOASTER_EDITOR=${TOASTER_EDITOR:-"vim"}
 export TOASTER_EDITOR_PORT=${TOASTER_EDITOR_PORT:-"vim-tiny"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:-"latest"}
+export TOASTER_BASE_METHOD=${TOASTER_BASE_METHOD:-"fetch"}
+export TOASTER_BASE_PKG_BRANCH=${TOASTER_BASE_PKG_BRANCH:-""}
 export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:-"1"}
 export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:-"0"}
 export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:-"0"}
@@ -89,6 +91,8 @@ install_fstab()            { :; }
 fstab_add_mount()          { :; }
 
 # Stage operations
+stage_fbsd_package()       { :; }
+stage_fbsd_pkgbase()       { :; }
 stage_pkg_install()        { :; }
 stage_port_install()       { :; }
 stage_exec()               { :; }
