@@ -663,7 +663,7 @@ EO_DCC
 
 configure_haraka_spf()
 {
-	if grep -qs '^;' "$HARAKA_CONF/spf.ini"; then
+	if grep -qs '^context=myself' "$HARAKA_CONF/spf.ini"; then
 		tell_status "spf.ini already configured"
 	else
 		tell_status "configuring SPF [relay]context=myself"

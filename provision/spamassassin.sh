@@ -78,11 +78,7 @@ install_spamassassin_razor()
 	stage_enable_newsyslog
 
 	tell_status "setting up razor-agent log rotation"
-	if [ ! -d "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" ]; then
-		mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
-	fi
-
-	tee "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
+	store_config "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
 /var/log/razor-agent.log    600 5   1000 *  Z
 EO_RAZOR
 }
