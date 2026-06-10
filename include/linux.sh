@@ -22,16 +22,25 @@ configure_apt_sources()
 	case "$1" in
 		bionic|focal|jammy|noble)
 			tell_status "restoring APT sources"
-			tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_UB_SOURCES
+			case "$(uname -m)" in
+				arm64|aarch64)
+					store_config "$STAGE_MNT/compat/linux/etc/apt/sources.list" "overwrite" <<EO_UB_ARM_SOURCES
+deb http://ports.ubuntu.com/ubuntu-ports $1 main universe restricted multiverse
+EO_UB_ARM_SOURCES
+					;;
+				*)
+					store_config "$STAGE_MNT/compat/linux/etc/apt/sources.list" "overwrite" <<EO_UB_SOURCES
 deb http://archive.ubuntu.com/ubuntu $1 main universe restricted multiverse
 deb http://security.ubuntu.com/ubuntu/ $1-security universe multiverse restricted main
 deb http://archive.ubuntu.com/ubuntu $1-backports universe multiverse restricted main
 deb http://archive.ubuntu.com/ubuntu $1-updates universe multiverse restricted main
 EO_UB_SOURCES
+					;;
+			esac
 			;;
 		bullseye|bookworm|trixie)
 			tell_status "adding APT sources"
-			tee "$STAGE_MNT/compat/linux/etc/apt/sources.list" <<EO_DEB_SOURCES
+			store_config "$STAGE_MNT/compat/linux/etc/apt/sources.list" "overwrite" <<EO_DEB_SOURCES
 deb http://deb.debian.org/debian $1 main contrib non-free
 deb http://deb.debian.org/debian-security/ $1-security main contrib non-free
 deb http://deb.debian.org/debian $1-updates main contrib non-free
@@ -99,4 +108,3 @@ install_linux()
 		jammy) stage_exec umount /compat/linux/dev ;;
 	esac
 }
-

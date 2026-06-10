@@ -214,8 +214,7 @@ configure_wildduck()
 	fi
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/tls.toml"; then
-		tell_status "installing $_cfg/tls.toml"
-		cat <<EO_TLS_CFG "$_cfg/tls.toml"
+		store_config "$_cfg/tls.toml" "overwrite" <<EO_TLS_CFG
 key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
 cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
 dhparam="/etc/ssl/dhparam.pem"
