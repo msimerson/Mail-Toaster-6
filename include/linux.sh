@@ -26,6 +26,7 @@ configure_apt_sources()
 				arm64|aarch64)
 					store_config "$STAGE_MNT/compat/linux/etc/apt/sources.list" "overwrite" <<EO_UB_ARM_SOURCES
 deb http://ports.ubuntu.com/ubuntu-ports $1 main universe restricted multiverse
+deb http://ports.ubuntu.com/ubuntu-ports $1-security universe multiverse restricted main
 EO_UB_ARM_SOURCES
 					;;
 				*)
