@@ -9,6 +9,19 @@ setup() {
 mt6-include() { :; }
 tell_status() { :; }
 
+# faithful copy of include/util.sh store_config: always writes <file>.mt6,
+# installs the live file only when absent (or on overwrite/append)
+store_config() {
+  local _operation=${2:-""}
+  [ -d "$(dirname "$1")" ] || mkdir -p "$(dirname "$1")"
+  cat - > "$1.mt6"
+  if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
+    cp "$1.mt6" "$1"
+  elif [ "$_operation" = "append" ]; then
+    cat "$1.mt6" >> "$1"
+  fi
+}
+
 # contains() - pure string membership test
 
 @test "contains - substring found" {
@@ -139,6 +152,44 @@ tell_status() { :; }
 
   run cat "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
   assert_output "original content"
+
+  rm -rf "$tmpdir"
+}
+
+@test "configure_nginx_server_d - leaves .mt6 reference for preserved config" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export PUBLIC_IP6=""
+  export _NGINX_SERVER="server_name test.example.com;"
+
+  mkdir -p "$tmpdir/myjail/etc/nginx/server.d"
+  echo "original content" > "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+
+  configure_nginx_server_d myjail
+
+  run grep "test.example.com" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf.mt6"
+  assert_success
+
+  rm -rf "$tmpdir"
+}
+
+@test "configure_nginx - leaves .mt6 reference for preserved config" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  stage_sysrc() { :; }
+  get_jail_ip() { echo "172.16.15.1"; }
+  get_jail_ip6() { echo "::1"; }
+
+  mkdir -p "$tmpdir/myjail/etc/nginx"
+  echo "original content" > "$tmpdir/myjail/etc/nginx/nginx.conf"
+
+  configure_nginx myjail
+
+  run cat "$tmpdir/myjail/etc/nginx/nginx.conf"
+  assert_output "original content"
+
+  run grep "worker_processes" "$tmpdir/myjail/etc/nginx/nginx.conf.mt6"
+  assert_success
 
   rm -rf "$tmpdir"
 }

@@ -115,7 +115,16 @@ install_acme_sh()          { :; }
 
 # Config / util
 sed_inplace()              { sed -i.bak "$@"; }
-store_config()             { cat - > /dev/null; }
+store_config() {
+  local _operation=${2:-""}
+  [ -d "$(dirname "$1")" ] || mkdir -p "$(dirname "$1")"
+  cat - > "$1.mt6"
+  if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
+    cp "$1.mt6" "$1"
+  elif [ "$_operation" = "append" ]; then
+    cat "$1.mt6" >> "$1"
+  fi
+}
 store_exec()               { cat - > /dev/null; }
 preserve_file()            { :; }
 configure_pkg_latest()     { :; }

@@ -70,7 +70,7 @@ install_freebsd()
 configure_syslog()
 {
 	tell_status "forwarding syslog to host"
-	tee "$BASE_MNT/etc/syslog.conf" <<EO_SYSLOG
+	store_config "$BASE_MNT/etc/syslog.conf" "overwrite" <<EO_SYSLOG
 *.*			@syslog
 EO_SYSLOG
 
@@ -195,7 +195,7 @@ configure_fstab() {
 	local _etc_path="$BASE_MNT/${_sub_dir}etc"
 	if [ ! -d "$_etc_path" ]; then mkdir -p "$_etc_path"; fi
 
-	tee "$_etc_path/fstab" <<EO_FSTAB
+	store_config "$_etc_path/fstab" "overwrite" <<EO_FSTAB
 # Device                Mountpoint      FStype  Options         Dump    Pass#
 devfs                   $BASE_MNT/dev  devfs   rw              0       0
 EO_FSTAB
