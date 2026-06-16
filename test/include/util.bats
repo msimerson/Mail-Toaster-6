@@ -18,6 +18,13 @@ setup() {
   assert_output --partial "hello"
 }
 
+@test "freebsd_major - root dir chroots and extracts major version" {
+  chroot() { echo "14.2-RELEASE-p1"; }
+  run freebsd_major /stage
+  assert_success
+  assert_output "14"
+}
+
 @test "dec_to_hex - 255" {
   run dec_to_hex 255
   assert_output "00ff"

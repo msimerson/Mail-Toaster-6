@@ -266,8 +266,7 @@ install_vpopmail()
 	install_qqtool
 	install_quota_report
 
-	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" -gt "12" ]; then
+	if [ "$(freebsd_major "$STAGE_MNT")" -gt "12" ]; then
 		echo "CFLAGS+= -fcommon" >> "$STAGE_MNT/etc/make.conf"
 	fi
 

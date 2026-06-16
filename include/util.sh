@@ -90,6 +90,16 @@ get_random_pass()
 	echo
 }
 
+freebsd_major()
+{
+	# with a root dir, report the target jail's version rather than the host's
+	if [ -n "$1" ]; then
+		chroot "$1" /bin/freebsd-version | cut -f1 -d.
+	else
+		/bin/freebsd-version | cut -f1 -d.
+	fi
+}
+
 configure_pkg_latest()
 {
 	local _pkg_host="pkg.FreeBSD.org"
@@ -102,9 +112,8 @@ configure_pkg_latest()
 	local REPODIR="$1/usr/local/etc/pkg/repos"
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
-	local _major_ver; _major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
 	local _repo_name="FreeBSD-ports"
-	if [ "$_major_ver" -lt "15" ]; then _repo_name="FreeBSD"; fi
+	if [ "$(freebsd_major "$1")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
@@ -163,9 +172,8 @@ EO_RESOLV
 	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
-	local _major_ver; _major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
 	local _repo_name="FreeBSD-ports"
-	if [ "$_major_ver" -lt "15" ]; then _repo_name="FreeBSD"; fi
+	if [ "$(freebsd_major "$ZFS_JAIL_MNT/stage")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
 	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 $_repo_name: {

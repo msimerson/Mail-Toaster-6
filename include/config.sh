@@ -13,7 +13,7 @@ default_base_method()
 mt6_defaults()
 {
 	# export these in your environment to customize
-	export BOURNE_SHELL=${BOURNE_SHELL:-"bash"}
+	export BOURNE_SHELL=${BOURNE_SHELL:-"all"}
 	export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:-"172.16.15"}
 	export JAIL_NET_MASK=${JAIL_NET_MASK:-"/19"}
 	export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:-"lo1"}
