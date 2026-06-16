@@ -34,8 +34,9 @@ freebsd_update()
 
 	tell_status "apply FreeBSD security updates to base jail"
 	sed_inplace -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
-	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 
+	local _release=""; _release="$(chroot "$BASE_MNT" /bin/freebsd-version)"
+	freebsd-update -b "$BASE_MNT" --currently-running "$_release" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 	echo "clearing freebsd-update cache"
 	rm -rf "$BASE_MNT/var/db/freebsd-update"/*
 }
@@ -320,7 +321,11 @@ install_base()
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install $TOASTER_BASE_PKGS
 
-	if [ "$BOURNE_SHELL" = "bash" ]; then
+	if [ "$BOURNE_SHELL" = "all" ]; then
+		install_bash "$BASE_MNT"
+		install_zsh
+		configure_zsh_shell "$BASE_MNT"
+	elif [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash "$BASE_MNT"
 	elif [ "$BOURNE_SHELL" = "zsh" ]; then
 		install_zsh

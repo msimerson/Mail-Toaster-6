@@ -465,8 +465,7 @@ unmount_pkg_cache()
 
 freebsd_release_url_base()
 {
-	_major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
-	if [ "$_major_ver" -lt "13" ]; then
+	if [ "$(freebsd_major)" -lt "13" ]; then
 		echo "http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases"
 	else
 		echo "ftp://ftp.freebsd.org/pub/FreeBSD/releases"
@@ -688,18 +687,15 @@ unprovision_last()
 
 unprovision_filesystem()
 {
-	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.ready"; then
-		tell_status "destroying $ZFS_JAIL_VOL/$1.ready"
-		zfs destroy "$ZFS_JAIL_VOL/$1.ready" || return 1
-	fi
-
-	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.last"; then
-		tell_status "destroying $ZFS_JAIL_VOL/$1.last"
-		zfs destroy "$ZFS_JAIL_VOL/$1.last"  || return 1
-	fi
+	for suffix in ready last; do
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.$suffix"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$1.$suffix"
+			zfs destroy "$ZFS_JAIL_VOL/$1.$suffix" || return 1
+		fi
+	done
 
 	if [ -e "$ZFS_JAIL_VOL/$1/dev/null" ]; then
-		umount -t devfs "$ZFS_JAIL_VOL/$1/dev"  || return 1
+		umount -t devfs "$ZFS_JAIL_VOL/$1/dev" || return 1
 	fi
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
