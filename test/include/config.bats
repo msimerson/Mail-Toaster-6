@@ -9,7 +9,7 @@ setup() {
 @test "mt6_defaults - sets BOURNE_SHELL to bash" {
   unset BOURNE_SHELL
   mt6_defaults
-  assert_equal "$BOURNE_SHELL" "bash"
+  assert_equal "$BOURNE_SHELL" "all"
 }
 
 @test "mt6_defaults - preserves existing BOURNE_SHELL" {

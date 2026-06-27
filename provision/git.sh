@@ -40,38 +40,32 @@ configure_nginx_server()
 		return 403;
 	}
 
-    client_max_body_size 100M;
+	client_max_body_size 100M;
 
-    location ~ /[^/]+\.git/(HEAD|info/refs|objects/info/[^/]+|git-(upload|receive)-pack)\$ {
-        root   /data/repos;
+	location ~ /[^/]+\.git/(HEAD|info/refs|objects/info/[^/]+|git-(upload|receive)-pack)\$ {
+		root   /data/repos;
+		include fastcgi_params;
+		fastcgi_param SCRIPT_FILENAME /usr/local/libexec/git-core/git-http-backend;
+		fastcgi_param GIT_HTTP_EXPORT_ALL "";
+		fastcgi_param GIT_PROJECT_ROOT /data/repos;
+		fastcgi_param PATH_INFO \$uri;
+		fastcgi_param REMOTE_USER \$remote_user;
+		fastcgi_pass unix:/var/run/fcgiwrap/fcgiwrap.sock;
+	}
 
-        include fastcgi_params;
+	location / {
+		root   /data/repos;
+		try_files      \$uri @cgit;
+	}
 
-        fastcgi_param SCRIPT_FILENAME /usr/local/libexec/git-core/git-http-backend;
-        fastcgi_param GIT_HTTP_EXPORT_ALL "";
-        fastcgi_param GIT_PROJECT_ROOT /data/repos;
-        fastcgi_param PATH_INFO \$uri;
-
-        fastcgi_param REMOTE_USER \$remote_user;
-
-        fastcgi_pass unix:/var/run/fcgiwrap/fcgiwrap.sock;
-    }
-
-    location / {
-        root   /data/repos;
-        try_files      \$uri @cgit;
-    }
-
-    location @cgit {
-        include        fastcgi_params;
-        # Route to the cgit CGI executable instead of Git's backend
-        fastcgi_param  SCRIPT_FILENAME   /usr/local/www/cgit/cgit.cgi;
-        fastcgi_param  PATH_INFO         \$uri;
-        fastcgi_param  QUERY_STRING      \$args;
-        fastcgi_param  HTTP_HOST         \$server_name;
-        fastcgi_pass   unix:/var/run/fcgiwrap/fcgiwrap.sock;
-    }
-	"
+	location @cgit {
+		include        fastcgi_params;
+		fastcgi_param  SCRIPT_FILENAME   /usr/local/www/cgit/cgit.cgi;
+		fastcgi_param  PATH_INFO         \$uri;
+		fastcgi_param  QUERY_STRING      \$args;
+		fastcgi_param  HTTP_HOST         \$server_name;
+		fastcgi_pass   unix:/var/run/fcgiwrap/fcgiwrap.sock;
+	}"
 	export _NGINX_SERVER
 	configure_nginx_server_d git
 }
@@ -87,7 +81,6 @@ int_ip6 = "$(get_jail_ip6 git)"
 rdr inet  proto tcp from any to <ext_ip4> port { 8080 } -> \$int_ip4 80
 rdr inet6 proto tcp from any to <ext_ip6> port { 8080 } -> \$int_ip6 80
 EO_GIT_RDR
-	fi
 
 	get_public_ip4
 	get_public_ip6
