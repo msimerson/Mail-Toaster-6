@@ -18,7 +18,10 @@ install_git()
 	done
 
 	tell_status "install git"
-	stage_pkg_install git cgit nginx fcgiwrap
+	stage_pkg_install git nginx fcgiwrap
+
+	tell_status "install cgit (web UI for git repos)"
+	stage_pkg_install cgit py312-pygments py312-markdown
 }
 
 configure_nginx_server()
@@ -95,6 +98,26 @@ EO_WEBMAIL_TABLE
 	store_config "$_pf_etc/filter.conf" <<EO_WEBMAIL_FILTER
 pass in quick proto tcp from any to <git> port { 80 8080 }
 EO_WEBMAIL_FILTER
+}
+
+configure_cgit()
+{
+	store_config "$ZFS_JAIL_MNT/git/etc/cgitrc" <<EO_WEBMAIL_FILTER
+# Enable syntax highlighting (optional, requires python-pygments)
+enable-git-config=0
+scan-hidden-path=1
+virtual-root=/
+enable-http-clone=1
+enable-index-owner=0
+
+readme=:README.md
+source-filter=/usr/local/lib/cgit/filters/syntax-highlighting.py
+about-filter=/usr/local/lib/cgit/filters/about-formatting.sh
+
+# Tell cgit where to look for repositories
+scan-path=/data/repos
+EO_WEBMAIL_FILTER
+
 }
 
 configure_git()
