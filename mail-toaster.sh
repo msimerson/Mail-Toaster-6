@@ -9,6 +9,13 @@ tell_status()
 	if [ -t 0 ] && [ "$MT6_TEST_ENV" != "1" ]; then sleep 1; fi
 }
 
+mt6_config_hint()
+{
+	if [ -n "$1" ]; then echo; echo "ERROR: invalid $1"; echo; fi
+	echo; echo "Next step, edit mail-toaster.conf!"; echo
+	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
+}
+
 mt6-update()
 {
 	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
@@ -93,13 +100,13 @@ mt6_init()
 
 	# shellcheck disable=2317
 	if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
-		usage TOASTER_HOSTNAME; return 1; exit 1
+		mt6_config_hint TOASTER_HOSTNAME; return 1; exit 1
 	fi
 	echo "toaster host: $TOASTER_HOSTNAME"
 
 	# shellcheck disable=2317
 	if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
-		usage TOASTER_MAIL_DOMAIN; return 1; exit 1
+		mt6_config_hint TOASTER_MAIL_DOMAIN; return 1; exit 1
 	fi
 	echo "email domain: $TOASTER_MAIL_DOMAIN"
 
