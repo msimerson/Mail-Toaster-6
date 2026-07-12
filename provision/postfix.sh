@@ -60,7 +60,6 @@ configure_postfix_main_cf()
 	stage_exec postconf -e 'smtpd_tls_security_level = may'
 	stage_exec postconf -e 'smtpd_tls_auth_only = yes'
 	stage_exec postconf -e 'lmtp_tls_security_level = may'
-	stage_exec postconf -e 'lmtpd_tls_security_level = may'
 	stage_exec postconf -e "mynetworks = ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK}"
 
 	if [ -f "$ZFS_DATA_MNT/postfix/etc/sasl_passwd" ]; then
