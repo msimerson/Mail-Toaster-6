@@ -268,9 +268,6 @@ create_staged_fs()
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
-	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
-		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
-	fi
 
 	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
 		tell_status "creating $ZFS_JAIL_MNT/stage/data"
