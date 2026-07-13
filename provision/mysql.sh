@@ -128,7 +128,8 @@ configure_mysql()
 {
 	tell_status "configuring mysql"
 	local _my_cnf="$STAGE_MNT/usr/local/etc/mysql/my.cnf"
-
+	# MariaDB has my.cnf but the interesting piece is in conf.d/server.cnf
+	[ "$TOASTER_MARIADB" != 1 ] || _my_cnf="$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf"
 	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
 		if [ -f "$_my_cnf" ]; then
 			sed_inplace \
