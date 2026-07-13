@@ -46,6 +46,7 @@ TS="$(date +%Y%m%d-%H%M%S)"
 BACKUP_ROOT="/var/backups/ezmlm-rebuild-$TS"
 WORK="$(mktemp -d "/tmp/ezmlm-rebuild.XXXXXX")" || exit 1
 DUMP="$WORK/dump"
+chmod 711 "$WORK"          # let $VUSER traverse to read $DUMP by name
 trap 'rm -rf "$WORK"' EXIT
 
 is_companion() {
@@ -53,6 +54,12 @@ is_companion() {
 		mod|deny|allow|digest) return 0 ;;
 		*) return 1 ;;
 	esac
+}
+
+# count subscribers in a DB, as $VUSER (so we see exactly what the tools see)
+count_db() {
+	su -m "$VUSER" -c "$EZBIN/ezmlm-list '$1' $2" 2>/dev/null \
+		| grep -c '@'
 }
 
 n_ok=0; n_warn=0; n_skip=0; n_plan=0
@@ -82,7 +89,8 @@ while IFS= read -r subs; do
 
 	su -m "$VUSER" -c "$EZBIN/ezmlm-list '$listdir' $sub" 2>/dev/null \
 		| grep '@' | sort -u > "$DUMP"
-	before="$(wc -l < "$DUMP" | tr -d ' ')"
+	chmod 644 "$DUMP"
+	before="$(grep -c '@' "$DUMP")"
 
 	if [ "$before" -eq 0 ]; then
 		echo "skip  empty        $label"
@@ -96,6 +104,14 @@ while IFS= read -r subs; do
 		continue
 	fi
 
+	# SAFETY: confirm $VUSER can read the full dump before destroying anything.
+	vread="$(su -m "$VUSER" -c "grep -c '@' '$DUMP'" 2>/dev/null | tr -d ' ')"
+	if [ "${vread:-0}" != "$before" ]; then
+		echo "WARN  $VUSER cannot read dump ($vread != $before); NOT touching $label"
+		n_warn=$((n_warn + 1))
+		continue
+	fi
+
 	bkp="$BACKUP_ROOT$subs"
 	mkdir -p "$(dirname "$bkp")"
 	cp -Rp "$subs" "$bkp"
@@ -105,14 +121,17 @@ while IFS= read -r subs; do
 			$EZBIN/ezmlm-sub '$listdir' $sub \"\$addr\"; \
 		done < '$DUMP'"
 
-	after="$(su -m "$VUSER" -c "$EZBIN/ezmlm-list '$listdir' $sub" 2>/dev/null \
-		| grep '@' | sort -u | wc -l | tr -d ' ')"
+	after="$(count_db "$listdir" "$sub")"
 
 	if [ "$before" -eq "$after" ]; then
 		echo "OK    $after subscribers   $label"
 		n_ok=$((n_ok + 1))
 	else
-		echo "WARN  count $before -> $after   $label   (backup: $bkp)"
+		# rebuild came out wrong -- put the original back, untouched.
+		rm -f "$subs"/*
+		cp -Rp "$bkp"/. "$subs"/
+		chown -R "$VUSER" "$subs"
+		echo "WARN  count $before -> $after, RESTORED from backup   $label"
 		n_warn=$((n_warn + 1))
 	fi
 done < "$WORK/dbs"
