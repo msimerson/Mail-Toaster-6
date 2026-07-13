@@ -206,10 +206,10 @@ namespace inbox {
   mail_location = maildir:~/Maildir
   mailbox Spam {
     auto = no
-    special_use = \Junk
+    special_use = \\Junk
   }
   mailbox Archive {
-    special_use = \Archive
+    special_use = \\Archive
   }
 }
 EO_DOVECOT_LOCAL
