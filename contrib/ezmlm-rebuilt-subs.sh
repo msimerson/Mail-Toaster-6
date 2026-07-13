@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# rebuild-ezmlm-subscribers.sh
-#
 # Rebuild every ezmlm-idx subscriber database so that each entry is hashed and
 # formatted by the *currently installed* ezmlm-idx tools. Fixes the case where
 # ezmlm-unsub (and qmailadmin's "delete user") report success but never remove
