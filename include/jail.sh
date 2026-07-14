@@ -164,7 +164,7 @@ jail_rename()
 	fi
 
 	echo "renaming $1 to $2"
-	service jail stop "$1"  || exit
+	service jail stop "$1" || exit 1
 
 	for _f in data jails
 	do
@@ -176,7 +176,7 @@ jail_rename()
 
 	sed_inplace \
 		-e "/^$1\s/ s/$1/$2/" \
-		/etc/jail.conf || exit
+		/etc/jail.conf || exit 1
 
 	service jail start "$2"
 
