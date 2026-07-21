@@ -241,10 +241,25 @@ EO_MD
 
 configure_worker()
 {
-	store_config "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
+	if [ "$TOASTER_MTA" = postfix ]; then
+		store_config "$RSPAMD_ETC/local.d/worker-proxy.inc" <<EO_PROXY
+upstream "local" {
+  self_scan = yes; # Enable self-scan
+}
+bind_socket = *:11332;
+EO_PROXY
+		store_config "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
+enabled = false;
+EO_WORKER
+	else
+		store_config "$RSPAMD_ETC/local.d/worker-proxy.inc" <<EO_PROXY
+enabled = false;
+EO_PROXY
+		store_config "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
 	bind_socket = "*:11333";
 	count = 4;
 EO_WORKER
+	fi
 }
 
 configure_controller()
