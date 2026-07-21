@@ -904,6 +904,32 @@ setup_minimal_hosts() {
   assert_output --partial "127.0.0.1"
 }
 
+@test "create_staged_fs - creates a data volume snapshot if ZFS_SNAPSHOT_DATA=1" {
+  setup_minimal_hosts
+  export ZFS_JAIL_VOL="zroot/jails" ZFS_DATA_VOL="zroot/data" BASE_SNAP="zroot/jails/base@p0"
+  cleanup_staged_fs()           { :; }
+  zfs()                         { echo "zfs $*"; }
+  zfs_filesystem_exists()       { :; }
+  stage_sysrc()                 { :; }
+  assure_ip6_addr_is_declared() { :; }
+  stage_resolv_conf()           { :; }
+  zfs_create_fs()               { :; }
+  adopt_jail_host_etc()         { :; }
+  install_fstab()               { :; }
+  install_pfrule()              { :; }
+
+  CALLS="$BATS_TEST_TMPDIR/calls"
+  : > "$CALLS"
+  export ZFS_SNAPSHOT_DATA=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT"
+  create_staged_fs myjail > "$CALLS"
+
+  run cat "$CALLS"
+  assert_output --partial "zfs snapshot $ZFS_DATA_VOL/myjail@before-"
+}
+
+
 @test "install_minimal_hosts - a jail with IPv6 gets those addresses too" {
   setup_minimal_hosts
   get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
