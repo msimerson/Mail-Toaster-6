@@ -104,8 +104,11 @@ configure_postfix_main_cf()
 		stage_exec postconf -e 'transport_maps = hash:/data/etc/transport'
 	fi
 
-	if [ -f "$_dkim_private_key" ]; then
-		stage_exec postconf -e 'smtpd_milters = inet:localhost:8891'
+	local _milters=
+	if [ -f "$_dkim_private_key" ]; then _milters="inet:localhost:8891"; fi
+	if [ "$TOASTER_MTA" = postfix ] && jail_is_running rspamd; then _milters="$_milters inet:$(get_jail_ip rspamd):11332"; fi
+	if [ -n "$_milters" ]; then
+		stage_exec postconf -e "smtpd_milters = ${_milters# }"
 		stage_exec postconf -e 'non_smtpd_milters = $smtpd_milters'
 	fi
 }
