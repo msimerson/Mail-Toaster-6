@@ -12,6 +12,14 @@ install_redis()
 {
 	tell_status "installing redis"
 	stage_pkg_install redis || exit
+
+	if [ "$TOASTER_USE_TMPFS" = 1 ]; then
+		store_config "$STAGE_MNT/etc/rc.local" "append" <<EO_RC_LOCAL
+mkdir -p /var/run/redis
+chown redis:redis /var/run/redis
+EO_RC_LOCAL
+		stage_exec service local start
+	fi
 }
 
 configure_redis()
