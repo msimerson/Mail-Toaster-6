@@ -263,6 +263,10 @@ create_staged_fs()
 	cleanup_staged_fs
 
 	tell_status "stage jail filesystem setup"
+
+	PROVISION_TIMESTAMP="$(date -uIminutes)"
+	PROVISION_TIMESTAMP="${PROVISION_TIMESTAMP%+*}"
+
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
 
@@ -287,7 +291,15 @@ create_staged_fs()
 		fi
 	done
 
-	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	# snapshot existing data volume before provisioning
+	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
+		[ "${ZFS_SNAPSHOT_DATA:-0}" = 0 ] ||
+			[ "$(zfs list -Hpo written "$ZFS_DATA_VOL/$1")" = 0 ] ||
+				zfs snapshot "$ZFS_DATA_VOL/$1@before-$PROVISION_TIMESTAMP"
+	else
+		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	fi
+
 	adopt_jail_host_etc "$1"
 	install_fstab "$1"
 	install_pfrule "$1"
