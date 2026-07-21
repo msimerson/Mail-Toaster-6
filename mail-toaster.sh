@@ -681,6 +681,11 @@ stage_enable_newsyslog()
 	sed_inplace \
 		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"
+
+	# The <compress> directive has appeared in FreeBSD 15 and should precede all log file definitions
+	[ "$(freebsd_major "$STAGE_MNT")" -lt 15 ] ||
+		[ "$NEWSYSLOG_COMPRESSION_METHOD" = legacy ] ||
+		sed_inplace '1i <compress> $NEWSYSLOG_COMPRESSION_METHOD' "$STAGE_MNT/etc/newsyslog.conf"
 }
 
 unmount_data()
