@@ -45,6 +45,7 @@ mt6_defaults()
 	export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:-"0"}
 	export TOASTER_QMHANDLE=${TOASTER_QMHANDLE:-"0"}
 	export TOASTER_WEBMAIL_PROXY=${TOASTER_WEBMAIL_PROXY:-"haproxy"}
+	export NEWSYSLOG_COMPRESSION_METHOD=${NEWSYSLOG_COMPRESSION_METHOD:-"legacy"}
 
 	# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
 	export PUBLIC_IP4=${PUBLIC_IP4:-""}
@@ -133,6 +134,7 @@ export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
 export TOASTER_WEBMAIL_PROXY="haproxy"
+export NEWSYSLOG_COMPRESSION_METHOD="legacy"  # set to "none" on FreeBSD 15+ to disable log compression
 
 EO_MT_CONF
 
