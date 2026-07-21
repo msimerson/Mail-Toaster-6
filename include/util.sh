@@ -104,7 +104,7 @@ configure_pkg_latest()
 {
 	local _pkg_host="pkg.FreeBSD.org"
 
-	if [ -d "$ZFS_DATA_MNT/bsd_cache/pkg" ]; then
+	if jail_is_running bsd_cache; then
 		tell_status "switching pkg to bsd_cache"
 		_pkg_host="pkg"
 	fi
