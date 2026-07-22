@@ -214,7 +214,10 @@ install_fstab()
 		fi
 	fi
 
+	# ports build under /tmp/portbuild (WRKDIRPREFIX, set in provision/base.sh),
+	# which noexec breaks. Only the stage builds ports; the promoted jail keeps noexec.
 	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $ZFS_JAIL_MNT/stage|" \
+		-e "\|[[:space:]]$ZFS_JAIL_MNT/stage/tmp[[:space:]]| s|,noexec||" \
 		"$_fstab" > \
 		"$_fstab.stage" || exit 1
 
