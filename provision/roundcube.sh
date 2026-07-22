@@ -62,8 +62,40 @@ roundcube_init_db()
 	tell_status "initializing roundcube db"
 	pkg install -y curl
 	start_roundcube
-	curl -i --haproxy-protocol -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/installer/index.php?_step=3"
+
+	# since 1.7 the installer entry point is public_html/installer.php; the
+	# installer/ dir it loads sits outside the document root
+	if ! curl -i -sS --fail --haproxy-protocol -F initdb='Initialize database' -XPOST \
+		"http://$(get_jail_ip stage)/installer.php?_step=3"; then
+		fatal_err "roundcube installer did not respond at /installer.php"
+	fi
+}
+
+update_roundcube_db()
+{
+	tell_status "applying roundcube db schema updates"
+
+	# updatedb.sh applies pending SQL/ updates and records the schema version.
+	# Bumping the version without applying them leaves roundcube throwing
+	# "Oops something went wrong"
+	if ! stage_exec /usr/local/bin/php /usr/local/www/roundcube/bin/updatedb.sh \
+		--package=roundcube --dir=/usr/local/www/roundcube/SQL; then
+		tell_status "WARNING: roundcube schema update failed. If the SQL updates
+were already applied by hand, record the version with:
+  updatedb.sh --package=roundcube --dir=SQL --version=<applied version>"
+	fi
+}
+
+migrate_roundcube_nginx_conf()
+{
+	local _conf="$ZFS_DATA_MNT/roundcube/etc/nginx/server.d/roundcube.conf"
+
+	if [ ! -f "$_conf" ] || grep -q public_html "$_conf"; then return; fi
+
+	# 1.7 serves from public_html and routes assets through static.php, so a
+	# pre-1.7 server block can't be patched up in place
+	tell_status "roundcube 1.7 requires a new nginx config, saving $_conf.pre-1.7"
+	mv "$_conf" "$_conf.pre-1.7"
 }
 
 install_roundcube_plugins()
@@ -215,6 +247,7 @@ configure_roundcube()
 {
 	configure_php roundcube
 	configure_nginx roundcube
+	migrate_roundcube_nginx_conf
 	configure_nginx_server
 
 	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
@@ -316,6 +349,7 @@ create_staged_fs roundcube
 start_staged_jail roundcube
 install_roundcube
 configure_roundcube
+update_roundcube_db
 start_roundcube
 test_roundcube
 promote_staged_jail roundcube
