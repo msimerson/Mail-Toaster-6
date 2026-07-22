@@ -114,7 +114,7 @@ EO_DLF
 
 	store_config "$HARAKA_CONF/log.reader.ini" "overwrite" <<EO_LRC
 [log]
-file=/var/log/maillog
+file=/data/log/maillog
 EO_LRC
 
 	# absence of mailogs in jail prevents log-reader from working
@@ -124,13 +124,19 @@ EO_LRC
 always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
 	fi
 
-	# send Haraka logs to haraka's /var/log so log-reader can access them
+	# log to the data volume so mail logs survive a re-provision
+	local _logdir="$ZFS_DATA_MNT/haraka/log"
+	if [ ! -d "$_logdir" ]; then
+		tell_status "creating log dir $_logdir"
+		mkdir -p "$_logdir"
+	fi
+
 	store_config "$STAGE_MNT/etc/syslog.conf" "overwrite" <<EO_SYSLOG
-mail.info					/var/log/maillog
+mail.info					/data/log/maillog
 #*.*			@syslog
 EO_SYSLOG
 
-	touch "$STAGE_MNT/var/log/maillog"
+	touch "$_logdir/maillog"
 }
 
 configure_haraka_smtp_forward()
@@ -620,17 +626,11 @@ configure_haraka_log_rotation()
 {
 	stage_enable_newsyslog
 
-	tell_status "configuring haraka.log rotation"
-	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
-	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" <<EO_HARAKA
+	tell_status "configuring haraka log rotation"
+	store_config "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" "overwrite" <<EO_HARAKA
+/data/log/maillog			644  21	   *	@T00  JC
 /var/log/haraka.log			644  21	   *	@T00  JC
 EO_HARAKA
-
-	_logdays=$(grep ^/var/log/maillog /etc/newsyslog.conf | awk '{ print $3 }')
-	if [ "$_logdays" = "7" ]; then
-		tell_status "increasing log retention from 7 to 21 days"
-		sed_inplace -e '/maillog/ s/7/21/' /etc/newsyslog.conf
-	fi
 }
 
 configure_haraka_access()
@@ -746,10 +746,6 @@ start_haraka()
 	chmod 555 "$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	stage_sysrc haraka_enable=YES
 	stage_sysrc haraka_flags='-c /data'
-
-	if [ ! -d "$HARAKA_CONF/queue" ]; then
-		mkdir -p "$HARAKA_CONF/queue"
-	fi
 
 	stage_exec service haraka start
 }
