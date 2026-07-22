@@ -97,7 +97,7 @@ configure_bsd_cache()
 	configure_nginx bsd_cache
 	configure_nginx_server
 	store_config "$(get_jail_data bsd_cache)/etc/nginx/server.d/_cache.conf" <<EO_CACHE_CONF
-proxy_cache_path /data/cache/nginxcache levels=1:2 keys_zone=bsd_cache:16m max_size=8g inactive=30d use_temp_path=off;
+proxy_cache_path /data/cache levels=1:2 keys_zone=bsd_cache:16m max_size=8g inactive=30d use_temp_path=off;
 EO_CACHE_CONF
 	create_cachedir
 }
