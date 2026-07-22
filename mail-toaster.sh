@@ -253,7 +253,7 @@ fstab_add_mount() {
 
 create_staged_fs()
 {
-	cleanup_staged_fs "$1"
+	cleanup_staged_fs
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
