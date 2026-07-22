@@ -264,6 +264,70 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+setup_tmpfs_fstab() {
+  export ZFS_DATA_MNT="$1"
+  export ZFS_JAIL_MNT="$1/jails"
+  export STAGE_MNT="$1/jails/stage"
+  export JAIL_FSTAB=""
+  export TOASTER_USE_TMPFS=1
+  mkdir -p "$1/myjail/etc" "$1/stage/etc"
+
+  tell_status() { :; }
+}
+
+@test "install_fstab mounts the runtime /tmp noexec" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/myjail/tmp" "$tmpdir/myjail/etc/fstab"
+  assert_success
+  assert_output --partial "rw,mode=01777,noexec,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab mounts the stage /tmp exec, so ports can build there" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/myjail/etc/fstab.stage"
+  assert_success
+  refute_output --partial "noexec"
+  assert_output --partial "rw,mode=01777,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab keeps the stage /var/run noexec" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/var/run" "$tmpdir/myjail/etc/fstab.stage"
+  assert_success
+  assert_output --partial "rw,mode=01755,noexec,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab copies the exec /tmp into the stage shutdown fstab" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/stage/etc/fstab"
+  assert_success
+  refute_output --partial "noexec"
+
+  rm -rf "$tmpdir"
+}
+
 @test "install_fstab appends JAIL_FSTAB when set" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
