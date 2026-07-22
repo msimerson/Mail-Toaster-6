@@ -169,23 +169,10 @@ sed_inplace() {
 
 stage_unmount()
 {
-	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
-		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
-		echo "umount $_fs"
-		umount "$_fs" || echo ""
-	done
-
-	# repeat, as sometimes a nested fs will prevent first try from success
-	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
-		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+	for _fs in $(mount | awk -v re="^$STAGE_MNT/" '$3 ~ re { print $3 }' | sort -ru); do
 		echo "umount $_fs"
 		umount "$_fs"
 	done
-
-	if mount -t devfs | grep -q "$STAGE_MNT/dev"; then
-		echo "umount $STAGE_MNT/dev"
-		umount "$STAGE_MNT/dev"
-	fi
 }
 
 cleanup_staged_fs()
