@@ -9,7 +9,7 @@ install_vpopmail_deps()
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "adding mysql dependency"
 		if [ "$TOASTER_MARIADB" = "1" ]; then
-			_vpopmail_deps="$_vpopmail_deps mariadb104-client"
+			_vpopmail_deps="$_vpopmail_deps mariadb1011-client"
 		else
 			_vpopmail_deps="$_vpopmail_deps mysql84-client"
 		fi

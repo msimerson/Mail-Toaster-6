@@ -169,30 +169,20 @@ sed_inplace() {
 
 stage_unmount()
 {
-	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
-		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
-		echo "umount $_fs"
-		umount "$_fs" || echo ""
-	done
+	# an empty STAGE_MNT would match every mountpoint on the host
+	[ -n "$STAGE_MNT" ] || fatal_err "stage_unmount: STAGE_MNT is unset"
 
-	# repeat, as sometimes a nested fs will prevent first try from success
-	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
-		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+	for _fs in $(mount | awk -v p="$STAGE_MNT/" 'index($3, p) == 1 { print $3 }' | sort -ru); do
 		echo "umount $_fs"
 		umount "$_fs"
 	done
-
-	if mount -t devfs | grep -q "$STAGE_MNT/dev"; then
-		echo "umount $STAGE_MNT/dev"
-		umount "$STAGE_MNT/dev"
-	fi
 }
 
 cleanup_staged_fs()
 {
 	tell_status "stage cleanup"
 	stop_jail stage
-	stage_unmount "$1"
+	stage_unmount
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
@@ -263,7 +253,7 @@ fstab_add_mount() {
 
 create_staged_fs()
 {
-	cleanup_staged_fs "$1"
+	cleanup_staged_fs
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
@@ -368,7 +358,7 @@ promote_staged_jail()
 	tell_status "promoting jail $1"
 	stop_jail stage
 	stage_clear_caches
-	stage_unmount "$1"
+	stage_unmount
 	ipcrm -W
 
 	rename_staged_to_ready "$1"
@@ -478,7 +468,7 @@ freebsd_release_url_base()
 
 stage_fbsd_package()
 {
-	local _dest="$2"
+	local _dest="$2" _file_uri
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
 	_file_uri="$(freebsd_release_url_base)/$(uname -m)/$FBSD_REL_VER/$1.txz"
@@ -588,10 +578,15 @@ unmount_data()
 	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
 
 	local _data_mp="$STAGE_MNT/data"
-	if mount -t nullfs | grep -q "$_data_mp"; then
-		tell_status "unmounting data fs $_data_mp"
-		umount -t nullfs "$_data_mp"
-	fi
+
+	local _target
+	for _target in $(mount -t nullfs | awk '{print $3}' | sort -r); do
+		case "$_target" in "$_data_mp"|"$_data_mp"/*)
+			echo umount -t nullfs "$_target"
+			umount -t nullfs "$_target"
+			;;
+		esac
+	done
 }
 
 fetch_and_exec()
