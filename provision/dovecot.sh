@@ -48,6 +48,11 @@ configure_dovecot_local_conf() {
 	get_public_ip6
 	if [ -n "$PUBLIC_IP6" ]; then _listen="$_listen, ::"; fi
 
+	if grep -q "/data/etc/ssl/" $_localconf; then
+		tell_status "Upgrading $_localconf to /data/etc/tls/"
+		sed_inplace 's,/data/etc/ssl/,/data/etc/tls/,' "$_localconf"
+	fi
+
 	store_config "$_localconf" <<EO_DOVECOT_LOCAL
 $_listen
 auth_verbose=yes
@@ -342,6 +347,10 @@ configure_tls_certs()
 	fi
 
 	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$ZFS_DATA_MNT/dovecot/etc/ssl" ]; then
+		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
+		mv "$ZFS_DATA_MNT/dovecot/etc/ssl" "$_ssldir"
+	fi
 	if [ ! -d "$_ssldir/certs" ]; then
 		# shellcheck disable=SC2174
 		mkdir -m 644 -p "$_ssldir/certs"
