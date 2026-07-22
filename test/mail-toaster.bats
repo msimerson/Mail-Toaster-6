@@ -264,6 +264,70 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+setup_tmpfs_fstab() {
+  export ZFS_DATA_MNT="$1"
+  export ZFS_JAIL_MNT="$1/jails"
+  export STAGE_MNT="$1/jails/stage"
+  export JAIL_FSTAB=""
+  export TOASTER_USE_TMPFS=1
+  mkdir -p "$1/myjail/etc" "$1/stage/etc"
+
+  tell_status() { :; }
+}
+
+@test "install_fstab mounts the runtime /tmp noexec" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/myjail/tmp" "$tmpdir/myjail/etc/fstab"
+  assert_success
+  assert_output --partial "rw,mode=01777,noexec,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab mounts the stage /tmp exec, so ports can build there" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/myjail/etc/fstab.stage"
+  assert_success
+  refute_output --partial "noexec"
+  assert_output --partial "rw,mode=01777,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab keeps the stage /var/run noexec" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/var/run" "$tmpdir/myjail/etc/fstab.stage"
+  assert_success
+  assert_output --partial "rw,mode=01755,noexec,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab copies the exec /tmp into the stage shutdown fstab" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/stage/etc/fstab"
+  assert_success
+  refute_output --partial "noexec"
+
+  rm -rf "$tmpdir"
+}
+
 @test "install_fstab appends JAIL_FSTAB when set" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
@@ -326,4 +390,73 @@ setup() {
   assert_output --partial 'fingerprints: "/usr/share/keys/pkg"'
 
   rm -rf "$tmpdir"
+}
+
+# stage_unmount test fixtures: 'mount' and 'umount' are stubbed so the pipeline
+# can be exercised off FreeBSD. unmounted_paths echoes only what got unmounted,
+# in the order stage_unmount tried it.
+fake_mount() {
+  mount() {
+    cat <<EOF
+$ZFS_JAIL_VOL/stage on $STAGE_MNT (zfs, local, nfsv4acls)
+devfs on $STAGE_MNT/dev (devfs)
+$ZFS_DATA_MNT/ports on $STAGE_MNT/usr/ports (nullfs, local)
+$ZFS_DATA_MNT/distfiles on $STAGE_MNT/usr/ports/distfiles (nullfs, local)
+tmpfs on $STAGE_MNT/tmp (tmpfs, local)
+$ZFS_DATA_MNT/other on ${STAGE_MNT}-other/data (nullfs, local)
+$ZFS_DATA_MNT/dovecot on $ZFS_JAIL_MNT/dovecot/stagefiles (nullfs, local)
+EOF
+  }
+  umount() { :; }
+}
+
+unmounted_paths() {
+  stage_unmount | awk '/^umount /{ print $2 }'
+}
+
+@test "stage_unmount unmounts nested mounts before their parents" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  assert_line --index 0 "$STAGE_MNT/usr/ports/distfiles"
+  assert_line --index 1 "$STAGE_MNT/usr/ports"
+}
+
+@test "stage_unmount unmounts each mountpoint once" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  assert_equal "${#lines[@]}" 4
+}
+
+@test "stage_unmount unmounts the stage devfs" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  assert_line "$STAGE_MNT/dev"
+}
+
+@test "stage_unmount leaves the stage root mounted" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  refute_line "$STAGE_MNT"
+}
+
+@test "stage_unmount ignores mounts outside the stage" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  # 'stage' as a substring elsewhere in the mount line is not a stage mount
+  refute_line "${STAGE_MNT}-other/data"
+  refute_line "$ZFS_JAIL_MNT/dovecot/stagefiles"
+}
+
+@test "stage_unmount refuses to run with STAGE_MNT unset" {
+  fake_mount
+  STAGE_MNT=
+  run stage_unmount
+  assert_failure
+  assert_output --partial "STAGE_MNT is unset"
+  refute_output --partial "umount /"
 }
