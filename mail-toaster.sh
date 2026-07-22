@@ -575,10 +575,15 @@ unmount_data()
 	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
 
 	local _data_mp="$STAGE_MNT/data"
-	if mount -t nullfs | grep -q "$_data_mp"; then
-		tell_status "unmounting data fs $_data_mp"
-		umount -t nullfs "$_data_mp"
-	fi
+
+	local _target
+	for _target in $(mount -t nullfs | awk '{print $3}' | sort -r); do
+		case "$_target" in "$_data_mp"|"$_data_mp"/*)
+			echo umount -t nullfs "$_target"
+			umount -t nullfs "$_target"
+			;;
+		esac
+	done
 }
 
 fetch_and_exec()
