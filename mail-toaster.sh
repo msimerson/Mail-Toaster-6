@@ -465,7 +465,7 @@ freebsd_release_url_base()
 
 stage_fbsd_package()
 {
-	local _dest="$2"
+	local _dest="$2" _file_uri
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
 	_file_uri="$(freebsd_release_url_base)/$(uname -m)/$FBSD_REL_VER/$1.txz"
