@@ -124,6 +124,12 @@ configure_nginx()
 
 	[ -d "$(get_jail_data "$1")/log/nginx" ] || mkdir -p "$(get_jail_data "$1")/log/nginx"
 
+	local _extra=""
+	[ "$TOASTER_NGINX_LOG_FORMAT" != main ] || _extra="
+	log_format  main  '\$remote_addr - \$remote_user [\$time_local] \"\$request\" '
+			  '\$status \$body_bytes_sent \"\$http_referer\" '
+			  '\"\$http_user_agent\" \"\$http_x_forwarded_for\"';"
+
 	store_config "$_etcdir/nginx.conf" "update" <<EO_NGINX_CONF
 # load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
@@ -141,7 +147,8 @@ http {
 	include       /usr/local/etc/nginx/mime.types;
 	default_type  application/octet-stream;
 
-	access_log /data/log/nginx/access.log combined;
+	$_extra
+	access_log /data/log/nginx/access.log $TOASTER_NGINX_LOG_FORMAT;
 
 	sendfile        on;
 	gzip on;
