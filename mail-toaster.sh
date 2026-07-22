@@ -169,7 +169,10 @@ sed_inplace() {
 
 stage_unmount()
 {
-	for _fs in $(mount | awk -v re="^$STAGE_MNT/" '$3 ~ re { print $3 }' | sort -ru); do
+	# an empty STAGE_MNT would match every mountpoint on the host
+	[ -n "$STAGE_MNT" ] || fatal_err "stage_unmount: STAGE_MNT is unset"
+
+	for _fs in $(mount | awk -v p="$STAGE_MNT/" 'index($3, p) == 1 { print $3 }' | sort -ru); do
 		echo "umount $_fs"
 		umount "$_fs"
 	done
@@ -179,7 +182,7 @@ cleanup_staged_fs()
 {
 	tell_status "stage cleanup"
 	stop_jail stage
-	stage_unmount "$1"
+	stage_unmount
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
@@ -250,7 +253,7 @@ fstab_add_mount() {
 
 create_staged_fs()
 {
-	cleanup_staged_fs "$1"
+	cleanup_staged_fs
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
@@ -355,7 +358,7 @@ promote_staged_jail()
 	tell_status "promoting jail $1"
 	stop_jail stage
 	stage_clear_caches
-	stage_unmount "$1"
+	stage_unmount
 	ipcrm -W
 
 	rename_staged_to_ready "$1"
