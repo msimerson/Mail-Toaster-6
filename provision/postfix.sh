@@ -22,6 +22,8 @@ install_postfix()
 	fi
 }
 
+make_selector() { date '+%b%Y' | tr '[:upper:]' '[:lower:]'; }
+
 configure_opendkim()
 {
 	stage_sysrc milteropendkim_enable=YES
@@ -29,20 +31,49 @@ configure_opendkim()
 
 	tell_status "See http://www.opendkim.org/opendkim-README"
 
-	if [ ! -d "$STAGE_MNT/data/etc" ]; then mkdir "$STAGE_MNT/data/etc"; fi
-	if [ ! -d "$STAGE_MNT/data/dkim" ]; then mkdir "$STAGE_MNT/data/dkim"; fi
+	local _dkim_dir="/data/dkim"
+	local _selector
+
+	if [ ! -d "$STAGE_MNT$_dkim_dir" ]; then mkdir "$STAGE_MNT$_dkim_dir"; fi
+
+	local _opendkim_keyfile="$_dkim_dir/$TOASTER_MAIL_DOMAIN.private"
+	if [ ! -f "$STAGE_MNT$_opendkim_keyfile" ]; then
+		_selector="$(make_selector)"
+		stage_exec opendkim-genkey -b 2048 -h sha256 -D "$_dkim_dir" -s "$_selector" -v -d "$TOASTER_MAIL_DOMAIN"
+		stage_exec mv "$_dkim_dir/$_selector.private" "$_opendkim_keyfile"
+		tell_status "Please add this TXT record: $(cat "$STAGE_MNT$_dkim_dir/$_selector.txt")"
+	fi
 
 	if [ -f "$STAGE_MNT/data/etc/opendkim.conf" ]; then
 		tell_status "preserving opendkim config"
 	else
 		tell_status "configuring opendkim"
+		[ -n "$_selector" ] || _selector="$(make_selector)"
+
+		# generate multi-domain ready config for easier customization
+		store_config "$STAGE_MNT$_dkim_dir/KeyTable" "append" <<EO_KEY_TABLE
+$_selector._domainkey.$TOASTER_MAIL_DOMAIN $TOASTER_MAIL_DOMAIN:$_selector:$_opendkim_keyfile
+EO_KEY_TABLE
+		store_config "$STAGE_MNT$_dkim_dir/SigningTable" "append" <<EO_SIGNING_TABLE
+*@$TOASTER_MAIL_DOMAIN $_selector._domainkey.$TOASTER_MAIL_DOMAIN
+EO_SIGNING_TABLE
+		store_config "$STAGE_MNT$_dkim_dir/TrustedHosts" <<EO_TRUSTED_HOSTS
+127.0.0.1
+::1
+$TOASTER_MAIL_DOMAIN
+EO_TRUSTED_HOSTS
+
 		sed \
-			-e "/^Domain/ s/example.com/$TOASTER_MAIL_DOMAIN/"  \
-			-e "/^KeyFile/ s/\/.*$/\/data\/dkim\/$TOASTER_MAIL_DOMAIN.private/"  \
 			-e '/^Socket/ s/inet:port@localhost/inet:8891/' \
-			-e "/^Selector/ s/my-selector-name/$(date '+%b%Y' | tr '[:upper:]' '[:lower:]')/" \
+			-e "/^Domain/ s/^/#/" \
+			-e "/^KeyFile/ s/^/#/" \
+			-e "/^Selector/ s/^/#/" \
+			-e "/^# ExternalIgnoreList/ s|^.*$|ExternalIgnoreList refile:$_dkim_dir/TrustedHosts|" \
+			-e "/^# InternalHosts/ s|^.*$|InternalHosts refile:$_dkim_dir/TrustedHosts|" \
+			-e "/^# KeyTable/ s|^.*$|KeyTable refile:$_dkim_dir/KeyTable|" \
+			-e "/^# SigningTable/ s|^.*$|SigningTable refile:$_dkim_dir/SigningTable|" \
 			"$STAGE_MNT/usr/local/etc/mail/opendkim.conf.sample" \
-			> "$STAGE_MNT/data/etc/opendkim.conf"
+			| store_config "$STAGE_MNT/data/etc/opendkim.conf"
 	fi
 }
 
