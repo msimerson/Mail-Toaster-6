@@ -119,6 +119,12 @@ configure_postfix()
 	stage_exec /usr/local/bin/newaliases
 
 	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /data/etc/mailer.conf
+
+	_pf_etc="$ZFS_DATA_MNT/postfix/etc/pf.conf.d"
+	store_config "$_pf_etc/rdr.conf" <<EO_PF
+rdr pass inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  postfix)
+rdr pass inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 postfix)
+EO_PF
 }
 
 start_postfix()
