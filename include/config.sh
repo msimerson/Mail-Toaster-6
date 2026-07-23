@@ -37,6 +37,7 @@ mt6_defaults()
 	export TOASTER_NGINX_ACME=${TOASTER_NGINX_ACME:-"0"}
 	export TOASTER_NTP=${TOASTER_NTP:-"chrony"}
 	export TOASTER_MSA=${TOASTER_MSA:-"haraka"}
+	export TOASTER_MTA=${TOASTER_MTA:-"haraka"}
 	export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:-"0"}
 	export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:-"latest"}
 	export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:-"0"}
@@ -126,6 +127,7 @@ export ZFS_DATA_MNT="/data"
 export TOASTER_EDITOR="vim"
 export TOASTER_EDITOR_PORT="vim-tiny"
 export TOASTER_MSA="haraka"
+export TOASTER_MTA="haraka"
 export TOASTER_MYSQL="1"
 export TOASTER_MYSQL_PASS=""
 export TOASTER_NGINX_ACME="0"
