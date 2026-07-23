@@ -159,6 +159,23 @@ teardown() {
   refute_output --partial "/var/db/mysql"
 }
 
+@test "mysql - configure rewrites MariaDB datadir in conf.d/server.cnf" {
+  export TOASTER_MARIADB="1"
+  mkdir -p "$STAGE_MNT/usr/local/etc/mysql/conf.d"
+  cat > "$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf" <<'EOF'
+[server]
+datadir                         = /var/db/mysql
+EOF
+  # data/etc/my.cnf must be absent so the rewrite branch runs.
+  rm -f "$STAGE_MNT/data/etc/my.cnf"
+  run configure_mysql
+  assert_success
+  run grep "datadir" "$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf"
+  assert_success
+  assert_output --partial "/data/db"
+  refute_output --partial "/var/db/mysql"
+}
+
 @test "mysql - configure writes extra.cnf with innodb settings" {
   mkdir -p "$STAGE_MNT/data/etc"
   store_config() {

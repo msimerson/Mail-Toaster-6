@@ -85,7 +85,7 @@ configure_mysql_root_password()
 		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf"
 
 		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
-		if [ -f "$_my.cnf" ] &&  [ -r "$_my.cnf" ]; then
+		if [ -f "$_my_cnf" ] && [ -r "$_my_cnf" ]; then
 			tell_status "TOASTER_MYSQL_PASS unset in $_my_cnf"
 			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
 		fi
@@ -128,6 +128,8 @@ configure_mysql()
 {
 	tell_status "configuring mysql"
 	local _my_cnf="$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+	# MariaDB has my.cnf but the interesting piece is in conf.d/server.cnf
+	[ "$TOASTER_MARIADB" != "1" ] || _my_cnf="$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf"
 
 	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
 		if [ -f "$_my_cnf" ]; then

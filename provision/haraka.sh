@@ -729,11 +729,7 @@ configure_haraka()
 	configure_haraka_dcc
 	configure_haraka_spf
 
-	_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
-	store_config "$_pf_etc/rdr.conf" <<EO_PF
-rdr pass inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
-rdr pass inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)
-EO_PF
+	configure_mta_pf_rdr haraka
 
 	install_geoip_dbs
 }
