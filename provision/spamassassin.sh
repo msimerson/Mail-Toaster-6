@@ -6,7 +6,12 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+# Mount the GeoIP databases only when the geoip jail exists; otherwise the
+# nullfs source is missing and the jail fails to start.
+export JAIL_FSTAB=""
+if zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
+	export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+fi
 
 mt6-include mysql
 

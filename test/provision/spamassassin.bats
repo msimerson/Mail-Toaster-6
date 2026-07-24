@@ -55,8 +55,18 @@ teardown() {
   assert_equal "$JAIL_CONF_EXTRA" ""
 }
 
-@test "spamassassin - JAIL_FSTAB contains GeoIP nullfs mount" {
+@test "spamassassin - JAIL_FSTAB contains GeoIP nullfs mount when geoip present" {
   assert_equal "$JAIL_FSTAB" "$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+}
+
+@test "spamassassin - JAIL_FSTAB empty when geoip dataset absent" {
+  # Re-run only the fstab guard from the provision script with the geoip
+  # dataset reported missing; the mount must not be declared.
+  zfs_filesystem_exists() { return 1; }
+  JAIL_FSTAB="preset"
+  eval "$(sed -n '/^export JAIL_FSTAB=""$/,/^fi$/p' \
+    "$BATS_TEST_DIRNAME/../../provision/spamassassin.sh")"
+  assert_equal "$JAIL_FSTAB" ""
 }
 
 # --- Function existence ---
