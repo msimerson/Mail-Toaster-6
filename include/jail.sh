@@ -77,6 +77,40 @@ get_jail_ip6()
 	return 2
 }
 
+# Write a jail's inbound mail port redirects to its pf.conf.d/rdr.conf.
+# Port 25 (inbound MTA) follows $TOASTER_MTA; ports 465 and 587 (submission
+# and SMTPS, the MSA) follow $TOASTER_MSA. A jail only claims the ports whose
+# role names it, so exactly one jail redirects each port. Rewritten on every
+# provision so the rules track the current settings; when a jail no longer owns
+# any mail port its stale rdr.conf is removed.
+configure_mta_pf_rdr()
+{
+	local _jail="$1"
+	local _ports=""
+
+	if [ "$TOASTER_MTA" = "$_jail" ]; then
+		_ports="25"
+	fi
+	if [ "$TOASTER_MSA" = "$_jail" ]; then
+		_ports="${_ports:+$_ports }465 587"
+	fi
+
+	local _rdr="$ZFS_DATA_MNT/$_jail/etc/pf.conf.d/rdr.conf"
+
+	if [ -z "$_ports" ]; then
+		if [ -f "$_rdr" ]; then
+			tell_status "removing mail port redirects from $_rdr"
+			rm -f "$_rdr"
+		fi
+		return 0
+	fi
+
+	store_config "$_rdr" "overwrite" <<EO_PF
+rdr pass inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip  "$_jail")
+rdr pass inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")
+EO_PF
+}
+
 get_reverse_ip()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1")

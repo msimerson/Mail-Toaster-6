@@ -65,3 +65,45 @@ teardown() {
   # haraka.conf is the only place mail log retention is set
   assert_line --regexp "^/data/log/maillog[[:space:]]+644[[:space:]]+21"
 }
+
+# --- listen address follows IPv6 availability ---
+
+@test "haraka_listen_addr returns 0.0.0.0 when no public IPv6" {
+  unset PUBLIC_IP6
+  run haraka_listen_addr
+  assert_output "0.0.0.0"
+}
+
+@test "haraka_listen_addr returns [::0] when public IPv6 present" {
+  export PUBLIC_IP6="2001:db8::1"
+  run haraka_listen_addr
+  assert_output "[::0]"
+}
+
+@test "configure_haraka_smtp_ini binds IPv4 when no public IPv6" {
+  printf ';listen=[::0]:25\n' > "$HARAKA_CONF/smtp.ini"
+  unset PUBLIC_IP6
+  configure_haraka_smtp_ini
+
+  run cat "$HARAKA_CONF/smtp.ini"
+  assert_output --partial "listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587"
+  refute_output --partial "[::0]"
+}
+
+@test "configure_haraka_smtp_ini binds IPv6 when public IPv6 present" {
+  printf ';listen=[::0]:25\n' > "$HARAKA_CONF/smtp.ini"
+  export PUBLIC_IP6="2001:db8::1"
+  configure_haraka_smtp_ini
+
+  run cat "$HARAKA_CONF/smtp.ini"
+  assert_output --partial "listen=[::0]:25,[::0]:465,[::0]:587"
+}
+
+@test "configure_haraka_http binds IPv4 when no public IPv6" {
+  rm -f "$HARAKA_CONF/http.ini"
+  unset PUBLIC_IP6
+  configure_haraka_http
+
+  run cat "$HARAKA_CONF/http.ini"
+  assert_output --partial "listen=0.0.0.0:80"
+}

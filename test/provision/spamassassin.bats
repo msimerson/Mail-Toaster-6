@@ -55,8 +55,18 @@ teardown() {
   assert_equal "$JAIL_CONF_EXTRA" ""
 }
 
-@test "spamassassin - JAIL_FSTAB contains GeoIP nullfs mount" {
+@test "spamassassin - JAIL_FSTAB contains GeoIP nullfs mount when geoip present" {
   assert_equal "$JAIL_FSTAB" "$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+}
+
+@test "spamassassin - JAIL_FSTAB empty when geoip dataset absent" {
+  # Re-run only the fstab guard from the provision script with the geoip
+  # dataset reported missing; the mount must not be declared.
+  zfs_filesystem_exists() { return 1; }
+  JAIL_FSTAB="preset"
+  eval "$(sed -n '/^export JAIL_FSTAB=""$/,/^fi$/p' \
+    "$BATS_TEST_DIRNAME/../../provision/spamassassin.sh")"
+  assert_equal "$JAIL_FSTAB" ""
 }
 
 # --- Function existence ---
@@ -132,6 +142,28 @@ teardown() {
 @test "spamassassin - configure writes local.cf enabling DCC" {
   run cat "$ZFS_DATA_MNT/spamassassin/etc/local.cf"
   assert_output --partial "use_dcc"
+}
+
+# --- configure_geoip / RelayCountry outcomes ---
+
+@test "spamassassin - configure_geoip enables RelayCountry when geoip present" {
+  # setup() sources the script with the stub zfs_filesystem_exists returning 0,
+  # so configure_geoip has already written relaycountry.pre.
+  run cat "$ZFS_DATA_MNT/spamassassin/etc/relaycountry.pre"
+  assert_success
+  assert_output --partial "loadplugin Mail::SpamAssassin::Plugin::RelayCountry"
+  assert_output --partial "country_db_type"
+  assert_output --partial "/usr/local/share/GeoIP/GeoLite2-Country.mmdb"
+}
+
+@test "spamassassin - configure_geoip removes RelayCountry when geoip absent" {
+  _sa_etc="$ZFS_DATA_MNT/spamassassin/etc"
+  mkdir -p "$_sa_etc"
+  echo "loadplugin Mail::SpamAssassin::Plugin::RelayCountry" > "$_sa_etc/relaycountry.pre"
+  zfs_filesystem_exists() { return 1; }
+  run configure_geoip
+  assert_success
+  [ ! -f "$_sa_etc/relaycountry.pre" ]
 }
 
 # --- install_spamassassin behaviour ---

@@ -110,6 +110,21 @@ configure_postfix_main_cf()
 	fi
 }
 
+# Uncomment the submission (587) and smtps (465) service blocks in master.cf,
+# together with their indented "-o" option continuation lines. Idempotent:
+# blocks that are already enabled (no leading '#') are left untouched.
+enable_postfix_submission()
+{
+	local _master_cf="$1"
+
+	tell_status "enabling postfix submission and smtps services"
+	awk '
+		/^#(submission|smtps)[[:space:]]/ { sub(/^#/, ""); in_block = 1; print; next }
+		in_block && /^#[[:space:]]/       { sub(/^#/, ""); print; next }
+		{ in_block = 0; print }
+	' "$_master_cf" > "$_master_cf.tmp" && mv "$_master_cf.tmp" "$_master_cf"
+}
+
 configure_postfix_master_cf()
 {
 	local _master_cf="$ZFS_DATA_MNT/postfix/etc/master.cf"
@@ -118,6 +133,10 @@ configure_postfix_master_cf()
 	else
 		tell_status "installing $_master_cf"
 		stage_exec install -m 0644 /usr/local/etc/postfix/master.cf /data/etc/master.cf
+	fi
+
+	if [ "$TOASTER_MSA" = "postfix" ]; then
+		enable_postfix_submission "$_master_cf"
 	fi
 }
 
@@ -150,6 +169,8 @@ configure_postfix()
 	stage_exec /usr/local/bin/newaliases
 
 	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /data/etc/mailer.conf
+
+	configure_mta_pf_rdr postfix
 }
 
 start_postfix()

@@ -376,14 +376,25 @@ url=wss://$TOASTER_DOMAIN_NAME/watch" > "$HARAKA_CONF/watch.ini"
 	fi
 }
 
+haraka_listen_addr()
+{
+	if [ -n "${PUBLIC_IP6:-}" ]; then
+		# IPv4 and IPv6
+		echo "[::0]"
+	else
+		echo "0.0.0.0"
+	fi
+}
+
 configure_haraka_smtp_ini()
 {
 	if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
 		configure_install_default smtp.ini
 	fi
 
+	local _addr; _addr=$(haraka_listen_addr)
 	sed_inplace \
-		-e 's/^;listen=\[.*$/listen=[::0]:25,[::0]:465,[::0]:587/' \
+		-e "s/^;listen=.*\$/listen=$_addr:25,$_addr:465,$_addr:587/" \
 		-e 's/^;nodes=cpus/nodes=2/' \
 		-e 's/^;daemonize=true/daemonize=true/' \
 		-e 's/^;daemon_pid_file/daemon_pid_file/' \
@@ -553,7 +564,7 @@ configure_haraka_http()
 {
 	if [ ! -f "$HARAKA_CONF/http.ini" ]; then
 		tell_status "enable Haraka HTTP server"
-		echo "listen=[::0]:80" | tee -a "$HARAKA_CONF/http.ini"
+		echo "listen=$(haraka_listen_addr):80" | tee -a "$HARAKA_CONF/http.ini"
 	fi
 }
 
@@ -729,11 +740,7 @@ configure_haraka()
 	configure_haraka_dcc
 	configure_haraka_spf
 
-	_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
-	store_config "$_pf_etc/rdr.conf" <<EO_PF
-rdr pass inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
-rdr pass inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)
-EO_PF
+	configure_mta_pf_rdr haraka
 
 	install_geoip_dbs
 }
