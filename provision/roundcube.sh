@@ -65,7 +65,7 @@ roundcube_init_db()
 
 	# since 1.7 the installer entry point is public_html/installer.php; the
 	# installer/ dir it loads sits outside the document root
-	if ! curl -i -sS --fail --haproxy-protocol -F initdb='Initialize database' -XPOST \
+	if ! curl -i -sS --fail -F initdb='Initialize database' -XPOST \
 		"http://$(get_jail_ip stage)/installer.php?_step=3"; then
 		fatal_err "roundcube installer did not respond at /installer.php"
 	fi
