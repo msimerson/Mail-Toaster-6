@@ -146,7 +146,7 @@ _no_start_required() {
 }
 
 @test "spamassassin mounts geoip in JAIL_FSTAB" {
-  run grep "^export JAIL_FSTAB" provision/spamassassin.sh
+  run grep "JAIL_FSTAB=.*geoip" provision/spamassassin.sh
   assert_output --partial "geoip"
 }
 
