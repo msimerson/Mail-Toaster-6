@@ -170,9 +170,9 @@ enable_postfix_submission()
 {
 	local _master_cf="$1"
 
-	tell_status "enabling postfix submission and smtps services"
+	tell_status "enabling postfix submission and submissions/smtps services"
 	awk '
-		/^#(submission|smtps)[[:space:]]/ { sub(/^#/, ""); in_block = 1; print; next }
+		/^#(submission|submissions|smtps)[[:space:]]/ { sub(/^#/, ""); in_block = 1; print; next }
 		in_block && /^#[[:space:]]/       { sub(/^#/, ""); print; next }
 		{ in_block = 0; print }
 	' "$_master_cf" > "$_master_cf.tmp" && mv "$_master_cf.tmp" "$_master_cf"
@@ -186,10 +186,10 @@ configure_postfix_master_cf()
 	else
 		tell_status "installing $_master_cf"
 		stage_exec install -m 0644 /usr/local/etc/postfix/master.cf /data/etc/master.cf
-	fi
 
-	if [ "$TOASTER_MSA" = "postfix" ]; then
-		enable_postfix_submission "$_master_cf"
+		if [ "$TOASTER_MSA" = "postfix" ]; then
+			enable_postfix_submission "$_master_cf"
+		fi
 	fi
 }
 
