@@ -83,7 +83,7 @@ configure_dmarc()
 		email = "$TOASTER_ADMIN_EMAIL";
 		# uncomment this when the reports are working
 		override_address = "$TOASTER_ADMIN_EMAIL";
-		smtp = "$(get_jail_ip haraka)";
+		smtp = "$(get_jail_ip "$TOASTER_MTA")";
 	}
 EO_DMARC
 }

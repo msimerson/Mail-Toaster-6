@@ -114,7 +114,7 @@ EO_MAILER_CONF
 	tell_status "configuring dma"
 	echo "editing $_base/etc/dma/dma.conf"
 	tee "$_base/etc/dma/dma.conf" <<EO_DMA_CONF
-SMARTHOST vpopmail
+SMARTHOST $TOASTER_MSA
 MAILNAME $TOASTER_HOSTNAME
 NULLCLIENT
 EO_DMA_CONF
