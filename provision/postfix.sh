@@ -80,6 +80,8 @@ EO_TRUSTED_HOSTS
 configure_postfix_main_cf()
 {
 	local _main_cf="$ZFS_DATA_MNT/postfix/etc/main.cf"
+	export MAIL_CONFIG="/data/etc"  # postconf needs this
+
 	if [ -f "$_main_cf" ]; then
 		tell_status "preserving $_main_cf"
 		return
