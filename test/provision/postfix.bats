@@ -78,6 +78,8 @@ teardown() {
 
 @test "configure_postfix_master_cf enables submission when TOASTER_MSA=postfix" {
   export TOASTER_MSA="postfix"
+  mkdir -p "$STAGE_MNT/usr/local/etc/postfix"
+  mv "$MASTER_CF" "$STAGE_MNT/usr/local/etc/postfix"
   configure_postfix_master_cf
 
   run cat "$MASTER_CF"
@@ -87,6 +89,8 @@ teardown() {
 
 @test "configure_postfix_master_cf leaves submission disabled when TOASTER_MSA=haraka" {
   export TOASTER_MSA="haraka"
+  mkdir -p "$STAGE_MNT/usr/local/etc/postfix"
+  mv "$MASTER_CF" "$STAGE_MNT/usr/local/etc/postfix"
   configure_postfix_master_cf
 
   run cat "$MASTER_CF"
