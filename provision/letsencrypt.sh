@@ -270,6 +270,86 @@ haraka_deploy() {
 EO_LE_HARAKA
 }
 
+install_deploy_postfix()
+{
+	tee "$_deploy/postfix" <<EO_LE_POSTFIX
+#!/bin/sh
+
+assure_file() {
+
+	if [ ! -s "\$1" ]; then
+		_err "File doesn't exist: \$1"
+		return 1
+	fi
+
+	_debug "file exists: \$1"
+	return 0
+}
+
+has_differences() {
+
+	if [ ! -f "\$2" ]; then
+		_debug "non-existent, deploying: \$2"
+		return 0
+	fi
+
+	if diff -q "\$1" "\$2"; then
+		_debug "file contents identical, skip deploy of \$2"
+		return 1
+	fi
+
+	_debug "file has changes, deploying"
+	return 0
+}
+
+install_file() {
+	cp "\$1" "\$2" || return 1
+
+	if [ ! -s "\$2" ]; then
+		_err "install to \$2 failed"
+		return 1
+	fi
+
+	_debug "installed as \$2"
+	return 0
+}
+
+#returns 0 means success, otherwise error.
+
+#domain keyfile certfile cafile fullchain
+postfix_deploy() {
+	_cdomain="\$1"
+	_ckey="\$2"
+	_ccert="\$3"
+	_cca="\$4"
+	_cfullchain="\$5"
+
+	[ "\$_cdomain" = "$TOASTER_HOSTNAME" ] || return 0
+
+	assure_file "\$_ccert" || return 2
+
+	_ssl_dir="/data/postfix/etc/tls"
+	if [ ! -d "\$_ssl_dir" ]; then
+		_debug "missing TLS/SSL dir: \$_ssl_dir"
+		return 0
+	fi
+
+	assure_file "\$_cfullchain" || return 1;
+
+	local _crt_installed="\$_ssl_dir/certs/\${_cdomain}.pem"
+	local _key_installed="\$_ssl_dir/private/\${_cdomain}.pem"
+
+	has_differences "\$_cfullchain" "\$_crt_installed" || return 0
+	install_file "\$_cfullchain" "\$_crt_installed" || return 1
+	install_file "\$_ckey" "\$_key_installed" || return 1
+
+	_debug "restarting postfix"
+	jexec postfix service postfix restart
+	return 0
+}
+EO_LE_POSTFIX
+}
+
 install_deploy_mysql()
 {
 	store_config "$_deploy/mysql" <<'EO_LE_MYSQL'
@@ -369,7 +449,7 @@ mailtoaster_deploy() {
 	_cca="$4"
 	_cfullchain="$5"
 
-	for _target in haraka haproxy dovecot webmail
+	for _target in "$TOASTER_MSA" haproxy dovecot webmail
 	do
 		echo "deploying $_target"
                . "/root/.acme.sh/deploy/$_target"
@@ -464,7 +544,7 @@ install_deploy_scripts()
 
 	install_deploy_haproxy
 	install_deploy_dovecot
-	install_deploy_haraka
+	install_deploy_$TOASTER_MSA
 	install_deploy_mailtoaster
 	install_deploy_mysql
 	install_deploy_webmail
