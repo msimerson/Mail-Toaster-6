@@ -12,6 +12,11 @@ _dkim_private_key="$ZFS_DATA_MNT/postfix/dkim/$TOASTER_MAIL_DOMAIN.private"
 
 install_postfix()
 {
+	tell_status "Redirecting /var/spool/postfix to /data/spool"
+	stage_exec mkdir -p -m 0755 /data/spool
+	stage_exec chown root:wheel /data/spool
+	stage_exec ln -s /data/spool /var/spool/postfix
+
 	tell_status "installing postfix"
 	stage_pkg_install postfix-sasl opendkim
 	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
