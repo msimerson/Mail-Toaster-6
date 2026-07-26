@@ -82,10 +82,41 @@ EO_TRUSTED_HOSTS
 	fi
 }
 
+configure_tls_certs()
+{
+	local _ssldir="$ZFS_DATA_MNT/postfix/etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$ZFS_DATA_MNT/postfix/etc/ssl" ]; then
+		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
+		mv "$ZFS_DATA_MNT/postfix/etc/ssl" "$_ssldir"
+	fi
+
+	# shellcheck disable=SC2174
+	[ -d "$_ssldir/certs" ] || mkdir -p -m 0644 "$_ssldir/certs"
+	# shellcheck disable=SC2174
+	[ ! -d "$_ssldir/private" ] || mkdir -p -m 0644 "$_ssldir/private"
+
+	local _installed="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	if [ -f "$_installed" ]; then
+		tell_status "postfix TLS certificates already installed"
+		return
+	fi
+
+	tell_status "installing postfix TLS certificates"
+	cp /etc/ssl/certs/server.crt "$_installed"
+	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
+}
+
 configure_postfix_main_cf()
 {
 	local _main_cf="$ZFS_DATA_MNT/postfix/etc/main.cf"
+	local _ssldir="/data/etc/tls"
 	export MAIL_CONFIG="/data/etc"  # postconf needs this
+
+	if grep -qs "/data/etc/ssl" "$_main_cf"; then
+		tell_status "Upgrading /data/etc/ssl to $_ssldir in main.cf"
+		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem"
+		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_MAIL_DOMAIN.pem"
+	fi
 
 	if [ -f "$_main_cf" ]; then
 		tell_status "preserving $_main_cf"
@@ -99,6 +130,11 @@ configure_postfix_main_cf()
 		stage_exec postconf -e "myorigin = $TOASTER_MAIL_DOMAIN"
 	else
 		stage_exec postconf -e "myhostname = postfix.$TOASTER_HOSTNAME"
+	fi
+
+	if [ "$TOASTER_MSA" = postfix ]; then
+		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem"
+		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_MAIL_DOMAIN.pem"
 	fi
 
 	stage_exec postconf -e 'smtp_tls_security_level = may'
@@ -179,6 +215,8 @@ configure_postfix()
 		stage_sysrc nrpe_enable=YES
 		stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 	fi
+
+	[ "$TOASTER_MSA" != postfix ] || configure_tls_certs
 
 	configure_opendkim
 
