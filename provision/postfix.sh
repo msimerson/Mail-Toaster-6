@@ -185,7 +185,7 @@ configure_postfix_master_cf()
 		tell_status "preserving $_master_cf"
 	else
 		tell_status "installing $_master_cf"
-		stage_exec install -m 0644 /usr/local/etc/postfix/master.cf /data/etc/master.cf
+		install -m 0644 "$STAGE_MNT/usr/local/etc/postfix/master.cf" "$_master_cf"
 
 		if [ "$TOASTER_MSA" = "postfix" ]; then
 			enable_postfix_submission "$_master_cf"
