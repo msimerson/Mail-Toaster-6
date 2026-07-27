@@ -209,7 +209,7 @@ jail_rename()
 	done
 
 	sed_inplace \
-		-e "/^$1\s/ s/$1/$2/" \
+		-e "/^$1[[:space:]]/ s/$1/$2/" \
 		/etc/jail.conf || exit 1
 
 	service jail start "$2"
