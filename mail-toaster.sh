@@ -450,16 +450,6 @@ stage_test_running()
 	echo "ok"
 }
 
-unmount_pkg_cache()
-{
-	if ! mount -t nullfs | grep -q "$STAGE_MNT/var/cache/pkg"; then
-		return
-	fi
-
-	echo "unmount $STAGE_MNT/var/cache/pkg"
-	umount "$STAGE_MNT/var/cache/pkg" || exit
-}
-
 freebsd_release_url_base()
 {
 	if [ "$(freebsd_major)" -lt "13" ]; then
