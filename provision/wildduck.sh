@@ -5,6 +5,12 @@ set -e
 
 . mail-toaster.sh
 
+config <<EO_DEFAULT_CONFIG
+export WILDDUCK_HOSTNAME="${WILDDUCK_HOSTNAME:-"\$TOASTER_HOSTNAME"}"
+export WILDDUCK_MAIL_DOMAIN="${WILDDUCK_MAIL_DOMAIN:-"\$TOASTER_MAIL_DOMAIN"}"
+export WILDDUCK_MONGO_DSN="${WILDDUCK_MONGO_DSN:-}"
+EO_DEFAULT_CONFIG
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -581,6 +587,7 @@ test_zonemta()
 	echo "it worked"
 }
 
+tell_settings WILDDUCK
 base_snapshot_exists
 preflight_check
 create_staged_fs wildduck

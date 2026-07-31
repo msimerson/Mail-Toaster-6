@@ -4,6 +4,10 @@ set -e
 
 . mail-toaster.sh
 
+config rspamd <<EO_DEFAULT_CONFIG
+export VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY:-}"
+EO_DEFAULT_CONFIG
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""

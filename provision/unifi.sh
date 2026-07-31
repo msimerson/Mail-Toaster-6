@@ -4,6 +4,10 @@ set -e
 
 . mail-toaster.sh
 
+config unifi <<EO_DEFAULT_CONFIG
+export UNIFI_MONGODB_DSN="${UNIFI_MONGODB_DSN:-"mongodb://ubnt:$(get_random_pass)@mongodb:27017/unifi"}"
+EO_DEFAULT_CONFIG
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="fdescfs	$ZFS_JAIL_MNT/unifi/dev/fd	fdescfs	rw	0	0
@@ -107,6 +111,7 @@ test_unifi()
 	sleep 1
 }
 
+tell_settings UNIFI
 base_snapshot_exists || exit
 create_staged_fs unifi
 create_unifi_mountpoints

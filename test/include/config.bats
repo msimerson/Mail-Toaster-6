@@ -131,14 +131,14 @@ setup() {
 @test "_add_config_hint - appends hint when missing" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export TOASTER_HOSTNAME="test"\n' > "$_tmpdir/mail-toaster.conf"
-  (cd "$_tmpdir" && _add_config_hint)
+  _add_config_hint "$_tmpdir/mail-toaster.conf"
   grep -q "grep ^export ./include/config.sh" "$_tmpdir/mail-toaster.conf"
 }
 
 @test "_add_config_hint - does not duplicate existing hint" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf '# grep ^export ./include/config.sh\n' > "$_tmpdir/mail-toaster.conf"
-  (cd "$_tmpdir" && _add_config_hint)
+  _add_config_hint "$_tmpdir/mail-toaster.conf"
   local _count; _count=$(grep -c "grep.*config.sh" "$_tmpdir/mail-toaster.conf")
   assert_equal "$_count" "1"
 }
@@ -146,7 +146,7 @@ setup() {
 @test "_fix_jail_ordered_list - no-op when JAIL_ORDERED_LIST absent" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export TOASTER_HOSTNAME="test"\n' > "$_tmpdir/mail-toaster.conf"
-  (cd "$_tmpdir" && _fix_jail_ordered_list)
+  _fix_jail_ordered_list "$_tmpdir/mail-toaster.conf"
   run grep "JAIL_ORDERED_LIST" "$_tmpdir/mail-toaster.conf"
   assert_failure
 }
@@ -154,7 +154,7 @@ setup() {
 @test "_fix_jail_ordered_list - no-op when already starts with syslog base" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export JAIL_ORDERED_LIST="syslog base dns mysql"\n' > "$_tmpdir/mail-toaster.conf"
-  (cd "$_tmpdir" && _fix_jail_ordered_list)
+  _fix_jail_ordered_list "$_tmpdir/mail-toaster.conf"
   run grep "^export JAIL_ORDERED_LIST=" "$_tmpdir/mail-toaster.conf"
   assert_output 'export JAIL_ORDERED_LIST="syslog base dns mysql"'
 }
@@ -162,7 +162,42 @@ setup() {
 @test "_fix_jail_ordered_list - moves syslog and base to front" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export JAIL_ORDERED_LIST="dns mysql syslog base clamav"\n' > "$_tmpdir/mail-toaster.conf"
-  (cd "$_tmpdir" && _fix_jail_ordered_list)
+  _fix_jail_ordered_list "$_tmpdir/mail-toaster.conf"
   run grep "^export JAIL_ORDERED_LIST=" "$_tmpdir/mail-toaster.conf"
   assert_output 'export JAIL_ORDERED_LIST="syslog base dns mysql clamav"'
+}
+
+@test "_migrate_config_to_conf_d - moves mail-toaster.conf to conf.d/" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="dns mysql syslog base clamav"\n' > "$_tmpdir/mail-toaster.conf"
+  cd "$_tmpdir"
+  run _migrate_config_to_conf_d "conf.d/mail-toaster.conf"
+  # shellcheck disable=SC2103
+  cd -
+  assert_success
+  run test -e "$_tmpdir/mail-toaster.conf"
+  assert_failure
+  run grep "^export JAIL_ORDERED_LIST=" "$_tmpdir/conf.d/mail-toaster.conf"
+  assert_output 'export JAIL_ORDERED_LIST="dns mysql syslog base clamav"'
+}
+
+@test "_migrate_config_to_conf_d - returns 1 when there's nothing to migrate" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  cd "$_tmpdir"
+  run _migrate_config_to_conf_d "conf.d/mail-toaster.conf"
+  # shellcheck disable=SC2103
+  cd -
+  assert_failure
+}
+
+@test "create_default_config - creates default config where it's told to" {
+  uname() { echo "Linux"; }
+  get_random_ip6net() { echo "fd7a:e5cd:1fc1:dead:beef:cafe:1"; }
+  store_config() { cat > "$1"; }
+
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  run create_default_config "$_tmpdir/mail-toaster.conf"
+  assert_success
+  run grep '^export TOASTER_ORG_NAME=\"Sparky' "$_tmpdir/mail-toaster.conf"
+  assert_success
 }

@@ -4,6 +4,10 @@ set -e
 
 . mail-toaster.sh
 
+config geoip <<EO_DEFAULT_CONFIG
+export GEOIP_UPDATER="${GEOIP_UPDATER:-geoipupdate}"
+EO_DEFAULT_CONFIG
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -151,6 +155,7 @@ migrate_geoip_dbs()
 	done
 }
 
+tell_settings GEOIP
 preflight_check
 base_snapshot_exists || exit 1
 migrate_geoip_dbs

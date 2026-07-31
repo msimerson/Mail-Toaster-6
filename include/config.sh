@@ -46,14 +46,8 @@ mt6_defaults()
 	export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
 	export TOASTER_QMHANDLE=${TOASTER_QMHANDLE:-"0"}
 	export TOASTER_WEBMAIL_PROXY=${TOASTER_WEBMAIL_PROXY:-"haproxy"}
-	export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:-"0"}
-	export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:-"0"}
 	export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:-"$TOASTER_MYSQL"}
-	export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:-"Roundcube Webmail"}
-	export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:-"25"}
 	export SQUIRREL_SQL=${SQUIRREL_SQL:-"$TOASTER_MYSQL"}
-	export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:-"$TOASTER_MAIL_DOMAIN"}
-	export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:-"$TOASTER_HOSTNAME"}
 
 	# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
 	export PUBLIC_IP4=${PUBLIC_IP4:-""}
@@ -104,8 +98,8 @@ create_default_config()
 	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
-	echo "creating mail-toaster.conf with defaults"
-	store_config mail-toaster.conf <<EO_MT_CONF
+	echo "creating $1 with defaults"
+	store_config "$1" <<EO_MT_CONF
 export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
@@ -142,67 +136,77 @@ export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
 export TOASTER_WEBMAIL_PROXY="haproxy"
-export CLAMAV_FANGFRISCH="0"
-export GEOIP_UPDATER="geoipupdate"
 export MAXMIND_ACCOUNT_ID=""
 export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
-export ROUNDCUBE_DEFAULT_HOST=""
-export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
-export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export TOASTER_HARAKA_VERSION=""
-export UNIFI_MONGODB_DSN="mongodb://ubnt:$(get_random_pass)@mongodb:27017/unifi"
-export VIRUSTOTAL_API_KEY=""
 
 EO_MT_CONF
 
-	chmod 600 mail-toaster.conf
+	chmod 600 "$1"
 }
 
 _add_config_hint()
 {
-	if grep -q "grep.*config.sh" mail-toaster.conf; then
+	if grep -q "grep.*config.sh" "$1"; then
 		return
 	fi
 	printf '\n# To see all available settings and their defaults:\n# grep ^export ./include/config.sh\n' \
-		>> mail-toaster.conf
+		>> "$1"
 }
 
 _fix_jail_ordered_list()
 {
-	if ! grep -q "^export JAIL_ORDERED_LIST=" mail-toaster.conf; then
+	if ! grep -q "^export JAIL_ORDERED_LIST=" "$1"; then
 		return
 	fi
 	local _current
-	_current=$(grep "^export JAIL_ORDERED_LIST=" mail-toaster.conf \
+	_current=$(grep "^export JAIL_ORDERED_LIST=" "$1" \
 		| sed 's/^export JAIL_ORDERED_LIST="\(.*\)"$/\1/')
 	case "$_current" in
 		"syslog base "*) return ;;
 	esac
-	echo "fixing JAIL_ORDERED_LIST prefix in mail-toaster.conf"
+	echo "fixing JAIL_ORDERED_LIST prefix in $1"
 	local _rest
 	_rest=$(printf '%s' "$_current" | tr ' ' '\n' \
 		| grep -v -E '^(syslog|base)$' | tr '\n' ' ' | sed 's/ $//')
-	sed -i.bak "s|^export JAIL_ORDERED_LIST=.*|export JAIL_ORDERED_LIST=\"syslog base ${_rest}\"|" mail-toaster.conf
-	rm -f mail-toaster.conf.bak
+	sed -i.bak "s|^export JAIL_ORDERED_LIST=.*|export JAIL_ORDERED_LIST=\"syslog base ${_rest}\"|" "$1"
+	rm -f "$1.bak"
+}
+
+_migrate_config_to_conf_d()
+{
+	[ -f "mail-toaster.conf" ] || return 1
+	echo "Moving mail-toaster.conf to $1"
+	[ -d "$(dirname "$1")" ] || mkdir "$(dirname "$1")"
+	mv mail-toaster.conf "$1" || exit 1
 }
 
 config()
 {
-	if [ ! -f "mail-toaster.conf" ]; then
-		create_default_config
+	local _conf="conf.d/mail-toaster.conf"
+	[ -z "${1:-}" ] || _conf="conf.d/$1.conf"
+
+	if [ ! -f "$_conf" ]; then
+		if [ -z "${1:-}" ]; then
+			_migrate_config_to_conf_d "$_conf" || create_default_config "$_conf"
+		else
+			store_config "$_conf"
+		fi
 	fi
 
-	local _mode; _mode=$(stat -f "%OLp" mail-toaster.conf)
+	local _mode; _mode=$(stat -f "%OLp" "$_conf")
 	if [ "$_mode" -ne 600 ]; then
-		echo "tightening permissions on mail-toaster.conf"
-		chmod 600 mail-toaster.conf
+		echo "tightening permissions on $_conf"
+		chmod 600 "$_conf"
 	fi
 
-	_add_config_hint
-	_fix_jail_ordered_list
+	if [ -z "${1:-}" ]; then
+		_add_config_hint "$_conf"
+		_fix_jail_ordered_list "$_conf"
+	fi
 
-	echo "loading mail-toaster.conf"
-	# shellcheck disable=SC1091,SC2039
-	. mail-toaster.conf
+	echo "loading $_conf"
+	# shellcheck disable=SC1090
+	. "$_conf"
 }
