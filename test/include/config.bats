@@ -211,7 +211,7 @@ _config_in() {
   printf 'export TOASTER_HOSTNAME="test"\n' > "$_tmpdir/mail-toaster.conf"
   chmod 644 "$_tmpdir/mail-toaster.conf"
   _tighten_config_perms "$_tmpdir/mail-toaster.conf"
-  run stat -f "%OLp" "$_tmpdir/mail-toaster.conf"
+  run _file_mode "$_tmpdir/mail-toaster.conf"
   assert_output "600"
 }
 
@@ -282,6 +282,6 @@ _config_in() {
   printf 'export VIRUSTOTAL_API_KEY="secret"\n' > "$MT6_CONF_DIR/rspamd.conf"
   chmod 644 "$MT6_CONF_DIR/rspamd.conf"
   service_config rspamd
-  run stat -f "%OLp" "$MT6_CONF_DIR/rspamd.conf"
+  run _file_mode "$MT6_CONF_DIR/rspamd.conf"
   assert_output "600"
 }
