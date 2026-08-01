@@ -585,6 +585,7 @@ test_zonemta()
 	echo "it worked"
 }
 
+tell_settings WILDDUCK
 base_snapshot_exists
 preflight_check
 create_staged_fs wildduck

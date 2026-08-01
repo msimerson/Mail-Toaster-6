@@ -317,7 +317,15 @@ start_staged_jail()
 tell_settings()
 {
 	echo; echo "   ***   Configured $1 settings:   ***"; echo
-	set | grep "^$1_"
+
+	# Admins are asked to paste provisioning output into issue reports, so show
+	# that a credential is set without showing it. An empty value prints bare,
+	# which is what you want to see when a setting is missing. The || guards a
+	# prefix with no settings at all, which would otherwise end a set -e script.
+	set | grep "^$1_" \
+		| sed -E 's/(KEY|PASS|PASSWD|PASSWORD|SECRET|TOKEN|DSN)=.+/\1=[redacted]/' \
+		|| true
+
 	echo
 	if [ -t 0 ] && [ "$MT6_TEST_ENV" != "1" ]; then sleep 2; fi
 }

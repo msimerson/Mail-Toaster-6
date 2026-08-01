@@ -304,6 +304,7 @@ test_rspamd()
 	echo "it worked"
 }
 
+tell_settings VIRUSTOTAL
 base_snapshot_exists || exit 1
 create_staged_fs rspamd
 start_staged_jail rspamd

@@ -28,12 +28,45 @@ setup() {
   assert_output --partial "toe tac tic"
 }
 
-@test "tell_settings" {
-  skip
-  run tell_settings "ROUNDCUBE"
+@test "tell_settings - prints the settings for a prefix" {
+  export CLAMAV_UNOFFICIAL="1"
+  run tell_settings "CLAMAV"
   assert_success
-  assert_output --partial "
-   ***   Configured ROUNDCUBE settings:"
+  assert_output --partial "Configured CLAMAV settings:"
+  assert_output --partial "CLAMAV_UNOFFICIAL=1"
+}
+
+# Admins are asked to paste provisioning output into issue reports.
+@test "tell_settings - redacts credentials" {
+  export TSEC_MONGODB_DSN="mongodb://ubnt:sup3rs3cret@mongodb:27017/unifi"
+  export TSEC_LICENSE_KEY="abc123XYZ"
+  run tell_settings "TSEC"
+  assert_success
+  refute_output --partial "sup3rs3cret"
+  refute_output --partial "abc123XYZ"
+  assert_output --partial "TSEC_MONGODB_DSN=[redacted]"
+  assert_output --partial "TSEC_LICENSE_KEY=[redacted]"
+}
+
+@test "tell_settings - an unset credential stays visibly empty" {
+  export TSEC_LICENSE_KEY=""
+  run tell_settings "TSEC"
+  assert_success
+  assert_output --partial "TSEC_LICENSE_KEY="
+  refute_output --partial "TSEC_LICENSE_KEY=[redacted]"
+}
+
+@test "tell_settings - a name ending in _FILE is not a credential" {
+  export TSEC_KEY_FILE="/etc/ssl/key.pem"
+  run tell_settings "TSEC"
+  assert_success
+  assert_output --partial "TSEC_KEY_FILE=/etc/ssl/key.pem"
+}
+
+# grep exits 1 on no match, which would end a provision script's set -e.
+@test "tell_settings - succeeds when the prefix has no settings" {
+  run tell_settings "NOSUCHPREFIX"
+  assert_success
 }
 
 @test "tell_status" {

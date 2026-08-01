@@ -12,6 +12,8 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - config: move jail-private defaults into their provision script
 - spamassassin: drop redundant MAXMIND_LICENSE_KEY check, RELAY_COUNTRY always builds
 - geoip: MAXMIND_* settings move to conf.d/geoip.conf
+- mt: tell_settings redacts credentials, tolerates an unused prefix
+- clamav, geoip, rspamd, unifi, wildduck: report settings before provisioning
 
 ## 2026-07
 

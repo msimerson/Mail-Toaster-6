@@ -156,6 +156,8 @@ migrate_geoip_dbs()
 	done
 }
 
+tell_settings GEOIP
+tell_settings MAXMIND
 preflight_check
 base_snapshot_exists || exit 1
 migrate_geoip_dbs

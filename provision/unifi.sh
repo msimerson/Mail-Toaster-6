@@ -109,6 +109,7 @@ test_unifi()
 	sleep 1
 }
 
+tell_settings UNIFI
 base_snapshot_exists || exit
 create_staged_fs unifi
 create_unifi_mountpoints
