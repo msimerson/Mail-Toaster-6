@@ -66,9 +66,8 @@ store_config()
 		tell_status "preserving $1"
 	fi
 
-	# The shadow duplicates $1 verbatim, secrets included, and nothing but a
-	# human diffing the two ever reads it. Tighten it only after the copy above,
-	# which takes its mode from the shadow.
+	# The shadow duplicates $1 verbatim, secrets included, tighten it after
+	# the copy above, which takes its mode from the shadow.
 	chmod 600 "$_shadow"
 }
 
