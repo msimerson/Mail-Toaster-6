@@ -20,10 +20,20 @@ smtp      inet  n       -       n       -       -       smtpd
 #  -o syslog_name=postfix/submission
 #  -o smtpd_tls_security_level=encrypt
 #  -o smtpd_sasl_auth_enable=yes
+#     Instead of specifying complex smtpd_<xxx>_restrictions here,
+#     specify "smtpd_<xxx>_restrictions=$mua_<xxx>_restrictions"
+#     here, and specify mua_<xxx>_restrictions in main.cf (where
+#     "<xxx>" is "client", "helo", "sender", "relay", or "recipient").
+#  -o smtpd_client_restrictions=
 #smtps     inet  n       -       n       -       -       smtpd
 #  -o syslog_name=postfix/smtps
 #  -o smtpd_tls_wrappermode=yes
 #  -o smtpd_sasl_auth_enable=yes
+#     Instead of specifying complex smtpd_<xxx>_restrictions here,
+#     specify "smtpd_<xxx>_restrictions=$mua_<xxx>_restrictions"
+#     here, and specify mua_<xxx>_restrictions in main.cf (where
+#     "<xxx>" is "client", "helo", "sender", "relay", or "recipient").
+#  -o smtpd_client_restrictions=
 pickup    unix  n       -       n       60      1       pickup
 EOF
 
@@ -66,6 +76,14 @@ teardown() {
   assert_line "#smtp      inet  n       -       n       -       1       postscreen"
   assert_line "smtp      inet  n       -       n       -       -       smtpd"
   assert_line "pickup    unix  n       -       n       60      1       pickup"
+}
+
+@test "enable_postfix_submission leaves non-option text commented" {
+  enable_postfix_submission "$MASTER_CF"
+
+  run cat "$MASTER_CF"
+  assert_success
+  assert_line "#     Instead of specifying complex smtpd_<xxx>_restrictions here,"
 }
 
 @test "enable_postfix_submission is idempotent" {
