@@ -12,7 +12,7 @@ tell_status()
 mt6_config_hint()
 {
 	if [ -n "$1" ]; then echo; echo "ERROR: invalid $1"; echo; fi
-	echo; echo "Next step, edit mail-toaster.conf!"; echo
+	echo; echo "Next step, edit ${MT6_CONF:-conf.d/mail-toaster.conf}!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 }
 
@@ -112,7 +112,7 @@ mt6_init()
 
 	if [ -z "$JAIL_NET6" ]; then
 		JAIL_NET6=$(get_random_ip6net)
-		echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
+		echo "export JAIL_NET6=\"$JAIL_NET6\"" >> "$MT6_CONF"
 		export JAIL_NET6
 	fi
 

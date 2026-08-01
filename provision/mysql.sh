@@ -40,12 +40,13 @@ install_mariadb()
 
 write_pass_to_conf()
 {
-	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
+	if grep -sq TOASTER_MYSQL_PASS "$MT6_CONF"; then
 		sed_inplace \
 			-e "/^export TOASTER_MYSQL_PASS=/ s|=\"\"|=\"$TOASTER_MYSQL_PASS\"|" \
-			mail-toaster.conf
+			"$MT6_CONF"
 	else
-		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
+		mkdir -p "$(dirname "$MT6_CONF")"
+		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> "$MT6_CONF"
 	fi
 
 	preserve_file mysql /root/.my.cnf
@@ -82,7 +83,7 @@ configure_mysql_keys()
 configure_mysql_root_password()
 {
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
-		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf"
+		tell_status "TOASTER_MYSQL_PASS unset in $MT6_CONF"
 
 		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
 		if [ -f "$_my_cnf" ] && [ -r "$_my_cnf" ]; then

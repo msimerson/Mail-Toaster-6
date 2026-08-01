@@ -34,6 +34,8 @@ export JAIL_NET6=${JAIL_NET6:-"fd7a:e5cd:1fc1:c597:dead:beef:cafe"}
 export PUBLIC_IP4=""
 export PUBLIC_IP6=""
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:-"0"}
+export MT6_CONF_DIR=${MT6_CONF_DIR:-"conf.d"}
+export MT6_CONF=${MT6_CONF:-"$MT6_CONF_DIR/mail-toaster.conf"}
 
 # Logging / status
 tell_status()    { :; }
@@ -41,6 +43,7 @@ fatal_err()      { echo "FATAL: $*" >&2; }
 err_exit()       { echo "ERR: $*" >&2; }
 proclaim_success() { :; }
 tell_settings()  { :; }
+service_config() { :; }
 
 # Versioning
 mt6_version()    { echo "20260403"; }
