@@ -46,6 +46,16 @@ store_config()
 	local _operation=${2:-""}
 	local _shadow="$1.mt6"
 
+	# "update" reinstalls over a config that still matches what we generated
+	# last run, so an untouched file picks up template changes while an edited
+	# one is left alone. Answer this before the shadow is replaced below, or the
+	# question becomes "does it match what we are about to write", which is a
+	# different and far less useful one.
+	local _pristine=""
+	if [ -f "$1" ] && [ -f "$_shadow" ] && cmp -s "$1" "$_shadow"; then
+		_pristine=1
+	fi
+
 	if [ ! -d "$(dirname "$1")" ]; then
 		tell_status "creating $(dirname "$1")"
 		mkdir -p "$(dirname "$1")"
@@ -61,7 +71,12 @@ store_config()
 		tell_status "installing $1"
 		cp "$_shadow" "$1"
 	elif [ "$_operation" = "append" ]; then
+		# an appended file is our content plus something else, so it never looks
+		# pristine. Excluded deliberately rather than by falling through.
 		cat "$_shadow" >> "$1"
+	elif [ "$_operation" = "update" ] && [ -n "$_pristine" ]; then
+		tell_status "updating unmodified $1"
+		cp "$_shadow" "$1"
 	else
 		tell_status "preserving $1"
 	fi

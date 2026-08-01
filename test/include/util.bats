@@ -143,6 +143,106 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+@test "store_config - update replaces a file matching the previous shadow" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"          # installs v1, shadow = v1
+  echo "v2" | store_config "$tmpfile" "update" # untouched since, so take v2
+
+  run cat "$tmpfile"
+  assert_output "v2"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - update preserves a file the admin edited" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  echo "hand edited" > "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "update"
+
+  run cat "$tmpfile"
+  assert_output "hand edited"
+
+  rm -rf "$tmpdir"
+}
+
+# An edit that is later reverted is not a customization worth keeping.
+@test "store_config - update resumes after an edit is reverted" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  echo "hand edited" > "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "update"   # preserved
+  run cat "$tmpfile"
+  assert_output "hand edited"
+
+  echo "v2" > "$tmpfile"                          # admin reverts to our version
+  echo "v3" | store_config "$tmpfile" "update"
+  run cat "$tmpfile"
+  assert_output "v3"
+
+  rm -rf "$tmpdir"
+}
+
+# A pre-existing file with no shadow predates us; we have no idea if it is ours.
+@test "store_config - update preserves a file with no shadow" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "someone elses" > "$tmpfile"
+  echo "v1" | store_config "$tmpfile" "update"
+
+  run cat "$tmpfile"
+  assert_output "someone elses"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - update installs when the file is absent" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile" "update"
+
+  run cat "$tmpfile"
+  assert_output "v1"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - update keeps the mode the admin set" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  chmod 640 "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "update"
+
+  run _file_mode "$tmpfile"
+  assert_output "640"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - append never updates in place" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "first" | store_config "$tmpfile"
+  echo "second" | store_config "$tmpfile" "append"
+
+  run cat "$tmpfile"
+  assert_line --index 0 "first"
+  assert_line --index 1 "second"
+
+  rm -rf "$tmpdir"
+}
+
 @test "store_config - creates parent directories" {
   local tmpdir; tmpdir=$(mktemp -d)
   local tmpfile="$tmpdir/nested/dir/file"

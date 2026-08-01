@@ -12,6 +12,12 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - config: move jail-private defaults into their provision script
 - spamassassin: drop redundant MAXMIND_LICENSE_KEY check, RELAY_COUNTRY always builds
 - geoip: MAXMIND_* settings move to conf.d/geoip.conf
+- unifi: mint UNIFI_MONGODB_DSN once into conf.d/unifi.conf, when mongodb runs
+- network: get_public_ip4/6 no longer overwrite a configured PUBLIC_IP4/6
+- haraka: TOASTER_HARAKA_VERSION moves to conf.d/haraka.conf
+- dns: install_access_conf finds its own public IP, omits the entry when absent
+- mt: store_config gains "update", reinstalls a config the admin has not edited
+- dns: forward, stub and control conf templates now update
 - mt: tell_settings redacts credentials, tolerates an unused prefix
 - clamav, geoip, rspamd, unifi, wildduck: report settings before provisioning
 

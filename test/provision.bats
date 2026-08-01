@@ -156,6 +156,70 @@ _no_start_required() {
   assert_output --partial "RELAY_COUNTRY"
 }
 
+# ---------------------------------------------------------------------------
+# store_config "update" reinstalls over an unedited config. That turns a bad
+# generation from harmless into destructive, so an update template must not
+# interpolate anything queried at runtime -- a failed lookup would clobber a
+# working config with a degraded one. Static values are fine; they cannot fail.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# A setting only one jail reads belongs in that jail's provision script, where
+# its default reaches installs whose conf.d file predates it. The generated
+# mail-toaster.conf is for settings that apply toaster-wide.
+# ---------------------------------------------------------------------------
+
+@test "the config template holds no setting that only one jail reads" {
+  local failed=0 _setting _readers _count
+  for _setting in $(awk '/store_config "\$1"/,/^EO_MT_CONF$/' include/config.sh \
+                     | sed -n 's/^export \([A-Z_][A-Z_0-9]*\)=.*/\1/p'); do
+    # config.sh is where the setting is declared, not a consumer. base.sh and
+    # host.sh configure the host rather than a jail, so a setting only they read
+    # is still toaster-wide.
+    _readers=$(grep -rlE "[\$][{]?${_setting}([^A-Z_0-9]|$)" \
+                 provision/*.sh include/*.sh mail-toaster.sh \
+               | grep -vE '^(include/config\.sh|provision/(base|host|bhyve-ubuntu)\.sh)$') || true
+    _count=$(printf '%s' "$_readers" | grep -c . || true)
+
+    if [ "$_count" -eq 1 ] && printf '%s' "$_readers" | grep -q '^provision/'; then
+      echo "JAIL-PRIVATE ($_readers), belongs in its provision script: $_setting" >&3
+      failed=$((failed + 1))
+    fi
+  done
+  [ "$failed" -eq 0 ]
+}
+
+_update_templates_with_runtime_values() {
+  awk '
+    /store_config .*"update".*<</ {
+      term = $0
+      sub(/^.*<<-?/, "", term)
+      gsub(/["'"'"' \t]/, "", term)
+      inblock = 1
+      next
+    }
+    inblock && $0 ~ "^[ \t]*"term"[ \t]*$" { inblock = 0; next }
+    inblock && (/\$\(/ || /\$PUBLIC_IP/) { print FILENAME ":" FNR ": " $0 }
+  ' "$@"
+}
+
+@test "store_config update templates interpolate no runtime-queried values" {
+  run _update_templates_with_runtime_values provision/*.sh include/*.sh
+  assert_success
+  assert_output ""
+}
+
+@test "the update-template guard actually detects a runtime value" {
+  local _probe="$BATS_TEST_TMPDIR/probe.sh"
+  cat > "$_probe" <<'EOF'
+store_config "$ZFS_DATA_MNT/x/bad.conf" "update" <<EO_BAD
+address: $(get_jail_ip dns)
+EO_BAD
+EOF
+  run _update_templates_with_runtime_values "$_probe"
+  assert_output --partial "get_jail_ip dns"
+}
+
 @test "dcc mounts dcc db in JAIL_FSTAB" {
   run grep "^export JAIL_FSTAB" provision/dcc.sh
   assert_output --partial "dcc"
