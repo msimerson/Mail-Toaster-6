@@ -12,7 +12,7 @@
 #   - STAGE_MNT/root/                         (write_pass_to_conf creates .my.cnf)
 #   - ZFS_DATA_MNT/mysql/db/{private,public}_key.pem  (dummy — skips openssl calls)
 #   - CWD set to BATS_FILE_TMPDIR             (write_pass_to_conf appends to
-#                                              mail-toaster.conf safely)
+#                                              $MT6_CONF safely)
 
 setup_file() {
   local _stage="$BATS_FILE_TMPDIR/stage"
@@ -20,7 +20,7 @@ setup_file() {
   local _fns="$BATS_FILE_TMPDIR/mysql_fns_only.sh"
 
   # Strip the execution block so setup() can source function definitions only.
-  awk '/^if \[.*TOASTER_MYSQL/{exit} {print}' \
+  awk '/^base_snapshot_exists/{exit} {print}' \
     "$BATS_TEST_DIRNAME/../../provision/mysql.sh" > "$_fns"
 
   export MT6_TEST_ENV=1
@@ -49,9 +49,10 @@ EOF
   touch "$_data/mysql/db/private_key.pem"
   touch "$_data/mysql/db/public_key.pem"
 
-  # Change to tmpdir so write_pass_to_conf writes mail-toaster.conf here
+  # Change to tmpdir so write_pass_to_conf writes $MT6_CONF here
   # instead of the repository root.
   cd "$BATS_FILE_TMPDIR" || exit 1
+  mkdir -p conf.d
 
   # Source the full provision script once (execution block runs here).
   # shellcheck source=/dev/null
@@ -154,6 +155,23 @@ teardown() {
 
 @test "mysql - configure rewrites datadir from /var/db/mysql to /data/db" {
   run grep "datadir" "$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+  assert_success
+  assert_output --partial "/data/db"
+  refute_output --partial "/var/db/mysql"
+}
+
+@test "mysql - configure rewrites MariaDB datadir in conf.d/server.cnf" {
+  export TOASTER_MARIADB="1"
+  mkdir -p "$STAGE_MNT/usr/local/etc/mysql/conf.d"
+  cat > "$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf" <<'EOF'
+[server]
+datadir                         = /var/db/mysql
+EOF
+  # data/etc/my.cnf must be absent so the rewrite branch runs.
+  rm -f "$STAGE_MNT/data/etc/my.cnf"
+  run configure_mysql
+  assert_success
+  run grep "datadir" "$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf"
   assert_success
   assert_output --partial "/data/db"
   refute_output --partial "/var/db/mysql"

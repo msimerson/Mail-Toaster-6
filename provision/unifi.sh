@@ -4,6 +4,8 @@ set -e
 
 . mail-toaster.sh
 
+service_config unifi
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="fdescfs	$ZFS_JAIL_MNT/unifi/dev/fd	fdescfs	rw	0	0
@@ -107,6 +109,7 @@ test_unifi()
 	sleep 1
 }
 
+tell_settings UNIFI
 base_snapshot_exists || exit
 create_staged_fs unifi
 create_unifi_mountpoints

@@ -12,7 +12,7 @@ tell_status()
 mt6_config_hint()
 {
 	if [ -n "$1" ]; then echo; echo "ERROR: invalid $1"; echo; fi
-	echo; echo "Next step, edit mail-toaster.conf!"; echo
+	echo; echo "Next step, edit ${MT6_CONF:-conf.d/mail-toaster.conf}!"; echo
 	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
 }
 
@@ -112,7 +112,7 @@ mt6_init()
 
 	if [ -z "$JAIL_NET6" ]; then
 		JAIL_NET6=$(get_random_ip6net)
-		echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
+		echo "export JAIL_NET6=\"$JAIL_NET6\"" >> "$MT6_CONF"
 		export JAIL_NET6
 	fi
 
@@ -317,7 +317,15 @@ start_staged_jail()
 tell_settings()
 {
 	echo; echo "   ***   Configured $1 settings:   ***"; echo
-	set | grep "^$1_"
+
+	# Admins are asked to paste provisioning output into issue reports, so show
+	# that a credential is set without showing it. An empty value prints bare,
+	# which is what you want to see when a setting is missing. The || guards a
+	# prefix with no settings at all, which would otherwise end a set -e script.
+	set | grep "^$1_" \
+		| sed -E 's/(KEY|PASS|PASSWD|PASSWORD|SECRET|TOKEN|DSN)=.+/\1=[redacted]/' \
+		|| true
+
 	echo
 	if [ -t 0 ] && [ "$MT6_TEST_ENV" != "1" ]; then sleep 2; fi
 }

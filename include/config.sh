@@ -46,14 +46,10 @@ mt6_defaults()
 	export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
 	export TOASTER_QMHANDLE=${TOASTER_QMHANDLE:-"0"}
 	export TOASTER_WEBMAIL_PROXY=${TOASTER_WEBMAIL_PROXY:-"haproxy"}
-	export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:-"0"}
-	export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:-"0"}
+	# Jail-private settings live in their provision script; these are read by
+	# more than one jail, so they stay here.
 	export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:-"$TOASTER_MYSQL"}
-	export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:-"Roundcube Webmail"}
-	export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:-"25"}
 	export SQUIRREL_SQL=${SQUIRREL_SQL:-"$TOASTER_MYSQL"}
-	export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:-"$TOASTER_MAIL_DOMAIN"}
-	export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:-"$TOASTER_HOSTNAME"}
 
 	# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
 	export PUBLIC_IP4=${PUBLIC_IP4:-""}
@@ -104,8 +100,8 @@ create_default_config()
 	if [ -z "$_EMAIL_DOMAIN" ]; then _EMAIL_DOMAIN=$(hostname); fi
 	if [ -z "$_ORGNAME"      ]; then _ORGNAME="Sparky the Toaster"; fi
 
-	echo "creating mail-toaster.conf with defaults"
-	store_config mail-toaster.conf <<EO_MT_CONF
+	echo "creating $1 with defaults"
+	store_config "$1" <<EO_MT_CONF
 export TOASTER_ORG_NAME="$_ORGNAME"
 export TOASTER_HOSTNAME="$_HOSTNAME"
 export TOASTER_MAIL_DOMAIN="$_EMAIL_DOMAIN"
@@ -142,67 +138,100 @@ export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
 export TOASTER_WEBMAIL_PROXY="haproxy"
-export CLAMAV_FANGFRISCH="0"
-export GEOIP_UPDATER="geoipupdate"
-export MAXMIND_ACCOUNT_ID=""
-export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
-export ROUNDCUBE_DEFAULT_HOST=""
-export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
-export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export TOASTER_HARAKA_VERSION=""
 export UNIFI_MONGODB_DSN="mongodb://ubnt:$(get_random_pass)@mongodb:27017/unifi"
-export VIRUSTOTAL_API_KEY=""
 
 EO_MT_CONF
 
-	chmod 600 mail-toaster.conf
+	chmod 600 "$1"
 }
 
 _add_config_hint()
 {
-	if grep -q "grep.*config.sh" mail-toaster.conf; then
+	if grep -q "grep.*config.sh" "$1"; then
 		return
 	fi
-	printf '\n# To see all available settings and their defaults:\n# grep ^export ./include/config.sh\n' \
-		>> mail-toaster.conf
+	printf '\n# To see all available settings and their defaults:\n# grep -rn "export [A-Z_]*=..[A-Z_]*:-" ./include/config.sh ./provision/\n' \
+		>> "$1"
 }
 
 _fix_jail_ordered_list()
 {
-	if ! grep -q "^export JAIL_ORDERED_LIST=" mail-toaster.conf; then
+	if ! grep -q "^export JAIL_ORDERED_LIST=" "$1"; then
 		return
 	fi
 	local _current
-	_current=$(grep "^export JAIL_ORDERED_LIST=" mail-toaster.conf \
+	_current=$(grep "^export JAIL_ORDERED_LIST=" "$1" \
 		| sed 's/^export JAIL_ORDERED_LIST="\(.*\)"$/\1/')
 	case "$_current" in
 		"syslog base "*) return ;;
 	esac
-	echo "fixing JAIL_ORDERED_LIST prefix in mail-toaster.conf"
+	echo "fixing JAIL_ORDERED_LIST prefix in $1"
 	local _rest
 	_rest=$(printf '%s' "$_current" | tr ' ' '\n' \
 		| grep -v -E '^(syslog|base)$' | tr '\n' ' ' | sed 's/ $//')
-	sed -i.bak "s|^export JAIL_ORDERED_LIST=.*|export JAIL_ORDERED_LIST=\"syslog base ${_rest}\"|" mail-toaster.conf
-	rm -f mail-toaster.conf.bak
+	sed -i.bak "s|^export JAIL_ORDERED_LIST=.*|export JAIL_ORDERED_LIST=\"syslog base ${_rest}\"|" "$1"
+	rm -f "$1.bak"
+}
+
+_migrate_config_to_conf_d()
+{
+	mkdir -p "$(dirname "$1")"
+	echo "moving mail-toaster.conf to $1"
+	mv mail-toaster.conf "$1"
+}
+
+_tighten_config_perms()
+{
+	# An unreadable mode compares unequal, so the chmod still runs. Absorb the
+	# failure too, or the assignment would abort a provision script's set -e.
+	local _mode; _mode=$(_file_mode "$1" 2>/dev/null) || _mode=""
+	if [ "$_mode" != "600" ]; then
+		echo "tightening permissions on $1"
+		chmod 600 "$1"
+	fi
+}
+
+# Per-jail overrides, sourced by provision scripts after mt6_defaults has run.
+# A setting present in the file wins; anything absent keeps the ${VAR:-default}
+# value from mt6_defaults, so new upstream settings still reach existing installs.
+service_config()
+{
+	if [ -z "${1:-}" ]; then
+		echo "service_config: a service name is required" >&2
+		return 1
+	fi
+
+	local _conf="$MT6_CONF_DIR/$1.conf"
+	if [ ! -f "$_conf" ]; then
+		return 0
+	fi
+
+	_tighten_config_perms "$_conf"
+	echo "loading $_conf"
+	# shellcheck disable=SC1090
+	. "$_conf"
 }
 
 config()
 {
-	if [ ! -f "mail-toaster.conf" ]; then
-		create_default_config
+	export MT6_CONF_DIR="conf.d"
+	export MT6_CONF="$MT6_CONF_DIR/mail-toaster.conf"
+
+	if [ ! -f "$MT6_CONF" ]; then
+		if [ -f "mail-toaster.conf" ]; then
+			_migrate_config_to_conf_d "$MT6_CONF"
+		else
+			create_default_config "$MT6_CONF"
+		fi
 	fi
 
-	local _mode; _mode=$(stat -f "%OLp" mail-toaster.conf)
-	if [ "$_mode" -ne 600 ]; then
-		echo "tightening permissions on mail-toaster.conf"
-		chmod 600 mail-toaster.conf
-	fi
+	_tighten_config_perms "$MT6_CONF"
+	_add_config_hint "$MT6_CONF"
+	_fix_jail_ordered_list "$MT6_CONF"
 
-	_add_config_hint
-	_fix_jail_ordered_list
-
-	echo "loading mail-toaster.conf"
-	# shellcheck disable=SC1091,SC2039
-	. mail-toaster.conf
+	echo "loading $MT6_CONF"
+	# shellcheck disable=SC1090,SC1091,SC2039
+	. "$MT6_CONF"
 }

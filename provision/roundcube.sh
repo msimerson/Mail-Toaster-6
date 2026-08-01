@@ -4,6 +4,11 @@ set -e
 
 . mail-toaster.sh
 
+service_config roundcube
+export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:-"25"}
+export ROUNDCUBE_DEFAULT_HOST=${ROUNDCUBE_DEFAULT_HOST:-""}
+export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:-"Roundcube Webmail"}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
