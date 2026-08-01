@@ -182,16 +182,6 @@ _migrate_config_to_conf_d()
 	mv mail-toaster.conf "$1"
 }
 
-# BSD and GNU stat disagree on both the flag and the format specifier. Toasters
-# run on FreeBSD; the test suite runs on Linux.
-_file_mode()
-{
-	case "$(uname)" in
-		Linux*) stat -c "%a" "$1" ;;
-		*)      stat -f "%OLp" "$1" ;;
-	esac
-}
-
 _tighten_config_perms()
 {
 	# An unreadable mode compares unequal, so the chmod still runs. Absorb the

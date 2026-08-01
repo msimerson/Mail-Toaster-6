@@ -3,6 +3,7 @@
 setup() {
   load '../test_helper/bats-support/load'
   load '../test_helper/bats-assert/load'
+  load '../../include/util.sh'   # config.sh calls _file_mode from here
   load '../../include/config.sh'
 }
 

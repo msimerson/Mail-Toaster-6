@@ -30,26 +30,46 @@ mt6_version_check()
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
+# BSD and GNU stat disagree on both the flag and the format specifier. Toasters
+# run on FreeBSD; the test suite runs on Linux.
+_file_mode()
+{
+	case "$(uname)" in
+		Linux*) stat -c "%a" "$1" ;;
+		*)      stat -f "%OLp" "$1" ;;
+	esac
+}
+
 store_config()
 {
 	# $1 - path to config file, $2 - operation, STDIN is file contents
 	local _operation=${2:-""}
+	local _shadow="$1.mt6"
 
 	if [ ! -d "$(dirname "$1")" ]; then
 		tell_status "creating $(dirname "$1")"
 		mkdir -p "$(dirname "$1")"
 	fi
 
-	cat - > "$1.mt6"
+	# A redirect onto an existing file keeps that file's mode, so a shadow left
+	# at 600 by an earlier run would install $1 at 600 too. Recreate it instead,
+	# so the mode always derives from umask, as it does on a first run.
+	rm -f "$_shadow"
+	cat - > "$_shadow"
 
 	if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
 		tell_status "installing $1"
-		cp "$1.mt6" "$1"
+		cp "$_shadow" "$1"
 	elif [ "$_operation" = "append" ]; then
-		cat "$1.mt6" >> "$1"
+		cat "$_shadow" >> "$1"
 	else
 		tell_status "preserving $1"
 	fi
+
+	# The shadow duplicates $1 verbatim, secrets included, and nothing but a
+	# human diffing the two ever reads it. Tighten it only after the copy above,
+	# which takes its mode from the shadow.
+	chmod 600 "$_shadow"
 }
 
 store_exec()
