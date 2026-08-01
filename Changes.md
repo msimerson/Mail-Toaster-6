@@ -3,6 +3,20 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-08
+
+- config: mv config into ./conf.d/
+- config: split service portions into $service.conf files
+
+## 2026-07
+
+- postfix: smtps -> submissions #670
+- le: added postfix script #679
+- various: use new TOASTER_MSA settings
+- haraka: provide IPv4 only config when no IPv6 #668
+- spamassassin: enabled build w/o geoip
+- mt: improve fs [un]mount #656, #657
+
 ## 2026-06
 
 - base: added pkgbase support
