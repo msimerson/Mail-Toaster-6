@@ -5,6 +5,7 @@ set -e
 . mail-toaster.sh
 
 service_config unifi
+export UNIFI_MONGODB_DSN=${UNIFI_MONGODB_DSN:-""}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
@@ -13,6 +14,26 @@ $ZFS_DATA_MNT/unifi/java	$ZFS_JAIL_MNT/unifi/usr/local/share/java	nullfs	rw	0	0
 proc	$ZFS_JAIL_MNT/unifi/proc	procfs	rw	0	0"
 
 mt6-include network
+
+# An empty DSN keeps UniFi on the mongo it bundles. When a mongodb jail exists,
+# mint the credential once and persist it: regenerating it per run would rewrite
+# system.properties with a password mongo has never been told about.
+store_unifi_mongodb_dsn()
+{
+	if [ -n "$UNIFI_MONGODB_DSN" ]; then return; fi
+	if ! jail_is_running mongodb; then
+		tell_status "no mongodb jail, UniFi will use its bundled mongo"
+		return
+	fi
+
+	UNIFI_MONGODB_DSN="mongodb://ubnt:$(get_random_pass)@mongodb:27017/unifi"
+	export UNIFI_MONGODB_DSN
+
+	tell_status "storing UNIFI_MONGODB_DSN in $MT6_CONF_DIR/unifi.conf"
+	mkdir -p "$MT6_CONF_DIR"
+	echo "export UNIFI_MONGODB_DSN=\"$UNIFI_MONGODB_DSN\"" >> "$MT6_CONF_DIR/unifi.conf"
+	chmod 600 "$MT6_CONF_DIR/unifi.conf"
+}
 
 create_unifi_mountpoints()
 {
@@ -109,6 +130,7 @@ test_unifi()
 	sleep 1
 }
 
+store_unifi_mongodb_dsn
 tell_settings UNIFI
 base_snapshot_exists || exit
 create_staged_fs unifi

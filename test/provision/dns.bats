@@ -331,3 +331,51 @@ teardown() {
   run switch_host_resolver
   assert_output --partial "EXEC:$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh"
 }
+
+# --- install_access_conf behaviour ---
+
+@test "dns - access.conf includes the public IPv4 when one is known" {
+  rm -f "$ZFS_DATA_MNT/dns/access.conf"
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  install_access_conf
+  run cat "$ZFS_DATA_MNT/dns/access.conf"
+  assert_output --partial "access-control: 203.0.113.7 allow"
+}
+
+# An empty PUBLIC_IP4 used to emit "access-control:  allow", which unbound
+# rejects, taking DNS down for every jail.
+@test "dns - access.conf omits the entry when no public IPv4 is found" {
+  rm -f "$ZFS_DATA_MNT/dns/access.conf"
+  get_public_ip4() { export PUBLIC_IP4=""; }
+  install_access_conf
+  run grep -c "access-control:[[:space:]]*allow" "$ZFS_DATA_MNT/dns/access.conf"
+  assert_output "0"
+}
+
+@test "dns - access.conf always keeps the jail network entries" {
+  rm -f "$ZFS_DATA_MNT/dns/access.conf"
+  get_public_ip4() { export PUBLIC_IP4=""; }
+  install_access_conf
+  run cat "$ZFS_DATA_MNT/dns/access.conf"
+  assert_output --partial "access-control: 0.0.0.0/0 refuse"
+  assert_output --partial "access-control: 127.0.0.0/8 allow"
+}
+
+@test "dns - install_access_conf does not depend on its caller for PUBLIC_IP4" {
+  rm -f "$ZFS_DATA_MNT/dns/access.conf"
+
+  # the real get_public_ip4, so this exercises install_access_conf calling it
+  # shellcheck source=/dev/null
+  . "$BATS_TEST_DIRNAME/../../include/network.sh"
+
+  # stub what it shells out to. These must come after the source above, or
+  # network.sh replaces get_public_facing_nic with the real one, which reads the
+  # host routing table and fails wherever netstat has no "default" line.
+  get_public_facing_nic() { export PUBLIC_NIC="em0"; }
+  ifconfig() { echo "	inet 198.51.100.4 netmask 0xffffff00"; }
+
+  unset PUBLIC_IP4
+  install_access_conf
+  run cat "$ZFS_DATA_MNT/dns/access.conf"
+  assert_output --partial "access-control: 198.51.100.4 allow"
+}

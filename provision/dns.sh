@@ -57,12 +57,23 @@ get_mt6_data()
 
 install_access_conf()
 {
+	get_public_ip4
+
+	# An empty address would emit "access-control:  allow", which unbound
+	# rejects. Omit the entry instead of writing a file that will not parse.
+	local _public_acl=""
+	if [ -n "$PUBLIC_IP4" ]; then
+		_public_acl="	   access-control: $PUBLIC_IP4 allow"
+	else
+		tell_status "no public IPv4 found, omitting its access-control entry"
+	fi
+
 	store_config "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
-	   access-control: $PUBLIC_IP4 allow
+$_public_acl
 	   access-control: $JAIL_NET6::/112 allow
 
 EO_UNBOUND_ACCESS
@@ -70,7 +81,7 @@ EO_UNBOUND_ACCESS
 
 install_forward_conf()
 {
-	store_config "$ZFS_DATA_MNT/dns/forward.conf" <<EO_UNBOUND_FORWARD
+	store_config "$ZFS_DATA_MNT/dns/forward.conf" "update" <<EO_UNBOUND_FORWARD
 # Comparison Table: Forward vs Stub Zones
 # | Feature         | Forward Zone                    | Stub Zone                      |
 # | :-------------- | :------------------------------ | :----------------------------- |
@@ -91,7 +102,7 @@ EO_UNBOUND_FORWARD
 
 install_stub_conf()
 {
-	store_config "$ZFS_DATA_MNT/dns/stub.conf" <<EO_UNBOUND_STUB
+	store_config "$ZFS_DATA_MNT/dns/stub.conf" "update" <<EO_UNBOUND_STUB
 # Comparison Table: Forward vs Stub Zones
 # | Feature         | Forward Zone                    | Stub Zone                      |
 # | :-------------- | :------------------------------ | :----------------------------- |
@@ -161,7 +172,7 @@ enable_control()
 	mkdir "$ZFS_DATA_MNT/dns/control"
 
 	tell_status "configuring unbound-control"
-	store_config "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+	store_config "$ZFS_DATA_MNT/dns/control.conf" "update" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 

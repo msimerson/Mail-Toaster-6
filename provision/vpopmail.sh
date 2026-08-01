@@ -4,6 +4,9 @@ set -e
 
 . mail-toaster.sh
 
+service_config vpopmail
+export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"

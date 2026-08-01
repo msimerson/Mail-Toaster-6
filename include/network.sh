@@ -31,14 +31,25 @@ get_public_ip()
 
 get_public_ip4()
 {
+	# callers rely on the PUBLIC_NIC this exports, so look it up either way
 	get_public_facing_nic ipv4
+
+	# PUBLIC_IP4 is the public facing address, which need not be bound to a
+	# local interface. ifconfig finds it only where the two coincide, so a
+	# configured value wins.
+	if [ -n "$PUBLIC_IP4" ]; then return; fi
+
 	export PUBLIC_IP4
 	PUBLIC_IP4=$(ifconfig "$PUBLIC_NIC" inet | grep inet | awk '{print $2}' | head -n1)
 }
 
 get_public_ip6()
 {
+	# callers rely on the PUBLIC_NIC this exports, so look it up either way
 	get_public_facing_nic ipv6
+
+	if [ -n "$PUBLIC_IP6" ]; then return; fi
+
 	export PUBLIC_IP6
 	PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet6 | grep -v fe80 | awk '{print $2}' | head -n1)
 }

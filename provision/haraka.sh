@@ -4,6 +4,9 @@ set -e
 
 . mail-toaster.sh
 
+service_config haraka
+export TOASTER_HARAKA_VERSION=${TOASTER_HARAKA_VERSION:-""}
+
 export JAIL_START_EXTRA="devfs_ruleset=7"
 export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;"

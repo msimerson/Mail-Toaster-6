@@ -134,6 +134,12 @@ configure_pkg_latest()     { :; }
 enable_bsd_cache()         { :; }
 get_random_pass()          { echo "testpassword14x"; }
 dec_to_hex()               { printf '%04x\n' "$1"; }
+_file_mode() {
+  case "$(uname)" in
+    Linux*) stat -c "%a" "$1" ;;
+    *)      stat -f "%OLp" "$1" ;;
+  esac
+}
 reverse_list() {
   local _r=""
   for _j in "$@"; do _r="${_j} ${_r}"; done
