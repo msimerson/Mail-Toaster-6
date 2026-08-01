@@ -290,13 +290,6 @@ $_alters
 	exit 1
 }
 
-if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
-	tell_status "installing MySQL"
-else
-	tell_status "skipping MySQL install, not configured"
-	exit
-fi
-
 base_snapshot_exists || exit 1
 migrate_mysql_dbs
 check_mysql_native_passwords
