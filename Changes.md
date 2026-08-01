@@ -8,6 +8,9 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - config: mv config into ./conf.d/
 - config: split service portions into $service.conf files
 - mysql: drop vestigial SQUIRREL_SQL/ROUNDCUBE_SQL guard
+- config: move jail-private defaults into their provision script
+- spamassassin: drop redundant MAXMIND_LICENSE_KEY check, RELAY_COUNTRY always builds
+- geoip: MAXMIND_* settings move to conf.d/geoip.conf
 
 ## 2026-07
 

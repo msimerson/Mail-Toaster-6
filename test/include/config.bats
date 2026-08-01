@@ -145,7 +145,25 @@ _config_in() {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export TOASTER_HOSTNAME="test"\n' > "$_tmpdir/mail-toaster.conf"
   _add_config_hint "$_tmpdir/mail-toaster.conf"
-  grep -q "grep ^export ./include/config.sh" "$_tmpdir/mail-toaster.conf"
+  grep -q "include/config.sh" "$_tmpdir/mail-toaster.conf"
+  grep -q "provision/" "$_tmpdir/mail-toaster.conf"
+}
+
+# The hint has to find per-jail defaults too, now that they live in the
+# provision scripts rather than mt6_defaults.
+@test "_add_config_hint - the suggested grep finds both global and per-jail defaults" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export TOASTER_HOSTNAME="test"\n' > "$_tmpdir/mail-toaster.conf"
+  _add_config_hint "$_tmpdir/mail-toaster.conf"
+
+  local _cmd
+  _cmd=$(grep -o 'grep -rn .*' "$_tmpdir/mail-toaster.conf")
+  cd "$BATS_TEST_DIRNAME/../.." || return 1
+
+  run eval "$_cmd"
+  assert_success
+  assert_output --partial "include/config.sh:"
+  assert_output --partial "provision/clamav.sh:"
 }
 
 @test "_add_config_hint - does not duplicate existing hint" {
@@ -234,28 +252,46 @@ _config_in() {
   local _tmpdir; _tmpdir=$(mktemp -d)
   export MT6_CONF_DIR="$_tmpdir/conf.d"
   mkdir -p "$MT6_CONF_DIR"
-  printf 'export CLAMAV_UNOFFICIAL="1"\n' > "$MT6_CONF_DIR/clamav.conf"
+  printf 'export ROUNDCUBE_SQL="0"\n' > "$MT6_CONF_DIR/roundcube.conf"
 
-  unset CLAMAV_UNOFFICIAL
+  unset ROUNDCUBE_SQL
+  export TOASTER_MYSQL="1"
   mt6_defaults
-  assert_equal "$CLAMAV_UNOFFICIAL" "0"
+  assert_equal "$ROUNDCUBE_SQL" "1"
 
-  service_config clamav
-  assert_equal "$CLAMAV_UNOFFICIAL" "1"
+  service_config roundcube
+  assert_equal "$ROUNDCUBE_SQL" "0"
 }
 
-# Settings absent from the override file must keep falling back to mt6_defaults,
-# so settings added upstream still reach installs with an existing conf.d file.
-@test "service_config - absent settings still get their mt6_defaults value" {
+# A provision script applies its defaults after service_config, so a setting the
+# override file supplies must survive the ${VAR:-default} that follows it.
+@test "service_config - a provision script default does not clobber the override" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   export MT6_CONF_DIR="$_tmpdir/conf.d"
   mkdir -p "$MT6_CONF_DIR"
   printf 'export CLAMAV_UNOFFICIAL="1"\n' > "$MT6_CONF_DIR/clamav.conf"
 
   unset CLAMAV_UNOFFICIAL CLAMAV_FANGFRISCH
-  mt6_defaults
   service_config clamav
+  export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:-"0"}
+  export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:-"0"}
+
+  assert_equal "$CLAMAV_UNOFFICIAL" "1"
   assert_equal "$CLAMAV_FANGFRISCH" "0"
+}
+
+# Guards the upgrade path: a setting added upstream after the user's conf.d file
+# was written still gets its default from the provision script.
+@test "service_config - settings absent from the override file get the script default" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  export MT6_CONF_DIR="$_tmpdir/conf.d"
+  mkdir -p "$MT6_CONF_DIR"
+  printf 'export CLAMAV_UNOFFICIAL="1"\n' > "$MT6_CONF_DIR/clamav.conf"
+
+  unset CLAMAV_NEW_KNOB
+  service_config clamav
+  export CLAMAV_NEW_KNOB=${CLAMAV_NEW_KNOB:-"yes"}
+  assert_equal "$CLAMAV_NEW_KNOB" "yes"
 }
 
 @test "config - migrates a legacy mail-toaster.conf and loads it from conf.d" {

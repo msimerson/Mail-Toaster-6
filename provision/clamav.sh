@@ -5,6 +5,8 @@ set -e
 . mail-toaster.sh
 
 service_config clamav
+export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:-"0"}
+export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:-"0"}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""

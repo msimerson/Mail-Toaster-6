@@ -5,6 +5,7 @@ set -e
 . mail-toaster.sh
 
 service_config rspamd
+export VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-""}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""

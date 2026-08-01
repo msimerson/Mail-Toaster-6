@@ -6,6 +6,8 @@ set -e
 . mail-toaster.sh
 
 service_config wildduck
+export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:-"$TOASTER_HOSTNAME"}
+export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:-"$TOASTER_MAIL_DOMAIN"}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""

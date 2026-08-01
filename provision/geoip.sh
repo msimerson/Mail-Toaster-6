@@ -5,6 +5,9 @@ set -e
 . mail-toaster.sh
 
 service_config geoip
+export GEOIP_UPDATER=${GEOIP_UPDATER:-"geoipupdate"}
+export MAXMIND_ACCOUNT_ID=${MAXMIND_ACCOUNT_ID:-""}
+export MAXMIND_LICENSE_KEY=${MAXMIND_LICENSE_KEY:-""}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
@@ -12,12 +15,12 @@ export JAIL_FSTAB=""
 
 preflight_check() {
 	if [ -z "$MAXMIND_LICENSE_KEY" ]; then
-		echo "ERROR: edit $MT6_CONF and set MAXMIND_LICENSE_KEY"
+		echo "ERROR: add MAXMIND_LICENSE_KEY to $MT6_CONF_DIR/geoip.conf"
 		exit 1
 	fi
 
 	if [ "$GEOIP_UPDATER" = "geoipupdate" ] && [ -z "$MAXMIND_ACCOUNT_ID" ]; then
-		echo "ERROR: edit $MT6_CONF and set MAXMIND_ACCOUNT_ID"
+		echo "ERROR: add MAXMIND_ACCOUNT_ID to $MT6_CONF_DIR/geoip.conf"
 		exit 1
 	fi
 }

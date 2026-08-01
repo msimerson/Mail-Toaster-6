@@ -46,14 +46,10 @@ mt6_defaults()
 	export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
 	export TOASTER_QMHANDLE=${TOASTER_QMHANDLE:-"0"}
 	export TOASTER_WEBMAIL_PROXY=${TOASTER_WEBMAIL_PROXY:-"haproxy"}
-	export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:-"0"}
-	export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:-"0"}
+	# Jail-private settings live in their provision script; these are read by
+	# more than one jail, so they stay here.
 	export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:-"$TOASTER_MYSQL"}
-	export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:-"Roundcube Webmail"}
-	export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:-"25"}
 	export SQUIRREL_SQL=${SQUIRREL_SQL:-"$TOASTER_MYSQL"}
-	export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:-"$TOASTER_MAIL_DOMAIN"}
-	export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:-"$TOASTER_HOSTNAME"}
 
 	# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
 	export PUBLIC_IP4=${PUBLIC_IP4:-""}
@@ -142,17 +138,9 @@ export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
 export TOASTER_WEBMAIL_PROXY="haproxy"
-export CLAMAV_FANGFRISCH="0"
-export GEOIP_UPDATER="geoipupdate"
-export MAXMIND_ACCOUNT_ID=""
-export MAXMIND_LICENSE_KEY=""
 export ROUNDCUBE_SQL="0"
-export ROUNDCUBE_DEFAULT_HOST=""
-export ROUNDCUBE_PRODUCT_NAME="Roundcube Webmail"
-export ROUNDCUBE_ATTACHMENT_SIZE_MB="25"
 export TOASTER_HARAKA_VERSION=""
 export UNIFI_MONGODB_DSN="mongodb://ubnt:$(get_random_pass)@mongodb:27017/unifi"
-export VIRUSTOTAL_API_KEY=""
 
 EO_MT_CONF
 
@@ -164,7 +152,7 @@ _add_config_hint()
 	if grep -q "grep.*config.sh" "$1"; then
 		return
 	fi
-	printf '\n# To see all available settings and their defaults:\n# grep ^export ./include/config.sh\n' \
+	printf '\n# To see all available settings and their defaults:\n# grep -rn "export [A-Z_]*=..[A-Z_]*:-" ./include/config.sh ./provision/\n' \
 		>> "$1"
 }
 
