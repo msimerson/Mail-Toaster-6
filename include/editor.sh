@@ -2,13 +2,15 @@
 
 configure_vim_tiny()
 {
+	local _base="$1"
+
 	if jail_is_running stage; then
 		stage_pkg_install vim-tiny
 	else
 		pkg install vim-tiny
 	fi
 
-	install_vimrc
+	install_vimrc "$_base"
 
 	# vim-tiny has no syntax or color files, so disable some stuff
 	sed_inplace \
@@ -22,13 +24,15 @@ configure_vim_tiny()
 
 configure_vim()
 {
+	local _base="$1"
+
 	if jail_is_running stage; then
 		stage_pkg_install vim
 	else
 		pkg install vim
 	fi
 
-	install_vimrc
+	install_vimrc "$_base"
 
 	sed_inplace \
 		-e 's/set termguicolors/" set termguicolors/' \
@@ -47,6 +51,7 @@ configure_vim()
 
 install_vimrc()
 {
+	local _base="$1"
 	tell_status "installing vimrc"
 
 	local _vimdir="$_base/usr/local/etc/vim"
@@ -59,6 +64,8 @@ install_vimrc()
 
 configure_neovim()
 {
+	local _base="$1"
+
 	if jail_is_running stage; then
 		stage_pkg_install neovim
 	else
@@ -74,13 +81,13 @@ configure_editor()
 
 	case "$TOASTER_EDITOR_PORT" in
 		neovim)
-			configure_neovim
+			configure_neovim "$_base"
 			;;
 		vim-tiny)
-			configure_vim_tiny
+			configure_vim_tiny "$_base"
 			;;
 		vim)
-			configure_vim
+			configure_vim "$_base"
 			;;
 		vi) ;;
 		*)  ;;

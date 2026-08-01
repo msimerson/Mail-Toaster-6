@@ -25,6 +25,8 @@ create_base_filesystem()
 
 freebsd_update()
 {
+	if [ "$TOASTER_BASE_METHOD" = "pkgbase" ]; then return; fi
+
 	if [ ! -t 0 ]; then
 		echo "No tty, can't update FreeBSD with freebsd-update"
 		return
@@ -32,8 +34,9 @@ freebsd_update()
 
 	tell_status "apply FreeBSD security updates to base jail"
 	sed_inplace -e 's/^Components.*/Components world/' "$BASE_MNT/etc/freebsd-update.conf"
-	freebsd-update -b "$BASE_MNT" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 
+	local _release=""; _release="$(chroot "$BASE_MNT" /bin/freebsd-version)"
+	freebsd-update -b "$BASE_MNT" --currently-running "$_release" -f "$BASE_MNT/etc/freebsd-update.conf" fetch install
 	echo "clearing freebsd-update cache"
 	rm -rf "$BASE_MNT/var/db/freebsd-update"/*
 }
@@ -45,13 +48,22 @@ install_freebsd()
 		return
 	fi
 
-	if [ -n "$USE_BSDINSTALL" ]; then
-		export BSDINSTALL_DISTSITE;
-		BSDINSTALL_DISTSITE="$(freebsd_release_url_base)/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
-		bsdinstall jail "$BASE_MNT"
-	else
-		stage_fbsd_package base "$BASE_MNT"
-	fi
+	local _method="${TOASTER_BASE_METHOD:-fetch}"
+	if [ -n "$USE_BSDINSTALL" ]; then _method="bsdinstall"; fi
+
+	case "$_method" in
+		bsdinstall)
+			export BSDINSTALL_DISTSITE;
+			BSDINSTALL_DISTSITE="$(freebsd_release_url_base)/$(uname -m)/$(uname -m)/$FBSD_REL_VER"
+			bsdinstall jail "$BASE_MNT"
+			;;
+		pkgbase)
+			stage_fbsd_pkgbase base "$BASE_MNT"
+			;;
+		*)
+			stage_fbsd_package base "$BASE_MNT"
+			;;
+	esac
 
 	configure_fstab
 }
@@ -59,7 +71,7 @@ install_freebsd()
 configure_syslog()
 {
 	tell_status "forwarding syslog to host"
-	tee "$BASE_MNT/etc/syslog.conf" <<EO_SYSLOG
+	store_config "$BASE_MNT/etc/syslog.conf" "overwrite" <<EO_SYSLOG
 *.*			@syslog
 EO_SYSLOG
 
@@ -70,9 +82,11 @@ disable_newsyslog()
 {
 	tell_status "disabling newsyslog"
 	sysrc -f "$BASE_MNT/etc/rc.conf" newsyslog_enable=NO
-	sed_inplace \
-		-e '/^0.*newsyslog/ s/^0/#0/' \
-		"$BASE_MNT/etc/crontab"
+	if grep -qs '^0.*newsyslog' "$BASE_MNT/etc/crontab"; then
+		sed_inplace \
+			-e '/^0.*newsyslog/ s/^0/#0/' \
+			"$BASE_MNT/etc/crontab"
+	fi
 }
 
 disable_syslog()
@@ -182,7 +196,7 @@ configure_fstab() {
 	local _etc_path="$BASE_MNT/${_sub_dir}etc"
 	if [ ! -d "$_etc_path" ]; then mkdir -p "$_etc_path"; fi
 
-	tee "$_etc_path/fstab" <<EO_FSTAB
+	store_config "$_etc_path/fstab" "overwrite" <<EO_FSTAB
 # Device                Mountpoint      FStype  Options         Dump    Pass#
 devfs                   $BASE_MNT/dev  devfs   rw              0       0
 EO_FSTAB
@@ -219,6 +233,7 @@ configure_base()
 	configure_syslog
 	configure_bourne_shell "$BASE_MNT"
 	configure_csh_shell "$BASE_MNT"
+	touch "$BASE_MNT/etc/fstab"
 	configure_fstab "data/"
 	install_pfrule base
 }
@@ -306,9 +321,11 @@ install_base()
 	tell_status "installing packages desired in every jail"
 	stage_pkg_install $TOASTER_BASE_PKGS
 
-	stage_exec newaliases
-
-	if [ "$BOURNE_SHELL" = "bash" ]; then
+	if [ "$BOURNE_SHELL" = "all" ]; then
+		install_bash "$BASE_MNT"
+		install_zsh
+		configure_zsh_shell "$BASE_MNT"
+	elif [ "$BOURNE_SHELL" = "bash" ]; then
 		install_bash "$BASE_MNT"
 	elif [ "$BOURNE_SHELL" = "zsh" ]; then
 		install_zsh
@@ -347,8 +364,8 @@ start_staged_jail base "$BASE_MNT"
 install_base
 stop_jail stage
 if [ -e "$BASE_MNT/dev/null" ]; then umount "$BASE_MNT/dev"; fi
-rm -rf "$BASE_MNT/var/cache/pkg/*"
-rm -rf "$BASE_MNT/var/db/freebsd-update/*"
+rm -rf "$BASE_MNT/var/cache/pkg"/*
+rm -rf "$BASE_MNT/var/db/freebsd-update"/*
 echo "zfs snapshot ${BASE_SNAP}"
 zfs snapshot "${BASE_SNAP}"
 add_jail_conf base

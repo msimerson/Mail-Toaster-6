@@ -14,25 +14,24 @@ HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
 install_haraka()
 {
 	tell_status "installing node & npm"
-	stage_pkg_install npm-node22 gmake pkgconf git-tiny
+	stage_pkg_install npm-node24 gmake pkgconf git-tiny python3
 	if [ "$BOURNE_SHELL" != "bash" ]; then
 		tell_status "Install bash since not in base"
 		stage_pkg_install bash
 	fi
 
-	# Workaround for NPM bug https://github.com/npm/cli/issues/2610
-	stage_exec bash -c 'git config --global url."https://github.com/".insteadOf git@github.com:'
-	stage_exec bash -c 'git config --global url."https://".insteadOf git://'
-
 	tell_status "installing Haraka"
 	if [ -n "$TOASTER_HARAKA_VERSION" ]; then
 		stage_exec bash -c "npm install -g --omit=dev haraka@$TOASTER_HARAKA_VERSION"
 	else
-		stage_exec bash -c "npm install -g --omit=dev https://github.com/haraka/Haraka.git"
+		stage_exec bash -c "git clone https://github.com/haraka/Haraka.git /usr/local/lib/node_modules/haraka"
+		stage_exec bash -c "cd /usr/local/lib/node_modules/haraka && npm install --omit=dev"
+		stage_exec bash -c "ln -s /usr/local/lib/node_modules/haraka/bin/haraka /usr/local/bin/haraka"
+		stage_exec bash -c "ln -s /usr/local/lib/node_modules/haraka/bin/haraka_grep /usr/local/bin/haraka_grep"
 	fi
 
 	local _plugins="ws express"
-	for _p in log-reader dmarc-perl; do
+	for _p in dmarc-perl elasticsearch log-reader p0f watch; do
 		_plugins="$_plugins haraka-plugin-$_p"
 	done
 	stage_exec bash -c "if [ -f /data/package.json ]; then rm /data/package.json; fi"
@@ -83,7 +82,7 @@ install_p0f()
 	tell_status "installing p0f startup file"
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 	local _start="$STAGE_MNT/usr/local/etc/rc.d/p0f"
-	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start"
+	cp "$STAGE_MNT/data/node_modules/haraka-plugin-p0f/contrib/bsd-rc.d/p0f" "$_start"
 	chmod 755 "$_start"
 
 	get_public_facing_nic
@@ -115,7 +114,7 @@ EO_DLF
 
 	store_config "$HARAKA_CONF/log.reader.ini" "overwrite" <<EO_LRC
 [log]
-file=/var/log/maillog
+file=/data/log/maillog
 EO_LRC
 
 	# absence of mailogs in jail prevents log-reader from working
@@ -125,13 +124,19 @@ EO_LRC
 always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
 	fi
 
-	# send Haraka logs to haraka's /var/log so log-reader can access them
+	# log to the data volume so mail logs survive a re-provision
+	local _logdir="$ZFS_DATA_MNT/haraka/log"
+	if [ ! -d "$_logdir" ]; then
+		tell_status "creating log dir $_logdir"
+		mkdir -p "$_logdir"
+	fi
+
 	store_config "$STAGE_MNT/etc/syslog.conf" "overwrite" <<EO_SYSLOG
-mail.info					/var/log/maillog
+mail.info					/data/log/maillog
 #*.*			@syslog
 EO_SYSLOG
 
-	touch "$STAGE_MNT/var/log/maillog"
+	touch "$_logdir/maillog"
 }
 
 configure_haraka_smtp_forward()
@@ -371,14 +376,25 @@ url=wss://$TOASTER_DOMAIN_NAME/watch" > "$HARAKA_CONF/watch.ini"
 	fi
 }
 
+haraka_listen_addr()
+{
+	if [ -n "${PUBLIC_IP6:-}" ]; then
+		# IPv4 and IPv6
+		echo "[::0]"
+	else
+		echo "0.0.0.0"
+	fi
+}
+
 configure_haraka_smtp_ini()
 {
 	if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
 		configure_install_default smtp.ini
 	fi
 
+	local _addr; _addr=$(haraka_listen_addr)
 	sed_inplace \
-		-e 's/^;listen=\[.*$/listen=[::0]:25,[::0]:465,[::0]:587/' \
+		-e "s/^;listen=.*\$/listen=$_addr:25,$_addr:465,$_addr:587/" \
 		-e 's/^;nodes=cpus/nodes=2/' \
 		-e 's/^;daemonize=true/daemonize=true/' \
 		-e 's/^;daemon_pid_file/daemon_pid_file/' \
@@ -433,7 +449,7 @@ configure_haraka_plugins()
 
 configure_install_default()
 {
-	local _haraka="$STAGE_MNT/usr/local/lib/node_modules/Haraka"
+	local _haraka="$STAGE_MNT/usr/local/lib/node_modules/haraka"
 	local _source="$_haraka/config"
 
 	if [ ! -f "$_source/$1" ]; then
@@ -481,7 +497,7 @@ configure_haraka_dkim()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/dkim/dkim_key_gen.sh" ]; then
-		cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/node_modules/haraka-plugin-dkim/config/dkim_key_gen.sh" \
+		cp "$STAGE_MNT/usr/local/lib/node_modules/haraka/node_modules/haraka-plugin-dkim/config/dkim_key_gen.sh" \
 			"$HARAKA_CONF/dkim/dkim_key_gen.sh"
 	fi
 
@@ -526,8 +542,10 @@ configure_haraka_redis()
 		tee "$HARAKA_CONF/redis.ini" <<EO_REDIS_CONF
 [server]
 host=$(get_jail_ip redis)
-; port=6379
 db=3
+
+[pubsub]
+host=$(get_jail_ip redis)
 EO_REDIS_CONF
 	fi
 }
@@ -546,7 +564,7 @@ configure_haraka_http()
 {
 	if [ ! -f "$HARAKA_CONF/http.ini" ]; then
 		tell_status "enable Haraka HTTP server"
-		echo "listen=[::0]:80" | tee -a "$HARAKA_CONF/http.ini"
+		echo "listen=$(haraka_listen_addr):80" | tee -a "$HARAKA_CONF/http.ini"
 	fi
 }
 
@@ -619,17 +637,11 @@ configure_haraka_log_rotation()
 {
 	stage_enable_newsyslog
 
-	tell_status "configuring haraka.log rotation"
-	mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
-	tee -a "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" <<EO_HARAKA
+	tell_status "configuring haraka log rotation"
+	store_config "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" "overwrite" <<EO_HARAKA
+/data/log/maillog			644  21	   *	@T00  JC
 /var/log/haraka.log			644  21	   *	@T00  JC
 EO_HARAKA
-
-	_logdays=$(grep ^/var/log/maillog /etc/newsyslog.conf | awk '{ print $3 }')
-	if [ "$_logdays" = "7" ]; then
-		tell_status "increasing log retention from 7 to 21 days"
-		sed_inplace -e '/maillog/ s/7/21/' /etc/newsyslog.conf
-	fi
 }
 
 configure_haraka_access()
@@ -662,7 +674,7 @@ EO_DCC
 
 configure_haraka_spf()
 {
-	if grep -qs '^;' "$HARAKA_CONF/spf.ini"; then
+	if grep -qs '^context=myself' "$HARAKA_CONF/spf.ini"; then
 		tell_status "spf.ini already configured"
 	else
 		tell_status "configuring SPF [relay]context=myself"
@@ -728,11 +740,7 @@ configure_haraka()
 	configure_haraka_dcc
 	configure_haraka_spf
 
-	_pf_etc="$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
-	store_config "$_pf_etc/rdr.conf" <<EO_PF
-rdr pass inet  proto tcp from any to <ext_ip4> port { 25 465 587 } -> $(get_jail_ip  haraka)
-rdr pass inet6 proto tcp from any to <ext_ip6> port { 25 465 587 } -> $(get_jail_ip6 haraka)
-EO_PF
+	configure_mta_pf_rdr haraka
 
 	install_geoip_dbs
 }
@@ -740,15 +748,11 @@ EO_PF
 start_haraka()
 {
 	tell_status "starting haraka"
-	cp "$STAGE_MNT/usr/local/lib/node_modules/Haraka/contrib/bsd-rc.d/haraka" \
+	cp "$STAGE_MNT/usr/local/lib/node_modules/haraka/contrib/bsd-rc.d/haraka" \
 		"$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	chmod 555 "$STAGE_MNT/usr/local/etc/rc.d/haraka"
 	stage_sysrc haraka_enable=YES
 	stage_sysrc haraka_flags='-c /data'
-
-	if [ ! -d "$HARAKA_CONF/queue" ]; then
-		mkdir -p "$HARAKA_CONF/queue"
-	fi
 
 	stage_exec service haraka start
 }

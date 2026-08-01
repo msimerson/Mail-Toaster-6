@@ -115,7 +115,7 @@ EO_BOURNE_SHELL
 configure_csh_shell()
 {
 	_cshrc="$1/etc/csh.cshrc"
-	if grep -q prompt "$_cshrc"; then
+	if grep -qs prompt "$_cshrc"; then
 		tell_status "preserving $_cshrc"
 		return
 	fi
@@ -161,7 +161,7 @@ configure_zsh_shell()
 	fetch -o - https://github.com/Infern1/Mail-Toaster-6/raw/master/contrib/zim.tar.gz \
 	| tar -C "$1/root/" -xf -  || echo "Zsh config failed!"
 	stage_exec zsh -c '. /root/.zshrc;  source /root/.zlogin'
-	stage_exec mkdir /root/.config
+	stage_exec mkdir -p /root/.config
 	stage_exec cp /root/.zim/modules/prompt/external-themes/liquidprompt/liquidpromptrc-dist /root/.config/liquidpromptrc
 	stage_exec sed -i.bak \
 		-e 's/^LP_HOSTNAME_ALWAYS=0/LP_HOSTNAME_ALWAYS=1/' \

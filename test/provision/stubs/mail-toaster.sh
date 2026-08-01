@@ -24,6 +24,8 @@ export TOASTER_MSA=${TOASTER_MSA:-"haraka"}
 export TOASTER_EDITOR=${TOASTER_EDITOR:-"vim"}
 export TOASTER_EDITOR_PORT=${TOASTER_EDITOR_PORT:-"vim-tiny"}
 export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:-"latest"}
+export TOASTER_BASE_METHOD=${TOASTER_BASE_METHOD:-"fetch"}
+export TOASTER_BASE_PKG_BRANCH=${TOASTER_BASE_PKG_BRANCH:-""}
 export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:-"1"}
 export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:-"0"}
 export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:-"0"}
@@ -32,6 +34,8 @@ export JAIL_NET6=${JAIL_NET6:-"fd7a:e5cd:1fc1:c597:dead:beef:cafe"}
 export PUBLIC_IP4=""
 export PUBLIC_IP6=""
 export ROUNDCUBE_SQL=${ROUNDCUBE_SQL:-"0"}
+export MT6_CONF_DIR=${MT6_CONF_DIR:-"conf.d"}
+export MT6_CONF=${MT6_CONF:-"$MT6_CONF_DIR/mail-toaster.conf"}
 
 # Logging / status
 tell_status()    { :; }
@@ -39,6 +43,7 @@ fatal_err()      { echo "FATAL: $*" >&2; }
 err_exit()       { echo "ERR: $*" >&2; }
 proclaim_success() { :; }
 tell_settings()  { :; }
+service_config() { :; }
 
 # Versioning
 mt6_version()    { echo "20260403"; }
@@ -89,6 +94,8 @@ install_fstab()            { :; }
 fstab_add_mount()          { :; }
 
 # Stage operations
+stage_fbsd_package()       { :; }
+stage_fbsd_pkgbase()       { :; }
 stage_pkg_install()        { :; }
 stage_port_install()       { :; }
 stage_exec()               { :; }
@@ -111,7 +118,16 @@ install_acme_sh()          { :; }
 
 # Config / util
 sed_inplace()              { sed -i.bak "$@"; }
-store_config()             { cat - > /dev/null; }
+store_config() {
+  local _operation=${2:-""}
+  [ -d "$(dirname "$1")" ] || mkdir -p "$(dirname "$1")"
+  cat - > "$1.mt6"
+  if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
+    cp "$1.mt6" "$1"
+  elif [ "$_operation" = "append" ]; then
+    cat "$1.mt6" >> "$1"
+  fi
+}
 store_exec()               { cat - > /dev/null; }
 preserve_file()            { :; }
 configure_pkg_latest()     { :; }

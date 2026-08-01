@@ -6,7 +6,10 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+export JAIL_FSTAB=""
+if zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
+	export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+fi
 
 mt6-include mysql
 
@@ -30,8 +33,7 @@ install_spamassassin_port()
 	stage_pkg_install p5-Encode-Detect p5-Test-NoWarnings p5-HTTP-Tiny p5-Mail-DMARC
 
 	local _SA_OPTS="AS_ROOT DCC DKIM DMARC RAZOR SPF_QUERY GNUPG_NONE RELAY_COUNTRY"
-	if [    "$TOASTER_MYSQL" = "1" ]; then _SA_OPTS="MYSQL $_SA_OPTS"; fi
-	if [ -n "$MAXMIND_LICENSE_KEY" ]; then _SA_OPTS="RELAY_COUNTRY $_SA_OPTS"; fi
+	if [ "$TOASTER_MYSQL" = "1" ]; then _SA_OPTS="MYSQL $_SA_OPTS"; fi
 
 	stage_make_conf mail_spamassassin_SET "mail_spamassassin_SET=$_SA_OPTS"
 	stage_make_conf mail_spamassassin_UNSET 'mail_spamassassin_UNSET=DOCS SSL GNUPG GNUPG2 PYZOR PGSQL RLIMIT'
@@ -78,11 +80,7 @@ install_spamassassin_razor()
 	stage_enable_newsyslog
 
 	tell_status "setting up razor-agent log rotation"
-	if [ ! -d "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" ]; then
-		mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
-	fi
-
-	tee "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
+	store_config "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/razor-agent.conf" <<EO_RAZOR
 /var/log/razor-agent.log    600 5   1000 *  Z
 EO_RAZOR
 }
@@ -96,7 +94,7 @@ install_spamassassin()
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "installing mysql deps for spamassassin"
-		stage_pkg_install mysql80-client p5-DBI p5-DBD-mysql
+		stage_pkg_install mysql84-client p5-DBI p5-DBD-mysql
 	fi
 
 	install_spamassassin_data_fs
@@ -140,12 +138,24 @@ EO_BAYES
 
 configure_geoip()
 {
+	local _relay_pre="$_sa_etc/relaycountry.pre"
+
+	# RelayCountry needs the GeoIP country database; without the geoip jail
+	# the plugin would load and fail on every message, so keep it disabled.
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
 		tell_status "GeoIP jail not present, SKIPPING geoip plugin"
+		rm -f "$_relay_pre"
 		return
 	fi
 
 	fstab_add_mount spamassassin "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP"
+
+	tell_status "GeoIP present, enabling RelayCountry plugin"
+	store_config "$_relay_pre" "overwrite" <<EO_RELAY_COUNTRY
+loadplugin Mail::SpamAssassin::Plugin::RelayCountry
+country_db_type   GeoIP2
+country_db_path   /usr/local/share/GeoIP/GeoLite2-Country.mmdb
+EO_RELAY_COUNTRY
 }
 
 configure_spamassassin()
@@ -274,14 +284,9 @@ EO_MYSQL_CONF
   PRIMARY KEY (username,email,ip)
 ) ENGINE=InnoDB;" | mysql_query spamassassin
 
-	for _jail in spamassassin stage squirrelmail;
-	do
-		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
-		do
-			echo "CREATE USER IF NOT EXISTS 'spamassassin'@'$_ip' IDENTIFIED BY '$_my_pass'; FLUSH PRIVILEGES;" | mysql_query
-			echo "GRANT ALL PRIVILEGES ON spamassassin.* to 'spamassassin'@'$_ip'" | mysql_query
-		done
-	done
+	mysql_create_user spamassassin "$_my_pass" spamassassin \
+		"$(get_jail_ip spamassassin)" "$(get_jail_ip stage)" "$(get_jail_ip squirrelmail)" \
+		"$(get_jail_ip6 spamassassin)" "$(get_jail_ip6 stage)" "$(get_jail_ip6 squirrelmail)"
 }
 
 start_spamassassin()

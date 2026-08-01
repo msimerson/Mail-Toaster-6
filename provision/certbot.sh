@@ -14,7 +14,7 @@ install_certbot()
 
 install_deploy_haproxy()
 {
-	store_config "$_deploy/deploy/haproxy" <<'EO_LE_HAPROXY_DEPLOY'
+	store_exec "$_deploy/deploy/haproxy" <<'EO_LE_HAPROXY_DEPLOY'
 #!/usr/bin/env python3.8
 
 import os
@@ -55,18 +55,15 @@ with open(deploy_path, "w") as deploy, \
 
 EO_LE_HAPROXY_DEPLOY
 
-	tee "$_deploy/post/haproxy" <<'EO_LE_HAPROXY_POST'
+	store_exec "$_deploy/post/haproxy" <<'EO_LE_HAPROXY_POST'
 #!/bin/sh
 jexec haproxy service haproxy restart
 EO_LE_HAPROXY_POST
-
-	chmod 755 "$_deploy/deploy/haproxy"
-	chmod 755 "$_deploy/post/haproxy"
 }
 
 install_deploy_dovecot()
 {
-	tee "$_deploy/deploy/dovecot" <<'EO_LE_DOVECOT_DEPLOY'
+	store_exec "$_deploy/deploy/dovecot" <<'EO_LE_DOVECOT_DEPLOY'
 #!/usr/bin/env python3.8
 
 import os
@@ -110,18 +107,15 @@ with open(deploy_key_path, "w") as deploy, \
 
 EO_LE_DOVECOT_DEPLOY
 
-	tee "$_deploy/deploy/dovecot" <<'EO_LE_DOVECOT_POST'
+	store_exec "$_deploy/post/dovecot" <<'EO_LE_DOVECOT_POST'
 #!/bin/sh
 jexec dovecot service dovecot restart
 EO_LE_DOVECOT_POST
-
-	chmod 755 "$_deploy/deploy/dovecot"
-	chmod 755 "$_deploy/post/dovecot"
 }
 
 install_deploy_haraka()
 {
-	tee "$_deploy/deploy/haraka" <<'EO_LE_HARAKA_DEPLOY'
+	store_exec "$_deploy/deploy/haraka" <<'EO_LE_HARAKA_DEPLOY'
 #!/usr/bin/env python3.8
 
 import os
@@ -158,13 +152,10 @@ with open(deploy_path, "w") as deploy, \
 
 EO_LE_HARAKA_DEPLOY
 
-	tee "$_deploy/deploy/haraka" <<'EO_LE_HARAKA_POST'
+	store_exec "$_deploy/post/haraka" <<'EO_LE_HARAKA_POST'
 #!/bin/sh
 jexec haraka service haraka restart
 EO_LE_HARAKA_POST
-
-	chmod 755 "$_deploy/deploy/haraka"
-	chmod 755 "$_deploy/post/haraka"
 }
 
 install_deploy_scripts()

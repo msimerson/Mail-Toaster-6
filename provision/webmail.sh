@@ -94,7 +94,7 @@ configure_nginx_server()
 	configure_nginx_server_port_80
 	configure_nginx_server_port_443
 
-	tee "$ZFS_DATA_MNT/webmail/etc/nginx/webmail.conf" <<EO_WEBMAIL_INCLUDE
+	store_config "$ZFS_DATA_MNT/webmail/etc/nginx/webmail.conf" "overwrite" <<EO_WEBMAIL_INCLUDE
 		proxy_set_header X-Forwarded-For \$remote_addr;
 		proxy_set_header X-Forwarded-Proto \$scheme;
 		proxy_set_header Host \$host;

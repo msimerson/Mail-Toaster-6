@@ -4,6 +4,9 @@ set -e
 
 . mail-toaster.sh
 
+service_config rspamd
+export VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-""}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -83,7 +86,7 @@ configure_dmarc()
 		email = "$TOASTER_ADMIN_EMAIL";
 		# uncomment this when the reports are working
 		override_address = "$TOASTER_ADMIN_EMAIL";
-		smtp = "$(get_jail_ip haraka)";
+		smtp = "$(get_jail_ip "$TOASTER_MTA")";
 	}
 EO_DMARC
 }
@@ -301,6 +304,7 @@ test_rspamd()
 	echo "it worked"
 }
 
+tell_settings VIRUSTOTAL
 base_snapshot_exists || exit 1
 create_staged_fs rspamd
 start_staged_jail rspamd

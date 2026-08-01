@@ -5,6 +5,10 @@ set -e
 
 . mail-toaster.sh
 
+service_config wildduck
+export WILDDUCK_HOSTNAME=${WILDDUCK_HOSTNAME:-"$TOASTER_HOSTNAME"}
+export WILDDUCK_MAIL_DOMAIN=${WILDDUCK_MAIL_DOMAIN:-"$TOASTER_MAIL_DOMAIN"}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -214,8 +218,7 @@ configure_wildduck()
 	fi
 
 	if ! grep -q "$WILDDUCK_HOSTNAME" "$_cfg/tls.toml"; then
-		tell_status "installing $_cfg/tls.toml"
-		cat <<EO_TLS_CFG "$_cfg/tls.toml"
+		store_config "$_cfg/tls.toml" "overwrite" <<EO_TLS_CFG
 key="/data/etc/tls/private/$WILDDUCK_HOSTNAME.pem"
 cert="/data/etc/tls/certs/$WILDDUCK_HOSTNAME.pem"
 dhparam="/etc/ssl/dhparam.pem"
@@ -582,6 +585,7 @@ test_zonemta()
 	echo "it worked"
 }
 
+tell_settings WILDDUCK
 base_snapshot_exists
 preflight_check
 create_staged_fs wildduck

@@ -28,12 +28,45 @@ setup() {
   assert_output --partial "toe tac tic"
 }
 
-@test "tell_settings" {
-  skip
-  run tell_settings "ROUNDCUBE"
+@test "tell_settings - prints the settings for a prefix" {
+  export CLAMAV_UNOFFICIAL="1"
+  run tell_settings "CLAMAV"
   assert_success
-  assert_output --partial "
-   ***   Configured ROUNDCUBE settings:"
+  assert_output --partial "Configured CLAMAV settings:"
+  assert_output --partial "CLAMAV_UNOFFICIAL=1"
+}
+
+# Admins are asked to paste provisioning output into issue reports.
+@test "tell_settings - redacts credentials" {
+  export TSEC_MONGODB_DSN="mongodb://ubnt:sup3rs3cret@mongodb:27017/unifi"
+  export TSEC_LICENSE_KEY="abc123XYZ"
+  run tell_settings "TSEC"
+  assert_success
+  refute_output --partial "sup3rs3cret"
+  refute_output --partial "abc123XYZ"
+  assert_output --partial "TSEC_MONGODB_DSN=[redacted]"
+  assert_output --partial "TSEC_LICENSE_KEY=[redacted]"
+}
+
+@test "tell_settings - an unset credential stays visibly empty" {
+  export TSEC_LICENSE_KEY=""
+  run tell_settings "TSEC"
+  assert_success
+  assert_output --partial "TSEC_LICENSE_KEY="
+  refute_output --partial "TSEC_LICENSE_KEY=[redacted]"
+}
+
+@test "tell_settings - a name ending in _FILE is not a credential" {
+  export TSEC_KEY_FILE="/etc/ssl/key.pem"
+  run tell_settings "TSEC"
+  assert_success
+  assert_output --partial "TSEC_KEY_FILE=/etc/ssl/key.pem"
+}
+
+# grep exits 1 on no match, which would end a provision script's set -e.
+@test "tell_settings - succeeds when the prefix has no settings" {
+  run tell_settings "NOSUCHPREFIX"
+  assert_success
 }
 
 @test "tell_status" {
@@ -264,6 +297,70 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+setup_tmpfs_fstab() {
+  export ZFS_DATA_MNT="$1"
+  export ZFS_JAIL_MNT="$1/jails"
+  export STAGE_MNT="$1/jails/stage"
+  export JAIL_FSTAB=""
+  export TOASTER_USE_TMPFS=1
+  mkdir -p "$1/myjail/etc" "$1/stage/etc"
+
+  tell_status() { :; }
+}
+
+@test "install_fstab mounts the runtime /tmp noexec" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/myjail/tmp" "$tmpdir/myjail/etc/fstab"
+  assert_success
+  assert_output --partial "rw,mode=01777,noexec,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab mounts the stage /tmp exec, so ports can build there" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/myjail/etc/fstab.stage"
+  assert_success
+  refute_output --partial "noexec"
+  assert_output --partial "rw,mode=01777,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab keeps the stage /var/run noexec" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/var/run" "$tmpdir/myjail/etc/fstab.stage"
+  assert_success
+  assert_output --partial "rw,mode=01755,noexec,nosuid"
+
+  rm -rf "$tmpdir"
+}
+
+@test "install_fstab copies the exec /tmp into the stage shutdown fstab" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  setup_tmpfs_fstab "$tmpdir"
+
+  install_fstab myjail
+
+  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/stage/etc/fstab"
+  assert_success
+  refute_output --partial "noexec"
+
+  rm -rf "$tmpdir"
+}
+
 @test "install_fstab appends JAIL_FSTAB when set" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
@@ -281,4 +378,118 @@ setup() {
   assert_success
 
   rm -rf "$tmpdir"
+}
+
+@test "stage_fbsd_pkgbase derives base_release_<minor> and invokes pkg" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export FBSD_REL_VER="15.0-RELEASE"
+  export TOASTER_BASE_PKG_BRANCH=""
+
+  # capture pkg args instead of touching the network
+  pkg() { echo "$*" > "$tmpdir/pkg.args"; }
+
+  run stage_fbsd_pkgbase base "$tmpdir/dest"
+  assert_success
+
+  run cat "$tmpdir/dest/usr/local/etc/pkg/repos/FreeBSD-base.conf"
+  assert_success
+  assert_output --partial 'pkg+https://pkg.freebsd.org/${ABI}/base_release_0"'
+  refute_output --partial 'base_release_0-RELEASE'
+  # base_release_* is signed with the pkgbase-<major> fingerprints
+  assert_output --partial 'fingerprints: "/usr/share/keys/pkgbase-'
+
+  run cat "$tmpdir/pkg.args"
+  assert_output --partial "--rootdir $tmpdir/dest"
+  assert_output --partial "FreeBSD-base"
+  assert_output --partial "FreeBSD-set-devel"
+
+  rm -rf "$tmpdir"
+}
+
+@test "stage_fbsd_pkgbase honors TOASTER_BASE_PKG_BRANCH override" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export FBSD_REL_VER="15.0-RELEASE"
+  export TOASTER_BASE_PKG_BRANCH="base_latest"
+
+  pkg() { :; }
+
+  run stage_fbsd_pkgbase base "$tmpdir/dest"
+  assert_success
+
+  run cat "$tmpdir/dest/usr/local/etc/pkg/repos/FreeBSD-base.conf"
+  assert_output --partial 'base_latest'
+  refute_output --partial 'base_release'
+  # base_latest uses the standard pkg fingerprints
+  assert_output --partial 'fingerprints: "/usr/share/keys/pkg"'
+
+  rm -rf "$tmpdir"
+}
+
+# stage_unmount test fixtures: 'mount' and 'umount' are stubbed so the pipeline
+# can be exercised off FreeBSD. unmounted_paths echoes only what got unmounted,
+# in the order stage_unmount tried it.
+fake_mount() {
+  mount() {
+    cat <<EOF
+$ZFS_JAIL_VOL/stage on $STAGE_MNT (zfs, local, nfsv4acls)
+devfs on $STAGE_MNT/dev (devfs)
+$ZFS_DATA_MNT/ports on $STAGE_MNT/usr/ports (nullfs, local)
+$ZFS_DATA_MNT/distfiles on $STAGE_MNT/usr/ports/distfiles (nullfs, local)
+tmpfs on $STAGE_MNT/tmp (tmpfs, local)
+$ZFS_DATA_MNT/other on ${STAGE_MNT}-other/data (nullfs, local)
+$ZFS_DATA_MNT/dovecot on $ZFS_JAIL_MNT/dovecot/stagefiles (nullfs, local)
+EOF
+  }
+  umount() { :; }
+}
+
+unmounted_paths() {
+  stage_unmount | awk '/^umount /{ print $2 }'
+}
+
+@test "stage_unmount unmounts nested mounts before their parents" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  assert_line --index 0 "$STAGE_MNT/usr/ports/distfiles"
+  assert_line --index 1 "$STAGE_MNT/usr/ports"
+}
+
+@test "stage_unmount unmounts each mountpoint once" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  assert_equal "${#lines[@]}" 4
+}
+
+@test "stage_unmount unmounts the stage devfs" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  assert_line "$STAGE_MNT/dev"
+}
+
+@test "stage_unmount leaves the stage root mounted" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  refute_line "$STAGE_MNT"
+}
+
+@test "stage_unmount ignores mounts outside the stage" {
+  fake_mount
+  run unmounted_paths
+  assert_success
+  # 'stage' as a substring elsewhere in the mount line is not a stage mount
+  refute_line "${STAGE_MNT}-other/data"
+  refute_line "$ZFS_JAIL_MNT/dovecot/stagefiles"
+}
+
+@test "stage_unmount refuses to run with STAGE_MNT unset" {
+  fake_mount
+  STAGE_MNT=
+  run stage_unmount
+  assert_failure
+  assert_output --partial "STAGE_MNT is unset"
+  refute_output --partial "umount /"
 }

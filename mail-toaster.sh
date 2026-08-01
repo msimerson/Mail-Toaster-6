@@ -9,6 +9,13 @@ tell_status()
 	if [ -t 0 ] && [ "$MT6_TEST_ENV" != "1" ]; then sleep 1; fi
 }
 
+mt6_config_hint()
+{
+	if [ -n "$1" ]; then echo; echo "ERROR: invalid $1"; echo; fi
+	echo; echo "Next step, edit ${MT6_CONF:-conf.d/mail-toaster.conf}!"; echo
+	echo "See: https://github.com/msimerson/Mail-Toaster-6/wiki/FreeBSD"; echo
+}
+
 mt6-update()
 {
 	fetch "$TOASTER_SRC_URL/mail-toaster.sh"
@@ -71,10 +78,10 @@ mt6_init()
 		mt6-include "$_i"
 	done
 
-	mt6_defaults
-	mt6_version_check
 	# load the local config file
 	config
+	mt6_defaults
+	mt6_version_check
 
 	# Required settings
 	export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:="mail.example.com"} || exit 1
@@ -93,19 +100,19 @@ mt6_init()
 
 	# shellcheck disable=2317
 	if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
-		usage TOASTER_HOSTNAME; return 1; exit 1
+		mt6_config_hint TOASTER_HOSTNAME; return 1; exit 1
 	fi
 	echo "toaster host: $TOASTER_HOSTNAME"
 
 	# shellcheck disable=2317
 	if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
-		usage TOASTER_MAIL_DOMAIN; return 1; exit 1
+		mt6_config_hint TOASTER_MAIL_DOMAIN; return 1; exit 1
 	fi
 	echo "email domain: $TOASTER_MAIL_DOMAIN"
 
 	if [ -z "$JAIL_NET6" ]; then
 		JAIL_NET6=$(get_random_ip6net)
-		echo "export JAIL_NET6=\"$JAIL_NET6\"" >> mail-toaster.conf
+		echo "export JAIL_NET6=\"$JAIL_NET6\"" >> "$MT6_CONF"
 		export JAIL_NET6
 	fi
 
@@ -162,30 +169,20 @@ sed_inplace() {
 
 stage_unmount()
 {
-	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
-		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
-		echo "umount $_fs"
-		umount "$_fs" || echo ""
-	done
+	# an empty STAGE_MNT would match every mountpoint on the host
+	[ -n "$STAGE_MNT" ] || fatal_err "stage_unmount: STAGE_MNT is unset"
 
-	# repeat, as sometimes a nested fs will prevent first try from success
-	for _fs in $(mount | grep stage | sort -u | awk '{ print $3 }'); do
-		if [ "$(basename "$_fs")" = "stage" ]; then continue; fi
+	for _fs in $(mount | awk -v p="$STAGE_MNT/" 'index($3, p) == 1 { print $3 }' | sort -ru); do
 		echo "umount $_fs"
 		umount "$_fs"
 	done
-
-	if mount -t devfs | grep -q "$STAGE_MNT/dev"; then
-		echo "umount $STAGE_MNT/dev"
-		umount "$STAGE_MNT/dev"
-	fi
 }
 
 cleanup_staged_fs()
 {
 	tell_status "stage cleanup"
 	stop_jail stage
-	stage_unmount "$1"
+	stage_unmount
 	zfs_destroy_fs "$ZFS_JAIL_VOL/stage" -f
 }
 
@@ -217,7 +214,10 @@ install_fstab()
 		fi
 	fi
 
+	# ports build under /tmp/portbuild (WRKDIRPREFIX, set in provision/base.sh),
+	# which noexec breaks. Only the stage builds ports; the promoted jail keeps noexec.
 	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $ZFS_JAIL_MNT/stage|" \
+		-e "\|[[:space:]]$ZFS_JAIL_MNT/stage/tmp[[:space:]]| s|,noexec||" \
 		"$_fstab" > \
 		"$_fstab.stage" || exit 1
 
@@ -256,14 +256,11 @@ fstab_add_mount() {
 
 create_staged_fs()
 {
-	cleanup_staged_fs "$1"
+	cleanup_staged_fs
 
 	tell_status "stage jail filesystem setup"
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
-	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
-		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
-	fi
 
 	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
 		tell_status "creating $ZFS_JAIL_MNT/stage/data"
@@ -320,7 +317,15 @@ start_staged_jail()
 tell_settings()
 {
 	echo; echo "   ***   Configured $1 settings:   ***"; echo
-	set | grep "^$1_"
+
+	# Admins are asked to paste provisioning output into issue reports, so show
+	# that a credential is set without showing it. An empty value prints bare,
+	# which is what you want to see when a setting is missing. The || guards a
+	# prefix with no settings at all, which would otherwise end a set -e script.
+	set | grep "^$1_" \
+		| sed -E 's/(KEY|PASS|PASSWD|PASSWORD|SECRET|TOKEN|DSN)=.+/\1=[redacted]/' \
+		|| true
+
 	echo
 	if [ -t 0 ] && [ "$MT6_TEST_ENV" != "1" ]; then sleep 2; fi
 }
@@ -334,8 +339,10 @@ stage_clear_caches()
 {
 	for _c in "$STAGE_MNT/var/cache/pkg" "$STAGE_MNT/var/db/freebsd-update"
 	do
-		echo "clearing cache ($_c)"
-		rm -rf "${_c:?}"/*
+		if [ -d "$_c" ]; then
+			echo "clearing cache ($_c)"
+			rm -rf "${_c:?}"/*
+		fi
 	done
 }
 
@@ -362,7 +369,7 @@ promote_staged_jail()
 	tell_status "promoting jail $1"
 	stop_jail stage
 	stage_clear_caches
-	stage_unmount "$1"
+	stage_unmount
 	ipcrm -W
 
 	rename_staged_to_ready "$1"
@@ -451,20 +458,9 @@ stage_test_running()
 	echo "ok"
 }
 
-unmount_pkg_cache()
-{
-	if ! mount -t nullfs | grep -q "$STAGE_MNT/var/cache/pkg"; then
-		return
-	fi
-
-	echo "unmount $STAGE_MNT/var/cache/pkg"
-	umount "$STAGE_MNT/var/cache/pkg" || exit
-}
-
 freebsd_release_url_base()
 {
-	_major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
-	if [ "$_major_ver" -lt "13" ]; then
+	if [ "$(freebsd_major)" -lt "13" ]; then
 		echo "http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases"
 	else
 		echo "ftp://ftp.freebsd.org/pub/FreeBSD/releases"
@@ -473,7 +469,7 @@ freebsd_release_url_base()
 
 stage_fbsd_package()
 {
-	local _dest="$2"
+	local _dest="$2" _file_uri
 	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
 
 	_file_uri="$(freebsd_release_url_base)/$(uname -m)/$FBSD_REL_VER/$1.txz"
@@ -483,6 +479,60 @@ stage_fbsd_package()
 
 	tell_status "extracting FreeBSD package $1.tgz to $_dest"
 	tar -C "$_dest" -xpJf "$1.txz" || exit
+	echo "done"
+}
+
+stage_fbsd_pkgbase()
+{
+	local _dest="$2"
+	if [ -z "$_dest" ]; then _dest="$STAGE_MNT"; fi
+
+	local _abi _major _minor _rel _branch _fingerprints _repo_dir
+	_major="$(uname -r | cut -f1 -d.)"
+	_abi="FreeBSD:${_major}:$(uname -p)"
+	_minor="$(echo "$FBSD_REL_VER" | cut -f2 -d. | cut -f1 -d-)"
+	_rel="${FBSD_REL_VER%%-*}"
+	_branch="$TOASTER_BASE_PKG_BRANCH"
+	if [ -z "$_branch" ]; then _branch="base_release_${_minor}"; fi
+
+	# base_release_* repos are signed with the pkgbase-<major> fingerprints;
+	# base_latest/base_weekly use the standard pkg fingerprints.
+	case "$_branch" in
+		base_release_*) _fingerprints="/usr/share/keys/pkgbase-${_major}" ;;
+		*)              _fingerprints="/usr/share/keys/pkg" ;;
+	esac
+
+	# persisted so the base jail can later update its base with `pkg upgrade`
+	_repo_dir="$_dest/usr/local/etc/pkg/repos"
+	mkdir -p "$_repo_dir"
+	store_config "$_repo_dir/FreeBSD-base.conf" "overwrite" <<EO_BASE_REPO
+FreeBSD-base: {
+  url: "pkg+https://pkg.freebsd.org/\${ABI}/${_branch}",
+  mirror_type: "srv",
+  signature_type: "fingerprints",
+  fingerprints: "${_fingerprints}",
+  enabled: yes
+}
+EO_BASE_REPO
+
+	# with --rootdir, pkg resolves the fingerprints path inside the rootdir.
+	# Seed the signing keys: copy from the host when present, else fetch the
+	# official bootstrap package (pkgbase-<major> keys ship with no base.txz).
+	if [ ! -d "$_dest$_fingerprints" ]; then
+		if [ -d "$_fingerprints" ]; then
+			mkdir -p "$_dest$(dirname "$_fingerprints")"
+			cp -R "$_fingerprints" "$_dest$(dirname "$_fingerprints")/"
+		else
+			tell_status "bootstrapping pkgbase signing keys"
+			pkg --rootdir "$_dest" -o ABI="$_abi" -o IGNORE_OSVERSION=yes \
+				add -f "https://pkg.freebsd.org/${_abi}/${_branch}/FreeBSD-pkg-bootstrap-${_rel}.pkg" || exit
+		fi
+	fi
+
+	tell_status "installing FreeBSD base packages ($_branch, $_abi) to $_dest"
+	pkg --rootdir "$_dest" --repo-conf-dir "$_repo_dir" \
+		-o ABI="$_abi" -o IGNORE_OSVERSION=yes \
+		install -y --repository FreeBSD-base FreeBSD-set-base-jail FreeBSD-set-devel || exit
 	echo "done"
 }
 
@@ -529,10 +579,15 @@ unmount_data()
 	if ! zfs_filesystem_exists "$_data_vol"; then return; fi
 
 	local _data_mp="$STAGE_MNT/data"
-	if mount -t nullfs | grep -q "$_data_mp"; then
-		tell_status "unmounting data fs $_data_mp"
-		umount -t nullfs "$_data_mp"
-	fi
+
+	local _target
+	for _target in $(mount -t nullfs | awk '{print $3}' | sort -r); do
+		case "$_target" in "$_data_mp"|"$_data_mp"/*)
+			echo umount -t nullfs "$_target"
+			umount -t nullfs "$_target"
+			;;
+		esac
+	done
 }
 
 fetch_and_exec()
@@ -632,18 +687,15 @@ unprovision_last()
 
 unprovision_filesystem()
 {
-	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.ready"; then
-		tell_status "destroying $ZFS_JAIL_VOL/$1.ready"
-		zfs destroy "$ZFS_JAIL_VOL/$1.ready" || return 1
-	fi
-
-	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.last"; then
-		tell_status "destroying $ZFS_JAIL_VOL/$1.last"
-		zfs destroy "$ZFS_JAIL_VOL/$1.last"  || return 1
-	fi
+	for suffix in ready last; do
+		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.$suffix"; then
+			tell_status "destroying $ZFS_JAIL_VOL/$1.$suffix"
+			zfs destroy "$ZFS_JAIL_VOL/$1.$suffix" || return 1
+		fi
+	done
 
 	if [ -e "$ZFS_JAIL_VOL/$1/dev/null" ]; then
-		umount -t devfs "$ZFS_JAIL_VOL/$1/dev"  || return 1
+		umount -t devfs "$ZFS_JAIL_VOL/$1/dev" || return 1
 	fi
 
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then

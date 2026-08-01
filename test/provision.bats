@@ -146,8 +146,14 @@ _no_start_required() {
 }
 
 @test "spamassassin mounts geoip in JAIL_FSTAB" {
-  run grep "^export JAIL_FSTAB" provision/spamassassin.sh
+  run grep "JAIL_FSTAB=.*geoip" provision/spamassassin.sh
   assert_output --partial "geoip"
+}
+
+@test "spamassassin builds RELAY_COUNTRY unconditionally" {
+  run grep "^	local _SA_OPTS=" provision/spamassassin.sh
+  assert_success
+  assert_output --partial "RELAY_COUNTRY"
 }
 
 @test "dcc mounts dcc db in JAIL_FSTAB" {

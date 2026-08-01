@@ -32,8 +32,7 @@ install_mongodb_port()
 }
 
 check_max_wired() {
-	local _fbsd_major; _fbsd_major=$(freebsd-version | cut -f1 -d'.')
-	if [ "$_fbsd_major" -gt "12" ]; then return; fi
+	if [ "$(freebsd_major)" -gt "12" ]; then return; fi
 
 	_count=$(sysctl -n vm.stats.vm.v_wire_count)
 	_wired=$(sysctl -n vm.max_wired)
@@ -59,7 +58,7 @@ configure_mongod_logging()
 {
 	stage_enable_newsyslog
 
-	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /var/run/mongod/mongod.pid' \
+	echo '/data/log/mongod.log   mongodb:mongodb 644  7  *  @T00   JC   /data/db/mongod.lock' \
 		> "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mongod.conf"
 }
 

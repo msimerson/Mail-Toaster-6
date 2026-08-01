@@ -3,6 +3,36 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-08
+
+- config: mv config into ./conf.d/
+- config: split service portions into $service.conf files
+- config: tighten up perms on .mt6 files
+- mysql: drop vestigial SQUIRREL_SQL/ROUNDCUBE_SQL guard
+- config: move jail-private defaults into their provision script
+- spamassassin: drop redundant MAXMIND_LICENSE_KEY check, RELAY_COUNTRY always builds
+- geoip: MAXMIND_* settings move to conf.d/geoip.conf
+- mt: tell_settings redacts credentials, tolerates an unused prefix
+- clamav, geoip, rspamd, unifi, wildduck: report settings before provisioning
+
+## 2026-07
+
+- postfix: smtps -> submissions #670
+- le: added postfix script #679
+- various: use new TOASTER_MSA settings
+- haraka: provide IPv4 only config when no IPv6 #668
+- spamassassin: enabled build w/o geoip
+- mt: improve fs [un]mount #656, #657
+
+## 2026-06
+
+- base: added pkgbase support
+- dma: add support for local (port/package) install
+- haraka: use git directly, vs NPM's goofiness
+- roundcube: update for version 1.7.0
+- mongodb: fix newsyslog path to pid file
+- mt: fix version reporting
+
 ## 2026-04
 
 - mt: stage_setup_tls, deploy certs to correct filename

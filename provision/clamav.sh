@@ -4,6 +4,10 @@ set -e
 
 . mail-toaster.sh
 
+service_config clamav
+export CLAMAV_FANGFRISCH=${CLAMAV_FANGFRISCH:-"0"}
+export CLAMAV_UNOFFICIAL=${CLAMAV_UNOFFICIAL:-"0"}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -328,6 +332,7 @@ test_clamav()
 	echo "It works! (clamd is listening)"
 }
 
+tell_settings CLAMAV
 base_snapshot_exists || exit 1
 migrate_clamav_dbs
 create_staged_fs clamav

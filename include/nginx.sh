@@ -41,7 +41,7 @@ install_nginx_newsyslog()
 	stage_enable_newsyslog
 
 	tell_status "enabling nginx log file rotation"
-	tee "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf" <<EO_NG_NSL
+	store_config "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf" <<EO_NG_NSL
 # rotate nightly (default)
 /var/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 
@@ -60,23 +60,20 @@ contains() {
 
 configure_nginx_server_d()
 {
-	# $1 is jail name, $2 is 'server' name, defaults to $1
-	local _server_d="$ZFS_DATA_MNT/$1/etc/nginx/server.d"
+	local _jail="$1"
+	local _server_name="${2:-$_jail}"
+
+	local _server_d="$ZFS_DATA_MNT/$_jail/etc/nginx/server.d"
 	if [ ! -d "$_server_d" ]; then mkdir -p "$_server_d" || exit 1; fi
 
-	# shellcheck disable=2155
-	local _server_conf="$_server_d/$([ -z "$2" ] && echo "$1" || echo "$2").conf"
-	if [ -f "$_server_conf" ]; then
-		tell_status "preserving $_server_conf"
-		return
-	fi
+	local _server_conf="$_server_d/$_server_name.conf"
 
 	# no more proxy protocol on backends, since nginx can't
 	# send proxy protocol AND route URIs at the same time
 	local _prefix='server {
 		listen       80;'
 
-	if [ -n "$PUBLIC_IP6" ]; then
+	if [ -n "${PUBLIC_IP6:-}" ]; then
 		_prefix="$_prefix
 		listen  [::]:80;"
 	fi
@@ -97,8 +94,7 @@ configure_nginx_server_d()
 		_suffix=''
 	fi
 
-	tell_status "creating $_server_conf"
-	tee "$_server_conf" <<EO_NGINX_SERVER_CONF
+	store_config "$_server_conf" <<EO_NGINX_SERVER_CONF
 	$_prefix
 		$_NGINX_SERVER
 		$_suffix
@@ -117,14 +113,7 @@ configure_nginx()
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
-	local _installed="$_etcdir/nginx.conf"
-	if [ -f "$_installed" ]; then
-		tell_status "preserving $_installed"
-		return
-	fi
-
-	tell_status "saving $_installed"
-	tee "$_installed" <<EO_NGINX_CONF
+	store_config "$_etcdir/nginx.conf" <<EO_NGINX_CONF
 # load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;

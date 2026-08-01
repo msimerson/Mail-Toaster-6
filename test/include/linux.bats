@@ -15,6 +15,10 @@ teardown() {
 
 tell_status() { :; }
 
+# default to amd64 so ubuntu tests are deterministic regardless of host arch;
+# the ARM test below overrides this
+uname() { echo amd64; }
+
 @test "configure_apt_sources - bionic writes ubuntu archive url" {
   configure_apt_sources bionic > /dev/null
   run grep "archive.ubuntu.com" "$STAGE_MNT/compat/linux/etc/apt/sources.list"
@@ -36,6 +40,22 @@ tell_status() { :; }
 @test "configure_apt_sources - noble writes ubuntu archive url" {
   configure_apt_sources noble > /dev/null
   run grep "archive.ubuntu.com" "$STAGE_MNT/compat/linux/etc/apt/sources.list"
+  assert_success
+}
+
+@test "configure_apt_sources - ubuntu on arm writes ports url" {
+  uname() { echo arm64; }
+  configure_apt_sources noble > /dev/null
+  run grep "ports.ubuntu.com/ubuntu-ports" "$STAGE_MNT/compat/linux/etc/apt/sources.list"
+  assert_success
+  run grep "archive.ubuntu.com" "$STAGE_MNT/compat/linux/etc/apt/sources.list"
+  assert_failure
+}
+
+@test "configure_apt_sources - ubuntu on arm includes security repo" {
+  uname() { echo aarch64; }
+  configure_apt_sources jammy > /dev/null
+  run grep "jammy-security" "$STAGE_MNT/compat/linux/etc/apt/sources.list"
   assert_success
 }
 

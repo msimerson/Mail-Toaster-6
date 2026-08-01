@@ -18,6 +18,13 @@ setup() {
   assert_output --partial "hello"
 }
 
+@test "freebsd_major - root dir chroots and extracts major version" {
+  chroot() { echo "14.2-RELEASE-p1"; }
+  run freebsd_major /stage
+  assert_success
+  assert_output "14"
+}
+
 @test "dec_to_hex - 255" {
   run dec_to_hex 255
   assert_output "00ff"
@@ -85,6 +92,53 @@ setup() {
 
   run cat "$tmpfile"
   assert_output "$(printf 'first\nsecond')"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - shadow copy is not world readable" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/secret.conf"
+
+  echo "password=hunter2" | store_config "$tmpfile"
+
+  run _file_mode "$tmpfile.mt6"
+  assert_output "600"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - shadow is tightened on every operation" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/secret.conf"
+
+  echo "first" | store_config "$tmpfile"
+  echo "second" | store_config "$tmpfile" "append"
+  run _file_mode "$tmpfile.mt6"
+  assert_output "600"
+
+  echo "third" | store_config "$tmpfile" "overwrite"
+  run _file_mode "$tmpfile.mt6"
+  assert_output "600"
+
+  rm -rf "$tmpdir"
+}
+
+# The shadow is the source of the cp that installs $1, so a shadow left at 600
+# by an earlier run must not drag the installed config down with it.
+@test "store_config - a tightened shadow does not tighten a reinstalled file" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  umask 022
+  echo "one" | store_config "$tmpfile"
+  local _first; _first=$(_file_mode "$tmpfile")
+
+  rm -f "$tmpfile"          # shadow survives at 600
+  echo "two" | store_config "$tmpfile"
+
+  run _file_mode "$tmpfile"
+  assert_output "$_first"
 
   rm -rf "$tmpdir"
 }

@@ -59,7 +59,7 @@ configure_joomla()
 
 	if [ ! -f "$_htdocs/robots.txt" ]; then
 		tell_status "installing robots.txt"
-		tee "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
+		store_config "$_htdocs/robots.txt" <<EO_ROBOTS_TXT
 User-agent: *
 Disallow: /
 EO_ROBOTS_TXT

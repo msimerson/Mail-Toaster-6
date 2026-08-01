@@ -4,6 +4,8 @@ set -e
 
 . mail-toaster.sh
 
+service_config unifi
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB="fdescfs	$ZFS_JAIL_MNT/unifi/dev/fd	fdescfs	rw	0	0
@@ -28,7 +30,7 @@ create_unifi_mountpoints()
 install_unifi()
 {
 	tell_status "installing Unifi deps"
-	stage_pkg_install snappyjava openjdk17 gmake
+	stage_pkg_install snappyjava openjdk25 gmake
 
 	tell_status "installing Unifi"
 	stage_make_conf unifi10_SET 'net-mgmt_unifi10_SET=EXTERNALDB'
@@ -107,6 +109,7 @@ test_unifi()
 	sleep 1
 }
 
+tell_settings UNIFI
 base_snapshot_exists || exit
 create_staged_fs unifi
 create_unifi_mountpoints

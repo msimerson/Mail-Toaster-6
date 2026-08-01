@@ -12,7 +12,7 @@ mt6_version_check()
 	if [ -d ".git" ]; then echo "v: $(mt6_version)"; return; fi
 
 	local _github
-	_github=$(fetch -o - -q "$TOASTER_SRC_URL/mail-toaster.sh" | grep '^mt6_version(' | cut -f2 -d'"')
+	_github=$(fetch -o - -q "$TOASTER_SRC_URL/include/util.sh" | grep '^mt6_version(' | cut -f2 -d'"')
 	if [ -z "$_github" ]; then
 		echo "v: <failed lookup>"
 		return
@@ -30,26 +30,45 @@ mt6_version_check()
 
 dec_to_hex() { printf '%04x\n' "$1"; }
 
+# BSD and GNU stat disagree on both the flag and the format specifier. Toasters
+# run on FreeBSD; the test suite runs on Linux.
+_file_mode()
+{
+	case "$(uname)" in
+		Linux*) stat -c "%a" "$1" ;;
+		*)      stat -f "%OLp" "$1" ;;
+	esac
+}
+
 store_config()
 {
 	# $1 - path to config file, $2 - operation, STDIN is file contents
 	local _operation=${2:-""}
+	local _shadow="$1.mt6"
 
 	if [ ! -d "$(dirname "$1")" ]; then
 		tell_status "creating $(dirname "$1")"
 		mkdir -p "$(dirname "$1")"
 	fi
 
-	cat - > "$1.mt6"
+	# A redirect onto an existing file keeps that file's mode, so a shadow left
+	# at 600 by an earlier run would install $1 at 600 too. Recreate it instead,
+	# so the mode always derives from umask, as it does on a first run.
+	rm -f "$_shadow"
+	cat - > "$_shadow"
 
 	if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
 		tell_status "installing $1"
-		cp "$1.mt6" "$1"
+		cp "$_shadow" "$1"
 	elif [ "$_operation" = "append" ]; then
-		cat "$1.mt6" >> "$1"
+		cat "$_shadow" >> "$1"
 	else
 		tell_status "preserving $1"
 	fi
+
+	# The shadow duplicates $1 verbatim, secrets included, tighten it after
+	# the copy above, which takes its mode from the shadow.
+	chmod 600 "$_shadow"
 }
 
 store_exec()
@@ -90,11 +109,21 @@ get_random_pass()
 	echo
 }
 
+freebsd_major()
+{
+	# with a root dir, report the target jail's version rather than the host's
+	if [ -n "$1" ]; then
+		chroot "$1" /bin/freebsd-version | cut -f1 -d.
+	else
+		/bin/freebsd-version | cut -f1 -d.
+	fi
+}
+
 configure_pkg_latest()
 {
 	local _pkg_host="pkg.FreeBSD.org"
 
-	if [ -d "$ZFS_DATA_MNT/bsd_cache/pkg" ]; then
+	if jail_is_running bsd_cache; then
 		tell_status "switching pkg to bsd_cache"
 		_pkg_host="pkg"
 	fi
@@ -102,9 +131,8 @@ configure_pkg_latest()
 	local REPODIR="$1/usr/local/etc/pkg/repos"
 	if [ -f "$REPODIR/FreeBSD.conf" ]; then return; fi
 
-	local _major_ver; _major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
 	local _repo_name="FreeBSD-ports"
-	if [ "$_major_ver" -lt "15" ]; then _repo_name="FreeBSD"; fi
+	if [ "$(freebsd_major "$1")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
@@ -163,9 +191,8 @@ EO_RESOLV
 	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
-	local _major_ver; _major_ver="$(/bin/freebsd-version | cut -f1 -d.)"
 	local _repo_name="FreeBSD-ports"
-	if [ "$_major_ver" -lt "15" ]; then _repo_name="FreeBSD"; fi
+	if [ "$(freebsd_major "$ZFS_JAIL_MNT/stage")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
 	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 $_repo_name: {

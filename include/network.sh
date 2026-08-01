@@ -77,9 +77,7 @@ install_acme_sh()
 	stage_exec sh -c "[ -d /data/home/acme ] || mkdir -p /data/home/acme"
 	stage_exec pw usermod acme -d /data/home/acme
 
-	if [ ! -e "$STAGE_MNT/data/home/acme/deploy" ]; then
-		stage_exec ln -s /usr/local/share/examples/acme.sh/deploy /data/home/acme/
-	fi
+	stage_exec sh -c "[ -e /data/home/acme/deploy] || ln -s /usr/local/share/examples/acme.sh/deploy /data/home/acme/deploy"
 	stage_exec ln -s /data/home/acme /root/.acme.sh
 
 	# renew the certs automatically

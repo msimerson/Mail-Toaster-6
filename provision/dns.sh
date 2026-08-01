@@ -161,7 +161,7 @@ enable_control()
 	mkdir "$ZFS_DATA_MNT/dns/control"
 
 	tell_status "configuring unbound-control"
-	tee "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
+	store_config "$ZFS_DATA_MNT/dns/control.conf" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 

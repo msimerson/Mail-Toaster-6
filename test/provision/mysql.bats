@@ -12,7 +12,7 @@
 #   - STAGE_MNT/root/                         (write_pass_to_conf creates .my.cnf)
 #   - ZFS_DATA_MNT/mysql/db/{private,public}_key.pem  (dummy — skips openssl calls)
 #   - CWD set to BATS_FILE_TMPDIR             (write_pass_to_conf appends to
-#                                              mail-toaster.conf safely)
+#                                              $MT6_CONF safely)
 
 setup_file() {
   local _stage="$BATS_FILE_TMPDIR/stage"
@@ -20,7 +20,7 @@ setup_file() {
   local _fns="$BATS_FILE_TMPDIR/mysql_fns_only.sh"
 
   # Strip the execution block so setup() can source function definitions only.
-  awk '/^if \[.*TOASTER_MYSQL/{exit} {print}' \
+  awk '/^base_snapshot_exists/{exit} {print}' \
     "$BATS_TEST_DIRNAME/../../provision/mysql.sh" > "$_fns"
 
   export MT6_TEST_ENV=1
@@ -49,9 +49,10 @@ EOF
   touch "$_data/mysql/db/private_key.pem"
   touch "$_data/mysql/db/public_key.pem"
 
-  # Change to tmpdir so write_pass_to_conf writes mail-toaster.conf here
+  # Change to tmpdir so write_pass_to_conf writes $MT6_CONF here
   # instead of the repository root.
   cd "$BATS_FILE_TMPDIR" || exit 1
+  mkdir -p conf.d
 
   # Source the full provision script once (execution block runs here).
   # shellcheck source=/dev/null
@@ -145,10 +146,32 @@ teardown() {
   assert_success
 }
 
+@test "mysql - defines check_mysql_native_passwords" {
+  run type check_mysql_native_passwords
+  assert_success
+}
+
 # --- configure_mysql outcomes (verified against the post-setup_file my.cnf) ---
 
 @test "mysql - configure rewrites datadir from /var/db/mysql to /data/db" {
   run grep "datadir" "$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+  assert_success
+  assert_output --partial "/data/db"
+  refute_output --partial "/var/db/mysql"
+}
+
+@test "mysql - configure rewrites MariaDB datadir in conf.d/server.cnf" {
+  export TOASTER_MARIADB="1"
+  mkdir -p "$STAGE_MNT/usr/local/etc/mysql/conf.d"
+  cat > "$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf" <<'EOF'
+[server]
+datadir                         = /var/db/mysql
+EOF
+  # data/etc/my.cnf must be absent so the rewrite branch runs.
+  rm -f "$STAGE_MNT/data/etc/my.cnf"
+  run configure_mysql
+  assert_success
+  run grep "datadir" "$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf"
   assert_success
   assert_output --partial "/data/db"
   refute_output --partial "/var/db/mysql"
@@ -193,11 +216,11 @@ teardown() {
 
 # --- install_mysql / install_mariadb behavior ---
 
-@test "mysql - install_mysql installs mysql80-server package" {
+@test "mysql - install_mysql installs a mysql server package" {
   stage_pkg_install() { echo "PKG:$*"; }
   run install_mysql
   assert_success
-  assert_output --partial "PKG:mysql80-server"
+  assert_output --regexp "PKG:mysql[0-9]+-server"
 }
 
 @test "mysql - install_mariadb installs mariadb package" {
@@ -285,4 +308,41 @@ teardown() {
   jail_is_running() { return 1; }
   run migrate_mysql_dbs
   assert_success
+}
+
+# --- check_mysql_native_passwords behavior ---
+
+@test "mysql - check_mysql_native_passwords skips when jail is not running" {
+  jail_is_running() { return 1; }
+  run check_mysql_native_passwords
+  assert_success
+}
+
+@test "mysql - check_mysql_native_passwords skips when running version is 8.4" {
+  jail_is_running() { return 0; }
+  pkg() { echo "mysql84-server-8.4.0"; }
+  run check_mysql_native_passwords
+  assert_success
+}
+
+@test "mysql - check_mysql_native_passwords passes when 8.0 has no deprecated plugins" {
+  jail_is_running() { return 0; }
+  pkg() { echo "mysql80-server-8.0.36"; }
+  jexec() { :; }  # empty output: no rows returned
+  run check_mysql_native_passwords
+  assert_success
+  refute_output --partial "HALT"
+}
+
+@test "mysql - check_mysql_native_passwords halts when 8.0 has deprecated plugins" {
+  jail_is_running() { return 0; }
+  pkg() { echo "mysql80-server-8.0.36"; }
+  jexec() {
+    echo "ALTER USER 'app'@'%' IDENTIFIED WITH caching_sha2_password BY '<new_password>';"
+  }
+  run check_mysql_native_passwords
+  assert_failure
+  assert_output --partial "HALT"
+  assert_output --partial "ALTER USER 'app'@'%'"
+  assert_output --partial "caching_sha2_password"
 }

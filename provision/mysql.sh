@@ -29,7 +29,7 @@ install_db_server()
 install_mysql()
 {
 	tell_status "installing mysql"
-	stage_pkg_install mysql80-server
+	stage_pkg_install mysql84-server
 }
 
 install_mariadb()
@@ -40,12 +40,13 @@ install_mariadb()
 
 write_pass_to_conf()
 {
-	if grep -sq TOASTER_MYSQL_PASS mail-toaster.conf; then
+	if grep -sq TOASTER_MYSQL_PASS "$MT6_CONF"; then
 		sed_inplace \
 			-e "/^export TOASTER_MYSQL_PASS=/ s|=\"\"|=\"$TOASTER_MYSQL_PASS\"|" \
-			mail-toaster.conf
+			"$MT6_CONF"
 	else
-		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> mail-toaster.conf
+		mkdir -p "$(dirname "$MT6_CONF")"
+		echo "export TOASTER_MYSQL_PASS=\"$TOASTER_MYSQL_PASS\"" >> "$MT6_CONF"
 	fi
 
 	preserve_file mysql /root/.my.cnf
@@ -82,10 +83,10 @@ configure_mysql_keys()
 configure_mysql_root_password()
 {
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
-		tell_status "TOASTER_MYSQL_PASS unset in mail-toaster.conf"
+		tell_status "TOASTER_MYSQL_PASS unset in $MT6_CONF"
 
 		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
-		if [ -f "$_my.cnf" ] &&  [ -r "$_my.cnf" ]; then
+		if [ -f "$_my_cnf" ] && [ -r "$_my_cnf" ]; then
 			tell_status "TOASTER_MYSQL_PASS unset in $_my_cnf"
 			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
 		fi
@@ -127,12 +128,19 @@ configure_mysql_ram()
 configure_mysql()
 {
 	tell_status "configuring mysql"
+	local _my_cnf="$STAGE_MNT/usr/local/etc/mysql/my.cnf"
+	# MariaDB has my.cnf but the interesting piece is in conf.d/server.cnf
+	[ "$TOASTER_MARIADB" != 1 ] || _my_cnf="$STAGE_MNT/usr/local/etc/mysql/conf.d/server.cnf"
 	if [ ! -f "$STAGE_MNT/data/etc/my.cnf" ]; then
-		sed_inplace \
-			-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
-			"$STAGE_MNT/usr/local/etc/mysql/my.cnf"
-		# enable this when mysql port adds config setting to rc.d script
-		# cp "$STAGE_MNT/usr/local/etc/mysql/my.cnf" "$STAGE_MNT/data/etc/my.cnf"
+		if [ -f "$_my_cnf" ]; then
+			sed_inplace \
+				-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
+				"$_my_cnf"
+		else
+			sed \
+				-e 's/= \/var\/db\/mysql$/= \/data\/db/g' \
+				"${_my_cnf}.sample" > "$_my_cnf"
+		fi
 	fi
 
 	stage_sysrc mysql_enable=YES
@@ -215,15 +223,76 @@ migrate_mysql_dbs()
 	fi
 }
 
-if [ "$TOASTER_MYSQL" = "1" ] || [ "$SQUIRREL_SQL" = "1" ] || [ "$ROUNDCUBE_SQL" = "1" ]; then
-	tell_status "installing MySQL"
-else
-	tell_status "skipping MySQL install, not configured"
-	exit
-fi
+check_mysql_native_passwords()
+{
+	# MySQL 8.4 disables mysql_native_password and 9.0 removes it.
+	# Before staging an 8.4 install over a running 8.0, verify no
+	# accounts still depend on it; if any do, halt with the ALTER USER
+	# statements needed to migrate them to caching_sha2_password.
+	jail_is_running mysql || return 0
+
+	local _my_ver
+	_my_ver=$(pkg -j mysql info | grep mysql | grep server | cut -f1 -d' ' | cut -d- -f3)
+	[ -z "$_my_ver" ] && return 0
+
+	local _major _minor
+	_major=$(echo "$_my_ver" | cut -f1 -d'.')
+	_minor=$(echo "$_my_ver" | cut -f2 -d'.')
+
+	if [ "$_major" != "8" ] || [ "$_minor" != "0" ]; then
+		return 0
+	fi
+
+	# Operator opt-in: MySQL 8.4 still ships the mysql_native_password plugin
+	# but leaves it disabled by default. Setting mysql_native_password=ON in
+	# [mysqld] re-enables it, so the upgrade is safe even with accounts that
+	# still use the plugin.
+	local _extra_cnf="$ZFS_DATA_MNT/mysql/etc/extra.cnf"
+	if [ -f "$_extra_cnf" ] && awk '
+		/^[[:space:]]*\[mysqld\][[:space:]]*$/ { in_section = 1; next }
+		/^[[:space:]]*\[/                      { in_section = 0 }
+		in_section && tolower($0) ~ /^[[:space:]]*mysql_native_password[[:space:]]*=[[:space:]]*on[[:space:]]*(#.*)?$/ { found = 1; exit }
+		END { exit !found }
+	' "$_extra_cnf"; then
+		tell_status "mysql_native_password=ON set in $_extra_cnf; allowing 8.4 upgrade"
+		return 0
+	fi
+
+	tell_status "MySQL 8.0 detected — scanning for accounts using deprecated auth plugins"
+
+	local _query="SELECT CONCAT('ALTER USER ''', user, '''@''', host, ''' IDENTIFIED WITH caching_sha2_password BY ''<new_password>'';') FROM mysql.user WHERE plugin IN ('mysql_native_password') AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');"
+
+	local _alters
+	_alters=$(echo "$_query" | jexec mysql mysql -N -B 2>/dev/null) || _alters=""
+
+	if [ -z "$_alters" ]; then
+		tell_status "no accounts using deprecated auth plugins; safe to upgrade to 8.4"
+		return 0
+	fi
+
+	echo "
+	HALT: MySQL 8.0 is EOL and 8.4 removes the mysql_native_password and
+	sha256_password authentication plugins. The accounts below still use a
+	deprecated plugin and must be migrated to caching_sha2_password before
+	the 8.4 upgrade can proceed.
+
+	Connect to the running mysql 8.0 jail and run each statement, substituting
+	a real password for each <new_password> placeholder:
+
+		jexec mysql mysql
+
+$_alters
+
+	After migrating every account, re-run this provision script.
+
+	See https://dev.mysql.com/doc/refman/8.4/en/mysql-nutshell.html
+	"
+	exit 1
+}
 
 base_snapshot_exists || exit 1
 migrate_mysql_dbs
+check_mysql_native_passwords
 create_staged_fs mysql
 start_staged_jail mysql
 install_db_server

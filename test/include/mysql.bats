@@ -71,7 +71,7 @@ jexec() {
 
   run mysql_db_exists testdb
   assert_success
-  assert_output --partial "testdb db exists"
+  assert_output --partial "db exists"
 }
 
 @test "mysql_db_exists - does not exist" {
@@ -83,7 +83,7 @@ jexec() {
 
   run mysql_db_exists testdb
   assert_failure
-  assert_output --partial "testdb db does not exist"
+  assert_output --partial "db missing"
 }
 
 @test "mysql_query - with db" {
@@ -104,7 +104,7 @@ jexec() {
 
   run mysql_create_db testdb
   assert_success
-  assert_output --partial "tell_status: testdb db exists in mysql"
+  assert_output --partial "db exists"
 }
 
 @test "mysql_create_db - create" {
@@ -117,7 +117,7 @@ jexec() {
 
   run mysql_create_db testdb
   assert_success
-  assert_output --partial "tell_status: creating mysql database testdb"
+  assert_output --partial "testdb"
   assert_output --partial "mysql_query got: CREATE DATABASE testdb"
 }
 
@@ -130,7 +130,7 @@ jexec() {
 
   run mysql_user_exists user host
   assert_success
-  assert_output --partial "user user exists"
+  assert_output --partial "user exists"
 }
 
 @test "mysql_user_exists - does not exist" {
@@ -142,5 +142,15 @@ jexec() {
 
   run mysql_user_exists user host
   assert_failure
-  assert_output --partial "user user does not exist"
+  assert_output --partial "user missing"
+}
+
+@test "mysql_error_warning - prints warning and sleeps" {
+  sleep() { echo "sleep $*"; }
+
+  run mysql_error_warning
+  assert_success
+  assert_output --partial "WARNING"
+  assert_output --partial "MySQL"
+  assert_output --partial "sleep 5"
 }

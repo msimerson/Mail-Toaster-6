@@ -4,6 +4,11 @@ set -e
 
 . mail-toaster.sh
 
+service_config roundcube
+export ROUNDCUBE_ATTACHMENT_SIZE_MB=${ROUNDCUBE_ATTACHMENT_SIZE_MB:-"25"}
+export ROUNDCUBE_DEFAULT_HOST=${ROUNDCUBE_DEFAULT_HOST:-""}
+export ROUNDCUBE_PRODUCT_NAME=${ROUNDCUBE_PRODUCT_NAME:-"Roundcube Webmail"}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -12,16 +17,8 @@ mt6-include php
 mt6-include nginx
 mt6-include mysql
 
-PHP_VER="83"
+PHP_VER="85"
 
-mysql_error_warning()
-{
-    echo; echo "-----------------"
-    echo "WARNING: could not connect to MySQL. (Is it password protected?) If"
-    echo "this is a new install, manually set up MySQL for roundcube."
-    echo "-----------------"; echo
-    sleep 5
-}
 
 install_roundcube_mysql()
 {
@@ -57,13 +54,9 @@ install_roundcube_mysql()
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
 
-		for _jail in roundcube stage; do
-			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
-			do
-				echo "CREATE USER IF NOT EXISTS 'roundcube'@'${_ip}' IDENTIFIED BY '${_rcpass}';" | mysql_query
-				echo "GRANT ALL PRIVILEGES ON roundcubemail.* to 'roundcube'@'${_ip}';" | mysql_query
-			done
-		done
+		mysql_create_user roundcube "$_rcpass" roundcubemail \
+			"$(get_jail_ip roundcube)" "$(get_jail_ip stage)" \
+			"$(get_jail_ip6 roundcube)" "$(get_jail_ip6 stage)"
 
 		roundcube_init_db
 	fi
@@ -74,8 +67,40 @@ roundcube_init_db()
 	tell_status "initializing roundcube db"
 	pkg install -y curl
 	start_roundcube
-	curl -i --haproxy-protocol -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/installer/index.php?_step=3"
+
+	# since 1.7 the installer entry point is public_html/installer.php; the
+	# installer/ dir it loads sits outside the document root
+	if ! curl -i -sS --fail -F initdb='Initialize database' -XPOST \
+		"http://$(get_jail_ip stage)/installer.php?_step=3"; then
+		fatal_err "roundcube installer did not respond at /installer.php"
+	fi
+}
+
+update_roundcube_db()
+{
+	tell_status "applying roundcube db schema updates"
+
+	# updatedb.sh applies pending SQL/ updates and records the schema version.
+	# Bumping the version without applying them leaves roundcube throwing
+	# "Oops something went wrong"
+	if ! stage_exec /usr/local/bin/php /usr/local/www/roundcube/bin/updatedb.sh \
+		--package=roundcube --dir=/usr/local/www/roundcube/SQL; then
+		tell_status "WARNING: roundcube schema update failed. If the SQL updates
+were already applied by hand, record the version with:
+  updatedb.sh --package=roundcube --dir=SQL --version=<applied version>"
+	fi
+}
+
+migrate_roundcube_nginx_conf()
+{
+	local _conf="$ZFS_DATA_MNT/roundcube/etc/nginx/server.d/roundcube.conf"
+
+	if [ ! -f "$_conf" ] || grep -q public_html "$_conf"; then return; fi
+
+	# 1.7 serves from public_html and routes assets through static.php, so a
+	# pre-1.7 server block can't be patched up in place
+	tell_status "roundcube 1.7 requires a new nginx config, saving $_conf.pre-1.7"
+	mv "$_conf" "$_conf.pre-1.7"
 }
 
 install_roundcube_plugins()
@@ -93,7 +118,7 @@ install_roundcube_plugins()
 
 install_roundcube()
 {
-	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pdo_sqlite pspell session xml zip"
+	local _php_modules="ctype curl dom exif fileinfo filter gd iconv intl mbstring pdo_sqlite session xml zip"
 
 	if [ "$ROUNDCUBE_SQL" = "1" ]; then
 		_php_modules="$_php_modules pdo_mysql"
@@ -106,6 +131,7 @@ install_roundcube()
 	stage_pkg_install roundcube-php${PHP_VER}
 
 	install_roundcube_plugins
+	install_logo
 }
 
 configure_nginx_server()
@@ -128,30 +154,34 @@ EO_RC_LOCAL
 	_NGINX_SERVER="
 		server_name  roundcube;
 
-		root   /usr/local/www/roundcube;
+		root   /usr/local/www/roundcube/public_html;
 		index  index.php;
 
 		$_add_server
-		location /roundcube {
-			alias /usr/local/www/roundcube;
-		}
+		location = /roundcube { return 301 /roundcube/; }
+		rewrite ^/roundcube/(.*)\$ /\$1 last;
+		location = / { rewrite ^ /index.php last; }
 
-		location ~ ^/(bin|SQL|config|temp|logs)$ {
-			deny all;
-		}
-
-		location ~ \\.php\$ {
-			include        /usr/local/etc/nginx/fastcgi_params;
-			fastcgi_index  index.php;
-			fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
-			fastcgi_pass   php;
-			$_add_location
-		}
-
-		location ~* \.(?:css|gif|htc|ico|js|jpe?g|png|swf|webp|ttf)$ {
+		# for performance, robustness, and security, bypass static.php for assets
+		location ~* ^/static.php/(?<asset_path>.+\.(?:css|gif|htc|ico|js|jpe?g|png|swf|webp|ttf|svg|woff|woff2|eot))\$ {
+			alias /usr/local/www/roundcube/\$asset_path;
 			expires       max;
 			access_log    off;
 			log_not_found off;
+		}
+
+		location / {
+			try_files \$uri /static.php\$uri\$is_args\$args;
+		}
+
+		location ~ \\.php(/|\$) {
+			include        /usr/local/etc/nginx/fastcgi_params;
+			fastcgi_split_path_info ^(.+\\.php)(/.*)\$;
+			fastcgi_index  index.php;
+			fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
+			fastcgi_param  PATH_INFO        \$fastcgi_path_info;
+			fastcgi_pass   php;
+			$_add_location
 		}
 "
 	export _NGINX_SERVER
@@ -222,6 +252,7 @@ configure_roundcube()
 {
 	configure_php roundcube
 	configure_nginx roundcube
+	migrate_roundcube_nginx_conf
 	configure_nginx_server
 
 	local _local_path="/usr/local/www/roundcube/config/config.inc.php"
@@ -323,6 +354,7 @@ create_staged_fs roundcube
 start_staged_jail roundcube
 install_roundcube
 configure_roundcube
+update_roundcube_db
 start_roundcube
 test_roundcube
 promote_staged_jail roundcube

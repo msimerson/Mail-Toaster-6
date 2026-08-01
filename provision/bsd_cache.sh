@@ -18,14 +18,8 @@ configure_nginx_server()
 		server_name  pkg;
 
 		location / {
-			root          /data/cache/pkg;
-			try_files     $uri @pkg_cache;
-		}
-
-		location @pkg_cache {
-			root                     /data/cache/pkg;
-			proxy_store              on;
 			proxy_pass               http://pkg.freebsd.org;
+			proxy_cache              bsd_cache;
 			proxy_cache_lock         on;
 			proxy_cache_lock_timeout 20s;
 			proxy_cache_revalidate   on;
@@ -45,15 +39,9 @@ configure_nginx_server()
 		server_name  freebsd-update;
 
 		location / {
-			root          /data/cache/freebsd-update;
-			try_files     $uri @update_cache;
-		}
-
-		location @update_cache {
-			root                     /data/cache/freebsd-update;
-			proxy_store              on;
 			proxy_pass               http://update.freebsd.org;
 			proxy_http_version       1.1;
+			proxy_cache              bsd_cache;
 			proxy_cache_lock         on;
 			proxy_cache_lock_timeout 20s;
 			proxy_cache_revalidate   on;
@@ -73,15 +61,9 @@ configure_nginx_server()
 		server_name  vulnxml;
 
 		location / {
-			root          /data/cache/vulnxml;
-			try_files     $uri @vuln_cache;
-		}
-
-		location @vuln_cache {
-			root                     /data/cache/vulnxml;
-			proxy_store              on;
 			proxy_pass               http://vuxml.freebsd.org;
 			proxy_http_version       1.1;
+			proxy_cache              bsd_cache;
 			proxy_cache_lock         on;
 			proxy_cache_lock_timeout 20s;
 			proxy_cache_revalidate   on;
@@ -114,6 +96,9 @@ configure_bsd_cache()
 {
 	configure_nginx bsd_cache
 	configure_nginx_server
+	store_config "$(get_jail_data bsd_cache)/etc/nginx/server.d/_cache.conf" <<EO_CACHE_CONF
+proxy_cache_path /data/cache levels=1:2 keys_zone=bsd_cache:16m max_size=8g inactive=30d use_temp_path=off;
+EO_CACHE_CONF
 	create_cachedir
 }
 

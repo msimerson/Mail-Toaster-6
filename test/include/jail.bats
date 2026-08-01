@@ -119,4 +119,62 @@ setup() {
   assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
+# --- configure_mta_pf_rdr: port 25 follows TOASTER_MTA, 465/587 follow TOASTER_MSA ---
+
+mta_rdr_setup() {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  get_jail_ip()  { echo "172.16.15.9"; }
+  get_jail_ip6() { echo "fd7a::9"; }
+}
+
+@test "configure_mta_pf_rdr - default: haraka claims 25 465 587" {
+  mta_rdr_setup
+  export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
+  configure_mta_pf_rdr haraka
+  run cat "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  assert_output --partial "port { 25 465 587 }"
+}
+
+@test "configure_mta_pf_rdr - MSA=postfix moves submission ports off haraka" {
+  mta_rdr_setup
+  export TOASTER_MTA="haraka" TOASTER_MSA="postfix"
+  configure_mta_pf_rdr haraka
+  configure_mta_pf_rdr postfix
+  run cat "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  assert_output --partial "port { 25 }"
+  refute_output --partial "465"
+  run cat "$ZFS_DATA_MNT/postfix/etc/pf.conf.d/rdr.conf"
+  assert_output --partial "port { 465 587 }"
+  refute_output --partial "25"
+}
+
+@test "configure_mta_pf_rdr - MTA=postfix moves port 25 off haraka" {
+  mta_rdr_setup
+  export TOASTER_MTA="postfix" TOASTER_MSA="haraka"
+  configure_mta_pf_rdr haraka
+  configure_mta_pf_rdr postfix
+  run cat "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  assert_output --partial "port { 465 587 }"
+  run cat "$ZFS_DATA_MNT/postfix/etc/pf.conf.d/rdr.conf"
+  assert_output --partial "port { 25 }"
+}
+
+@test "configure_mta_pf_rdr - removes stale rdr.conf when jail owns no ports" {
+  mta_rdr_setup
+  export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
+  mkdir -p "$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
+  echo "stale rule" > "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  run configure_mta_pf_rdr haraka
+  assert_success
+  [ ! -f "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf" ]
+}
+
+@test "configure_mta_pf_rdr - writes no file when jail owns no ports" {
+  mta_rdr_setup
+  export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
+  run configure_mta_pf_rdr haraka
+  assert_success
+  [ ! -f "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf" ]
+}
+
 

@@ -97,7 +97,6 @@ frontend http-in
 	http-response set-header X-XSS-Protection "1; mode=block"
 	http-response set-header X-Content-Type-Options nosniff
 	http-response set-header Referrer-Policy strict-origin-when-cross-origin
-	http-response set-header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.jquery.com; style-src 'self' 'unsafe-inline' https://code.jquery.com; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';"
 
 	acl is_websocket hdr(Upgrade) -i WebSocket
 	acl is_websocket hdr_beg(Host) -i ws
@@ -140,7 +139,7 @@ frontend http-in
 	acl auth_login   path /auth-login
 	acl is_local     src 127.0.0.1 ::1
 	acl protected    path_beg /munin /nagios /watch /haraka /haproxy
-	acl protected    path_beg /rspamd /dmarc /prometheus /grafana /kibana
+	acl protected    path_beg /rspamd /dmarc /prometheus
 
 	# Auth probe (fetch): bare 401 so browsers don't pop a credential dialog
 	http-request return status 204 if auth_check { http_auth(adminusers) }
@@ -206,6 +205,7 @@ frontend http-in
 
 	backend www_webmail
 	server webmail $(get_jail_ip webmail):80
+	http-response set-header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.jquery.com; style-src 'self' 'unsafe-inline' https://code.jquery.com; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';"
 
 	backend www_roundcube
 	server roundcube $(get_jail_ip roundcube):80

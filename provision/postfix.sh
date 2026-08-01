@@ -12,6 +12,11 @@ _dkim_private_key="$ZFS_DATA_MNT/postfix/dkim/$TOASTER_MAIL_DOMAIN.private"
 
 install_postfix()
 {
+	tell_status "Redirecting /var/spool/postfix to /data/spool"
+	stage_exec mkdir -p -m 0755 /data/spool
+	stage_exec chown root:wheel /data/spool
+	stage_exec ln -s /data/spool /var/spool/postfix
+
 	tell_status "installing postfix"
 	stage_pkg_install postfix-sasl opendkim
 	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /usr/local/etc/mail/mailer.conf
@@ -22,6 +27,8 @@ install_postfix()
 	fi
 }
 
+make_selector() { date '+%b%Y' | tr '[:upper:]' '[:lower:]'; }
+
 configure_opendkim()
 {
 	stage_sysrc milteropendkim_enable=YES
@@ -29,38 +36,111 @@ configure_opendkim()
 
 	tell_status "See http://www.opendkim.org/opendkim-README"
 
-	if [ ! -d "$STAGE_MNT/data/etc" ]; then mkdir "$STAGE_MNT/data/etc"; fi
-	if [ ! -d "$STAGE_MNT/data/dkim" ]; then mkdir "$STAGE_MNT/data/dkim"; fi
+	local _dkim_dir="/data/dkim"
+	local _selector
+
+	if [ ! -d "$STAGE_MNT$_dkim_dir" ]; then mkdir "$STAGE_MNT$_dkim_dir"; fi
+
+	local _opendkim_keyfile="$_dkim_dir/$TOASTER_MAIL_DOMAIN.private"
+	if [ ! -f "$STAGE_MNT$_opendkim_keyfile" ]; then
+		_selector="$(make_selector)"
+		stage_exec opendkim-genkey -b 2048 -h sha256 -D "$_dkim_dir" -s "$_selector" -v -d "$TOASTER_MAIL_DOMAIN"
+		stage_exec mv "$_dkim_dir/$_selector.private" "$_opendkim_keyfile"
+		tell_status "Please add this TXT record: $(cat "$STAGE_MNT$_dkim_dir/$_selector.txt")"
+	fi
 
 	if [ -f "$STAGE_MNT/data/etc/opendkim.conf" ]; then
 		tell_status "preserving opendkim config"
 	else
 		tell_status "configuring opendkim"
+		[ -n "$_selector" ] || _selector="$(make_selector)"
+
+		# generate multi-domain ready config for easier customization
+		store_config "$STAGE_MNT$_dkim_dir/KeyTable" "append" <<EO_KEY_TABLE
+$_selector._domainkey.$TOASTER_MAIL_DOMAIN $TOASTER_MAIL_DOMAIN:$_selector:$_opendkim_keyfile
+EO_KEY_TABLE
+		store_config "$STAGE_MNT$_dkim_dir/SigningTable" "append" <<EO_SIGNING_TABLE
+*@$TOASTER_MAIL_DOMAIN $_selector._domainkey.$TOASTER_MAIL_DOMAIN
+EO_SIGNING_TABLE
+		store_config "$STAGE_MNT$_dkim_dir/TrustedHosts" <<EO_TRUSTED_HOSTS
+127.0.0.1
+::1
+$TOASTER_MAIL_DOMAIN
+EO_TRUSTED_HOSTS
+
 		sed \
-			-e "/^Domain/ s/example.com/$TOASTER_MAIL_DOMAIN/"  \
-			-e "/^KeyFile/ s/\/.*$/\/data\/dkim\/$TOASTER_MAIL_DOMAIN.private/"  \
 			-e '/^Socket/ s/inet:port@localhost/inet:8891/' \
-			-e "/^Selector/ s/my-selector-name/$(date '+%b%Y' | tr '[:upper:]' '[:lower:]')/" \
+			-e "/^Domain/ s/^/#/" \
+			-e "/^KeyFile/ s/^/#/" \
+			-e "/^Selector/ s/^/#/" \
+			-e "/^# ExternalIgnoreList/ s|^.*$|ExternalIgnoreList refile:$_dkim_dir/TrustedHosts|" \
+			-e "/^# InternalHosts/ s|^.*$|InternalHosts refile:$_dkim_dir/TrustedHosts|" \
+			-e "/^# KeyTable/ s|^.*$|KeyTable refile:$_dkim_dir/KeyTable|" \
+			-e "/^# SigningTable/ s|^.*$|SigningTable refile:$_dkim_dir/SigningTable|" \
 			"$STAGE_MNT/usr/local/etc/mail/opendkim.conf.sample" \
-			> "$STAGE_MNT/data/etc/opendkim.conf"
+			| store_config "$STAGE_MNT/data/etc/opendkim.conf"
 	fi
+}
+
+configure_tls_certs()
+{
+	local _ssldir="$ZFS_DATA_MNT/postfix/etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$ZFS_DATA_MNT/postfix/etc/ssl" ]; then
+		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
+		mv "$ZFS_DATA_MNT/postfix/etc/ssl" "$_ssldir"
+	fi
+
+	# shellcheck disable=SC2174
+	[ -d "$_ssldir/certs" ] || mkdir -p -m 0644 "$_ssldir/certs"
+	# shellcheck disable=SC2174
+	[ ! -d "$_ssldir/private" ] || mkdir -p -m 0644 "$_ssldir/private"
+
+	local _installed="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	if [ -f "$_installed" ]; then
+		tell_status "postfix TLS certificates already installed"
+		return
+	fi
+
+	tell_status "installing postfix TLS certificates"
+	cp /etc/ssl/certs/server.crt "$_installed"
+	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 }
 
 configure_postfix_main_cf()
 {
 	local _main_cf="$ZFS_DATA_MNT/postfix/etc/main.cf"
+	local _ssldir="/data/etc/tls"
+	export MAIL_CONFIG="/data/etc"  # postconf needs this
+
+	if grep -qs "/data/etc/ssl" "$_main_cf"; then
+		tell_status "Upgrading /data/etc/ssl to $_ssldir in main.cf"
+		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem"
+		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_MAIL_DOMAIN.pem"
+	fi
+
 	if [ -f "$_main_cf" ]; then
 		tell_status "preserving $_main_cf"
 		return
 	fi
 
 	stage_exec install -m 0644 /usr/local/etc/postfix/main.cf /data/etc/main.cf
-	stage_exec postconf -e "myhostname = postfix.$TOASTER_HOSTNAME"
+
+	if [ "$TOASTER_MTA" = postfix ] || [ "$TOASTER_MSA" = postfix ]; then
+		stage_exec postconf -e "myhostname = $TOASTER_HOSTNAME"
+		stage_exec postconf -e "myorigin = $TOASTER_MAIL_DOMAIN"
+	else
+		stage_exec postconf -e "myhostname = postfix.$TOASTER_HOSTNAME"
+	fi
+
+	if [ "$TOASTER_MSA" = postfix ]; then
+		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem"
+		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_MAIL_DOMAIN.pem"
+	fi
+
 	stage_exec postconf -e 'smtp_tls_security_level = may'
 	stage_exec postconf -e 'smtpd_tls_security_level = may'
 	stage_exec postconf -e 'smtpd_tls_auth_only = yes'
 	stage_exec postconf -e 'lmtp_tls_security_level = may'
-	stage_exec postconf -e 'lmtpd_tls_security_level = may'
 	stage_exec postconf -e "mynetworks = ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK}"
 
 	if [ -f "$ZFS_DATA_MNT/postfix/etc/sasl_passwd" ]; then
@@ -74,10 +154,28 @@ configure_postfix_main_cf()
 		stage_exec postconf -e 'transport_maps = hash:/data/etc/transport'
 	fi
 
-	if [ -f "$_dkim_private_key" ]; then
-		stage_exec postconf -e 'smtpd_milters = inet:localhost:8891'
+	local _milters=
+	if [ -f "$_dkim_private_key" ]; then _milters="inet:localhost:8891"; fi
+	if [ "$TOASTER_MTA" = postfix ] && jail_is_running rspamd; then _milters="$_milters inet:$(get_jail_ip rspamd):11332"; fi
+	if [ -n "$_milters" ]; then
+		stage_exec postconf -e "smtpd_milters = ${_milters# }"
 		stage_exec postconf -e 'non_smtpd_milters = $smtpd_milters'
 	fi
+}
+
+# Uncomment the submission (587) and smtps (465) service blocks in master.cf,
+# together with their indented "-o" option continuation lines. Idempotent:
+# blocks that are already enabled (no leading '#') are left untouched.
+enable_postfix_submission()
+{
+	local _master_cf="$1"
+
+	tell_status "enabling postfix submission and submissions/smtps services"
+	awk '
+		/^#(submission|submissions|smtps)[[:space:]]/ { sub(/^#/, ""); in_block = 1; print; next }
+		in_block && /^#[[:space:]]/       { sub(/^#/, ""); print; next }
+		{ in_block = 0; print }
+	' "$_master_cf" > "$_master_cf.tmp" && mv "$_master_cf.tmp" "$_master_cf"
 }
 
 configure_postfix_master_cf()
@@ -87,7 +185,11 @@ configure_postfix_master_cf()
 		tell_status "preserving $_master_cf"
 	else
 		tell_status "installing $_master_cf"
-		stage_exec install -m 0644 /usr/local/etc/postfix/master.cf /data/etc/master.cf
+		install -m 0644 "$STAGE_MNT/usr/local/etc/postfix/master.cf" "$_master_cf"
+
+		if [ "$TOASTER_MSA" = "postfix" ]; then
+			enable_postfix_submission "$_master_cf"
+		fi
 	fi
 }
 
@@ -114,12 +216,16 @@ configure_postfix()
 		stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 	fi
 
+	[ "$TOASTER_MSA" != postfix ] || configure_tls_certs
+
 	configure_opendkim
 
 	preserve_file postfix '/etc/mail/aliases'
 	stage_exec /usr/local/bin/newaliases
 
 	stage_exec install -m 0644 /usr/local/share/postfix/mailer.conf.postfix /data/etc/mailer.conf
+
+	configure_mta_pf_rdr postfix
 }
 
 start_postfix()

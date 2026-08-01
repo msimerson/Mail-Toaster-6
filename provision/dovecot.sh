@@ -20,7 +20,7 @@ allow_sysvipc_stage()
 install_dovecot()
 {
 	tell_status "installing dovecot package"
-	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql80-client
+	stage_pkg_install dovecot dovecot-pigeonhole curl perl5 gmake mysql84-client
 
 	tell_status "configure dovecot port options"
 	stage_make_conf dovecot2_SET 'mail_dovecot2_SET=MYSQL LIBWRAP EXAMPLES'
@@ -44,9 +44,17 @@ install_dovecot()
 configure_dovecot_local_conf() {
 	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
 
-	store_config "$_localconf" <<'EO_DOVECOT_LOCAL'
-#mail_debug = yes
-listen = *, ::
+	local _listen='listen = *'
+	get_public_ip6
+	if [ -n "$PUBLIC_IP6" ]; then _listen="$_listen, ::"; fi
+
+	if grep -q "/data/etc/ssl/" $_localconf; then
+		tell_status "Upgrading $_localconf to /data/etc/tls/"
+		sed_inplace 's,/data/etc/ssl/,/data/etc/tls/,' "$_localconf"
+	fi
+
+	store_config "$_localconf" <<EO_DOVECOT_LOCAL
+$_listen
 auth_verbose=yes
 auth_mechanisms = plain login digest-md5 cram-md5 scram-sha-1 scram-sha-256
 auth_username_format = %Lu
@@ -57,7 +65,7 @@ last_valid_gid = 89
 last_valid_uid = 89
 mail_privileged_group = 89
 login_greeting = Mail Toaster (Dovecot) ready.
-mail_plugins = $mail_plugins quota
+mail_plugins = \$mail_plugins quota
 protocols = imap pop3 lmtp sieve
 
 service auth {
@@ -104,8 +112,8 @@ service managesieve-login {
 service tcpwrap {
   unix_listener login/tcpwrap {
     mode = 0600
-    user = $default_login_user
-    group = $default_login_user
+    user = \$default_login_user
+    group = \$default_login_user
   }
   user = root
 }
@@ -129,7 +137,7 @@ verbose_proctitle = yes
 protocol imap {
   imap_client_workarounds = delay-newmail  tb-extra-mailbox-sep
   mail_max_userip_connections = 45
-  mail_plugins = $mail_plugins imap_quota trash imap_sieve
+  mail_plugins = \$mail_plugins imap_quota trash imap_sieve
 }
 protocol pop3 {
   pop3_client_workarounds = outlook-no-nuls oe-ns-eoh
@@ -137,7 +145,7 @@ protocol pop3 {
 }
 protocol lmtp {
   mail_fsync = optimized
-  mail_plugins = $mail_plugins sieve
+  mail_plugins = \$mail_plugins sieve
 }
 
 # default TLS certificate (no SNI)
@@ -203,10 +211,10 @@ namespace inbox {
   mail_location = maildir:~/Maildir
   mailbox Spam {
     auto = no
-    special_use = \Junk
+    special_use = \\Junk
   }
   mailbox Archive {
-    special_use = \Archive
+    special_use = \\Archive
   }
 }
 EO_DOVECOT_LOCAL
@@ -339,6 +347,10 @@ configure_tls_certs()
 	fi
 
 	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$ZFS_DATA_MNT/dovecot/etc/ssl" ]; then
+		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
+		mv "$ZFS_DATA_MNT/dovecot/etc/ssl" "$_ssldir"
+	fi
 	if [ ! -d "$_ssldir/certs" ]; then
 		# shellcheck disable=SC2174
 		mkdir -m 644 -p "$_ssldir/certs"
