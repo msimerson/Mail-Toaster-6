@@ -253,15 +253,14 @@ _config_in() {
   local _tmpdir; _tmpdir=$(mktemp -d)
   export MT6_CONF_DIR="$_tmpdir/conf.d"
   mkdir -p "$MT6_CONF_DIR"
-  printf 'export ROUNDCUBE_SQL="0"\n' > "$MT6_CONF_DIR/roundcube.conf"
+  printf 'export TOASTER_WEBMAIL_PROXY="nginx"\n' > "$MT6_CONF_DIR/webmail.conf"
 
-  unset ROUNDCUBE_SQL
-  export TOASTER_MYSQL="1"
+  unset TOASTER_WEBMAIL_PROXY
   mt6_defaults
-  assert_equal "$ROUNDCUBE_SQL" "1"
+  assert_equal "$TOASTER_WEBMAIL_PROXY" "haproxy"
 
-  service_config roundcube
-  assert_equal "$ROUNDCUBE_SQL" "0"
+  service_config webmail
+  assert_equal "$TOASTER_WEBMAIL_PROXY" "nginx"
 }
 
 # A provision script applies its defaults after service_config, so a setting the

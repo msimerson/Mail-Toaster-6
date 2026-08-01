@@ -43,12 +43,8 @@ mt6_defaults()
 	export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:-"0"}
 	export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:-"1"}
 	export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:-"0"}
-	export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
 	export TOASTER_QMHANDLE=${TOASTER_QMHANDLE:-"0"}
 	export TOASTER_WEBMAIL_PROXY=${TOASTER_WEBMAIL_PROXY:-"haproxy"}
-	# Jail-private settings live in their provision script. This one stays
-	# because its only reader is deprecated/squirrelmail.sh.
-	export SQUIRREL_SQL=${SQUIRREL_SQL:-"$TOASTER_MYSQL"}
 
 	# If your hosts public facing IP(s) are not bound to a local interface, configure it here.
 	export PUBLIC_IP4=${PUBLIC_IP4:-""}

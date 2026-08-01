@@ -169,22 +169,36 @@ _no_start_required() {
 # mail-toaster.conf is for settings that apply toaster-wide.
 # ---------------------------------------------------------------------------
 
-@test "the config template holds no setting that only one jail reads" {
-  local failed=0 _setting _readers _count
-  for _setting in $(awk '/store_config "\$1"/,/^EO_MT_CONF$/' include/config.sh \
-                     | sed -n 's/^export \([A-Z_][A-Z_0-9]*\)=.*/\1/p'); do
-    # config.sh is where the setting is declared, not a consumer. base.sh and
-    # host.sh configure the host rather than a jail, so a setting only they read
-    # is still toaster-wide.
-    _readers=$(grep -rlE "[\$][{]?${_setting}([^A-Z_0-9]|$)" \
-                 provision/*.sh include/*.sh mail-toaster.sh \
-               | grep -vE '^(include/config\.sh|provision/(base|host|bhyve-ubuntu)\.sh)$') || true
-    _count=$(printf '%s' "$_readers" | grep -c . || true)
+_config_declared_settings() {
+  {
+    awk '/store_config "\$1"/,/^EO_MT_CONF$/' include/config.sh \
+      | sed -n 's/^export \([A-Z_][A-Z_0-9]*\)=.*/\1/p'
+    awk '/^mt6_defaults\(\)/,/^}/' include/config.sh \
+      | sed -n 's/^[[:space:]]*export \([A-Z_][A-Z_0-9]*\)=.*/\1/p'
+  } | sort -u
+}
 
-    if [ "$_count" -eq 1 ] && printf '%s' "$_readers" | grep -q '^provision/'; then
-      echo "JAIL-PRIVATE ($_readers), belongs in its provision script: $_setting" >&3
-      failed=$((failed + 1))
-    fi
+@test "config.sh declares no setting that only one jail reads" {
+  local failed=0 _setting _readers _count
+  for _setting in $(_config_declared_settings); do
+    # config.sh declares the setting, it does not consume it
+    _readers=$(grep -rlE "[\$][{]?${_setting}([^A-Z_0-9]|$)" \
+                 provision/*.sh deprecated/*.sh include/*.sh mail-toaster.sh \
+               | grep -v '^include/config\.sh$') || true
+    _count=$(printf '%s' "$_readers" | grep -c . || true)
+    [ "$_count" -eq 1 ] || continue
+
+    # base.sh, host.sh and bhyve-ubuntu.sh configure the host rather than a
+    # jail, so a setting only they read is still toaster-wide. They still count
+    # as readers above, or a setting they share with one jail looks jail-private.
+    case "$_readers" in
+      provision/base.sh|provision/host.sh|provision/bhyve-ubuntu.sh) continue ;;
+      provision/*|deprecated/*) ;;
+      *) continue ;;
+    esac
+
+    echo "JAIL-PRIVATE ($_readers), belongs in its provision script: $_setting" >&3
+    failed=$((failed + 1))
   done
   [ "$failed" -eq 0 ]
 }

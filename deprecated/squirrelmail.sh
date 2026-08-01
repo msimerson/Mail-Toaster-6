@@ -2,6 +2,9 @@
 
 . mail-toaster.sh || exit
 
+service_config squirrelmail
+export SQUIRREL_SQL=${SQUIRREL_SQL:-"$TOASTER_MYSQL"}
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
