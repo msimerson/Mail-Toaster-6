@@ -173,7 +173,7 @@ enable_postfix_submission()
 	tell_status "enabling postfix submission and submissions/smtps services"
 	awk '
 		/^#(submission|submissions|smtps)[[:space:]]/ { sub(/^#/, ""); in_block = 1; print; next }
-		in_block && /^#[[:space:]]/       { sub(/^#/, ""); print; next }
+		in_block && /^#[[:space:]]+-o/                { sub(/^#/, ""); print; next }
 		{ in_block = 0; print }
 	' "$_master_cf" > "$_master_cf.tmp" && mv "$_master_cf.tmp" "$_master_cf"
 }
