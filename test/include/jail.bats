@@ -123,6 +123,8 @@ setup() {
 
 mta_rdr_setup() {
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
   get_jail_ip()  { echo "172.16.15.9"; }
   get_jail_ip6() { echo "fd7a::9"; }
 }

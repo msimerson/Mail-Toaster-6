@@ -107,12 +107,7 @@ configure_mta_pf_rdr()
 		return 0
 	fi
 
-	store_config "$_pf_etc/$_jail.table" <<EO_PF_INSECURE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip "$_jail")
-$(get_jail_ip6 "$_jail")
-EO_PF_INSECURE
+	configure_pf_jail_table "$_jail"
 
 	store_config "$_pf_etc/rdr.conf" "overwrite" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip "$_jail")
@@ -122,6 +117,22 @@ EO_PF_RDR
 	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
 pass in quick proto tcp from any to <$_jail> port { $_ports }
 EO_PF_FILTER
+}
+
+configure_pf_jail_table()
+{
+	local _jail="$1"
+	local _pf_etc="$ZFS_DATA_MNT/$_jail/etc/pf.conf.d"
+
+	get_public_ip4
+	get_public_ip6
+
+	store_config "$_pf_etc/$_jail.table" <<EO_PF_TABLE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip "$_jail")
+$(get_jail_ip6 "$_jail")
+EO_PF_TABLE
 }
 
 get_reverse_ip()

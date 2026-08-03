@@ -393,15 +393,7 @@ rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> \$int_ip6
 EO_WEBMAIL_RDR
 	fi
 
-	get_public_ip4
-	get_public_ip6
-
-	store_config "$_pf_etc/webmail.table" <<EO_WEBMAIL_TABLE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip webmail)
-$(get_jail_ip6 webmail)
-EO_WEBMAIL_TABLE
+	configure_pf_jail_table webmail
 
 	store_config "$_pf_etc/filter.conf" <<EO_WEBMAIL_FILTER
 pass in quick proto tcp from any to <webmail> port { 80 443 }

@@ -395,12 +395,7 @@ nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
 nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
 EO_PF_NAT
 
-	store_config "$_pf_etc/wildduck.table" <<EO_TABLE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip wildduck)
-$(get_jail_ip6 wildduck)
-EO_TABLE
+	configure_pf_jail_table wildduck
 
 	store_config "$_pf_etc/filter.conf" <<EO_FILTER
 pass in quick proto tcp from any to <wildduck> port { 25 465 587 80 443 993 995 }

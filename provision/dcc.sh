@@ -65,15 +65,7 @@ configure_dcc()
 
 	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
 
-	get_public_ip4
-	get_public_ip6
-
-	store_config "$_pf_etc/dcc.table" <<EO_DCC_TABLE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip dcc)
-$(get_jail_ip6 dcc)
-EO_DCC_TABLE
+	configure_pf_jail_table dcc
 
 	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
 pass in quick proto udp from any port 6277 to <dcc>

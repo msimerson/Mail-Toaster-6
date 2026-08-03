@@ -403,15 +403,7 @@ rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip hapro
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
 EO_PF_RDR
 
-	get_public_ip4
-	get_public_ip6
-
-	store_config "$_pf_etc/haproxy.table" <<EO_HAPROXY_TABLE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip haproxy)
-$(get_jail_ip6 haproxy)
-EO_HAPROXY_TABLE
+	configure_pf_jail_table haproxy
 
 	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
 pass in quick proto tcp from any to <haproxy> port { 80 443 }
