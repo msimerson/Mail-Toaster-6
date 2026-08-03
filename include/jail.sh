@@ -117,7 +117,6 @@ EO_PF_INSECURE
 	store_config "$_pf_etc/rdr.conf" "overwrite" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip "$_jail")"
 int_ip6 = "$(get_jail_ip6 "$_jail")"
-
 rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> \$int_ip4
 rdr inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")
 EO_PF_RDR
