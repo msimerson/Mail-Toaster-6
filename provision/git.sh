@@ -85,15 +85,7 @@ rdr inet  proto tcp from any to <ext_ip4> port { 8080 } -> \$int_ip4 80
 rdr inet6 proto tcp from any to <ext_ip6> port { 8080 } -> \$int_ip6 80
 EO_GIT_RDR
 
-	get_public_ip4
-	get_public_ip6
-
-	store_config "$_pf_etc/git.table" <<EO_WEBMAIL_TABLE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip git)
-$(get_jail_ip6 git)
-EO_WEBMAIL_TABLE
+	configure_pf_jail_table git
 
 	store_config "$_pf_etc/filter.conf" <<EO_WEBMAIL_FILTER
 pass in quick proto tcp from any to <git> port { 80 8080 }

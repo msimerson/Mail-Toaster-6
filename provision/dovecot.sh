@@ -549,15 +549,7 @@ configure_dovecot_pf()
 # 192.168/16
 EO_PF_INSECURE
 
-	get_public_ip4
-	get_public_ip6
-
-	store_config "$_pf_etc/dovecot.table" <<EO_PF_INSECURE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip dovecot)
-$(get_jail_ip6 dovecot)
-EO_PF_INSECURE
+	configure_pf_jail_table dovecot
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 int_ip4 = "$(get_jail_ip dovecot)"
