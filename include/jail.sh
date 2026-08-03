@@ -95,20 +95,36 @@ configure_mta_pf_rdr()
 		_ports="${_ports:+$_ports }465 587"
 	fi
 
-	local _rdr="$ZFS_DATA_MNT/$_jail/etc/pf.conf.d/rdr.conf"
+	local _pf_etc="$ZFS_DATA_MNT/$_jail/etc/pf.conf.d" _conf
 
 	if [ -z "$_ports" ]; then
-		if [ -f "$_rdr" ]; then
-			tell_status "removing mail port redirects from $_rdr"
-			rm -f "$_rdr"
-		fi
+		for _conf in "$_pf_etc/rdr.conf" "$_pf_etc/filter.conf"; do
+			if [ -f "$_conf" ]; then
+				tell_status "removing mail port redirects from $_conf"
+				rm -f "$_conf"
+			fi
+		done
 		return 0
 	fi
 
-	store_config "$_rdr" "overwrite" <<EO_PF
-rdr pass inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip  "$_jail")
-rdr pass inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")
-EO_PF
+	store_config "$_pf_etc/$_jail.table" <<EO_PF_INSECURE
+$PUBLIC_IP4
+$PUBLIC_IP6
+$(get_jail_ip "$_jail")
+$(get_jail_ip6 "$_jail")
+EO_PF_INSECURE
+
+	store_config "$_pf_etc/rdr.conf" "overwrite" <<EO_PF_RDR
+int_ip4 = "$(get_jail_ip "$_jail")"
+int_ip6 = "$(get_jail_ip6 "$_jail")"
+
+rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> \$int_ip4
+rdr inet6 proto tcp from any to <ext_ip6> port { $_ports } -> \$int_ip6
+EO_PF_RDR
+
+	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
+pass in quick proto tcp from any to <$_jail> port { $_ports }
+EO_PF_FILTER
 }
 
 get_reverse_ip()
