@@ -59,15 +59,17 @@ configure_nginx_server()
 		add_header X-Frame-Options "SAMEORIGIN" always;
 		fastcgi_hide_header X-Powered-By;
 
+		location = /snappymail { return 301 /snappymail/; }
+
 		location /snappymail/ {
-			root   /usr/local/www/snappymail;
+			root   /usr/local/www;
 			index  index.php;
-			try_files $uri index.php?$query_string;
+			try_files $uri $uri/ /snappymail/index.php?$query_string;
 		}
 
 		location ~ \.php$ {
-			root           /usr/local/www/snappymail;
-			try_files $uri $uri/ /index.php?$query_string;
+			root           /usr/local/www;
+			try_files $uri /snappymail/index.php?$query_string;
 			fastcgi_split_path_info ^(.+\.php)(.*)$;
 			fastcgi_keep_conn on;
 			include        /usr/local/etc/nginx/fastcgi_params;
@@ -76,7 +78,7 @@ configure_nginx_server()
 			fastcgi_pass   php;
 		}
 
-		location ^~ /data {
+		location ^~ /snappymail/data {
 			deny all;
 		}
 '
