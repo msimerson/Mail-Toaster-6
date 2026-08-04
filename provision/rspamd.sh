@@ -255,6 +255,7 @@ configure_controller()
 	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "postmaster@${TOASTER_MAIL_DOMAIN}")
 
 	store_config "$RSPAMD_ETC/local.d/worker-controller.inc" <<EO_CONTROLLER
+bind_socket = "*:11334";
 password = "$(jexec stage rspamadm pw -p "$_pass")";
 secure_ip = $(get_jail_ip dovecot);
 secure_ip = $(get_jail_ip6 dovecot);
