@@ -84,7 +84,7 @@ get_jail_ip() {
   done
   echo "172.16.15.1"
 }
-get_jail_ip6()             { echo "fd7a:e5cd:1fc1:c597:1"; }
+get_jail_ip6()             { echo "fd7a:e5cd:1fc1:c597:dead:beef:cafe:00fe"; }
 get_jail_data()            { echo "${ZFS_DATA_MNT}/$1"; }
 safe_jailname()            { echo "$1" | tr '.-' '__'; }
 add_jail_conf()            { :; }
