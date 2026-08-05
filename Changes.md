@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- haproxy: bind per address family the host has, drop `v4v6`
 - config: mv config into ./conf.d/
 - config: split service portions into $service.conf files
 - config: tighten up perms on .mt6 files

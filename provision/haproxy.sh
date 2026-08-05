@@ -42,6 +42,32 @@ install_haproxy_libressl()
 	stage_port_install net/haproxy
 }
 
+# haproxy has no way to bind "whatever this host has", so emit one bind per
+# address family the host actually has. 'bind :::80 v4v6' fails to start on
+# hosts without IPv6.
+haproxy_binds()
+{
+	local _ip4="$2"
+	local _ip6="$3"
+
+	local _indent
+	_indent=$(printf '%b' "$1")
+
+	get_public_ip4
+	get_public_ip6
+
+	# with neither address detected, IPv4 is the safer guess
+	if [ -n "$PUBLIC_IP4" ] || [ -z "$PUBLIC_IP6" ]; then
+		printf '%sbind %s:80 alpn http/1.1\n' "$_indent" "$_ip4"
+		printf '%sbind %s:443 alpn http/1.1 ssl crt /data/etc/tls.d\n' "$_indent" "$_ip4"
+	fi
+
+	if [ -n "$PUBLIC_IP6" ]; then
+		printf '%sbind [%s]:80 alpn http/1.1\n' "$_indent" "$_ip6"
+		printf '%sbind [%s]:443 alpn http/1.1 ssl crt /data/etc/tls.d\n' "$_indent" "$_ip6"
+	fi
+}
+
 configure_haproxy_dot_conf()
 {
 	local _data_cf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
@@ -88,8 +114,7 @@ frontend stats
 
 frontend http-in
 	#mode tcp
-	bind :::80 v4v6 alpn http/1.1
-	bind :::443 v4v6 alpn http/1.1 ssl crt /data/etc/tls.d
+$(haproxy_binds '\t' 0.0.0.0 ::)
 
 	http-request  set-header X-Forwarded-Proto https if { ssl_fc }
 	http-request  set-header X-Forwarded-Port %[dst_port]
@@ -294,10 +319,7 @@ defaults
     timeout     client 30s
 
 frontend default-http
-    bind $(get_jail_ip stage):80
-    bind $(get_jail_ip stage):443 alpn http/1.1 ssl crt /data/etc/tls.d
-    bind [$(get_jail_ip6 stage)]:80
-    bind [$(get_jail_ip6 stage)]:443 alpn http/1.1 ssl crt /data/etc/tls.d
+$(haproxy_binds '    ' "$(get_jail_ip stage)" "$(get_jail_ip6 stage)")
 
     default_backend www_webmail
 
