@@ -170,7 +170,8 @@ install_deploy_scripts()
 
 update_haproxy_ssld()
 {
-	local _haconf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+	local _haconf
+	_haconf="$(get_jail_data haproxy)/etc/haproxy.conf"
 	if ! grep -q 'ssl crt /etc' "$_haconf"; then
 		# already updated
 		return
@@ -188,7 +189,8 @@ configure_certbot()
 
 	tell_status "configuring Certbot"
 
-	local _HTTPDIR="$ZFS_DATA_MNT/webmail"
+	local _HTTPDIR
+	_HTTPDIR="$(get_jail_data webmail)"
 	local _certbot="/usr/local/bin/certbot"
 	if $_certbot certonly --webroot-path "$_HTTPDIR" -d "$TOASTER_HOSTNAME"; then
 		update_haproxy_ssld

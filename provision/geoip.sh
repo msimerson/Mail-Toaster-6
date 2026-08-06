@@ -84,9 +84,9 @@ geoip_periodic()
 
 configure_geoip()
 {
-	if [ -f "$ZFS_DATA_MNT/geoip/GeoIP.conf" ]; then
+	if [ -f "$(get_jail_data geoip)/GeoIP.conf" ]; then
 		tell_status "installing GeoIP.conf"
-		cp "$ZFS_DATA_MNT/geoip/GeoIP.conf" "$STAGE_MNT/usr/local/etc"
+		cp "$(get_jail_data geoip)/GeoIP.conf" "$STAGE_MNT/usr/local/etc"
 	else
 		sed_inplace \
 			-e "/^AccountID/ s/YOUR_ACCOUNT_ID_HERE/$MAXMIND_ACCOUNT_ID/" \
@@ -121,7 +121,7 @@ test_geoip()
 
 migrate_geoip_dbs()
 {
-	if [ ! -f "$ZFS_DATA_MNT/geoip/GeoLite2-Country.mmdb" ]; then
+	if [ ! -f "$(get_jail_data geoip)/GeoLite2-Country.mmdb" ]; then
 		# no geoip data or data already migrated
 		return
 	fi
@@ -145,13 +145,13 @@ migrate_geoip_dbs()
 	service jail stop geoip spamassassin haraka
 
 	for _d in etc db; do
-		_path="$ZFS_DATA_MNT/geoip/$_d"
+		_path="$(get_jail_data geoip)/$_d"
 		[ -d "$_path" ] || mkdir "$_path"
 	done
 
 	for _suffix in mmdb dat; do
-		for _db in "$ZFS_DATA_MNT"/geoip/*."$_suffix"; do
-			mv "$_db" "$ZFS_DATA_MNT/geoip/db/"
+		for _db in "$(get_jail_data geoip)"/*."$_suffix"; do
+			mv "$_db" "$(get_jail_data geoip)/db/"
 		done
 	done
 }

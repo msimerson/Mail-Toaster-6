@@ -493,3 +493,24 @@ unmounted_paths() {
   assert_output --partial "STAGE_MNT is unset"
   refute_output --partial "umount /"
 }
+
+@test "assure_ports_tree accepts a populated tree" {
+  local _ports; _ports=$(mktemp -d)
+  touch "$_ports/Makefile"
+  run assure_ports_tree "$_ports"
+  assert_success
+}
+
+@test "assure_ports_tree rejects an unpopulated tree" {
+  local _ports; _ports=$(mktemp -d)
+  run assure_ports_tree "$_ports"
+  assert_failure
+  assert_output --partial "$_ports"
+}
+
+@test "assure_ports_tree names both ways to populate the tree" {
+  local _ports; _ports=$(mktemp -d)
+  run assure_ports_tree "$_ports"
+  assert_output --partial "gitup ports"
+  assert_output --partial "git clone https://github.com/freebsd/freebsd-ports.git"
+}

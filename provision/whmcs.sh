@@ -6,7 +6,8 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP nullfs rw 0 0"
+export JAIL_FSTAB
+JAIL_FSTAB="$(get_jail_data geoip)/db $ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP nullfs rw 0 0"
 
 mt6-include php
 mt6-include nginx
@@ -83,7 +84,7 @@ EO_CRONTAB
 
 	configure_whmcs_nginx
 
-	fstab_add_mount whmcs "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP"
+	fstab_add_mount whmcs "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/whmcs/usr/local/share/GeoIP"
 }
 
 start_whmcs()

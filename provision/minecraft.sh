@@ -3,9 +3,10 @@
 . mail-toaster.sh || exit
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
-		mount += \"$ZFS_DATA_MNT/minecraft/etc \$path/usr/local/etc/minecraft-server nullfs rw 0 0\";
-		mount += \"$ZFS_DATA_MNT/minecraft/db \$path/var/db/minecraft-server nullfs rw 0 0\";"
+export JAIL_CONF_EXTRA
+JAIL_CONF_EXTRA="
+		mount += \"$(get_jail_data minecraft)/etc \$path/usr/local/etc/minecraft-server nullfs rw 0 0\";
+		mount += \"$(get_jail_data minecraft)/db \$path/var/db/minecraft-server nullfs rw 0 0\";"
 export JAIL_FSTAB=""
 
 install_minecraft()
@@ -26,11 +27,11 @@ games_minecraft-server_UNSET=STANDALONE'
 configure_minecraft()
 {
 	tell_status "configuring minecraft"
-	if [ ! -d "$ZFS_DATA_MNT/minecraft/etc" ]; then
-		mkdir "$ZFS_DATA_MNT/minecraft/etc"
+	if [ ! -d "$(get_jail_data minecraft)/etc" ]; then
+		mkdir "$(get_jail_data minecraft)/etc"
 	fi
-	if [ ! -d "$ZFS_DATA_MNT/minecraft/db" ]; then
-		mkdir "$ZFS_DATA_MNT/minecraft/db"
+	if [ ! -d "$(get_jail_data minecraft)/db" ]; then
+		mkdir "$(get_jail_data minecraft)/db"
 	fi
 
 	# stage_exec /usr/local/bin/minecraft-server

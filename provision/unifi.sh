@@ -9,8 +9,9 @@ export UNIFI_MONGODB_DSN=${UNIFI_MONGODB_DSN:-""}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="fdescfs	$ZFS_JAIL_MNT/unifi/dev/fd	fdescfs	rw	0	0
-$ZFS_DATA_MNT/unifi/java	$ZFS_JAIL_MNT/unifi/usr/local/share/java	nullfs	rw	0	0
+export JAIL_FSTAB
+JAIL_FSTAB="fdescfs	$ZFS_JAIL_MNT/unifi/dev/fd	fdescfs	rw	0	0
+$(get_jail_data unifi)/java	$ZFS_JAIL_MNT/unifi/usr/local/share/java	nullfs	rw	0	0
 proc	$ZFS_JAIL_MNT/unifi/proc	procfs	rw	0	0"
 
 mt6-include network
@@ -43,8 +44,8 @@ create_unifi_mountpoints()
 
 	mkdir -p "$STAGE_MNT/usr/local/share/java"
 
-	if [ ! -d "$ZFS_DATA_MNT/unifi/java" ]; then
-		mkdir "$ZFS_DATA_MNT/unifi/java"
+	if [ ! -d "$(get_jail_data unifi)/java" ]; then
+		mkdir "$(get_jail_data unifi)/java"
 	fi
 }
 

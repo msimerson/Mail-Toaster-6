@@ -89,8 +89,8 @@ configure_munin()
 
 	tell_status "configuring munin"
 
-	if [ ! -d "$ZFS_DATA_MNT/munin/etc" ]; then
-		mkdir "$ZFS_DATA_MNT/munin/etc"
+	if [ ! -d "$(get_jail_data munin)/etc" ]; then
+		mkdir "$(get_jail_data munin)/etc"
 	fi
 	if [ -d "$STAGE_MNT/data/etc/munin" ]; then
 		rm -r "$STAGE_MNT/usr/local/etc/munin"
@@ -99,9 +99,9 @@ configure_munin()
 	fi
 	stage_exec ln -s /data/etc/munin /usr/local/etc/munin
 
-	if [ ! -d "$ZFS_DATA_MNT/munin/var/munin" ]; then
-		mkdir -p "$ZFS_DATA_MNT/munin/var/munin"
-		chown -R 842:842 "$ZFS_DATA_MNT/munin/var/munin"
+	if [ ! -d "$(get_jail_data munin)/var/munin" ]; then
+		mkdir -p "$(get_jail_data munin)/var/munin"
+		chown -R 842:842 "$(get_jail_data munin)/var/munin"
 	fi
 
 	if ! grep -qs ^#graph_strategy "$STAGE_MNT/data/etc/munin/munin.conf" ; then

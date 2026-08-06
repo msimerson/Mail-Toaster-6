@@ -188,9 +188,9 @@ cleanup_staged_fs()
 
 install_fstab()
 {
-	_data_mount="$ZFS_DATA_MNT/$1"
+	_data_mount="$(get_jail_data "$1")"
 	_jail_mount="$ZFS_JAIL_MNT/$1"
-	_fstab="$ZFS_DATA_MNT/$1/etc/fstab"
+	_fstab="$(get_jail_data "$1")/etc/fstab"
 
 	if [ ! -d "$_data_mount/etc" ]; then
 		mkdir "$_data_mount/etc" || exit 1
@@ -216,8 +216,8 @@ install_fstab()
 
 	# ports build under /tmp/portbuild (WRKDIRPREFIX, set in provision/base.sh),
 	# which noexec breaks. Only the stage builds ports; the promoted jail keeps noexec.
-	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $ZFS_JAIL_MNT/stage|" \
-		-e "\|[[:space:]]$ZFS_JAIL_MNT/stage/tmp[[:space:]]| s|,noexec||" \
+	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $STAGE_MNT|" \
+		-e "\|[[:space:]]$STAGE_MNT/tmp[[:space:]]| s|,noexec||" \
 		"$_fstab" > \
 		"$_fstab.stage" || exit 1
 
@@ -226,10 +226,10 @@ install_fstab()
 	echo "/var/cache/pkg     $STAGE_MNT/var/cache/pkg   nullfs rw  0  0" | tee -a "$_fstab.stage"
 
 	# copy staged fstab into place for jail shutdown
-	if [ ! -d "$ZFS_DATA_MNT/stage/etc" ]; then
-		mkdir -p "$ZFS_DATA_MNT/stage/etc" || exit 1
+	if [ ! -d "$(get_jail_data stage)/etc" ]; then
+		mkdir -p "$(get_jail_data stage)/etc" || exit 1
 	fi
-	cp "$_fstab.stage" "$ZFS_DATA_MNT/stage/etc/fstab" || exit 1
+	cp "$_fstab.stage" "$(get_jail_data stage)/etc/fstab" || exit 1
 }
 
 fstab_add_mount() {
@@ -243,7 +243,8 @@ fstab_add_mount() {
 	local mount_point="$3"
 	local fs_type="${4:-nullfs}"
 	local opts="${5:-rw}"
-	local fstab="$ZFS_DATA_MNT/$jail_name/etc/fstab"
+	local fstab
+	fstab="$(get_jail_data "$jail_name")/etc/fstab"
 
 	for _file in "$fstab" "${fstab}.stage"; do
 		if ! grep -qs "^$fs_path" "$_file"; then
@@ -262,9 +263,9 @@ create_staged_fs()
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
 
-	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
-		tell_status "creating $ZFS_JAIL_MNT/stage/data"
-		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
+	if [ ! -d "$STAGE_MNT/data" ]; then
+		tell_status "creating $STAGE_MNT/data"
+		mkdir "$STAGE_MNT/data" || exit 1
 	fi
 
 	stage_sysrc hostname="$1"
@@ -393,9 +394,27 @@ stage_pkg_install()
 	pkg -j "$SAFE_NAME" install -y "$@"
 }
 
+# /usr/ports is nullfs mounted into the staged jail from the host, so it is the
+# host's tree that a port build needs, and an unpopulated one fails deep inside
+# make(1) with nothing pointing at the cause.
+assure_ports_tree()
+{
+	local _ports=${1:-"/usr/ports"}
+
+	if [ -f "$_ports/Makefile" ]; then return; fi
+
+	fatal_err "$_ports is not a populated ports tree. Fill it with either:
+
+    pkg install -y gitup && gitup ports
+
+    pkg install -y git-lite && git clone https://github.com/freebsd/freebsd-ports.git $_ports"
+}
+
 stage_port_install()
 {
 	# $1 is the port directory (eg: mail/dovecot)
+
+	assure_ports_tree
 
 	stage_pkg_install pkgconf portconfig
 
@@ -633,7 +652,8 @@ provision_skeleton()
 	mt6-fetch provision "skel.sh"
 	sed -e "s/_skel/_$2/g" -e "s/ skel/ $2/g" provision/skel.sh > "provision/$2.sh"
 
-	local _ucl="$ZFS_DATA_MNT/dns/unbound.conf.local"
+	local _ucl
+	_ucl="$(get_jail_data dns)/unbound.conf.local"
 	if ! grep -qs "$2" "$_ucl"; then
 		tell_status "adding DNS for $2"
 		tee -a "$_ucl" <<EO_UB_CONF

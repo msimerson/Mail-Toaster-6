@@ -8,7 +8,7 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
-_dkim_private_key="$ZFS_DATA_MNT/postfix/dkim/$TOASTER_MAIL_DOMAIN.private"
+_dkim_private_key="$(get_jail_data postfix)/dkim/$TOASTER_MAIL_DOMAIN.private"
 
 install_postfix()
 {
@@ -84,10 +84,11 @@ EO_TRUSTED_HOSTS
 
 configure_tls_certs()
 {
-	local _ssldir="$ZFS_DATA_MNT/postfix/etc/tls"
-	if [ ! -d "$_ssldir" ] && [ -d "$ZFS_DATA_MNT/postfix/etc/ssl" ]; then
+	local _ssldir
+	_ssldir="$(get_jail_data postfix)/etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$(get_jail_data postfix)/etc/ssl" ]; then
 		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
-		mv "$ZFS_DATA_MNT/postfix/etc/ssl" "$_ssldir"
+		mv "$(get_jail_data postfix)/etc/ssl" "$_ssldir"
 	fi
 
 	# shellcheck disable=SC2174
@@ -108,7 +109,8 @@ configure_tls_certs()
 
 configure_postfix_main_cf()
 {
-	local _main_cf="$ZFS_DATA_MNT/postfix/etc/main.cf"
+	local _main_cf
+	_main_cf="$(get_jail_data postfix)/etc/main.cf"
 	local _ssldir="/data/etc/tls"
 	export MAIL_CONFIG="/data/etc"  # postconf needs this
 
@@ -143,13 +145,13 @@ configure_postfix_main_cf()
 	stage_exec postconf -e 'lmtp_tls_security_level = may'
 	stage_exec postconf -e "mynetworks = ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK}"
 
-	if [ -f "$ZFS_DATA_MNT/postfix/etc/sasl_passwd" ]; then
+	if [ -f "$(get_jail_data postfix)/etc/sasl_passwd" ]; then
 		stage_exec postmap /data/etc/sasl_passwd
 		stage_exec postconf -e 'smtp_sasl_auth_enable = yes'
 		stage_exec postconf -e 'smtp_sasl_password_maps = hash:/data/etc/sasl_passwd'
 	fi
 
-	if [ -f "$ZFS_DATA_MNT/postfix/etc/transport" ]; then
+	if [ -f "$(get_jail_data postfix)/etc/transport" ]; then
 		stage_exec postmap /data/etc/transport
 		stage_exec postconf -e 'transport_maps = hash:/data/etc/transport'
 	fi
@@ -180,7 +182,8 @@ enable_postfix_submission()
 
 configure_postfix_master_cf()
 {
-	local _master_cf="$ZFS_DATA_MNT/postfix/etc/master.cf"
+	local _master_cf
+	_master_cf="$(get_jail_data postfix)/etc/master.cf"
 	if [ -f "$_master_cf" ]; then
 		tell_status "preserving $_master_cf"
 	else
@@ -199,7 +202,7 @@ configure_postfix()
 	stage_sysrc postfix_enable=YES
 	stage_sysrc postfix_flags="-c /data/etc"
 
-	if [ -e "$ZFS_DATA_MNT/spool" ]; then
+	if [ -e "$(get_jail_data postfix)/spool" ]; then
 		stage_sysrc postfix_pidfile=/data/spool/pid/master.pid
 	fi
 
@@ -234,7 +237,7 @@ start_postfix()
 	if [ -f "$_dkim_private_key" ]; then
 		stage_exec service milter-opendkim start
 	fi
-	if [ -f "$ZFS_DATA_MNT/postfix/spool/pid/master.pid" ]; then
+	if [ -f "$(get_jail_data postfix)/spool/pid/master.pid" ]; then
 		jexec postfix service postfix stop
 	fi
 	stage_exec service postfix start

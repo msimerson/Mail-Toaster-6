@@ -9,7 +9,8 @@ export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
+export JAIL_FSTAB
+JAIL_FSTAB="$(get_jail_data vpopmail)/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
 export VPOPMAIL_OPTIONS_SET=""
 export VPOPMAIL_OPTIONS_UNSET="ROAMING PGSQL LDAP ORACLE SYBASE"
@@ -144,8 +145,8 @@ mail_qmailadmin_UNSET=CATCHALL CRACKLIB DOMAIN_AUTOFILL IDX_SQL SPAM_DETECTION S
 	fi
 
 	for _d in htdocs cgi-bin; do
-		if [ ! -d "$ZFS_DATA_MNT/vpopmail/$_d" ]; then
-			mkdir "$ZFS_DATA_MNT/vpopmail/$_d"
+		if [ ! -d "$(get_jail_data vpopmail)/$_d" ]; then
+			mkdir "$(get_jail_data vpopmail)/$_d"
 		fi
 	done
 
@@ -340,7 +341,7 @@ test_vpopmail()
 
 migrate_vpopmail_home()
 {
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/domains" ]; then
+	if [ ! -d "$(get_jail_data vpopmail)/domains" ]; then
 		# no vpopmail data or data already migrated
 		return
 	fi
@@ -386,25 +387,6 @@ migrate_vpopmail_home()
 		   service jail start vpopmail dovecot
 
 	'
-	exit
-
-	# service jail stop dovecot vpopmail
-
-	# for _d in bin domains include qmail-control doc etc lib qmail-users; do
-	# 	echo "mv $ZFS_DATA_MNT/vpopmail/$_d $ZFS_DATA_MNT/vpopmail/home/"
-	# 	mv "$ZFS_DATA_MNT/vpopmail/$_d" "$ZFS_DATA_MNT/vpopmail/home/"
-	# done
-
-	# if [ ! -d "$ZFS_DATA_MNT/vpopmail/etc" ]; then
-	# 	mkdir "$ZFS_DATA_MNT/vpopmail/etc"
-	# fi
-
-	# if [ -d "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" ]; then
-	# 	mv "$ZFS_DATA_MNT/vpopmail/home/etc/pf.conf.d" "$ZFS_DATA_MNT/vpopmail/etc/"
-	# fi
-
-	# # TODO: patch fstab mounts in /etc/jail.conf
-	# service jail start dovecot vpopmail
 }
 
 tell_settings VPOPMAIL
@@ -413,8 +395,8 @@ base_snapshot_exists || exit 1
 create_staged_fs vpopmail
 
 mkdir -p "$STAGE_MNT/usr/local/vpopmail" \
-	"$ZFS_DATA_MNT/vpopmail/home" \
-	"$ZFS_DATA_MNT/vpopmail/etc"
+	"$(get_jail_data vpopmail)/home" \
+	"$(get_jail_data vpopmail)/etc"
 
 start_staged_jail vpopmail
 install_vpopmail

@@ -83,7 +83,8 @@ install_bsd_cache()
 
 create_cachedir()
 {
-	local _cachedir="$ZFS_DATA_MNT/bsd_cache/cache"
+	local _cachedir
+	_cachedir="$(get_jail_data bsd_cache)/cache"
 	if [ -d "$_cachedir" ]; then return; fi
 
 	tell_status "creating $_cachedir"

@@ -6,7 +6,7 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
-_dkim_private_key="$ZFS_DATA_MNT/mailman/dkim/$TOASTER_MAIL_DOMAIN.private"
+_dkim_private_key="$(get_jail_data mailman)/dkim/$TOASTER_MAIL_DOMAIN.private"
 _has_dkim=""
 if [ -f "$_dkim_private_key" ]; then _has_dkim=1; fi
 
@@ -29,7 +29,7 @@ install_mailman()
 	stage_exec pip install postorius hyperkitty mailman-hyperkitty whoosh mailmanclient mailman-web || exit
 
 	_mmhk_pkg="mailman-hyperkitty-1.2.1.tar.gz"
-	if [ ! -d "$ZFS_DATA_MNT/$_mmhk_pkg" ]; then
+	if [ ! -f "$(get_jail_data mailman)/$_mmhk_pkg" ]; then
 		tell_status "installing mailman-hyperkitty"
 		stage_exec fetch -o /data -m "https://files.pythonhosted.org/packages/41/77/352f7f8d1843cd7217d5dffce54fabdfdb403e78870db781c4859a8e9e35/$_mmhk_pkg"
 		stage_exec tar -C /data -xvf "/data/$_mmhk_pkg"
@@ -102,7 +102,7 @@ configure_postfix()
 	stage_exec postconf -e 'local_recipient_maps=hash:/usr/local/mailman/data/postfix_lmtp'
 	stage_exec postconf -e 'relay_domains=hash:/usr/local/mailman/data/postfix_domains'
 
-	if [ -f "$ZFS_DATA_MNT/etc/sasl_passwd" ]; then
+	if [ -f "$(get_jail_data mailman)/etc/sasl_passwd" ]; then
 		stage_exec postmap /data/etc/sasl_passwd
 		stage_exec postconf -e 'smtp_sasl_auth_enable = yes'
 		stage_exec postconf -e 'smtp_sasl_password_maps = hash:/data/etc/sasl_passwd'
@@ -115,9 +115,9 @@ configure_postfix()
 
 	for _f in master main
 	do
-		if [ -f "$ZFS_DATA_MNT/postfix/etc/$_f.cf" ]; then
+		if [ -f "$(get_jail_data postfix)/etc/$_f.cf" ]; then
 			tell_status "preserving /usr/local/etc/postfix/$_f.cf"
-			cp "$ZFS_DATA_MNT/postfix/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
+			cp "$(get_jail_data postfix)/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
 		fi
 	done
 

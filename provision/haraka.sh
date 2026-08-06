@@ -12,7 +12,7 @@ export JAIL_CONF_EXTRA="
 		devfs_ruleset = 7;"
 export JAIL_FSTAB=""
 
-HARAKA_CONF="$ZFS_DATA_MNT/haraka/config"
+HARAKA_CONF="$(get_jail_data haraka)/config"
 
 install_haraka()
 {
@@ -48,9 +48,9 @@ install_geoip_dbs()
 		return
 	fi
 
-	mount_nullfs "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/stage/usr/local/share/GeoIP"
+	mount_nullfs "$(get_jail_data geoip)/db" "$STAGE_MNT/usr/local/share/GeoIP"
 
-	fstab_add_mount haraka "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP"
+	fstab_add_mount haraka "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP"
 
 	if ! grep -qs ^geoip "$HARAKA_CONF/plugins"; then
 		tell_status "enabling Haraka geoip plugin"
@@ -128,7 +128,8 @@ always_ok=true" | tee -a "$HARAKA_CONF/syslog.ini"
 	fi
 
 	# log to the data volume so mail logs survive a re-provision
-	local _logdir="$ZFS_DATA_MNT/haraka/log"
+	local _logdir
+	_logdir="$(get_jail_data haraka)/log"
 	if [ ! -d "$_logdir" ]; then
 		tell_status "creating log dir $_logdir"
 		mkdir -p "$_logdir"
@@ -247,7 +248,7 @@ tmpdir=/data/avg/spool
 	if zfs_filesystem_exists "$ZFS_DATA_VOL/avg"; then
 		tell_status "adding avg data FS to Haraka jail"
 		JAIL_FSTAB="$JAIL_FSTAB
-$ZFS_DATA_MNT/avg   $ZFS_JAIL_MNT/haraka/data/avg nullfs rw 0 0"
+$(get_jail_data avg)   $ZFS_JAIL_MNT/haraka/data/avg nullfs rw 0 0"
 
 		if ! grep -qs spool "$HARAKA_CONF/avg.ini"; then
 			tell_status "update tmpdir in avg.ini"

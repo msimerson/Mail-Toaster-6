@@ -134,8 +134,8 @@ install_clamav_unofficial()
 	fi
 
 	for f in EMAIL_Cryptowall.yar antidebug_antivm.yar; do
-		if [ -f "$ZFS_DATA_MNT/clamav/$f" ]; then
-			rm "$ZFS_DATA_MNT/clamav/$f"
+		if [ -f "$(get_jail_data clamav)/$f" ]; then
+			rm "$(get_jail_data clamav)/$f"
 		fi
 	done
 
@@ -162,14 +162,14 @@ install_clamav_nrpe()
 		-e 's|clamd_cmd -V|clamd_cmd --datadir=/data/db -V|' \
 		"$STAGE_MNT/usr/local/libexec/nagios/check_clamav"
 
-	fetch -m -o "$ZFS_DATA_MNT/clamav/check_clamav_signatures" \
+	fetch -m -o "$(get_jail_data clamav)/check_clamav_signatures" \
 		https://raw.githubusercontent.com/tommarshall/nagios-check-clamav-signatures/master/check_clamav_signatures
 	sed_inplace \
 		-e 's|^#!/usr/bin/env bash|#!/usr/local/bin/bash\
 PATH="$PATH:/usr/local/bin"|' \
 		-e '/^CLAM_LIB_DIR/ s|=.*$|=/data/db|' \
-		"$ZFS_DATA_MNT/clamav/check_clamav_signatures"
-	chmod 755 "$ZFS_DATA_MNT/clamav/check_clamav_signatures"
+		"$(get_jail_data clamav)/check_clamav_signatures"
+	chmod 755 "$(get_jail_data clamav)/check_clamav_signatures"
 
 	if [ -f /usr/local/etc/nrpe.cfg ]; then
 		if ! grep -q 'command[check_clamav' /usr/local/etc/nrpe.cfg; then
@@ -295,7 +295,7 @@ start_clamav()
 
 migrate_clamav_dbs()
 {
-	if [ ! -f "$ZFS_DATA_MNT/clamav/daily.cld" ]; then
+	if [ ! -f "$(get_jail_data clamav)/daily.cld" ]; then
 		# no clamav dbs or already migrated
 		return
 	fi
@@ -311,16 +311,16 @@ migrate_clamav_dbs()
 	"
 	bsddialog --yesno "$_confirm_msg" 13 70
 
-	if [ ! -d "$ZFS_DATA_MNT/clamav/db" ]; then
-		mkdir "$ZFS_DATA_MNT/clamav/db"
+	if [ ! -d "$(get_jail_data clamav)/db" ]; then
+		mkdir "$(get_jail_data clamav)/db"
 	fi
 
 	service jail stop clamav
 
 	for _suffix in cdb cld cvd dat fp ftm hsb ldb ndb yara; do
-		for _db in "$ZFS_DATA_MNT"/clamav/*."$_suffix"; do
-			echo "mv $_db $ZFS_DATA_MNT/clamav/db/"
-			mv "$_db" "$ZFS_DATA_MNT/clamav/db/"
+		for _db in "$(get_jail_data clamav)"/*."$_suffix"; do
+			echo "mv $_db $(get_jail_data clamav)/db/"
+			mv "$_db" "$(get_jail_data clamav)/db/"
 		done
 	done
 }

@@ -29,21 +29,21 @@ EO_RSNAP
 
 	for d in etc snaps
 	do
-		if [ ! -d "$ZFS_DATA_MNT/rsnapshot/$d" ]; then
-			mkdir "$ZFS_DATA_MNT/rsnapshot/$d"
+		if [ ! -d "$(get_jail_data rsnapshot)/$d" ]; then
+			mkdir "$(get_jail_data rsnapshot)/$d"
 		fi
 	done
 
-	if [ ! -f "$ZFS_DATA_MNT/rsnapshot/etc/rsnapshot.conf" ]; then
-		tell-status "installing default $ZFS_DATA_MNT/etc/rsnapshot.conf"
-		cp "$STAGE_MNT/usr/local/etc/rsnapshot.conf.default" "$ZFS_DATA_MNT/rsnapshot/etc/rsnapshot.conf"
+	if [ ! -f "$(get_jail_data rsnapshot)/etc/rsnapshot.conf" ]; then
+		tell_status "installing default $(get_jail_data rsnapshot)/etc/rsnapshot.conf"
+		cp "$STAGE_MNT/usr/local/etc/rsnapshot.conf.default" "$(get_jail_data rsnapshot)/etc/rsnapshot.conf"
 	fi
 
-	if [ -d "$ZFS_DATA_MNT/rsnapshot/ssh" ]; then
+	if [ -d "$(get_jail_data rsnapshot)/ssh" ]; then
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$ZFS_DATA_MNT/rsnapshot/ssh/"* "$STAGE_MNT/root/.ssh/"
+		cp "$(get_jail_data rsnapshot)/ssh/"* "$STAGE_MNT/root/.ssh/"
 	fi
 }
 

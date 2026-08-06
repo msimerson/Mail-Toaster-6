@@ -6,7 +6,8 @@ set -e
 
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="$ZFS_DATA_MNT/dcc/db		$ZFS_JAIL_MNT/dcc/var/db/dcc nullfs	rw	0	0"
+export JAIL_FSTAB
+JAIL_FSTAB="$(get_jail_data dcc)/db		$ZFS_JAIL_MNT/dcc/var/db/dcc nullfs	rw	0	0"
 
 install_dcc_cleanup()
 {
@@ -63,7 +64,7 @@ configure_dcc()
 		-e "/^DCCIFD_ARGS/ s/-SList-ID\"/-SList-ID -p*,1025,$JAIL_NET_PREFIX.0\/24\"/" \
 		"$STAGE_MNT/var/db/dcc/dcc_conf"
 
-	_pf_etc="$ZFS_DATA_MNT/dcc/etc/pf.conf.d"
+	_pf_etc="$(get_jail_data dcc)/etc/pf.conf.d"
 
 	configure_pf_jail_table dcc
 
@@ -99,7 +100,7 @@ test_dcc()
 preflight()
 {
 	for _d in etc db log; do
-		_path="$ZFS_DATA_MNT/dcc/$_d"
+		_path="$(get_jail_data dcc)/$_d"
 		[ -d "$_path" ] || mkdir "$_path"
 	done
 

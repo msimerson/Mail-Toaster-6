@@ -21,7 +21,7 @@ configure_tinydns()
 
 configure_tinydns_data()
 {
-	_data_root="$ZFS_DATA_MNT/tinydns/root"
+	_data_root="$(get_jail_data tinydns)/root"
 	if [ -d "$_data_root" ]; then
 		tell_status "tinydns data already configured"
 		return
@@ -46,7 +46,7 @@ test_tinydns()
 	echo "tinydns is running."
 
 	local _fqdn="www.example.com"
-	if ! grep -qs "$_fqdn" "$ZFS_DATA_MNT/tinydns/root/data"; then
+	if ! grep -qs "$_fqdn" "$(get_jail_data tinydns)/root/data"; then
 		_fqdn="$TOASTER_HOSTNAME"
 	fi
 
@@ -63,11 +63,11 @@ test_tinydns()
 	stage_exec service svscan stop
 	for d in tinydns axfrdns tinydns-v6 axfrdns-v6
 	do
-		if [ -d "$ZFS_DATA_MNT/tinydns/service/$d" ]; then
+		if [ -d "$(get_jail_data tinydns)/service/$d" ]; then
 			tell_status "preserving $d service definition"
 		else
 			tell_status "moving $d from staging to production"
-			mv "$STAGE_MNT/var/service/$d" "$ZFS_DATA_MNT/tinydns/service/"
+			mv "$STAGE_MNT/var/service/$d" "$(get_jail_data tinydns)/service/"
 		fi
 	done
 	stage_sysrc svscan_servicedir="/data/service"

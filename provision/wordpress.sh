@@ -66,7 +66,8 @@ configure_nginx_server()
 
 configure_wp_config()
 {
-	local _local_content="$ZFS_DATA_MNT/wordpress/content"
+	local _local_content
+	_local_content="$(get_jail_data wordpress)/content"
 	local _wp_install="$ZFS_JAIL_MNT/wordpress/usr/local/www/wordpress"
 	local _wp_stage="$STAGE_MNT/usr/local/www/wordpress"
 
