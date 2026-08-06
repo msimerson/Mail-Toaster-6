@@ -8,8 +8,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA
 JAIL_CONF_EXTRA="
 		allow.raw_sockets;
-		exec.poststart = \"$(get_jail_data dns)/etc/rc.d/poststart.sh\";
-		exec.prestop = \"$(get_jail_data dns)/etc/rc.d/prestop.sh\";
+		exec.poststart = \"$(get_jail_host_etc dns)/rc.d/poststart.sh\";
+		exec.prestop = \"$(get_jail_host_etc dns)/rc.d/prestop.sh\";
 "
 export JAIL_FSTAB=""
 
@@ -262,12 +262,12 @@ switch_host_resolver()
 		truncate -s 0 /etc/resolvconf.conf
 	fi
 
-	store_exec "$(get_jail_data dns)/etc/rc.d/poststart.sh" <<EO_POSTSTART
+	store_exec "$(get_jail_host_etc dns)/rc.d/poststart.sh" <<EO_POSTSTART
 #!/bin/sh
 echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns -m 0
 EO_POSTSTART
 
-	store_exec "$(get_jail_data dns)/etc/rc.d/prestop.sh" <<EO_PRESTOP
+	store_exec "$(get_jail_host_etc dns)/rc.d/prestop.sh" <<EO_PRESTOP
 #!/bin/sh
 /sbin/resolvconf -d lo1.dns
 EO_PRESTOP

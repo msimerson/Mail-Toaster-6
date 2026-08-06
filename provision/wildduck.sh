@@ -359,7 +359,7 @@ configure_zonemta_admin()
 configure_pf()
 {
 	local _pf_etc
-	_pf_etc="$(get_jail_data wildduck)/etc/pf.conf.d"
+	_pf_etc="$(get_jail_host_etc wildduck)/pf.conf.d"
 
 	get_public_ip4
 	get_public_ip6

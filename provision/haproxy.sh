@@ -421,7 +421,7 @@ configure_haproxy()
 		mkdir "$STAGE_MNT/var/run/haproxy"
 	fi
 
-	_pf_etc="$(get_jail_data haproxy)/etc/pf.conf.d"
+	_pf_etc="$(get_jail_host_etc haproxy)/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)

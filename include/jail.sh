@@ -96,7 +96,7 @@ configure_mta_pf_rdr()
 	fi
 
 	local _conf _pf_etc
-	_pf_etc="$(get_jail_data "$_jail")/etc/pf.conf.d"
+	_pf_etc="$(get_jail_host_etc "$_jail")/pf.conf.d"
 
 	if [ -z "$_ports" ]; then
 		for _conf in "$_pf_etc/rdr.conf" "$_pf_etc/filter.conf"; do
@@ -124,7 +124,7 @@ configure_pf_jail_table()
 {
 	local _jail="$1"
 	local _pf_etc
-	_pf_etc="$(get_jail_data "$_jail")/etc/pf.conf.d"
+	_pf_etc="$(get_jail_host_etc "$_jail")/pf.conf.d"
 
 	get_public_ip4
 	get_public_ip6
@@ -187,6 +187,12 @@ get_safe_jail_path()
 get_jail_data()
 {
 	echo "$ZFS_DATA_MNT/$1"
+}
+
+# control files the host reads or runs on the jail's behalf, like fstab
+get_jail_host_etc()
+{
+	echo "$(get_jail_data "$1")/etc"
 }
 
 jail_is_running()
@@ -267,7 +273,7 @@ jail_conf_mount()
 		return
 	fi
 
-	echo "mount.fstab = \"$(get_jail_data "$1")/etc/fstab\";"
+	echo "mount.fstab = \"$(get_jail_host_etc "$1")/fstab\";"
 }
 
 add_jail_conf()
@@ -316,8 +322,8 @@ add_jail_conf_d()
 	local _pf_exec=""
 	if [ "$1" != "base" ]; then
 		_pf_exec="
-		exec.created = \"$(get_jail_data "$1")/etc/pf.conf.d/pfrule.sh load\";
-		exec.poststop = \"$(get_jail_data "$1")/etc/pf.conf.d/pfrule.sh unload\";"
+		exec.created = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh load\";
+		exec.poststop = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh unload\";"
 	fi
 
 	store_config "/etc/jail.conf.d/$(safe_jailname "$1").conf" <<EO_JAIL_RC

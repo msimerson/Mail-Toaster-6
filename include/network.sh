@@ -65,7 +65,7 @@ get_random_ip6net()
 install_pfrule()
 {
 	local _pfdir
-	_pfdir="$(get_jail_data "$1")/etc/pf.conf.d"
+	_pfdir="$(get_jail_host_etc "$1")/pf.conf.d"
 
 	mt6-fetch contrib pfrule.sh
 	install -d "$_pfdir"

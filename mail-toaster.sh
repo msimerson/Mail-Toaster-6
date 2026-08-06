@@ -190,10 +190,11 @@ install_fstab()
 {
 	_data_mount="$(get_jail_data "$1")"
 	_jail_mount="$ZFS_JAIL_MNT/$1"
-	_fstab="$(get_jail_data "$1")/etc/fstab"
+	_host_etc="$(get_jail_host_etc "$1")"
+	_fstab="$_host_etc/fstab"
 
-	if [ ! -d "$_data_mount/etc" ]; then
-		mkdir "$_data_mount/etc" || exit 1
+	if [ ! -d "$_host_etc" ]; then
+		mkdir -p "$_host_etc" || exit 1
 	fi
 
 	tell_status "writing data mount to $_fstab"
@@ -226,10 +227,10 @@ install_fstab()
 	echo "/var/cache/pkg     $STAGE_MNT/var/cache/pkg   nullfs rw  0  0" | tee -a "$_fstab.stage"
 
 	# copy staged fstab into place for jail shutdown
-	if [ ! -d "$(get_jail_data stage)/etc" ]; then
-		mkdir -p "$(get_jail_data stage)/etc" || exit 1
+	if [ ! -d "$(get_jail_host_etc stage)" ]; then
+		mkdir -p "$(get_jail_host_etc stage)" || exit 1
 	fi
-	cp "$_fstab.stage" "$(get_jail_data stage)/etc/fstab" || exit 1
+	cp "$_fstab.stage" "$(get_jail_host_etc stage)/fstab" || exit 1
 }
 
 fstab_add_mount() {
@@ -244,7 +245,7 @@ fstab_add_mount() {
 	local fs_type="${4:-nullfs}"
 	local opts="${5:-rw}"
 	local fstab
-	fstab="$(get_jail_data "$jail_name")/etc/fstab"
+	fstab="$(get_jail_host_etc "$jail_name")/fstab"
 
 	for _file in "$fstab" "${fstab}.stage"; do
 		if ! grep -qs "^$fs_path" "$_file"; then
@@ -293,7 +294,7 @@ start_staged_jail()
 	if [ "$_name" = "base" ]; then
 		_mount="mount.devfs"
 	else
-		_mount="mount.fstab=$(get_jail_data "$_name")/etc/fstab.stage"
+		_mount="mount.fstab=$(get_jail_host_etc "$_name")/fstab.stage"
 	fi
 
 	tell_status "stage jail $_name startup"
