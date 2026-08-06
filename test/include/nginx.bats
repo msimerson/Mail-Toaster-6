@@ -10,13 +10,7 @@ mt6-include() { :; }
 tell_status() { :; }
 
 # faithful copy of include/jail.sh get_jail_data
-get_jail_data() {
-  if [ "$1" = "base" ]; then
-    echo "$BASE_MNT/data"
-  else
-    echo "$ZFS_DATA_MNT/$1"
-  fi
-}
+get_jail_data() { echo "$ZFS_DATA_MNT/$1"; }
 
 # faithful copy of include/util.sh store_config: always writes <file>.mt6,
 # installs the live file only when absent (or on overwrite/append)

@@ -119,6 +119,59 @@ setup() {
   assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
+# --- base declares no mounts and runs no pf rules ---
+
+@test "get_jail_data - base is not special" {
+  export ZFS_DATA_MNT="/data"
+  run get_jail_data base
+  assert_output "/data/base"
+}
+
+@test "add_jail_conf_d - base mounts devfs rather than an fstab" {
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d base
+  assert_success
+  assert_output --partial "mount.devfs;"
+  refute_output --partial "mount.fstab"
+}
+
+@test "add_jail_conf_d - base gets no host-run pf rules" {
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d base
+  assert_success
+  refute_output --partial "pfrule.sh"
+}
+
+@test "add_jail_conf_d - a service jail keeps its fstab and pf rules" {
+  export ZFS_DATA_MNT="/data"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_success
+  assert_output --partial 'mount.fstab = "/data/mysql/etc/fstab";'
+  assert_output --partial "pf.conf.d/pfrule.sh load"
+  assert_output --partial "pf.conf.d/pfrule.sh unload"
+}
+
+@test "add_jail_conf - base mounts devfs rather than an fstab" {
+  tee() { cat -; }
+  grep() { return 1; }
+  dec_to_hex() { echo "2"; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf base
+  assert_success
+  assert_output --partial "mount.devfs;"
+  refute_output --partial "mount.fstab"
+}
+
 # --- configure_mta_pf_rdr: port 25 follows TOASTER_MTA, 465/587 follow TOASTER_MSA ---
 
 mta_rdr_setup() {

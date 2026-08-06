@@ -186,11 +186,7 @@ get_safe_jail_path()
 
 get_jail_data()
 {
-	if [ "$1" = "base" ]; then
-		echo "$BASE_MNT/data"
-	else
-		echo "$ZFS_DATA_MNT/$1"
-	fi
+	echo "$ZFS_DATA_MNT/$1"
 }
 
 jail_is_running()
@@ -264,6 +260,16 @@ enable_jail()
 	sysrc -f /etc/periodic.conf security_status_pkgaudit_jails+=" $1"
 }
 
+jail_conf_mount()
+{
+	if [ "$1" = "base" ]; then
+		echo "mount.devfs;"
+		return
+	fi
+
+	echo "mount.fstab = \"$(get_jail_data "$1")/etc/fstab\";"
+}
+
 add_jail_conf()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1");
@@ -288,7 +294,7 @@ add_jail_conf()
 
 	tell_status "adding $1 to /etc/jail.conf"
 	echo "$1	{$(get_safe_jail_path "$1")
-		mount.fstab = \"$(get_jail_data "$1")/etc/fstab\";
+		$(jail_conf_mount "$1")
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${JAIL_CONF_EXTRA}
 	}" | tee -a /etc/jail.conf
@@ -306,11 +312,19 @@ add_jail_conf_d()
 	local _path="$ZFS_JAIL_MNT/$1"
 	if [ "$1" = "base" ]; then _path="$BASE_MNT"; fi
 
+	# base redirects no ports, so the host has no pf rules to run for it
+	local _pf_exec=""
+	if [ "$1" != "base" ]; then
+		_pf_exec="
+		exec.created = \"$(get_jail_data "$1")/etc/pf.conf.d/pfrule.sh load\";
+		exec.poststop = \"$(get_jail_data "$1")/etc/pf.conf.d/pfrule.sh unload\";"
+	fi
+
 	store_config "/etc/jail.conf.d/$(safe_jailname "$1").conf" <<EO_JAIL_RC
 $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 		host.hostname = \$name;
 		path = "$_path";
-		mount.fstab = "$(get_jail_data "$1")/etc/fstab";
+		$(jail_conf_mount "$1")
 		devfs_ruleset=5;
 
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
@@ -318,9 +332,7 @@ $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 
 		exec.clean;
 		exec.start = "/bin/sh /etc/rc";
-		exec.stop = "/bin/sh /etc/rc.shutdown";
-		exec.created = "$(get_jail_data "$1")/etc/pf.conf.d/pfrule.sh load";
-		exec.poststop = "$(get_jail_data "$1")/etc/pf.conf.d/pfrule.sh unload";
+		exec.stop = "/bin/sh /etc/rc.shutdown";$_pf_exec
 	}
 EO_JAIL_RC
 }

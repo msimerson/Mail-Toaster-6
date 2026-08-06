@@ -27,6 +27,6 @@ preserve_ssh_host_keys()
 
 	if [ -f "$ZFS_JAIL_MNT/$1/etc/ssh/ssh_config" ]; then
 		tell_status "preserving ssh host keys"
-		cp "$ZFS_JAIL_MNT/$1/etc/ssh/"/ssh_host_* "$STAGE_MNT/etc/ssh/"
+		cp "$ZFS_JAIL_MNT/$1/etc/ssh/"ssh_host_* "$STAGE_MNT/etc/ssh/"
 	fi
 }
