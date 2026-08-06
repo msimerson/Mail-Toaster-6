@@ -27,6 +27,7 @@ EO_RSNAP
 
 	local _data
 	_data="$(get_jail_data borg)"
+
 	for d in etc snaps
 	do
 		if [ ! -d "$_data/$d" ]; then
@@ -43,7 +44,7 @@ EO_RSNAP
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$_data/ssh/*" "$STAGE_MNT/root/.ssh"
+		cp "$_data/ssh/"* "$STAGE_MNT/root/.ssh/"
 	fi
 }
 

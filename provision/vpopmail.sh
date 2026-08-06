@@ -387,25 +387,6 @@ migrate_vpopmail_home()
 		   service jail start vpopmail dovecot
 
 	'
-	exit
-
-	# service jail stop dovecot vpopmail
-
-	# for _d in bin domains include qmail-control doc etc lib qmail-users; do
-	# 	echo "mv $(get_jail_data vpopmail)/$_d $(get_jail_data vpopmail)/home/"
-	# 	mv "$(get_jail_data vpopmail)/$_d" "$(get_jail_data vpopmail)/home/"
-	# done
-
-	# if [ ! -d "$(get_jail_data vpopmail)/etc" ]; then
-	# 	mkdir "$(get_jail_data vpopmail)/etc"
-	# fi
-
-	# if [ -d "$(get_jail_data vpopmail)/home/etc/pf.conf.d" ]; then
-	# 	mv "$(get_jail_data vpopmail)/home/etc/pf.conf.d" "$(get_jail_data vpopmail)/etc/"
-	# fi
-
-	# # TODO: patch fstab mounts in /etc/jail.conf
-	# service jail start dovecot vpopmail
 }
 
 tell_settings VPOPMAIL
