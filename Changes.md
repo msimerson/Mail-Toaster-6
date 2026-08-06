@@ -5,6 +5,9 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- mt: store_config keeps a dated backup of updated configs
+- mt: jail.conf.d entries update when unedited, report when they don't
+- mt: report a jail.conf left behind by a path change
 - mt: add get_jail_host_etc, naming the control files the host reads per jail
 - base: mount.devfs instead of an fstab, drop its unused pf rules
 - mt: fail early with instructions when /usr/ports is empty
