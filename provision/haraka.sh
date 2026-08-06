@@ -48,7 +48,7 @@ install_geoip_dbs()
 		return
 	fi
 
-	mount_nullfs "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/stage/usr/local/share/GeoIP"
+	mount_nullfs "$(get_jail_data geoip)/db" "$STAGE_MNT/usr/local/share/GeoIP"
 
 	fstab_add_mount haraka "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP"
 

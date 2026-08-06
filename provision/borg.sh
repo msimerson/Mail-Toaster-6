@@ -25,23 +25,25 @@ EO_RSNAP
 		fi
 	done
 
+	local _data
+	_data="$(get_jail_data borg)"
 	for d in etc snaps
 	do
-		if [ ! -d "$(get_jail_data borg)/$d" ]; then
-			mkdir "$(get_jail_data borg)/$d"
+		if [ ! -d "$_data/$d" ]; then
+			mkdir "$_data/$d"
 		fi
 	done
 
-	if [ ! -f "$(get_jail_data borg)/etc/borg.conf" ]; then
-		tell_status "installing default $(get_jail_data borg)/etc/borg.conf"
-		cp "$STAGE_MNT/usr/local/etc/borg.conf.default" "$(get_jail_data borg)/etc/borg.conf"
+	if [ ! -f "$_data/etc/borg.conf" ]; then
+		tell_status "installing default $_data/etc/borg.conf"
+		cp "$STAGE_MNT/usr/local/etc/borg.conf.default" "$_data/etc/borg.conf"
 	fi
 
-	if [ -d "$(get_jail_data borg)/ssh" ]; then
+	if [ -d "$_data/ssh" ]; then
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$(get_jail_data borg)/ssh/*" "$STAGE_MNT/root/.ssh"
+		cp "$_data/ssh/*" "$STAGE_MNT/root/.ssh"
 	fi
 }
 

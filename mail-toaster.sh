@@ -216,8 +216,8 @@ install_fstab()
 
 	# ports build under /tmp/portbuild (WRKDIRPREFIX, set in provision/base.sh),
 	# which noexec breaks. Only the stage builds ports; the promoted jail keeps noexec.
-	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $ZFS_JAIL_MNT/stage|" \
-		-e "\|[[:space:]]$ZFS_JAIL_MNT/stage/tmp[[:space:]]| s|,noexec||" \
+	sed -e "s|[[:space:]]$ZFS_JAIL_MNT/$1| $STAGE_MNT|" \
+		-e "\|[[:space:]]$STAGE_MNT/tmp[[:space:]]| s|,noexec||" \
 		"$_fstab" > \
 		"$_fstab.stage" || exit 1
 
@@ -263,9 +263,9 @@ create_staged_fs()
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
 
-	if [ ! -d "$ZFS_JAIL_MNT/stage/data" ]; then
-		tell_status "creating $ZFS_JAIL_MNT/stage/data"
-		mkdir "$ZFS_JAIL_MNT/stage/data" || exit 1
+	if [ ! -d "$STAGE_MNT/data" ]; then
+		tell_status "creating $STAGE_MNT/data"
+		mkdir "$STAGE_MNT/data" || exit 1
 	fi
 
 	stage_sysrc hostname="$1"

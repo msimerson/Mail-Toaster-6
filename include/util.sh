@@ -203,11 +203,11 @@ nameserver $(get_jail_ip dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
 
-	local _repo_dir="$ZFS_JAIL_MNT/stage/usr/local/etc/pkg/repos"
+	local _repo_dir="$STAGE_MNT/usr/local/etc/pkg/repos"
 	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
 
 	local _repo_name="FreeBSD-ports"
-	if [ "$(freebsd_major "$ZFS_JAIL_MNT/stage")" -lt "15" ]; then _repo_name="FreeBSD"; fi
+	if [ "$(freebsd_major "$STAGE_MNT")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
 	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
 $_repo_name: {
@@ -226,8 +226,8 @@ EO_PKG_MT6
 	sed_inplace \
 		-e '/^#VULNXML_SITE/ s/^#//' \
 		-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
-		"$ZFS_JAIL_MNT/stage/usr/local/etc/pkg.conf"
+		"$STAGE_MNT/usr/local/etc/pkg.conf"
 
 	sed_inplace -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
-		"$ZFS_JAIL_MNT/stage/etc/freebsd-update.conf"
+		"$STAGE_MNT/etc/freebsd-update.conf"
 }

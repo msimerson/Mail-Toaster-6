@@ -35,9 +35,9 @@ install_ubuntu()
 base_snapshot_exists
 create_staged_fs ubuntu
 for _fs in dev proc sys tmp home; do
-	mkdir -p "$ZFS_JAIL_MNT/stage/compat/linux/$_fs"
+	mkdir -p "$STAGE_MNT/compat/linux/$_fs"
 done
-chmod 777 "$ZFS_JAIL_MNT/stage/compat/linux/tmp"
+chmod 777 "$STAGE_MNT/compat/linux/tmp"
 start_staged_jail ubuntu
 install_ubuntu
 promote_staged_jail ubuntu

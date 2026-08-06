@@ -7,6 +7,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 - mt: fail early with instructions when /usr/ports is empty
 - mt: route jail data paths through get_jail_data()
+- mt: use $STAGE_MNT instead of re-deriving it from $ZFS_JAIL_MNT
 - postfix, sphinxsearch, mailman: correct /data paths missing the jail name
 - rsnapshot, borg: call tell_status, not tell-status
 - haproxy: bind per address family the host has, drop `v4v6`
