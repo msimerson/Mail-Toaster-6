@@ -64,8 +64,6 @@ install_freebsd()
 			stage_fbsd_package base "$BASE_MNT"
 			;;
 	esac
-
-	configure_fstab
 }
 
 configure_syslog()
@@ -189,16 +187,6 @@ configure_make_conf() {
 WITH_PKGNG=yes
 WRKDIRPREFIX?=/tmp/portbuild
 EO_MAKE_CONF
-}
-
-configure_fstab() {
-	local _etc_path="$BASE_MNT/etc"
-	if [ ! -d "$_etc_path" ]; then mkdir -p "$_etc_path"; fi
-
-	store_config "$_etc_path/fstab" "overwrite" <<EO_FSTAB
-# Device                Mountpoint      FStype  Options         Dump    Pass#
-devfs                   $BASE_MNT/dev  devfs   rw              0       0
-EO_FSTAB
 }
 
 configure_base()
