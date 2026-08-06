@@ -552,12 +552,13 @@ install_deploy_scripts()
 
 update_haproxy_ssld()
 {
-	if [ ! -d "$ZFS_DATA_MNT/haproxy" ]; then
+	if [ ! -d "$(get_jail_data haproxy)" ]; then
 		# haproxy not installed, nothing to do
 		return
 	fi
 
-	local _haconf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+	local _haconf
+	_haconf="$(get_jail_data haproxy)/etc/haproxy.conf"
 	if ! grep -q 'ssl crt /etc' "$_haconf"; then
 		# already updated
 		return
@@ -575,7 +576,8 @@ configure_letsencrypt()
 
 	tell_status "configuring acme.sh"
 
-	local _HTTPDIR="$ZFS_DATA_MNT/webmail/htdocs"
+	local _HTTPDIR
+	_HTTPDIR="$(get_jail_data webmail)/htdocs"
 
 	acme.sh --set-default-ca --server letsencrypt
 

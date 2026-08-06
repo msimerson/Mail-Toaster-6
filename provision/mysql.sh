@@ -64,7 +64,8 @@ EO_MY_CNF
 
 configure_mysql_keys()
 {
-	local _dbdir="$ZFS_DATA_MNT/mysql/db"
+	local _dbdir
+	_dbdir="$(get_jail_data mysql)/db"
 
 	if [ ! -f "$_dbdir/private_key.pem" ]; then
 		tell_status "enabling sha256_password support"
@@ -147,7 +148,8 @@ configure_mysql()
 	stage_sysrc mysql_dbdir="/data/db"
 	stage_sysrc mysql_optfile="/data/etc/extra.cnf"
 
-	local _dbdir="$ZFS_DATA_MNT/mysql/db"
+	local _dbdir
+	_dbdir="$(get_jail_data mysql)/db"
 
 	local _my_cnf="$STAGE_MNT/data/etc/extra.cnf"
 	store_config "$_my_cnf" <<EO_MY_CNF
@@ -195,7 +197,7 @@ test_mysql()
 
 migrate_mysql_dbs()
 {
-	if [ -f "$ZFS_DATA_MNT/mysql/mysql.err" ]; then
+	if [ -f "$(get_jail_data mysql)/mysql.err" ]; then
 		echo "
 	HALT: mysql data migration required.
 
@@ -247,7 +249,8 @@ check_mysql_native_passwords()
 	# but leaves it disabled by default. Setting mysql_native_password=ON in
 	# [mysqld] re-enables it, so the upgrade is safe even with accounts that
 	# still use the plugin.
-	local _extra_cnf="$ZFS_DATA_MNT/mysql/etc/extra.cnf"
+	local _extra_cnf
+	_extra_cnf="$(get_jail_data mysql)/etc/extra.cnf"
 	if [ -f "$_extra_cnf" ] && awk '
 		/^[[:space:]]*\[mysqld\][[:space:]]*$/ { in_section = 1; next }
 		/^[[:space:]]*\[/                      { in_section = 0 }

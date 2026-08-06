@@ -25,12 +25,15 @@ install_vpopmail_source()
 
 	tell_status "installing vpopmail from sources"
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/src" ]; then
-		mkdir "$ZFS_DATA_MNT/vpopmail/src" || exit 1
+	local _data
+	_data="$(get_jail_data vpopmail)"
+
+	if [ ! -d "$_data/src" ]; then
+		mkdir "$_data/src" || exit 1
 	fi
 
-	if [ ! -d "$ZFS_DATA_MNT/vpopmail/src/vpopmail" ]; then
-		git clone https://github.com/brunonymous/vpopmail.git "$ZFS_DATA_MNT/vpopmail/src/vpopmail" || exit 1
+	if [ ! -d "$_data/src/vpopmail" ]; then
+		git clone https://github.com/brunonymous/vpopmail.git "$_data/src/vpopmail" || exit 1
 	fi
 
 	_conf_args="--disable-users-big-dir --enable-logging=y --enable-md5-passwords --disable-sha512-passwords"
@@ -133,7 +136,8 @@ install_qmail()
 
 	for _cdir in control users
 	do
-		local _vmdir="$ZFS_DATA_MNT/vpopmail/home/qmail-${_cdir}"
+		local _vmdir
+		_vmdir="$(get_jail_data vpopmail)/home/qmail-${_cdir}"
 		if [ ! -d "$_vmdir" ]; then
 			tell_status "creating $_vmdir"
 			mkdir -p "$_vmdir" || exit
@@ -153,7 +157,7 @@ install_qmail()
 	mkdir -p "$STAGE_MNT/usr/local/etc/rc.d"
 
 	tell_status "setting qmail hostname to $TOASTER_HOSTNAME"
-	echo "$TOASTER_HOSTNAME" > "$ZFS_DATA_MNT/vpopmail/home/qmail-control/me"
+	echo "$TOASTER_HOSTNAME" > "$(get_jail_data vpopmail)/home/qmail-control/me"
 
 	if grep -qs ^mail_qmail_ "$ZFS_JAIL_MNT/vpopmail/etc/make.conf"; then
 		tell_status "copying qmail port options from existing vpopmail jail"

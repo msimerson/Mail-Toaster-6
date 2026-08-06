@@ -6,7 +6,8 @@ set -e -u
 
 export JAIL_START_EXTRA="allow.sysvipc=1"
 export JAIL_CONF_EXTRA=""
-export JAIL_FSTAB="$ZFS_DATA_MNT/vpopmail/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw 0 0"
+export JAIL_FSTAB
+JAIL_FSTAB="$(get_jail_data vpopmail)/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw 0 0"
 
 mt6-include vpopmail
 mt6-include mua
@@ -42,7 +43,8 @@ install_dovecot()
 }
 
 configure_dovecot_local_conf() {
-	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	local _localconf
+	_localconf="$(get_jail_data dovecot)/etc/local.conf"
 
 	local _listen='listen = *'
 	get_public_ip6
@@ -223,7 +225,8 @@ EO_DOVECOT_LOCAL
 
 configure_dovecot_sql_conf()
 {
-	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	local _localconf
+	_localconf="$(get_jail_data dovecot)/etc/local.conf"
 	if grep -q -E 'driver[[:space:]]*=[[:space:]]*sql' $_localconf; then
 		tell_status "passdb conversion to SQL already complete"
 	else
@@ -242,15 +245,16 @@ configure_dovecot_sql_conf()
  }/sg' /data/etc/local.conf
 	fi
 
-	_localconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
+	_localconf="$(get_jail_data dovecot)/etc/dovecot-sql.conf.ext"
 	if grep -q -E 'driver[[:space:]]*=[[:space:]]mysql' $_localconf; then
 		tell_status "SQL configured."
 	else
 		tell_status "configuring SQL"
-		local _sqlconf="$ZFS_DATA_MNT/dovecot/etc/dovecot-sql.conf.ext"
+		local _sqlconf
+		_sqlconf="$(get_jail_data dovecot)/etc/dovecot-sql.conf.ext"
 
 		# shellcheck disable=SC2034
-		_vpass=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+		_vpass=$(grep -v ^# "$(get_jail_data vpopmail)/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 
 		store_config "$_sqlconf" "overwrite" <<EO_DOVECOT_SQL
   driver = mysql
@@ -285,7 +289,8 @@ EO_DOVECOT_SQL
 
 configure_example_config()
 {
-	local _dcdir="$ZFS_DATA_MNT/dovecot/etc"
+	local _dcdir
+	_dcdir="$(get_jail_data dovecot)/etc"
 
 	if [ -f "$_dcdir/dovecot.conf" ]; then
 		tell_status "dovecot config files already present"
@@ -301,7 +306,8 @@ configure_example_config()
 
 configure_system_auth()
 {
-	local _authconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-auth.conf"
+	local _authconf
+	_authconf="$(get_jail_data dovecot)/etc/conf.d/10-auth.conf"
 	if ! grep -qs '^!include auth\-system' "$_authconf"; then
 		tell_status "system auth already disabled"
 		return
@@ -315,7 +321,8 @@ configure_system_auth()
 
 configure_vsz_limit()
 {
-	local _master="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-master.conf"
+	local _master
+	_master="$(get_jail_data dovecot)/etc/conf.d/10-master.conf"
 	if grep -q ^default_vsz_limit "$_master"; then
 		tell_status "vsz_limit already configured"
 		return
@@ -329,7 +336,8 @@ configure_vsz_limit()
 
 configure_tls_certs()
 {
-	local _sslconf="$ZFS_DATA_MNT/dovecot/etc/conf.d/10-ssl.conf"
+	local _sslconf
+	_sslconf="$(get_jail_data dovecot)/etc/conf.d/10-ssl.conf"
 	if grep -qs ^ssl_cert "$_sslconf"; then
 		tell_status "removing ssl_cert from 10-ssl.conf"
 		sed_inplace \
@@ -338,7 +346,8 @@ configure_tls_certs()
 			"$_sslconf"
 	fi
 
-	local _localconf="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	local _localconf
+	_localconf="$(get_jail_data dovecot)/etc/local.conf"
 	if grep -qs dovecot.pem "$_localconf"; then
 		sed_inplace \
 			-e "/^ssl_cert/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
@@ -346,10 +355,11 @@ configure_tls_certs()
 			"$_localconf"
 	fi
 
-	local _ssldir="$ZFS_DATA_MNT/dovecot/etc/tls"
-	if [ ! -d "$_ssldir" ] && [ -d "$ZFS_DATA_MNT/dovecot/etc/ssl" ]; then
+	local _ssldir
+	_ssldir="$(get_jail_data dovecot)/etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$(get_jail_data dovecot)/etc/ssl" ]; then
 		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
-		mv "$ZFS_DATA_MNT/dovecot/etc/ssl" "$_ssldir"
+		mv "$(get_jail_data dovecot)/etc/ssl" "$_ssldir"
 	fi
 	if [ ! -d "$_ssldir/certs" ]; then
 		# shellcheck disable=SC2174
@@ -483,10 +493,10 @@ configure_sieve_learn_spamassassin()
 		return
 	fi
 
-	if [ ! -x "$ZFS_DATA_MNT/dovecot/bin/spamc" ]; then
+	if [ ! -x "$(get_jail_data dovecot)/bin/spamc" ]; then
 		tell_status "copying spamc into /data/bin"
 		cp "$ZFS_JAIL_MNT/spamassassin/usr/local/bin/spamc" \
-			"$ZFS_DATA_MNT/dovecot/bin/spamc"
+			"$(get_jail_data dovecot)/bin/spamc"
 	fi
 
 	tell_status "creating learn-ham-sa.sh"
@@ -525,7 +535,8 @@ configure_sieve()
 		mkdir "$SIEVE_DIR"
 	fi
 
-	local _lc="$ZFS_DATA_MNT/dovecot/etc/local.conf"
+	local _lc
+	_lc="$(get_jail_data dovecot)/etc/local.conf"
 	if [ -f "$_lc" ] && ! grep -q sieve "$_lc"; then
 		tell_status "sieve not configured. Update local.conf and reinstall dovecot to enable"
 		return
@@ -540,7 +551,7 @@ configure_sieve()
 
 configure_dovecot_pf()
 {
-	_pf_etc="$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
+	_pf_etc="$(get_jail_data dovecot)/etc/pf.conf.d"
 
 	store_config "$_pf_etc/insecure_mua.table" <<EO_PF_INSECURE
 # RFC 1918 Private IP blocks
@@ -572,7 +583,7 @@ EO_PF_FILTER
 
 configure_dovecot_lastauth()
 {
-	store_exec "$ZFS_DATA_MNT/dovecot/bin/lastauth.sh" <<EO_LASTAUTH
+	store_exec "$(get_jail_data dovecot)/bin/lastauth.sh" <<EO_LASTAUTH
 #!/bin/sh
 
 set -e
@@ -586,12 +597,12 @@ echo "UPDATE vpopmail.lastauth SET timestamp=UNIX_TIMESTAMP(now()), remote_ip='\
 exec "\$@"
 EO_LASTAUTH
 
-	_mycnf="$ZFS_DATA_MNT/dovecot/etc/.my.cnf"
+	_mycnf="$(get_jail_data dovecot)/etc/.my.cnf"
 	store_config "$_mycnf" "overwrite" <<EO_DOVECOT_MY
 [client]
 host=mysql
 user=vpopmail
-password=$(grep -v ^# "$ZFS_DATA_MNT/vpopmail/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
+password=$(grep -v ^# "$(get_jail_data vpopmail)/home/etc/vpopmail.mysql" | head -n1 | cut -f4 -d'|')
 database=vpopmail
 EO_DOVECOT_MY
 
@@ -602,7 +613,8 @@ EO_DOVECOT_MY
 configure_dovecot()
 {
 	for _d in etc bin; do
-		local _dcdir="$ZFS_DATA_MNT/dovecot/${_d}"
+		local _dcdir
+		_dcdir="$(get_jail_data dovecot)/${_d}"
 
 		if [ ! -d "$_dcdir" ]; then
 			tell_status "creating $_dcdir"

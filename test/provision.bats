@@ -141,7 +141,7 @@ _no_start_required() {
 # ---------------------------------------------------------------------------
 
 @test "dovecot mounts vpopmail home in JAIL_FSTAB" {
-  run grep "^export JAIL_FSTAB" provision/dovecot.sh
+  run grep "JAIL_FSTAB=.*vpopmail" provision/dovecot.sh
   assert_output --partial "vpopmail"
 }
 
@@ -235,7 +235,7 @@ EOF
 }
 
 @test "dcc mounts dcc db in JAIL_FSTAB" {
-  run grep "^export JAIL_FSTAB" provision/dcc.sh
+  run grep "JAIL_FSTAB=.*dcc" provision/dcc.sh
   assert_output --partial "dcc"
 }
 

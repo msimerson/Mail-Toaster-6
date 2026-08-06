@@ -67,7 +67,8 @@ configure_nginx_server()
 
 install_default_ini()
 {
-	local _rlconfdir="$ZFS_DATA_MNT/rainloop/_data_/_default_"
+	local _rlconfdir
+	_rlconfdir="$(get_jail_data rainloop)/_data_/_default_"
 	local _dini="$_rlconfdir/domains/default.ini"
 	if [ -f "$_dini" ]; then
 		tell_status "preserving default.ini"
@@ -124,7 +125,7 @@ configure_rainloop()
 	install_default_ini
 
 	# for persistent data storage
-	chown -R 80:80 "$ZFS_DATA_MNT/rainloop/"
+	chown -R 80:80 "$(get_jail_data rainloop)/"
 }
 
 start_rainloop()

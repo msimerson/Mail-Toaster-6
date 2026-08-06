@@ -87,7 +87,8 @@ configure_nginx_server()
 
 install_default_json()
 {
-	local _rlconfdir="$ZFS_DATA_MNT/snappymail/_data_/_default_"
+	local _rlconfdir
+	_rlconfdir="$(get_jail_data snappymail)/_data_/_default_"
 	if [ ! -d "$_rlconfdir/domains" ]; then
 		tell_status "creating default/domains dir"
 		mkdir -p "$_rlconfdir/domains"
@@ -189,7 +190,8 @@ EO_INCLUDE
 
 set_application_path()
 {
-	local _appini="$ZFS_DATA_MNT/snappymail/_data_/_default_/domains/default.json"
+	local _appini
+	_appini="$(get_jail_data snappymail)/_data_/_default_/domains/default.json"
 
 	if [ ! -f "$_appini" ]; then
 		echo "missing $_appini"
@@ -235,7 +237,7 @@ configure_snappymail()
 	install_default_json
 
 	# for persistent data storage
-	chown -R 80:80 "$ZFS_DATA_MNT/snappymail/"
+	chown -R 80:80 "$(get_jail_data snappymail)/"
 
 	#configure_admin_password
 }

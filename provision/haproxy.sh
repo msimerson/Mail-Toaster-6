@@ -70,7 +70,8 @@ haproxy_binds()
 
 configure_haproxy_dot_conf()
 {
-	local _data_cf="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
+	local _data_cf
+	_data_cf="$(get_jail_data haproxy)/etc/haproxy.conf"
 
 	store_config "$_data_cf" <<EO_HAPROXY_CONF
 global
@@ -390,7 +391,8 @@ EO_OCSP
 
 configure_haproxy_tls()
 {
-	local _tls_dir="$ZFS_DATA_MNT/haproxy/etc/tls.d"
+	local _tls_dir
+	_tls_dir="$(get_jail_data haproxy)/etc/tls.d"
 	if [ ! -d "$_tls_dir" ]; then
 		tell_status "creating $_tls_dir"
 		mkdir -p "$_tls_dir"
@@ -407,9 +409,9 @@ configure_haproxy_tls()
 
 configure_haproxy()
 {
-	if [ ! -d "$ZFS_DATA_MNT/haproxy/etc" ]; then
+	if [ ! -d "$(get_jail_data haproxy)/etc" ]; then
 		tell_status "creating /data/etc"
-		mkdir -p "$ZFS_DATA_MNT/haproxy/etc"
+		mkdir -p "$(get_jail_data haproxy)/etc"
 	fi
 
 	configure_haproxy_dot_conf
@@ -419,7 +421,7 @@ configure_haproxy()
 		mkdir "$STAGE_MNT/var/run/haproxy"
 	fi
 
-	_pf_etc="$ZFS_DATA_MNT/haproxy/etc/pf.conf.d"
+	_pf_etc="$(get_jail_data haproxy)/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)

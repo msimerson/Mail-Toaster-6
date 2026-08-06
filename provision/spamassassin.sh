@@ -8,7 +8,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 if zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
-	export JAIL_FSTAB="$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+	export JAIL_FSTAB
+	JAIL_FSTAB="$(get_jail_data geoip)/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
 fi
 
 mt6-include mysql
@@ -50,7 +51,7 @@ install_spamassassin_port()
 
 install_spamassassin_data_fs()
 {
-	for _d in $ZFS_DATA_MNT/spamassassin/etc $ZFS_DATA_MNT/spamassassin/var $STAGE_MNT/usr/local/etc/mail; do
+	for _d in $(get_jail_data spamassassin)/etc $(get_jail_data spamassassin)/var $STAGE_MNT/usr/local/etc/mail; do
 		if [ ! -d "$_d" ]; then
 			tell_status "creating $_d"
 			mkdir "$_d"
@@ -148,7 +149,7 @@ configure_geoip()
 		return
 	fi
 
-	fstab_add_mount spamassassin "$ZFS_DATA_MNT/geoip/db" "$ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP"
+	fstab_add_mount spamassassin "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP"
 
 	tell_status "GeoIP present, enabling RelayCountry plugin"
 	store_config "$_relay_pre" "overwrite" <<EO_RELAY_COUNTRY
@@ -160,7 +161,7 @@ EO_RELAY_COUNTRY
 
 configure_spamassassin()
 {
-	_sa_etc="$ZFS_DATA_MNT/spamassassin/etc"
+	_sa_etc="$(get_jail_data spamassassin)/etc"
 
 	if [ ! -f "$_sa_etc/local.pre" ]; then
 		tell_status "installing local.pre"

@@ -72,9 +72,9 @@ configure_smf()
 	configure_nginx smf
 	configure_nginx_server
 
-	if [ -f "$ZFS_DATA_MNT/smf/Settings.php" ]; then
+	if [ -f "$(get_jail_data smf)/Settings.php" ]; then
 		tell_status "preserving Settings.php"
-		cp "$ZFS_DATA_MNT/smf/Settings.php" "$STAGE_MNT/usr/local/www/smf/" || exit
+		cp "$(get_jail_data smf)/Settings.php" "$STAGE_MNT/usr/local/www/smf/" || exit
 	elif [ -f "$ZFS_JAIL_MNT/smf/usr/local/www/smf/Settings.php" ]; then
 		preserve_file smf /usr/local/www/smf/Settings.php
 	else

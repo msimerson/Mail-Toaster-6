@@ -63,7 +63,8 @@ configure_nginx_server_d()
 	local _jail="$1"
 	local _server_name="${2:-$_jail}"
 
-	local _server_d="$ZFS_DATA_MNT/$_jail/etc/nginx/server.d"
+	local _server_d
+	_server_d="$(get_jail_data "$_jail")/etc/nginx/server.d"
 	if [ ! -d "$_server_d" ]; then mkdir -p "$_server_d" || exit 1; fi
 
 	local _server_conf="$_server_d/$_server_name.conf"
@@ -108,7 +109,8 @@ configure_nginx()
 		exit 1
 	fi
 
-	local _etcdir="$ZFS_DATA_MNT/$1/etc/nginx"
+	local _etcdir
+	_etcdir="$(get_jail_data "$1")/etc/nginx"
 	if [ ! -d "$_etcdir" ]; then mkdir -p "$_etcdir" || exit 1; fi
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'

@@ -27,21 +27,21 @@ EO_RSNAP
 
 	for d in etc snaps
 	do
-		if [ ! -d "$ZFS_DATA_MNT/borg/$d" ]; then
-			mkdir "$ZFS_DATA_MNT/borg/$d"
+		if [ ! -d "$(get_jail_data borg)/$d" ]; then
+			mkdir "$(get_jail_data borg)/$d"
 		fi
 	done
 
-	if [ ! -f "$ZFS_DATA_MNT/borg/etc/borg.conf" ]; then
-		tell-status "installing default $ZFS_DATA_MNT/etc/borg.conf"
-		cp "$STAGE_MNT/usr/local/etc/borg.conf.default" "$ZFS_DATA_MNT/borg/etc/borg.conf"
+	if [ ! -f "$(get_jail_data borg)/etc/borg.conf" ]; then
+		tell_status "installing default $(get_jail_data borg)/etc/borg.conf"
+		cp "$STAGE_MNT/usr/local/etc/borg.conf.default" "$(get_jail_data borg)/etc/borg.conf"
 	fi
 
-	if [ -d "$ZFS_DATA_MNT/borg/ssh" ]; then
+	if [ -d "$(get_jail_data borg)/ssh" ]; then
 		if [ ! -d "$STAGE_MNT/root/.ssh" ]; then
 			umask 0077; mkdir "$STAGE_MNT/root/.ssh"; umask 0022;
 		fi
-		cp "$ZFS_DATA_MNT/borg/ssh/*" "$STAGE_MNT/root/.ssh"
+		cp "$(get_jail_data borg)/ssh/*" "$STAGE_MNT/root/.ssh"
 	fi
 }
 

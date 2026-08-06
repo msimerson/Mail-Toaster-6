@@ -358,7 +358,8 @@ configure_zonemta_admin()
 
 configure_pf()
 {
-	local _pf_etc="$ZFS_DATA_MNT/wildduck/etc/pf.conf.d"
+	local _pf_etc
+	_pf_etc="$(get_jail_data wildduck)/etc/pf.conf.d"
 
 	get_public_ip4
 	get_public_ip6
@@ -405,7 +406,8 @@ EO_FILTER
 configure_haraka()
 {
 	tell_status "configuring Haraka"
-	local _cfg="$ZFS_DATA_MNT/wildduck/haraka/config"
+	local _cfg
+	_cfg="$(get_jail_data wildduck)/haraka/config"
 
 	tell_status "installing $_cfg/clamd.ini"
 	cat <<EO_CLAM > "$_cfg/clamd.ini"
@@ -497,7 +499,7 @@ EO_RSPAMD
 			-e "/host:/ s/'127.0.0.1'/redis/" \
 			-e "/db:/ s/3/9/" \
 			-e "/mongodb:/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
-			"$ZFS_DATA_MNT/wildduck/haraka/plugins/wildduck/config/wildduck.yaml" \
+			"$(get_jail_data wildduck)/haraka/plugins/wildduck/config/wildduck.yaml" \
 			> "$_cfg/wildduck.yaml"
 			# -e "/secret: / s/secret value/$TODO/" \
 			# -e "/loopSecret: / s/secret value/$TODO/" \

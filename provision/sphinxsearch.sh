@@ -20,7 +20,8 @@ install_sphinxsearch()
 
 configure_sphinxsearch()
 {
-  local _dbdir="$ZFS_DATA_MNT/db"
+  local _dbdir
+  _dbdir="$(get_jail_data sphinxsearch)/db"
   if [ ! -d "$_dbdir" ]; then
     mkdir -p "$_dbdir" || exit
   fi

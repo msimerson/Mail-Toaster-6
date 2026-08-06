@@ -5,6 +5,10 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- mt: fail early with instructions when /usr/ports is empty
+- mt: route jail data paths through get_jail_data()
+- postfix, sphinxsearch, mailman: correct /data paths missing the jail name
+- rsnapshot, borg: call tell_status, not tell-status
 - haproxy: bind per address family the host has, drop `v4v6`
 - config: mv config into ./conf.d/
 - config: split service portions into $service.conf files

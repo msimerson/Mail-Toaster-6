@@ -5,10 +5,11 @@ set -e
 . mail-toaster.sh
 
 export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA="
+export JAIL_CONF_EXTRA
+JAIL_CONF_EXTRA="
 		allow.raw_sockets;
-		exec.poststart = \"$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh\";
-		exec.prestop = \"$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh\";
+		exec.poststart = \"$(get_jail_data dns)/etc/rc.d/poststart.sh\";
+		exec.prestop = \"$(get_jail_data dns)/etc/rc.d/prestop.sh\";
 "
 export JAIL_FSTAB=""
 
@@ -68,7 +69,7 @@ install_access_conf()
 		tell_status "no public IPv4 found, omitting its access-control entry"
 	fi
 
-	store_config "$ZFS_DATA_MNT/dns/access.conf" <<EO_UNBOUND_ACCESS
+	store_config "$(get_jail_data dns)/access.conf" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
@@ -81,7 +82,7 @@ EO_UNBOUND_ACCESS
 
 install_forward_conf()
 {
-	store_config "$ZFS_DATA_MNT/dns/forward.conf" "update" <<EO_UNBOUND_FORWARD
+	store_config "$(get_jail_data dns)/forward.conf" "update" <<EO_UNBOUND_FORWARD
 # Comparison Table: Forward vs Stub Zones
 # | Feature         | Forward Zone                    | Stub Zone                      |
 # | :-------------- | :------------------------------ | :----------------------------- |
@@ -102,7 +103,7 @@ EO_UNBOUND_FORWARD
 
 install_stub_conf()
 {
-	store_config "$ZFS_DATA_MNT/dns/stub.conf" "update" <<EO_UNBOUND_STUB
+	store_config "$(get_jail_data dns)/stub.conf" "update" <<EO_UNBOUND_STUB
 # Comparison Table: Forward vs Stub Zones
 # | Feature         | Forward Zone                    | Stub Zone                      |
 # | :-------------- | :------------------------------ | :----------------------------- |
@@ -121,7 +122,7 @@ EO_UNBOUND_STUB
 
 install_local_conf()
 {
-	store_config "$ZFS_DATA_MNT/dns/mt6-local.conf" "overwrite" <<EO_UNBOUND
+	store_config "$(get_jail_data dns)/mt6-local.conf" "overwrite" <<EO_UNBOUND
 	   $UNBOUND_LOCAL
 
 	   $(get_mt6_data)
@@ -163,16 +164,16 @@ include: "/data/stub.conf" \
 
 enable_control()
 {
-	if [ -d "$ZFS_DATA_MNT/dns/control" ]; then
+	if [ -d "$(get_jail_data dns)/control" ]; then
 		tell_status "preserving unbound-control"
 		return
 	fi
 
-	tell_status "creating $ZFS_DATA_MNT/dns/control"
-	mkdir "$ZFS_DATA_MNT/dns/control"
+	tell_status "creating $(get_jail_data dns)/control"
+	mkdir "$(get_jail_data dns)/control"
 
 	tell_status "configuring unbound-control"
-	store_config "$ZFS_DATA_MNT/dns/control.conf" "update" <<EO_CONTROL_CONF
+	store_config "$(get_jail_data dns)/control.conf" "update" <<EO_CONTROL_CONF
 		control-enable: yes
 		control-interface: 0.0.0.0
 
@@ -199,10 +200,10 @@ configure_unbound()
 	cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf"
 	if [ -f 'unbound.conf.local' ]; then
 		tell_status "moving unbound.conf.local to data volume"
-		mv unbound.conf.local "$ZFS_DATA_MNT/dns/"
+		mv unbound.conf.local "$(get_jail_data dns)/"
 	fi
 
-	_ub_local_conf="$ZFS_DATA_MNT/dns/unbound.conf.local"
+	_ub_local_conf="$(get_jail_data dns)/unbound.conf.local"
 	if [ ! -f "$_ub_local_conf" ]; then
 		store_config "$_ub_local_conf" <<EO_UB_LOCAL_CONF
 
@@ -249,7 +250,7 @@ test_unbound()
 	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
 	echo "it worked."
 
-	if [ -f "$ZFS_DATA_MNT/dns/unbound.conf" ]; then
+	if [ -f "$(get_jail_data dns)/unbound.conf" ]; then
 		stage_sysrc unbound_config=/data/unbound.conf
 	fi
 }
@@ -261,12 +262,12 @@ switch_host_resolver()
 		truncate -s 0 /etc/resolvconf.conf
 	fi
 
-	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/poststart.sh" <<EO_POSTSTART
+	store_exec "$(get_jail_data dns)/etc/rc.d/poststart.sh" <<EO_POSTSTART
 #!/bin/sh
 echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns -m 0
 EO_POSTSTART
 
-	store_exec "$ZFS_DATA_MNT/dns/etc/rc.d/prestop.sh" <<EO_PRESTOP
+	store_exec "$(get_jail_data dns)/etc/rc.d/prestop.sh" <<EO_PRESTOP
 #!/bin/sh
 /sbin/resolvconf -d lo1.dns
 EO_PRESTOP

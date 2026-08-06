@@ -30,22 +30,22 @@ configure_dhcpd()
 	stage_sysrc dhcpd_rootdir="/data/db"	# directory to run in
 	echo "configured"
 
-	_pf_etc="$ZFS_DATA_MNT/dhcp/etc/pf.conf.d"
+	_pf_etc="$(get_jail_data dhcp)/etc/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip  dhcp)
 rdr inet6 proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip6 dhcp)
 EO_PF_RDR
 
-	if [ ! -d "$ZFS_DATA_MNT/dhcp/etc" ]; then
-		mkdir -p "$ZFS_DATA_MNT/dhcp/etc"
+	if [ ! -d "$(get_jail_data dhcp)/etc" ]; then
+		mkdir -p "$(get_jail_data dhcp)/etc"
 	fi
 
-	if [ ! -d "$ZFS_DATA_MNT/dhcp/db" ]; then
-		mkdir -p "$ZFS_DATA_MNT/dhcp/db"
+	if [ ! -d "$(get_jail_data dhcp)/db" ]; then
+		mkdir -p "$(get_jail_data dhcp)/db"
 	fi
 
 	get_public_ip4
-	store_config "$ZFS_DATA_MNT/dhcp/etc/dhcpd.conf" <<EO_DHCP
+	store_config "$(get_jail_data dhcp)/etc/dhcpd.conf" <<EO_DHCP
 option domain-name "$TOASTER_MAIL_DOMAIN";
 # option domain-name-servers $PUBLIC_IP4;
 

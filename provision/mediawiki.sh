@@ -97,9 +97,9 @@ configure_mediawiki()
 	configure_nginx mediawiki
 	configure_nginx_server
 
-	if [ -f "$ZFS_DATA_MNT/mediawiki/LocalSettings.php" ]; then
+	if [ -f "$(get_jail_data mediawiki)/LocalSettings.php" ]; then
 		tell_status "installing LocalSettings.php"
-		cp "$ZFS_DATA_MNT/mediawiki/LocalSettings.php" \
+		cp "$(get_jail_data mediawiki)/LocalSettings.php" \
 			"$STAGE_MNT/usr/local/www/mediawiki/" || exit
 	else
 		tell_status "no LocalSettings.php found in /data"
