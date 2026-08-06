@@ -384,7 +384,7 @@ install_webmail()
 
 configure_webmail_pf()
 {
-	_pf_etc="$(get_jail_host_etc webmail)/pf.conf.d"
+	local _pf_etc; _pf_etc="$(get_jail_host_etc webmail)/pf.conf.d"
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 		store_config "$_pf_etc/rdr.conf" <<EO_WEBMAIL_RDR

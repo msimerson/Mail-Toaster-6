@@ -75,7 +75,7 @@ configure_nginx_server()
 
 configure_pf()
 {
-	_pf_etc="$(get_jail_host_etc git)/pf.conf.d"
+	local _pf_etc; _pf_etc="$(get_jail_host_etc git)/pf.conf.d"
 
 	store_config "$_pf_etc/rdr.conf" <<EO_GIT_RDR
 int_ip4 = "$(get_jail_ip git)"
