@@ -71,7 +71,7 @@ haproxy_binds()
 configure_haproxy_dot_conf()
 {
 	local _data_cf
-	_data_cf="$(get_jail_etc haproxy)/haproxy.conf"
+	_data_cf="$(get_jail_data haproxy)/etc/haproxy.conf"
 
 	store_config "$_data_cf" <<EO_HAPROXY_CONF
 global
@@ -392,7 +392,7 @@ EO_OCSP
 configure_haproxy_tls()
 {
 	local _tls_dir
-	_tls_dir="$(get_jail_etc haproxy)/tls.d"
+	_tls_dir="$(get_jail_data haproxy)/etc/tls.d"
 	if [ ! -d "$_tls_dir" ]; then
 		tell_status "creating $_tls_dir"
 		mkdir -p "$_tls_dir"
@@ -409,9 +409,9 @@ configure_haproxy_tls()
 
 configure_haproxy()
 {
-	if [ ! -d "$(get_jail_etc haproxy)" ]; then
+	if [ ! -d "$(get_jail_data haproxy)/etc" ]; then
 		tell_status "creating /data/etc"
-		mkdir -p "$(get_jail_etc haproxy)"
+		mkdir -p "$(get_jail_data haproxy)/etc"
 	fi
 
 	configure_haproxy_dot_conf

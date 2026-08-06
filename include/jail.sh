@@ -189,16 +189,10 @@ get_jail_data()
 	echo "$ZFS_DATA_MNT/$1"
 }
 
-# config the jail reads for itself, as /data/etc from inside it
-get_jail_etc()
-{
-	echo "$(get_jail_data "$1")/etc"
-}
-
 # control files the host reads or runs on the jail's behalf: fstab, the
-# pf.conf.d that pfrule.sh loads, jail.conf exec hooks. A jail able to write
-# these can make the host mount or execute anything, so they are named apart
-# from the jail's own config even while both still resolve to the same place.
+# pf.conf.d that pfrule.sh loads, the jail.conf exec hooks. A jail able to
+# write these can make the host mount or execute anything, so they are named
+# apart from the jail's own config, which stays $(get_jail_data <jail>)/etc.
 get_jail_host_etc()
 {
 	echo "$(get_jail_data "$1")/etc"

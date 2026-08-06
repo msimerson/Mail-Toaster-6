@@ -95,7 +95,7 @@ were already applied by hand, record the version with:
 migrate_roundcube_nginx_conf()
 {
 	local _conf
-	_conf="$(get_jail_etc roundcube)/nginx/server.d/roundcube.conf"
+	_conf="$(get_jail_data roundcube)/etc/nginx/server.d/roundcube.conf"
 
 	if [ ! -f "$_conf" ] || grep -q public_html "$_conf"; then return; fi
 
@@ -108,7 +108,7 @@ migrate_roundcube_nginx_conf()
 install_roundcube_plugins()
 {
 	local _rc_plugins="contextmenu html5_notifier larry"
-	if [ -d "$(get_jail_etc spamassassin)" ]; then
+	if [ -d "$(get_jail_data spamassassin)/etc" ]; then
 		_rc_plugins="$_rc_plugins sauserprefs"
 	fi
 
@@ -231,7 +231,7 @@ configure_roundcube_plugins()
 		-e "/'password_vpopmaild_host'/s/localhost/vpopmail/" \
 		"$STAGE_MNT/usr/local/www/roundcube/plugins/password/config.inc.php"
 
-	if [ -d "$(get_jail_etc spamassassin)" ]; then
+	if [ -d "$(get_jail_data spamassassin)/etc" ]; then
 
 		if [ ! -f "$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php" ] &&
 		   [   -f "$STAGE_MNT/usr/local/www/roundcube/plugins/sauserprefs/config.inc.php.dist" ]; then
@@ -241,7 +241,7 @@ configure_roundcube_plugins()
 		fi
 
 		local _sapass
-		_sapass=$(grep user_scores_sql_password "$(get_jail_etc spamassassin)/sql.cf" | awk '{ print $2 }')
+		_sapass=$(grep user_scores_sql_password "$(get_jail_data spamassassin)/etc/sql.cf" | awk '{ print $2 }')
 		if [ -n "$_sapass" ]; then
 			tell_status "configure the SA UserPrefs plugin"
 			sed_inplace \

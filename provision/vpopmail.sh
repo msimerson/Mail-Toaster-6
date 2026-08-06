@@ -396,7 +396,7 @@ create_staged_fs vpopmail
 
 mkdir -p "$STAGE_MNT/usr/local/vpopmail" \
 	"$(get_jail_data vpopmail)/home" \
-	"$(get_jail_etc vpopmail)"
+	"$(get_jail_data vpopmail)/etc"
 
 start_staged_jail vpopmail
 install_vpopmail

@@ -36,8 +36,8 @@ rdr inet  proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip  dhcp)
 rdr inet6 proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip6 dhcp)
 EO_PF_RDR
 
-	if [ ! -d "$(get_jail_etc dhcp)" ]; then
-		mkdir -p "$(get_jail_etc dhcp)"
+	if [ ! -d "$(get_jail_data dhcp)/etc" ]; then
+		mkdir -p "$(get_jail_data dhcp)/etc"
 	fi
 
 	if [ ! -d "$(get_jail_data dhcp)/db" ]; then
@@ -45,7 +45,7 @@ EO_PF_RDR
 	fi
 
 	get_public_ip4
-	store_config "$(get_jail_etc dhcp)/dhcpd.conf" <<EO_DHCP
+	store_config "$(get_jail_data dhcp)/etc/dhcpd.conf" <<EO_DHCP
 option domain-name "$TOASTER_MAIL_DOMAIN";
 # option domain-name-servers $PUBLIC_IP4;
 

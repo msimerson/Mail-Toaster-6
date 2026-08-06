@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
-- mt: add get_jail_etc and get_jail_host_etc, split /data/<jail>/etc by reader
+- mt: add get_jail_host_etc, naming the control files the host reads per jail
 - base: mount.devfs instead of an fstab, drop its unused pf rules
 - mt: fail early with instructions when /usr/ports is empty
 - mt: route jail data paths through get_jail_data()

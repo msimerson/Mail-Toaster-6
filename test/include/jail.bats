@@ -127,12 +127,6 @@ setup() {
   assert_output "/data/base"
 }
 
-@test "get_jail_etc - config the jail reads for itself" {
-  export ZFS_DATA_MNT="/data"
-  run get_jail_etc dovecot
-  assert_output "/data/dovecot/etc"
-}
-
 @test "get_jail_host_etc - control files the host reads for the jail" {
   export ZFS_DATA_MNT="/data"
   run get_jail_host_etc dovecot

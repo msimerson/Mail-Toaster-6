@@ -5,7 +5,7 @@
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA
 JAIL_CONF_EXTRA="
-		mount += \"$(get_jail_etc minecraft) \$path/usr/local/etc/minecraft-server nullfs rw 0 0\";
+		mount += \"$(get_jail_data minecraft)/etc \$path/usr/local/etc/minecraft-server nullfs rw 0 0\";
 		mount += \"$(get_jail_data minecraft)/db \$path/var/db/minecraft-server nullfs rw 0 0\";"
 export JAIL_FSTAB=""
 
@@ -27,8 +27,8 @@ games_minecraft-server_UNSET=STANDALONE'
 configure_minecraft()
 {
 	tell_status "configuring minecraft"
-	if [ ! -d "$(get_jail_etc minecraft)" ]; then
-		mkdir "$(get_jail_etc minecraft)"
+	if [ ! -d "$(get_jail_data minecraft)/etc" ]; then
+		mkdir "$(get_jail_data minecraft)/etc"
 	fi
 	if [ ! -d "$(get_jail_data minecraft)/db" ]; then
 		mkdir "$(get_jail_data minecraft)/db"

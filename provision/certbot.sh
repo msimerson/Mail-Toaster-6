@@ -171,7 +171,7 @@ install_deploy_scripts()
 update_haproxy_ssld()
 {
 	local _haconf
-	_haconf="$(get_jail_etc haproxy)/haproxy.conf"
+	_haconf="$(get_jail_data haproxy)/etc/haproxy.conf"
 	if ! grep -q 'ssl crt /etc' "$_haconf"; then
 		# already updated
 		return

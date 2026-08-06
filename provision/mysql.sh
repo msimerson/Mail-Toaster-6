@@ -250,7 +250,7 @@ check_mysql_native_passwords()
 	# [mysqld] re-enables it, so the upgrade is safe even with accounts that
 	# still use the plugin.
 	local _extra_cnf
-	_extra_cnf="$(get_jail_etc mysql)/extra.cnf"
+	_extra_cnf="$(get_jail_data mysql)/etc/extra.cnf"
 	if [ -f "$_extra_cnf" ] && awk '
 		/^[[:space:]]*\[mysqld\][[:space:]]*$/ { in_section = 1; next }
 		/^[[:space:]]*\[/                      { in_section = 0 }
