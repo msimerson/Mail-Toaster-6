@@ -51,7 +51,7 @@ install_spamassassin_port()
 
 install_spamassassin_data_fs()
 {
-	for _d in $(get_jail_data spamassassin)/etc $(get_jail_data spamassassin)/var $STAGE_MNT/usr/local/etc/mail; do
+	for _d in $(get_jail_etc spamassassin) $(get_jail_data spamassassin)/var $STAGE_MNT/usr/local/etc/mail; do
 		if [ ! -d "$_d" ]; then
 			tell_status "creating $_d"
 			mkdir "$_d"
@@ -161,7 +161,7 @@ EO_RELAY_COUNTRY
 
 configure_spamassassin()
 {
-	_sa_etc="$(get_jail_data spamassassin)/etc"
+	_sa_etc="$(get_jail_etc spamassassin)"
 
 	if [ ! -f "$_sa_etc/local.pre" ]; then
 		tell_status "installing local.pre"

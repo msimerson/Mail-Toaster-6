@@ -89,8 +89,8 @@ configure_munin()
 
 	tell_status "configuring munin"
 
-	if [ ! -d "$(get_jail_data munin)/etc" ]; then
-		mkdir "$(get_jail_data munin)/etc"
+	if [ ! -d "$(get_jail_etc munin)" ]; then
+		mkdir "$(get_jail_etc munin)"
 	fi
 	if [ -d "$STAGE_MNT/data/etc/munin" ]; then
 		rm -r "$STAGE_MNT/usr/local/etc/munin"

@@ -94,7 +94,7 @@ configure_nginx_server()
 	configure_nginx_server_port_80
 	configure_nginx_server_port_443
 
-	store_config "$(get_jail_data webmail)/etc/nginx/webmail.conf" "overwrite" <<EO_WEBMAIL_INCLUDE
+	store_config "$(get_jail_etc webmail)/nginx/webmail.conf" "overwrite" <<EO_WEBMAIL_INCLUDE
 		proxy_set_header X-Forwarded-For \$remote_addr;
 		proxy_set_header X-Forwarded-Proto \$scheme;
 		proxy_set_header Host \$host;
@@ -290,7 +290,7 @@ EO_WEBMAIL_INCLUDE
 configure_nginx_auth()
 {
 	local _etc
-	_etc="$(get_jail_data webmail)/etc/nginx"
+	_etc="$(get_jail_etc webmail)/nginx"
 
 	store_config "$_etc/protected.conf" <<'EO_PROTECTED'
 # Routes that include this file require a valid login unless the client IP
@@ -346,9 +346,9 @@ configure_nginx_acme()
 	if [ "$TOASTER_NGINX_ACME" != "1" ]; then return; fi
 
 	local _conf
-	_conf="$(get_jail_data webmail)/etc/nginx/nginx.conf"
+	_conf="$(get_jail_etc webmail)/nginx/nginx.conf"
 	local _acme_conf
-	_acme_conf="$(get_jail_data webmail)/etc/nginx/server.d/acme.conf"
+	_acme_conf="$(get_jail_etc webmail)/nginx/server.d/acme.conf"
 
 	if [ -f "$_acme_conf" ]; then
 		tell_status "preserving $_acme_conf"
@@ -359,7 +359,7 @@ configure_nginx_acme()
 
 	sed_inplace -e '/ngx_http_acme_module.so/ s/^# //;' "$_conf"
 
-	mkdir -p "$(get_jail_data webmail)/etc/acme/letsencrypt"
+	mkdir -p "$(get_jail_etc webmail)/acme/letsencrypt"
 
 	store_config "$_acme_conf" <<EO_NGINX_ACME
 	resolver $(get_jail_ip dns) valid=60s;
@@ -384,7 +384,7 @@ install_webmail()
 
 configure_webmail_pf()
 {
-	_pf_etc="$(get_jail_data webmail)/etc/pf.conf.d"
+	_pf_etc="$(get_jail_host_etc webmail)/pf.conf.d"
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 		store_config "$_pf_etc/rdr.conf" <<EO_WEBMAIL_RDR

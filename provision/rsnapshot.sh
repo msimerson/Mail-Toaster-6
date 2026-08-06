@@ -34,9 +34,9 @@ EO_RSNAP
 		fi
 	done
 
-	if [ ! -f "$(get_jail_data rsnapshot)/etc/rsnapshot.conf" ]; then
-		tell_status "installing default $(get_jail_data rsnapshot)/etc/rsnapshot.conf"
-		cp "$STAGE_MNT/usr/local/etc/rsnapshot.conf.default" "$(get_jail_data rsnapshot)/etc/rsnapshot.conf"
+	if [ ! -f "$(get_jail_etc rsnapshot)/rsnapshot.conf" ]; then
+		tell_status "installing default $(get_jail_etc rsnapshot)/rsnapshot.conf"
+		cp "$STAGE_MNT/usr/local/etc/rsnapshot.conf.default" "$(get_jail_etc rsnapshot)/rsnapshot.conf"
 	fi
 
 	if [ -d "$(get_jail_data rsnapshot)/ssh" ]; then

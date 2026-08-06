@@ -85,10 +85,10 @@ EO_TRUSTED_HOSTS
 configure_tls_certs()
 {
 	local _ssldir
-	_ssldir="$(get_jail_data postfix)/etc/tls"
-	if [ ! -d "$_ssldir" ] && [ -d "$(get_jail_data postfix)/etc/ssl" ]; then
+	_ssldir="$(get_jail_etc postfix)/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$(get_jail_etc postfix)/ssl" ]; then
 		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
-		mv "$(get_jail_data postfix)/etc/ssl" "$_ssldir"
+		mv "$(get_jail_etc postfix)/ssl" "$_ssldir"
 	fi
 
 	# shellcheck disable=SC2174
@@ -110,7 +110,7 @@ configure_tls_certs()
 configure_postfix_main_cf()
 {
 	local _main_cf
-	_main_cf="$(get_jail_data postfix)/etc/main.cf"
+	_main_cf="$(get_jail_etc postfix)/main.cf"
 	local _ssldir="/data/etc/tls"
 	export MAIL_CONFIG="/data/etc"  # postconf needs this
 
@@ -145,13 +145,13 @@ configure_postfix_main_cf()
 	stage_exec postconf -e 'lmtp_tls_security_level = may'
 	stage_exec postconf -e "mynetworks = ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK}"
 
-	if [ -f "$(get_jail_data postfix)/etc/sasl_passwd" ]; then
+	if [ -f "$(get_jail_etc postfix)/sasl_passwd" ]; then
 		stage_exec postmap /data/etc/sasl_passwd
 		stage_exec postconf -e 'smtp_sasl_auth_enable = yes'
 		stage_exec postconf -e 'smtp_sasl_password_maps = hash:/data/etc/sasl_passwd'
 	fi
 
-	if [ -f "$(get_jail_data postfix)/etc/transport" ]; then
+	if [ -f "$(get_jail_etc postfix)/transport" ]; then
 		stage_exec postmap /data/etc/transport
 		stage_exec postconf -e 'transport_maps = hash:/data/etc/transport'
 	fi
@@ -183,7 +183,7 @@ enable_postfix_submission()
 configure_postfix_master_cf()
 {
 	local _master_cf
-	_master_cf="$(get_jail_data postfix)/etc/master.cf"
+	_master_cf="$(get_jail_etc postfix)/master.cf"
 	if [ -f "$_master_cf" ]; then
 		tell_status "preserving $_master_cf"
 	else

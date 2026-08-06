@@ -102,7 +102,7 @@ configure_postfix()
 	stage_exec postconf -e 'local_recipient_maps=hash:/usr/local/mailman/data/postfix_lmtp'
 	stage_exec postconf -e 'relay_domains=hash:/usr/local/mailman/data/postfix_domains'
 
-	if [ -f "$(get_jail_data mailman)/etc/sasl_passwd" ]; then
+	if [ -f "$(get_jail_etc mailman)/sasl_passwd" ]; then
 		stage_exec postmap /data/etc/sasl_passwd
 		stage_exec postconf -e 'smtp_sasl_auth_enable = yes'
 		stage_exec postconf -e 'smtp_sasl_password_maps = hash:/data/etc/sasl_passwd'
@@ -115,9 +115,9 @@ configure_postfix()
 
 	for _f in master main
 	do
-		if [ -f "$(get_jail_data postfix)/etc/$_f.cf" ]; then
+		if [ -f "$(get_jail_etc postfix)/$_f.cf" ]; then
 			tell_status "preserving /usr/local/etc/postfix/$_f.cf"
-			cp "$(get_jail_data postfix)/etc/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
+			cp "$(get_jail_etc postfix)/$_f.cf" "$STAGE_MNT/usr/local/etc/postfix/"
 		fi
 	done
 
