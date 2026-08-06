@@ -156,6 +156,73 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+@test "store_config - update backs up what it replaces" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "update"
+
+  run cat "$tmpfile".2*
+  assert_output "v1"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - overwrite backs nothing up" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  echo "hand edited" > "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "overwrite"
+
+  run ls "$tmpdir"
+  refute_output --partial "app.conf.2"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - a first install has nothing to back up" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+
+  run ls "$tmpdir"
+  refute_output --partial "app.conf.2"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - the day's first backup survives later runs" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "update"
+  echo "v3" | store_config "$tmpfile" "update"
+
+  run cat "$tmpfile".2*
+  assert_output "v1"
+
+  rm -rf "$tmpdir"
+}
+
+@test "store_config - preserving a file backs nothing up" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local tmpfile="$tmpdir/app.conf"
+
+  echo "v1" | store_config "$tmpfile"
+  echo "hand edited" > "$tmpfile"
+  echo "v2" | store_config "$tmpfile" "update"
+
+  run ls "$tmpdir"
+  refute_output --partial "app.conf.2"
+
+  rm -rf "$tmpdir"
+}
+
 @test "store_config - update preserves a file the admin edited" {
   local tmpdir; tmpdir=$(mktemp -d)
   local tmpfile="$tmpdir/app.conf"

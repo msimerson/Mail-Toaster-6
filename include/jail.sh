@@ -276,6 +276,20 @@ jail_conf_mount()
 	echo "mount.fstab = \"$(get_jail_host_etc "$1")/fstab\";"
 }
 
+warn_stale_jail_conf()
+{
+	local _jail="$1"
+	local _conf="$2"
+
+	local _mount; _mount=$(jail_conf_mount "$_jail")
+	if grep -qsF "$_mount" "$_conf"; then return; fi
+
+	tell_status "WARNING: $_conf is out of date"
+	echo "  $_jail should declare: $_mount"
+	echo "  edit $_conf, or delete the $_jail entry and run this script again"
+	echo
+}
+
 add_jail_conf()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip "$1");
@@ -295,6 +309,7 @@ add_jail_conf()
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
 		tell_status "preserving $1 config in /etc/jail.conf"
+		warn_stale_jail_conf "$1" /etc/jail.conf
 		return
 	fi
 
@@ -308,6 +323,11 @@ add_jail_conf()
 
 add_jail_conf_d()
 {
+	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
+	if [ -z "$_jail_ip" ]; then
+		fatal_err "can't determine IP for $1"
+	fi
+
 	# configure IPv6 if the system has an external/public IPv6 address
 	local _IP6=""
 	get_public_ip6
@@ -326,7 +346,9 @@ add_jail_conf_d()
 		exec.poststop = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh unload\";"
 	fi
 
-	store_config "/etc/jail.conf.d/$(safe_jailname "$1").conf" <<EO_JAIL_RC
+	local _conf; _conf="/etc/jail.conf.d/$(safe_jailname "$1").conf"
+
+	store_config "$_conf" "update" <<EO_JAIL_RC
 $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 		host.hostname = \$name;
 		path = "$_path";
@@ -341,6 +363,8 @@ $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 		exec.stop = "/bin/sh /etc/rc.shutdown";$_pf_exec
 	}
 EO_JAIL_RC
+
+	warn_stale_jail_conf "$1" "$_conf"
 }
 
 add_automount()

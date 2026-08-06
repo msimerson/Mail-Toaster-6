@@ -40,6 +40,17 @@ _file_mode()
 	esac
 }
 
+backup_config()
+{
+	if [ ! -f "$1" ]; then return; fi
+
+	local _backup; _backup="$1.$(date +%Y.%m.%d)"
+	if [ -f "$_backup" ]; then return; fi
+
+	tell_status "backing up $1 to $_backup"
+	cp -p "$1" "$_backup"
+}
+
 store_config()
 {
 	# $1 - path to config file, $2 - operation, STDIN is file contents
@@ -75,6 +86,7 @@ store_config()
 		# pristine. Excluded deliberately rather than by falling through.
 		cat "$_shadow" >> "$1"
 	elif [ "$_operation" = "update" ] && [ -n "$_pristine" ]; then
+		backup_config "$1"
 		tell_status "updating unmodified $1"
 		cp "$_shadow" "$1"
 	else

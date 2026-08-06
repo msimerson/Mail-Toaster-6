@@ -133,6 +133,58 @@ setup() {
   assert_output "/data/dovecot/etc"
 }
 
+@test "warn_stale_jail_conf - silent when the mount line is current" {
+  export ZFS_DATA_MNT="/data"
+  local _conf="$BATS_TEST_TMPDIR/dovecot.conf"
+  printf 'dovecot {\n\tmount.fstab = "/data/dovecot/etc/fstab";\n}\n' > "$_conf"
+
+  run warn_stale_jail_conf dovecot "$_conf"
+  assert_success
+  assert_output ""
+}
+
+@test "warn_stale_jail_conf - warns when the mount line is outdated" {
+  export ZFS_DATA_MNT="/data"
+  local _conf="$BATS_TEST_TMPDIR/dovecot.conf"
+  printf 'dovecot {\n\tmount.fstab = "/data/dovecot/host-etc/fstab";\n}\n' > "$_conf"
+
+  run warn_stale_jail_conf dovecot "$_conf"
+  assert_output --partial "out of date"
+  assert_output --partial 'mount.fstab = "/data/dovecot/etc/fstab";'
+}
+
+@test "warn_stale_jail_conf - flags a base entry still declaring an fstab" {
+  export ZFS_DATA_MNT="/data"
+  local _conf="$BATS_TEST_TMPDIR/base.conf"
+  printf 'base {\n\tmount.fstab = "/jails/base-14.4-RELEASE/data/etc/fstab";\n}\n' > "$_conf"
+
+  run warn_stale_jail_conf base "$_conf"
+  assert_output --partial "out of date"
+  assert_output --partial "mount.devfs;"
+}
+
+@test "warn_stale_jail_conf - warns when the config is missing entirely" {
+  export ZFS_DATA_MNT="/data"
+  run warn_stale_jail_conf dovecot "$BATS_TEST_TMPDIR/absent.conf"
+  assert_output --partial "out of date"
+}
+
+@test "add_jail_conf_d - resolves its own ip4.addr when called directly" {
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_output --partial "ip4.addr = lo1|172.16.15.4;"
+}
+
+@test "add_jail_conf_d - asks store_config to update an unedited config" {
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { echo "operation=${2:-none}"; cat - > /dev/null; }
+
+  run add_jail_conf_d mysql
+  assert_output --partial "operation=update"
+}
+
 @test "add_jail_conf_d - base mounts devfs rather than an fstab" {
   get_public_ip6() { export PUBLIC_IP6=""; }
   store_config() { cat -; }
