@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- base: mount.devfs instead of an fstab, drop its unused pf rules
 - mt: fail early with instructions when /usr/ports is empty
 - mt: route jail data paths through get_jail_data()
 - mt: use $STAGE_MNT instead of re-deriving it from $ZFS_JAIL_MNT

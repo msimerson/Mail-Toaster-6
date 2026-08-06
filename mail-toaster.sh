@@ -288,10 +288,13 @@ start_staged_jail()
 {
 	local _name=${1:-"$SAFE_NAME"}
 	local _path=${2:-"$STAGE_MNT"}
-	local _fstab
 
-	_fstab="$(get_jail_data "$_name")/etc/fstab"
-	if [ "$_name" != "base" ]; then _fstab="$_fstab.stage"; fi
+	local _mount
+	if [ "$_name" = "base" ]; then
+		_mount="mount.devfs"
+	else
+		_mount="mount.fstab=$(get_jail_data "$_name")/etc/fstab.stage"
+	fi
 
 	tell_status "stage jail $_name startup"
 
@@ -305,7 +308,7 @@ start_staged_jail()
 		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
-		mount.fstab="$_fstab" \
+		$_mount \
 		devfs_ruleset=5 \
 		$JAIL_START_EXTRA
 
