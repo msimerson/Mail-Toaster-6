@@ -323,6 +323,11 @@ add_jail_conf()
 
 add_jail_conf_d()
 {
+	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
+	if [ -z "$_jail_ip" ]; then
+		fatal_err "can't determine IP for $1"
+	fi
+
 	# configure IPv6 if the system has an external/public IPv6 address
 	local _IP6=""
 	get_public_ip6

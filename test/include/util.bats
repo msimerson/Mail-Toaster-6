@@ -163,7 +163,7 @@ setup() {
   echo "v1" | store_config "$tmpfile"
   echo "v2" | store_config "$tmpfile" "update"
 
-  run cat "$tmpfile.$(date +%Y.%m.%d)"
+  run cat "$tmpfile".2*
   assert_output "v1"
 
   rm -rf "$tmpdir"
@@ -177,7 +177,8 @@ setup() {
   echo "hand edited" > "$tmpfile"
   echo "v2" | store_config "$tmpfile" "overwrite"
 
-  [ ! -f "$tmpfile.$(date +%Y.%m.%d)" ]
+  run ls "$tmpdir"
+  refute_output --partial "app.conf.2"
 
   rm -rf "$tmpdir"
 }
@@ -188,7 +189,8 @@ setup() {
 
   echo "v1" | store_config "$tmpfile"
 
-  [ ! -f "$tmpfile.$(date +%Y.%m.%d)" ]
+  run ls "$tmpdir"
+  refute_output --partial "app.conf.2"
 
   rm -rf "$tmpdir"
 }
@@ -201,7 +203,7 @@ setup() {
   echo "v2" | store_config "$tmpfile" "update"
   echo "v3" | store_config "$tmpfile" "update"
 
-  run cat "$tmpfile.$(date +%Y.%m.%d)"
+  run cat "$tmpfile".2*
   assert_output "v1"
 
   rm -rf "$tmpdir"
@@ -215,7 +217,8 @@ setup() {
   echo "hand edited" > "$tmpfile"
   echo "v2" | store_config "$tmpfile" "update"
 
-  [ ! -f "$tmpfile.$(date +%Y.%m.%d)" ]
+  run ls "$tmpdir"
+  refute_output --partial "app.conf.2"
 
   rm -rf "$tmpdir"
 }

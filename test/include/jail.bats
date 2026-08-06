@@ -169,6 +169,14 @@ setup() {
   assert_output --partial "out of date"
 }
 
+@test "add_jail_conf_d - resolves its own ip4.addr when called directly" {
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_output --partial "ip4.addr = lo1|172.16.15.4;"
+}
+
 @test "add_jail_conf_d - asks store_config to update an unedited config" {
   get_public_ip6() { export PUBLIC_IP6=""; }
   store_config() { echo "operation=${2:-none}"; cat - > /dev/null; }
