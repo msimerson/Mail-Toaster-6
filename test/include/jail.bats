@@ -136,11 +136,21 @@ setup() {
 @test "warn_stale_jail_conf - silent when the mount line is current" {
   export ZFS_DATA_MNT="/data"
   local _conf="$BATS_TEST_TMPDIR/dovecot.conf"
-  printf 'dovecot {\n\tmount.fstab = "/data/dovecot/etc/fstab";\n}\n' > "$_conf"
+  printf 'dovecot {\n\tmount.devfs;\n\tmount.fstab = "/data/dovecot/etc/fstab";\n}\n' > "$_conf"
 
   run warn_stale_jail_conf dovecot "$_conf"
   assert_success
   assert_output ""
+}
+
+@test "warn_stale_jail_conf - warns when mount.devfs is missing" {
+  export ZFS_DATA_MNT="/data"
+  local _conf="$BATS_TEST_TMPDIR/dovecot.conf"
+  printf 'dovecot {\n\tmount.fstab = "/data/dovecot/etc/fstab";\n}\n' > "$_conf"
+
+  run warn_stale_jail_conf dovecot "$_conf"
+  assert_output --partial "out of date"
+  assert_output --partial 'mount.devfs;'
 }
 
 @test "warn_stale_jail_conf - warns when the mount line is outdated" {
