@@ -299,8 +299,8 @@ enable_jail()
 
 jail_conf_mount()
 {
+	echo "mount.devfs;"
 	if [ "$1" = "base" ]; then
-		echo "mount.devfs;"
 		return
 	fi
 
@@ -333,14 +333,24 @@ warn_stale_jail_conf()
 {
 	local _jail="$1"
 	local _conf="$2"
+	local _told=false _mount
 
-	local _mount; _mount=$(jail_conf_mount "$_jail")
-	if grep -qsF "$_mount" "$_conf"; then return; fi
+	while read -r _mount; do
+		if ! { sed -n '/^'"$_jail"'[[:space:]]*{/,/^[[:space:]]*}/p' "$_conf" | grep -qsF "$_mount"; }; then
+			if ! $_told; then
+				tell_status "WARNING: $_conf is out of date"
+				_told=true
+			fi
+			echo "  $_jail should declare: $_mount"
+		fi
+	done <<-EO_MOUNT
+		$(jail_conf_mount "$_jail")
+	EO_MOUNT
 
-	tell_status "WARNING: $_conf is out of date"
-	echo "  $_jail should declare: $_mount"
-	echo "  edit $_conf, or delete the $_jail entry and run this script again"
-	echo
+        if $_told; then
+                echo "  edit $_conf, or delete the $_jail entry and run this script again"
+                echo
+	fi
 }
 
 add_jail_conf()

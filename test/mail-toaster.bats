@@ -300,6 +300,27 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+@test "install_fstab creates no host devfs mount" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export ZFS_JAIL_MNT="$tmpdir/jails"
+  export STAGE_MNT="$tmpdir/jails/stage"
+  export JAIL_FSTAB=""
+  export TOASTER_USE_TMPFS=0
+  export MT6_ETC="$tmpdir/etc"
+  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
+
+  tell_status() { :; }
+
+  run install_fstab myjail
+  assert_success
+
+  run grep "devfs" "$tmpdir/myjail/etc/fstab"
+  assert_failure
+
+  rm -rf "$tmpdir"
+}
+
 setup_tmpfs_fstab() {
   export ZFS_DATA_MNT="$1"
   export ZFS_JAIL_MNT="$1/jails"
