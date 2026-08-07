@@ -286,7 +286,7 @@ migrate_jail_conf_etc()
 	grep -qF "$_old_etc" "$2" || return
 
 	tell_status "Migrating $_old_etc to $_new_etc in $2"
-	sed_inplace -E -e '/^[[:space:]]*(mount\.fstab|exec\.(created|poststop))[[:space:]]*\+?=/ s|'"$_old_etc|$_new_etc|" "$2"
+	sed_inplace -E -e '/^[[:space:]]*(mount\.fstab|exec\.(created|(post|pre)(start|stop)))[[:space:]]*\+?=/ s|'"$_old_etc|$_new_etc|" "$2"
 
 	if grep -qF "$_old_etc" "$2"; then
 		tell_status "WARNING: Could not reliably migrate $_old_etc to $_new_etc in $2. Please fix it manually."
