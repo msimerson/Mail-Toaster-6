@@ -200,7 +200,6 @@ install_fstab()
 	tell_status "writing data mount to $_fstab"
 	echo "# Device                Mountpoint      FStype  Options         Dump    Pass#" | tee "$_fstab" || exit 1
 	echo "$_data_mount       $_jail_mount/data nullfs  rw   0  0" | tee -a "$_fstab"
-	echo "devfs               $_jail_mount/dev  devfs   rw   0  0" | tee -a "$_fstab"
 
 	if [ -n "$JAIL_FSTAB" ]; then
 		tell_status "appending JAIL_FSTAB to fstab"
@@ -290,12 +289,8 @@ start_staged_jail()
 	local _name=${1:-"$SAFE_NAME"}
 	local _path=${2:-"$STAGE_MNT"}
 
-	local _mount
-	if [ "$_name" = "base" ]; then
-		_mount="mount.devfs"
-	else
-		_mount="mount.fstab=$(get_jail_host_etc "$_name")/fstab.stage"
-	fi
+	local _mount=""
+	[ "$_name" = "base" ] || _mount="mount.fstab=$(get_jail_host_etc "$_name")/fstab.stage"
 
 	tell_status "stage jail $_name startup"
 
@@ -309,6 +304,7 @@ start_staged_jail()
 		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
+		mount.devfs \
 		$_mount \
 		devfs_ruleset=5 \
 		$JAIL_START_EXTRA
