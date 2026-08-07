@@ -192,7 +192,7 @@ get_jail_data()
 # control files the host reads or runs on the jail's behalf, like fstab
 get_jail_host_etc()
 {
-	echo "$(get_jail_data "$1")/etc"
+	printf '%s' "$ZFS_DATA_MNT/etc/$1"
 }
 
 jail_is_running()
@@ -276,6 +276,23 @@ jail_conf_mount()
 	echo "mount.fstab = \"$(get_jail_host_etc "$1")/fstab\";"
 }
 
+migrate_jail_conf_etc()
+{
+	# we should not depend on get_jail_data() changing its output here,
+	# it's a migration from the state best described by $ZFS_DATA_MNT/$1/etc
+	local _old_etc="$ZFS_DATA_MNT/$1/etc"
+	local _new_etc; _new_etc="$(get_jail_host_etc "$1")"
+
+	grep -qF "$_old_etc" "$2" || return
+
+	tell_status "Migrating $_old_etc to $_new_etc in $2"
+	sed_inplace -E -e '/^[[:space:]]*(mount\.fstab|exec\.(created|(post|pre)(start|stop)))[[:space:]]*\+?=/ s|'"$_old_etc|$_new_etc|" "$2"
+
+	if grep -qF "$_old_etc" "$2"; then
+		tell_status "WARNING: Could not reliably migrate $_old_etc to $_new_etc in $2. Please fix it manually."
+	fi
+}
+
 warn_stale_jail_conf()
 {
 	local _jail="$1"
@@ -308,6 +325,7 @@ add_jail_conf()
 	fi
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
+		migrate_jail_conf_etc "$1" /etc/jail.conf
 		tell_status "preserving $1 config in /etc/jail.conf"
 		warn_stale_jail_conf "$1" /etc/jail.conf
 		return
@@ -363,6 +381,8 @@ $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 		exec.stop = "/bin/sh /etc/rc.shutdown";$_pf_exec
 	}
 EO_JAIL_RC
+	migrate_jail_conf_etc "$1" "$_conf.mt6"
+	migrate_jail_conf_etc "$1" "$_conf"
 
 	warn_stale_jail_conf "$1" "$_conf"
 }

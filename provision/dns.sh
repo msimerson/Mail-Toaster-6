@@ -282,3 +282,7 @@ start_unbound
 test_unbound
 switch_host_resolver
 promote_staged_jail dns
+if [ -d "$(get_jail_data dns)/etc/rc.d" ]; then
+	tell_status "Finishing $(get_jail_host_etc dns)/rc.d migration"
+	rm -fr "$(get_jail_data dns)/etc/rc.d"
+fi

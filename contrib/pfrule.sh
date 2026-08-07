@@ -10,7 +10,7 @@ set -eu
 # files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
 
 ETC_PATH="$(dirname -- "$( readlink -f -- "$0"; )";)"
-JAIL_NAME=$(basename "$(dirname "$(dirname "$ETC_PATH")")")
+JAIL_NAME=$(basename "$(dirname "$ETC_PATH")")
 OPERATION=${1:-""}
 PREVIEW=${2:-""}
 

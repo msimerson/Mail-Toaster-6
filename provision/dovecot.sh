@@ -551,7 +551,7 @@ configure_sieve()
 
 configure_dovecot_pf()
 {
-	_pf_etc="$(get_jail_host_etc dovecot)/pf.conf.d"
+	local _pf_etc; _pf_etc="$(get_jail_host_etc dovecot)/pf.conf.d"
 
 	store_config "$_pf_etc/insecure_mua.table" <<EO_PF_INSECURE
 # RFC 1918 Private IP blocks
