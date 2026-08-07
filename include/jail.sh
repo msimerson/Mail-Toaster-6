@@ -268,8 +268,8 @@ enable_jail()
 
 jail_conf_mount()
 {
+	echo "mount.devfs;"
 	if [ "$1" = "base" ]; then
-		echo "mount.devfs;"
 		return
 	fi
 

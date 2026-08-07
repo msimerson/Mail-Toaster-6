@@ -19,7 +19,7 @@ export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB
 JAIL_FSTAB="
-devfs     $ZFS_JAIL_MNT/stalwart/compat/linux/dev     devfs     rw,late  0 0
+$ZFS_JAIL_MNT/stalwart/dev  $ZFS_JAIL_MNT/stalwart/compat/linux/dev  nullfs  rw,late  0 0
 tmpfs     $ZFS_JAIL_MNT/stalwart/compat/linux/dev/shm tmpfs     rw,late,size=1g,mode=1777  0 0
 fdescfs   $ZFS_JAIL_MNT/stalwart/compat/linux/dev/fd  fdescfs   rw,late,linrdlnk 0 0
 linprocfs $ZFS_JAIL_MNT/stalwart/compat/linux/proc    linprocfs rw,late  0 0

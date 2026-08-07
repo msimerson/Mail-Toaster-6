@@ -185,7 +185,7 @@ setup() {
   assert_output --partial "operation=update"
 }
 
-@test "add_jail_conf_d - base mounts devfs rather than an fstab" {
+@test "add_jail_conf_d - base mounts devfs and no fstab" {
   get_public_ip6() { export PUBLIC_IP6=""; }
   store_config() { cat -; }
 
@@ -217,7 +217,17 @@ setup() {
   assert_output --partial "pf.conf.d/pfrule.sh unload"
 }
 
-@test "add_jail_conf - base mounts devfs rather than an fstab" {
+@test "add_jail_conf_d - a service jail mounts devfs and fstab" {
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_success
+  assert_output --partial "mount.devfs;"
+  assert_output --partial "mount.fstab"
+}
+
+@test "add_jail_conf - base mounts devfs and no fstab" {
   tee() { cat -; }
   grep() { return 1; }
   dec_to_hex() { echo "2"; }
@@ -228,6 +238,19 @@ setup() {
   assert_success
   assert_output --partial "mount.devfs;"
   refute_output --partial "mount.fstab"
+}
+
+@test "add_jail_conf - dovecot mounts devfs and fstab" {
+  tee() { cat -; }
+  grep() { return 1; }
+  dec_to_hex() { echo "2"; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf dovecot
+  assert_success
+  assert_output --partial "mount.devfs;"
+  assert_output --partial "mount.fstab"
 }
 
 # --- configure_mta_pf_rdr: port 25 follows TOASTER_MTA, 465/587 follow TOASTER_MSA ---
