@@ -7,6 +7,14 @@ setup() {
   export BASE; BASE=$(mktemp -d)
   mkdir -p "$BASE/etc/mail" "$BASE/usr/libexec" "$BASE/usr/local/libexec"
 
+  # set_root_alias greps this; without it every enable_dma test logs a grep error
+  cat > "$BASE/etc/mail/aliases" <<'EO_ALIASES'
+# Pretty much everything else in this file points to "root", so
+# you would do well in either reading root's mailbox or forwarding
+# root's email from here.
+# root:	me@my.domain
+EO_ALIASES
+
   export TOASTER_MSA="mail.example.com"
   export TOASTER_HOSTNAME="host.example.com"
   export TOASTER_ADMIN_EMAIL="postmaster@example.com"
@@ -20,10 +28,12 @@ teardown() {
 }
 
 tell_status() { :; }
-set_root_alias() { :; }
 jail_is_running() { [ "$STAGE_RUNNING" = "1" ]; }
 stage_pkg_install() { echo "stage_pkg_install $*" >> "$BASE/pkg.log"; }
 pkg() { echo "pkg $*" >> "$BASE/pkg.log"; }
+
+# mail-toaster.sh is not loaded here; set_root_alias needs this
+sed_inplace() { sed -i.bak "$@"; }
 
 @test "configure_mta - defaults to dma when none installed" {
   install_ssmtp() { echo ssmtp >> "$BASE/chose"; }
@@ -108,4 +118,21 @@ pkg() { echo "pkg $*" >> "$BASE/pkg.log"; }
   enable_dma > /dev/null
   run cat "$BASE/pkg.log"
   assert_output "pkg install -y dma"
+}
+
+@test "set_root_alias - uncomments root and sets the admin address" {
+  local _base="$BASE"
+
+  set_root_alias > /dev/null
+  run grep '^root:' "$BASE/etc/mail/aliases"
+  assert_output --partial "postmaster@example.com"
+}
+
+@test "set_root_alias - leaves an already customized aliases alone" {
+  local _base="$BASE"
+  echo "root:	someone@elsewhere.org" > "$BASE/etc/mail/aliases"
+
+  set_root_alias > /dev/null
+  run cat "$BASE/etc/mail/aliases"
+  assert_output "root:	someone@elsewhere.org"
 }
