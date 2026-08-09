@@ -41,8 +41,6 @@ install_haraka()
 	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
 }
 
-# Haraka 3.1.6 dropped the commented entries for plugins it stopped bundling,
-# so uncommenting alone no longer enables them.
 haraka_enable_plugin()
 {
 	local _plugin="$1"
