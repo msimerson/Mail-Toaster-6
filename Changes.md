@@ -5,6 +5,9 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- mta: install dma when absent, ssmtp is now opt-in
+- mta: write dma.conf beside the installed dma, base or port
+- mt: MASQUERADE appends to the dma.conf that exists, if any
 - mt: store_config keeps a dated backup of updated configs
 - mt: jail.conf.d entries update when unedited, report when they don't
 - mt: report a jail.conf left behind by a path change

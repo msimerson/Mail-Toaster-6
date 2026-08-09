@@ -13,21 +13,12 @@ configure_mta()
 	elif [ "$_mta" = "postfix" ]; then
 		disable_sendmail
 		enable_postfix
-	elif has_dma; then
-		disable_sendmail
-		enable_dma
-	else
+	elif [ "$_mta" = "ssmtp" ]; then
 		disable_sendmail
 		install_ssmtp
-	fi
-}
-
-has_dma()
-{
-	if [ -x "$_base/usr/libexec/dma" ] || [ -x "$_base/usr/local/libexec/dma" ]; then
-		return 0
 	else
-		return 1
+		disable_sendmail
+		enable_dma
 	fi
 }
 
@@ -96,10 +87,16 @@ set_root_alias()
 enable_dma()
 {
 	local _dma_path="$_base/usr/local/libexec/dma"
+	local _relative_path
 
 	if [ ! -x "$_dma_path" ]; then _dma_path="$_base/usr/libexec/dma"; fi
 	if [ ! -x "$_dma_path" ]; then
-		stage_pkg_install dma
+		tell_status "installing dma"
+		if jail_is_running stage; then
+			stage_pkg_install dma
+		else
+			pkg install -y dma
+		fi
 		_dma_path="$_base/usr/local/libexec/dma"
 	fi
 
@@ -111,9 +108,17 @@ mailq           $_relative_path
 newaliases      $_relative_path
 EO_MAILER_CONF
 
+	# the port builds with CONFDIR=${PREFIX}/etc/dma; base dma reads /etc/dma
+	local _conf_dir
+	case "$_relative_path" in
+		/usr/local/*) _conf_dir="$_base/usr/local/etc/dma" ;;
+		*)            _conf_dir="$_base/etc/dma" ;;
+	esac
+	mkdir -p "$_conf_dir"
+
 	tell_status "configuring dma"
-	echo "editing $_base/etc/dma/dma.conf"
-	tee "$_base/etc/dma/dma.conf" <<EO_DMA_CONF
+	echo "editing $_conf_dir/dma.conf"
+	tee "$_conf_dir/dma.conf" <<EO_DMA_CONF
 SMARTHOST $TOASTER_MSA
 MAILNAME $TOASTER_HOSTNAME
 NULLCLIENT
