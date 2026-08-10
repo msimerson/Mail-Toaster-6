@@ -7,9 +7,9 @@ get_public_facing_nic()
 	export PUBLIC_NIC
 
 	if [ "$_ver" = 'ipv6' ]; then
-		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | tail -n1)
+		PUBLIC_NIC=$(netstat -rnW | awk '/^default/ { print $6 }' | tail -n1)
 	else
-		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
+		PUBLIC_NIC=$(netstat -rnW | awk '/^default/ { print $6 }' | head -n1)
 	fi
 
 	if [ -z "$PUBLIC_NIC" ]; then
