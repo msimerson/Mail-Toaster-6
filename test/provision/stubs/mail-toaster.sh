@@ -215,5 +215,5 @@ sysctl()   { echo "1073741824"; }  # ~1 GB; keeps phishing checks disabled
 # sysrc()    { :; }
 rspamadm() { echo "stub-rspamadm-hash"; }
 chown()    { :; }  # non-root CI environments can't chown
-add_devfs_rule()           { :; }
+assure_devfs_bpf_ruleset() { :; }
 stage_enable_quotas()      { :; }

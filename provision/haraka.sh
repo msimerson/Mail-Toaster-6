@@ -7,7 +7,7 @@ set -e
 service_config haraka
 export TOASTER_HARAKA_VERSION=${TOASTER_HARAKA_VERSION:-""}
 
-export JAIL_DEVFS_RULESET=7
+export JAIL_DEVFS_RULESET="$JAIL_DEVFS_RULESET_BPF"
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -67,25 +67,6 @@ install_geoip_dbs()
 	fstab_add_mount haraka "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP"
 
 	haraka_enable_plugin geoip
-}
-
-add_devfs_rule()
-{
-	if grep -qs devfsrules_jail_bpf /etc/devfs.rules; then
-		tell_status "devfs BPF ruleset already present"
-		return
-	fi
-
-	tell_status "installing devfs ruleset for p0f"
-	tee -a /etc/devfs.rules <<EO_DEVFS
-[devfsrules_jail_bpf=7]
-add include \$devfsrules_hide_all
-add include \$devfsrules_unhide_basic
-add include \$devfsrules_unhide_login
-add path zfs unhide
-add path 'bpf*' unhide
-EO_DEVFS
-
 }
 
 install_p0f()
@@ -748,7 +729,7 @@ preinstall_checks() {
 preinstall_checks
 create_staged_fs haraka
 mkdir -p "$STAGE_MNT/usr/local/share/GeoIP"
-add_devfs_rule
+assure_devfs_bpf_ruleset
 start_staged_jail haraka
 install_haraka
 configure_haraka

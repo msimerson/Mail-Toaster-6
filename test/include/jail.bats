@@ -147,11 +147,13 @@ devfs_setup() {
   store_config() { cat -; }
 }
 
-@test "JAIL_DEVFS_RULESET - defaults when a jail asks for nothing" {
+@test "JAIL_DEVFS_RULESET - defaults to devfsrules_jail when a jail asks for nothing" {
   devfs_setup
+  unset JAIL_DEVFS_RULESET
+  load '../../include/jail.sh'
   run add_jail_conf_d mysql
   assert_success
-  assert_output --partial "devfs_ruleset=5;"
+  assert_output --partial "devfs_ruleset=4;"
 }
 
 @test "JAIL_DEVFS_RULESET - a jail can ask for another ruleset" {
@@ -180,6 +182,42 @@ devfs_setup() {
   export JAIL_DEVFS_RULESET=7
   run jail_conf_header mysql
   assert_output --partial "devfs_ruleset=7;"
+}
+
+@test "assure_devfs_bpf_ruleset - creates the ruleset when absent" {
+  export DEVFS_RULES="$BATS_TEST_TMPDIR/devfs.rules"
+  : > "$DEVFS_RULES"
+  tell_status() { :; }
+  service() { echo "service $*" >> "$BATS_TEST_TMPDIR/svc"; }
+
+  assure_devfs_bpf_ruleset > /dev/null
+
+  run cat "$DEVFS_RULES"
+  assert_output --partial "[devfsrules_jail_bpf=7]"
+  assert_output --partial "add include \$devfsrules_jail"
+  assert_output --partial "add path 'bpf*' unhide"
+
+  run cat "$BATS_TEST_TMPDIR/svc"
+  assert_output "service devfs restart"
+}
+
+@test "assure_devfs_bpf_ruleset - is a no-op when already present" {
+  export DEVFS_RULES="$BATS_TEST_TMPDIR/devfs.rules"
+  printf '%s\n' "[devfsrules_jail_bpf=7]" "add path 'bpf*' unhide" > "$DEVFS_RULES"
+  local _before; _before=$(cat "$DEVFS_RULES")
+  tell_status() { :; }
+  service() { echo "restarted" > "$BATS_TEST_TMPDIR/svc"; }
+
+  run assure_devfs_bpf_ruleset
+  assert_success
+  [ "$(cat "$DEVFS_RULES")" = "$_before" ]
+  [ ! -f "$BATS_TEST_TMPDIR/svc" ]
+}
+
+@test "assure_devfs_bpf_ruleset - the jails needing bpf ask for that ruleset" {
+  run grep -h "^export JAIL_DEVFS_RULESET" provision/haraka.sh provision/dhcp.sh
+  assert_success
+  assert_equal "$(echo "$output" | grep -c JAIL_DEVFS_RULESET_BPF)" "2"
 }
 
 # --- migrate_jail_conf: repoint an edited conf ---

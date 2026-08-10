@@ -204,6 +204,28 @@ get_pfrule_path()
 
 export JAIL_DEVFS_RULESET=${JAIL_DEVFS_RULESET:-4}
 
+# devfsrules_jail hides bpf, which p0f and dhcpd need
+export DEVFS_RULES=${DEVFS_RULES:-"/etc/devfs.rules"}
+export JAIL_DEVFS_RULESET_BPF=${JAIL_DEVFS_RULESET_BPF:-7}
+
+assure_devfs_bpf_ruleset()
+{
+	if grep -qs "devfsrules_jail_bpf=$JAIL_DEVFS_RULESET_BPF" "$DEVFS_RULES"; then
+		return 0
+	fi
+
+	tell_status "adding devfs ruleset $JAIL_DEVFS_RULESET_BPF to $DEVFS_RULES"
+	tee -a "$DEVFS_RULES" <<EO_DEVFS
+
+[devfsrules_jail_bpf=$JAIL_DEVFS_RULESET_BPF]
+add include \$devfsrules_jail
+add path 'bpf*' unhide
+EO_DEVFS
+
+	# the kernel only learns a ruleset when devfs(8) loads the file
+	service devfs restart
+}
+
 jail_is_running()
 {
 	jls -d -j "$1" name 2>/dev/null | grep -q "$1"
