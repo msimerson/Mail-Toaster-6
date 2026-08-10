@@ -4,10 +4,9 @@ set -e -u
 
 . mail-toaster.sh
 
-export JAIL_START_EXTRA="devfs_ruleset=7
-		allow.raw_sockets=1"
+export JAIL_DEVFS_RULESET=7
+export JAIL_START_EXTRA="allow.raw_sockets=1"
 export JAIL_CONF_EXTRA="
-		devfs_ruleset = 7;
 		allow.raw_sockets;"
 export JAIL_FSTAB=""
 

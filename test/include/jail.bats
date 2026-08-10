@@ -138,6 +138,50 @@ setup() {
   assert_output "/etc/mail-toaster/pfrule.sh"
 }
 
+# --- JAIL_DEVFS_RULESET ---
+
+devfs_setup() {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+}
+
+@test "JAIL_DEVFS_RULESET - defaults when a jail asks for nothing" {
+  devfs_setup
+  run add_jail_conf_d mysql
+  assert_success
+  assert_output --partial "devfs_ruleset=5;"
+}
+
+@test "JAIL_DEVFS_RULESET - a jail can ask for another ruleset" {
+  devfs_setup
+  export JAIL_DEVFS_RULESET=7
+  run add_jail_conf_d mysql
+  assert_success
+  assert_output --partial "devfs_ruleset=7;"
+}
+
+# the old override put a second devfs_ruleset in JAIL_CONF_EXTRA, which won
+# only by being emitted later
+@test "JAIL_DEVFS_RULESET - the conf declares it exactly once" {
+  devfs_setup
+  export JAIL_DEVFS_RULESET=7 JAIL_CONF_EXTRA="
+		allow.raw_sockets;"
+
+  run add_jail_conf_d dhcp
+  assert_success
+  assert_equal "$(echo "$output" | grep -c devfs_ruleset)" "1"
+  assert_output --partial "allow.raw_sockets;"
+}
+
+@test "JAIL_DEVFS_RULESET - jail_conf_header follows it too" {
+  devfs_setup
+  export JAIL_DEVFS_RULESET=7
+  run jail_conf_header mysql
+  assert_output --partial "devfs_ruleset=7;"
+}
+
 # --- migrate_jail_conf: repoint an edited conf ---
 
 mjc_setup() {

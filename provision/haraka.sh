@@ -7,9 +7,9 @@ set -e
 service_config haraka
 export TOASTER_HARAKA_VERSION=${TOASTER_HARAKA_VERSION:-""}
 
-export JAIL_START_EXTRA="devfs_ruleset=7"
-export JAIL_CONF_EXTRA="
-		devfs_ruleset = 7;"
+export JAIL_DEVFS_RULESET=7
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
 HARAKA_CONF="$(get_jail_data haraka)/config"
