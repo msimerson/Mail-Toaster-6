@@ -587,6 +587,20 @@ host_etc_setup() {
   assert_output "table"
 }
 
+@test "adopt_jail_host_etc - keeps a .mt6 shadow at 0600" {
+  host_etc_setup
+  echo "secret" > "$OLD/pf.conf.d/rdr.conf.mt6"
+  chmod 600 "$OLD/pf.conf.d/rdr.conf.mt6"
+
+  adopt_jail_host_etc dovecot
+
+  local _pfd="$(get_jail_host_etc dovecot)/pf.conf.d"
+  run find "$_pfd" -name "rdr.conf.mt6" -perm 600
+  assert_output "$_pfd/rdr.conf.mt6"
+  run find "$_pfd" -name "rdr.conf" -perm 644
+  assert_output "$_pfd/rdr.conf"
+}
+
 @test "adopt_jail_host_etc - adopts only what pfrule.sh reads" {
   host_etc_setup
   echo "stray" > "$OLD/pf.conf.d/notes.txt"

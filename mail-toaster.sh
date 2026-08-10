@@ -322,7 +322,11 @@ adopt_pf_file()
 	fi
 	if [ ! -f "$1/$3" ]; then return 0; fi
 
-	install -m 0644 "$1/$3" "$2/$3" || exit 1
+	# store_config keeps shadows at 600, they duplicate the config verbatim
+	local _mode=0644
+	case "$3" in *.mt6) _mode=0600 ;; esac
+
+	install -m "$_mode" "$1/$3" "$2/$3" || exit 1
 }
 
 retire_jail_host_etc()
