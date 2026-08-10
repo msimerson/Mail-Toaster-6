@@ -307,14 +307,15 @@ setup() {
   export STAGE_MNT="$tmpdir/jails/stage"
   export JAIL_FSTAB=""
   export TOASTER_USE_TMPFS=0
-  mkdir -p "$tmpdir/myjail/etc" "$tmpdir/stage/etc"
+  export MT6_ETC="$tmpdir/etc"
+  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
 
   tell_status() { :; }
 
   run install_fstab myjail
   assert_success
 
-  run grep "devfs" "$tmpdir/myjail/etc/fstab"
+  run grep "devfs" "$(get_jail_host_etc myjail)/fstab"
   assert_failure
 
   rm -rf "$tmpdir"
