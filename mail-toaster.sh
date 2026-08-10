@@ -194,7 +194,7 @@ install_fstab()
 	_fstab="$_host_etc/fstab"
 
 	if [ ! -d "$_host_etc" ]; then
-		mkdir -p "$_host_etc" || exit 1
+		install -d -m 0755 "$_host_etc" || exit 1
 	fi
 
 	tell_status "writing data mount to $_fstab"
@@ -285,9 +285,80 @@ create_staged_fs()
 	done
 
 	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	adopt_jail_host_etc "$1"
 	install_fstab "$1"
 	install_pfrule "$1"
 	echo
+}
+
+# a copy, so a failed run leaves the old jail bootable
+adopt_jail_host_etc()
+{
+	local _old="$ZFS_DATA_MNT/$1/etc/pf.conf.d"
+	local _new; _new="$(get_jail_host_etc "$1")/pf.conf.d"
+	local _tmp="$_new.adopting"
+
+	if [ -L "$_old" ] || [ ! -d "$_old" ]; then return 0; fi
+	if [ -d "$_new" ]; then return 0; fi
+
+	tell_status "adopting $_old into $_new"
+	rm -rf "$_tmp"
+	install -d -m 0755 "$_tmp" || exit 1
+
+	local _f
+	for _f in allow.conf binat.conf filter.conf nat.conf rdr.conf; do
+		adopt_pf_file "$_old" "$_tmp" "$_f"
+		adopt_pf_file "$_old" "$_tmp" "$_f.mt6"
+	done
+
+	# pfrule.sh globs *.table
+	for _f in "$_old"/*.table "$_old"/*.table.mt6; do
+		adopt_pf_file "$_old" "$_tmp" "${_f##*/}"
+	done
+
+	mv "$_tmp" "$_new" || exit 1
+}
+
+# a link would still resolve into the volume the jail writes
+adopt_pf_file()
+{
+	if [ -L "$1/$3" ]; then
+		tell_status "WARNING: not adopting symlink $1/$3"
+		return 0
+	fi
+	if [ ! -f "$1/$3" ]; then return 0; fi
+
+	local _mode=0644
+	case "$3" in *.mt6) _mode=0600 ;; esac
+
+	install -m "$_mode" "$1/$3" "$2/$3" || exit 1
+}
+
+retire_jail_host_etc()
+{
+	local _old="$ZFS_DATA_MNT/$1/etc"
+
+	# removing what a conf names leaves that jail unbootable
+	local _stale; _stale=$(grep -lsF "$_old/" /etc/jail.conf /etc/jail.conf.d/*.conf 2>/dev/null || true)
+	if [ -n "$_stale" ]; then
+		tell_status "WARNING: keeping $_old, still named in:"
+		echo "$_stale" | while read -r _f; do echo "    $_f"; done
+		echo "  repoint those at $(get_jail_host_etc "$1") and re-run to finish the move"
+		echo
+		return 0
+	fi
+
+	for _f in fstab fstab.stage; do
+		if [ -f "$_old/$_f" ]; then
+			tell_status "$_old/$_f has moved to $(get_jail_host_etc "$1")/$_f"
+			rm -f "$_old/$_f"
+		fi
+	done
+
+	if [ -d "$_old/pf.conf.d" ]; then
+		tell_status "$_old/pf.conf.d has moved to $(get_jail_host_etc "$1")/pf.conf.d"
+		rm -rf "$_old/pf.conf.d"
+	fi
 }
 
 start_staged_jail()
@@ -393,6 +464,9 @@ promote_staged_jail()
 
 	tell_status "service jail start $1"
 	service jail start "$1" || exit 1
+
+	retire_jail_host_etc "$1"
+
 	enable_jail "$1"
 	proclaim_success "$1"
 }

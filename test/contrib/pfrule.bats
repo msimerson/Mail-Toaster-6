@@ -1,6 +1,5 @@
 #!/usr/bin/env bats
-# contrib/pfrule.sh resolves its rule directory across the layouts MT6 has
-# used. Every test runs with -n so pfctl is printed, never executed.
+# contrib/pfrule.sh resolves its rule directory across the layouts MT6 has used
 
 setup() {
   load '../test_helper/bats-support/load'
@@ -12,7 +11,7 @@ setup() {
   mkdir -p "$BATS_TEST_TMPDIR/root"
   ROOT="$(cd "$BATS_TEST_TMPDIR/root" && pwd -P)"
 
-  # the tests that omit -n really do execute; keep them off the host firewall
+  # the tests without -n execute; keep them off the host firewall
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export PFCTL_LOG="$ROOT/pfctl.log"
 }
@@ -69,7 +68,42 @@ install_legacy() {
   assert_output --partial "no rule directory for jail 'haraka'"
 }
 
-# --- PFRULE_ETC, the hook a future layout hangs off ---
+# --- the host-owned copy, rules under $MT6_ETC/<jail>/pf.conf.d ---
+
+# the sibling fstab and rc.d must not be mistaken for the rule directory
+@test "MT6_ETC - one copy serves a jail named on the command line" {
+  mkdir -p "$ROOT/etc/webmail/rc.d"
+  cp "$PFRULE" "$ROOT/etc/pfrule.sh"
+  touch "$ROOT/etc/webmail/fstab"
+  mkrules "$ROOT/etc/webmail/pf.conf.d"
+
+  MT6_ETC="$ROOT/etc" run "$ROOT/etc/pfrule.sh" load webmail -n
+  assert_success
+  assert_output --partial "pfctl -a rdr/webmail -f $ROOT/etc/webmail/pf.conf.d/rdr.conf"
+  refute_output --partial "$ROOT/etc/webmail/rdr.conf"
+}
+
+# jail.conf sets exec.clean, so exec.created runs with no environment
+@test "MT6_ETC - a custom root survives a cleared environment" {
+  mkdir -p "$ROOT/custom"
+  cp "$PFRULE" "$ROOT/custom/pfrule.sh"
+  mkrules "$ROOT/custom/webmail/pf.conf.d"
+
+  run env -i PATH="$PATH" "$ROOT/custom/pfrule.sh" load webmail -n
+  assert_success
+  assert_output --partial "$ROOT/custom/webmail/pf.conf.d/rdr.conf"
+}
+
+@test "MT6_ETC - a per-jail copy still wins for its own jail" {
+  local _p; _p=$(install_legacy dovecot)
+  mkdir -p "$ROOT/etc"
+
+  MT6_ETC="$ROOT/etc" run env -i PATH="$PATH" MT6_ETC="$ROOT/etc" "$_p" load -n
+  assert_success
+  assert_output --partial "/data/dovecot/etc/pf.conf.d/rdr.conf"
+}
+
+# --- PFRULE_ETC, an explicit override ---
 
 @test "PFRULE_ETC overrides the directory derived from \$0" {
   local _p; _p=$(install_legacy dovecot)
@@ -155,8 +189,7 @@ install_legacy() {
 
 # --- $ETC_PATH is writable by the jail whose rules it holds ---
 
-# These omit -n so the execution path runs for real against the pfctl stub.
-# The marker is relative because a filename cannot hold a path separator.
+# no -n, so these execute; the marker is relative, a filename holds no '/'
 @test "a rule filename cannot reach a shell" {
   local _dir="$ROOT/data/dovecot/etc/pf.conf.d"
   mkdir -p "$_dir"
@@ -167,7 +200,6 @@ install_legacy() {
   run "$_dir/pfrule.sh" unload
   assert_success
   [ ! -f "$ROOT/pwned" ]
-  # the table really was processed, so the absence above means something
   run grep -c '^-T$' "$PFCTL_LOG"
   assert_output "1"
 }

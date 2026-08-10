@@ -13,8 +13,14 @@ set -eu
 #
 # Naming the jail decouples the anchor name from the install location, so one
 # copy can serve every jail. Omit it and the jail name comes from $0
+#
+# Rules live in $MT6_ETC/<jail>/pf.conf.d, on the host
 
 SELF_DIR="$(dirname -- "$( readlink -f -- "$0"; )";)"
+
+# jail.conf sets exec.clean, so exec.created gets no environment. The install
+# location is the root, and jail.conf names it absolutely.
+MT6_ETC="${MT6_ETC:-$SELF_DIR}"
 
 usage() {
     echo "   usage: $0 [ load | unload ] [jail] [-n]"
@@ -50,6 +56,11 @@ jail_name_from_path() {
 resolve_etc_path() {
     if [ -n "${PFRULE_ETC:-}" ]; then
         echo "$PFRULE_ETC"
+        return 0
+    fi
+
+    if [ -d "$MT6_ETC/$JAIL_NAME/pf.conf.d" ]; then
+        echo "$MT6_ETC/$JAIL_NAME/pf.conf.d"
         return 0
     fi
 

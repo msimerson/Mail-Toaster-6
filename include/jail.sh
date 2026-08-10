@@ -189,10 +189,17 @@ get_jail_data()
 	echo "$ZFS_DATA_MNT/$1"
 }
 
-# control files the host reads or runs on the jail's behalf, like fstab
+export MT6_ETC=${MT6_ETC:-"/etc/mail-toaster"}
+
+# Control files the host reads or runs on the jail's behalf: fstab, rc.d
 get_jail_host_etc()
 {
-	echo "$(get_jail_data "$1")/etc"
+	echo "$MT6_ETC/$1"
+}
+
+get_pfrule_path()
+{
+	echo "$MT6_ETC/pfrule.sh"
 }
 
 jail_is_running()
@@ -276,6 +283,28 @@ jail_conf_mount()
 	echo "mount.fstab = \"$(get_jail_host_etc "$1")/fstab\";"
 }
 
+migrate_jail_conf()
+{
+	local _jail="$1" _conf="$2"
+	local _old="$ZFS_DATA_MNT/$_jail/etc"
+	local _new _pfrule
+	_new="$(get_jail_host_etc "$_jail")"
+	_pfrule="$(get_pfrule_path)"
+
+	if ! grep -qsF "$_old/" "$_conf"; then return 0; fi
+
+	tell_status "repointing $_jail control paths in $_conf"
+	sed_inplace \
+		-e "s|\"$_old/pf\.conf\.d/pfrule\.sh load\"|\"$_pfrule load $_jail\"|" \
+		-e "s|\"$_old/pf\.conf\.d/pfrule\.sh unload\"|\"$_pfrule unload $_jail\"|" \
+		-e "s|$_old/|$_new/|g" \
+		"$_conf"
+
+	if grep -qsF "$_old/" "$_conf"; then
+		tell_status "WARNING: $_conf still names $_old, fix it by hand"
+	fi
+}
+
 warn_stale_jail_conf()
 {
 	local _jail="$1"
@@ -309,6 +338,7 @@ add_jail_conf()
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
 		tell_status "preserving $1 config in /etc/jail.conf"
+		migrate_jail_conf "$1" /etc/jail.conf
 		warn_stale_jail_conf "$1" /etc/jail.conf
 		return
 	fi
@@ -342,8 +372,8 @@ add_jail_conf_d()
 	local _pf_exec=""
 	if [ "$1" != "base" ]; then
 		_pf_exec="
-		exec.created = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh load\";
-		exec.poststop = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh unload\";"
+		exec.created = \"$(get_pfrule_path) load $1\";
+		exec.poststop = \"$(get_pfrule_path) unload $1\";"
 	fi
 
 	local _conf; _conf="/etc/jail.conf.d/$(safe_jailname "$1").conf"
@@ -364,6 +394,7 @@ $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 	}
 EO_JAIL_RC
 
+	migrate_jail_conf "$1" "$_conf"
 	warn_stale_jail_conf "$1" "$_conf"
 }
 
