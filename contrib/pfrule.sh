@@ -8,26 +8,95 @@ set -eu
 #
 # Use pfctl to load and unload PF rules into named anchors from config
 # files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
+#
+#   pfrule.sh load|unload [jail] [-n]
+#
+# Naming the jail decouples the anchor name from the install location, so one
+# copy can serve every jail. Omit it and the jail name comes from $0
 
-ETC_PATH="$(dirname -- "$( readlink -f -- "$0"; )";)"
-JAIL_NAME=$(basename "$(dirname "$(dirname "$ETC_PATH")")")
-OPERATION=${1:-""}
-PREVIEW=${2:-""}
+SELF_DIR="$(dirname -- "$( readlink -f -- "$0"; )";)"
 
 usage() {
-    echo "   usage: $0 [ load | unload ] [-n]"
+    echo "   usage: $0 [ load | unload ] [jail] [-n]"
+    echo " "
+    echo "   jail   name of the jail whose anchors to manage."
+    echo "          Omit when pfrule lives in the jail's own rule directory."
+    echo "   -n     preview, print the pfctl commands instead of running them"
     echo " "
     exit 1
 }
 
+case "${1:-}" in
+    load|unload) OPERATION="$1"; shift ;;
+    *)           usage ;;
+esac
+
+JAIL_NAME=""
+PREVIEW=""
+for _arg in "$@"; do
+    case "$_arg" in
+        -n) PREVIEW="-n" ;;
+        -*) usage ;;
+        *)  if [ -n "$JAIL_NAME" ]; then usage; fi
+            JAIL_NAME="$_arg" ;;
+    esac
+done
+
+# a per-jail copy lives at <data>/<jail>/etc/pf.conf.d/pfrule.sh
+jail_name_from_path() {
+    basename "$(dirname "$(dirname "$SELF_DIR")")"
+}
+
+resolve_etc_path() {
+    if [ -n "${PFRULE_ETC:-}" ]; then
+        echo "$PFRULE_ETC"
+        return 0
+    fi
+
+    if [ "$(jail_name_from_path)" = "$JAIL_NAME" ]; then
+        echo "$SELF_DIR"
+        return 0
+    fi
+
+    return 1
+}
+
+if [ -z "$JAIL_NAME" ]; then
+    JAIL_NAME="$(jail_name_from_path)"
+fi
+
+if [ -z "$JAIL_NAME" ]; then
+    echo "$0: cannot determine the jail name, pass it as an argument" >&2
+    exit 1
+fi
+
+# the name becomes a pf anchor, so hold it to what pfctl(8) will accept
+case "$JAIL_NAME" in
+    *[!A-Za-z0-9_.-]*)
+        echo "$0: invalid jail name '$JAIL_NAME'" >&2
+        exit 1 ;;
+esac
+
+# an unreadable PFRULE_ETC would leave every glob empty, so load and unload
+# would both report success having touched no firewall state at all
+if [ -n "${PFRULE_ETC:-}" ] && [ ! -d "$PFRULE_ETC" ]; then
+    echo "$0: PFRULE_ETC is not a directory: $PFRULE_ETC" >&2
+    exit 1
+fi
+
+if ! ETC_PATH="$(resolve_etc_path)"; then
+    echo "$0: no rule directory for jail '$JAIL_NAME'" >&2
+    exit 1
+fi
+
 cleanup() {
-    if [ -f allow.conf ]; then
-        if [ -f filter.conf ]; then
-            echo "mv allow.conf allow.bak"
-            mv allow.conf allow.bak
+    if [ -f "$ETC_PATH/allow.conf" ]; then
+        if [ -f "$ETC_PATH/filter.conf" ]; then
+            echo "mv $ETC_PATH/allow.conf $ETC_PATH/allow.bak"
+            mv "$ETC_PATH/allow.conf" "$ETC_PATH/allow.bak"
         else
-            echo "mv allow.conf filter.conf"
-            mv allow.conf filter.conf
+            echo "mv $ETC_PATH/allow.conf $ETC_PATH/filter.conf"
+            mv "$ETC_PATH/allow.conf" "$ETC_PATH/filter.conf"
         fi
     fi
 }
@@ -40,7 +109,7 @@ load_tables() {
         if [ -n "$_hit" ]; then
             echo "WARN: table $_table_name appears to ALSO exist in $_hit"
         fi
-        do_cmd "pfctl -t $_table_name -T replace -f $_f"
+        do_cmd pfctl -t "$_table_name" -T replace -f "$_f"
     done
 }
 
@@ -48,23 +117,22 @@ flush_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
         _table_name=$(basename "$_f" .table)
-        do_cmd "pfctl -t $_table_name -T flush"
+        do_cmd pfctl -t "$_table_name" -T flush
     done
 }
 
 do_cmd() {
     if [ "$PREVIEW" = "-n" ]; then
-        echo "$1"
+        echo "$*"
     else
-        eval "$1"
+        "$@"
     fi
 }
 
 flush() {
     case "$1" in
-        "nat"   ) do_cmd "$2 -F nat"   ;;
-        "rdr"   ) do_cmd "$2 -F nat"   ;;
-        "filter") do_cmd "$2 -F rules" ;;
+        nat|rdr ) do_cmd pfctl -a "$2" -F nat   ;;
+        filter  ) do_cmd pfctl -a "$2" -F rules ;;
     esac
 }
 
@@ -77,12 +145,9 @@ for _anchor in binat nat rdr filter; do
     _f="$ETC_PATH/$_anchor.conf"
     [ -f "$_f" ] || continue
 
-    _pfctl="pfctl -a $_anchor/$JAIL_NAME"
-
     case "$OPERATION" in
-        "load"   ) do_cmd "$_pfctl -f $_f" ;;
-        "unload" ) flush "$_anchor" "$_pfctl" ;;
-        *        ) usage ;;
+        "load"   ) do_cmd pfctl -a "$_anchor/$JAIL_NAME" -f "$_f" ;;
+        "unload" ) flush "$_anchor" "$_anchor/$JAIL_NAME" ;;
     esac
 done
 

@@ -5,6 +5,11 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- pfrule: run pfctl arguments directly
+- pfrule: accept the jail name as an argument, decouple from $0
+- pfrule: PFRULE_ETC names the rule directory outright, and must exist
+- pfrule: validate the operation and jail name
+- test: run test/contrib/*.bats in CI and test/run.sh
 - haraka: enable watch and p0f by append
 - mta: install dma when absent, ssmtp is now opt-in
 - mta: write dma.conf beside the installed dma, base or port

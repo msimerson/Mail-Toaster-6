@@ -31,7 +31,7 @@ jobs:
       run: git submodule update --init --recursive
     - name: bats test
       run: |
-        ./test/bats/bin/bats test/*.bats test/include/*.bats test/provision/*.bats
+        ./test/bats/bin/bats test/*.bats test/include/*.bats test/provision/*.bats test/contrib/*.bats
 
   freebsd:
     runs-on: ubuntu-latest
