@@ -46,3 +46,4 @@ node_modules
 gha-creds-*.json
 CLAUDE.md
 .github/copilot-instructions.md
+etc
