@@ -165,7 +165,7 @@ jail_conf_header()
 exec.start = "/bin/sh /etc/rc";
 exec.stop = "/bin/sh /etc/rc.shutdown";
 exec.clean;
-devfs_ruleset=4;
+devfs_ruleset = 4;
 path = "$_path";
 interface = $JAIL_NET_INTERFACE;
 host.hostname = \$name;
