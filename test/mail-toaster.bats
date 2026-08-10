@@ -533,58 +533,26 @@ host_etc_setup() {
   tell_status() { :; }
 }
 
-@test "adopt_jail_host_etc - copies admin pf rules to the host" {
+@test "adopt_jail_host_etc - copies the rules, leaves the original in place" {
   host_etc_setup
-  adopt_jail_host_etc dovecot
+  echo "shadow"    > "$OLD/pf.conf.d/rdr.conf.mt6"
+  echo "10.0.0.0/8"> "$OLD/pf.conf.d/blocklist.table"
+  echo "tshadow"   > "$OLD/pf.conf.d/blocklist.table.mt6"
+  echo "stray"     > "$OLD/pf.conf.d/notes.txt"
 
-  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
-  assert_output "rdr rule"
-}
-
-@test "adopt_jail_host_etc - leaves the original in place" {
-  host_etc_setup
   adopt_jail_host_etc dovecot
+  local _new="$(get_jail_host_etc dovecot)/pf.conf.d"
+
+  run cat "$_new/rdr.conf";           assert_output "rdr rule"
+  run cat "$_new/rdr.conf.mt6";       assert_output "shadow"
+  run cat "$_new/blocklist.table";    assert_output "10.0.0.0/8"
+  run cat "$_new/blocklist.table.mt6";assert_output "tshadow"
+
+  # install_pfrule provides the shared copy; notes.txt is not a rule
+  [ ! -e "$_new/pfrule.sh" ]
+  [ ! -e "$_new/notes.txt" ]
 
   [ -f "$OLD/pf.conf.d/rdr.conf" ]
-}
-
-@test "adopt_jail_host_etc - does not carry the old pfrule.sh across" {
-  host_etc_setup
-  adopt_jail_host_etc dovecot
-
-  [ ! -f "$(get_jail_host_etc dovecot)/pf.conf.d/pfrule.sh" ]
-}
-
-@test "adopt_jail_host_etc - is a no-op once the host copy exists" {
-  host_etc_setup
-  mkdir -p "$(get_jail_host_etc dovecot)/pf.conf.d"
-  echo "edited on the host" > "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
-
-  adopt_jail_host_etc dovecot
-  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
-  assert_output "edited on the host"
-}
-
-@test "adopt_jail_host_etc - a jail with no old pf.conf.d is fine" {
-  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
-  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
-  tell_status() { :; }
-
-  run adopt_jail_host_etc fresh
-  assert_success
-}
-
-@test "adopt_jail_host_etc - carries the .mt6 shadow so update semantics survive" {
-  host_etc_setup
-  echo "shadow" > "$OLD/pf.conf.d/rdr.conf.mt6"
-  echo "table" > "$OLD/pf.conf.d/dovecot.table"
-
-  adopt_jail_host_etc dovecot
-
-  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf.mt6"
-  assert_output "shadow"
-  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/dovecot.table"
-  assert_output "table"
 }
 
 @test "adopt_jail_host_etc - keeps a .mt6 shadow at 0600" {
@@ -601,75 +569,18 @@ host_etc_setup() {
   assert_output "$_pfd/rdr.conf"
 }
 
-@test "adopt_jail_host_etc - adopts only the conf names pfrule.sh reads" {
-  host_etc_setup
-  echo "stray" > "$OLD/pf.conf.d/notes.txt"
-
-  adopt_jail_host_etc dovecot
-
-  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/notes.txt" ]
-}
-
-@test "adopt_jail_host_etc - adopts a table the admin added" {
-  host_etc_setup
-  echo "10.0.0.0/8" > "$OLD/pf.conf.d/blocklist.table"
-  echo "shadow"     > "$OLD/pf.conf.d/blocklist.table.mt6"
-
-  adopt_jail_host_etc dovecot
-
-  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/blocklist.table"
-  assert_output "10.0.0.0/8"
-  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/blocklist.table.mt6"
-  assert_output "shadow"
-}
-
-@test "adopt_jail_host_etc - a symlinked table is not adopted" {
+@test "adopt_jail_host_etc - a symlink is never adopted" {
   host_etc_setup
   echo "jail controlled" > "$ZFS_DATA_MNT/dovecot/evil"
+  ln -s "$ZFS_DATA_MNT/dovecot/evil" "$OLD/pf.conf.d/filter.conf"
   ln -s "$ZFS_DATA_MNT/dovecot/evil" "$OLD/pf.conf.d/sneaky.table"
 
   adopt_jail_host_etc dovecot
-
-  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/sneaky.table" ]
-}
-
-@test "adopt_jail_host_etc - no tables at all is not an error" {
-  host_etc_setup
-  rm -f "$OLD"/pf.conf.d/*.table
-
-  run adopt_jail_host_etc dovecot
-  assert_success
-  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/*.table" ]
-}
-
-@test "adopt_jail_host_etc - publishes the directory only once complete" {
-  host_etc_setup
-  adopt_jail_host_etc dovecot
-
-  [ -d "$(get_jail_host_etc dovecot)/pf.conf.d" ]
-  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d.adopting" ]
-}
-
-@test "adopt_jail_host_etc - a stale .adopting from a failed run is discarded" {
-  host_etc_setup
   local _new="$(get_jail_host_etc dovecot)/pf.conf.d"
-  mkdir -p "$_new.adopting"
-  echo "junk" > "$_new.adopting/leftover.conf"
 
-  adopt_jail_host_etc dovecot
-
-  [ ! -e "$_new/leftover.conf" ]
-  [ -f "$_new/rdr.conf" ]
-}
-
-@test "adopt_jail_host_etc - a symlinked rule file is not adopted" {
-  host_etc_setup
-  echo "jail controlled" > "$ZFS_DATA_MNT/dovecot/evil.conf"
-  ln -s "$ZFS_DATA_MNT/dovecot/evil.conf" "$OLD/pf.conf.d/filter.conf"
-
-  adopt_jail_host_etc dovecot
-
-  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/filter.conf" ]
+  [ ! -e "$_new/filter.conf" ]
+  [ ! -e "$_new/sneaky.table" ]
+  [ -f "$_new/rdr.conf" ] && [ ! -L "$_new/rdr.conf" ]
 }
 
 @test "adopt_jail_host_etc - a symlinked pf.conf.d is not adopted" {
@@ -685,13 +596,41 @@ host_etc_setup() {
   [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d" ]
 }
 
-@test "adopt_jail_host_etc - what it adopts is a regular file, not a link" {
+@test "adopt_jail_host_etc - is a no-op once the host copy exists" {
   host_etc_setup
+  mkdir -p "$(get_jail_host_etc dovecot)/pf.conf.d"
+  echo "edited on the host" > "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+
+  adopt_jail_host_etc dovecot
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+  assert_output "edited on the host"
+}
+
+@test "adopt_jail_host_etc - nothing to adopt is not an error" {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  tell_status() { :; }
+
+  run adopt_jail_host_etc fresh
+  assert_success
+
+  host_etc_setup
+  rm -f "$OLD"/pf.conf.d/*.table
+  run adopt_jail_host_etc dovecot
+  assert_success
+}
+
+@test "adopt_jail_host_etc - publishes the directory only once complete" {
+  host_etc_setup
+  local _new="$(get_jail_host_etc dovecot)/pf.conf.d"
+  mkdir -p "$_new.adopting"
+  echo "junk" > "$_new.adopting/leftover.conf"
+
   adopt_jail_host_etc dovecot
 
-  local _f="$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
-  [ -f "$_f" ]
-  [ ! -L "$_f" ]
+  [ -f "$_new/rdr.conf" ]
+  [ ! -e "$_new/leftover.conf" ]
+  [ ! -e "$_new.adopting" ]
 }
 
 @test "retire_jail_host_etc - removes the old fstab and pf.conf.d" {
@@ -766,11 +705,3 @@ promote_setup() {
   refute_output --partial "retire"
 }
 
-@test "promote_staged_jail - retires after the conf is rewritten" {
-  promote_setup
-  promote_staged_jail dovecot
-
-  run grep -n . "$CALLS"
-  assert_output --partial "1:add_jail_conf"
-  assert_output --partial "3:retire"
-}

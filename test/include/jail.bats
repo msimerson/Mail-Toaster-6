@@ -127,20 +127,13 @@ setup() {
   assert_output "/data/base"
 }
 
-@test "get_jail_host_etc - control files live on the host, not in the jail" {
-  export MT6_ETC="/etc/mail-toaster"
+@test "control file paths live on the host, outside the jail's data volume" {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+
   run get_jail_host_etc dovecot
   assert_output "/etc/mail-toaster/dovecot"
-}
-
-@test "get_jail_host_etc - is outside the data volume the jail mounts" {
-  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
-  run get_jail_host_etc dovecot
   refute_output --partial "$(get_jail_data dovecot)"
-}
 
-@test "get_pfrule_path - one host-owned copy" {
-  export MT6_ETC="/etc/mail-toaster"
   run get_pfrule_path
   assert_output "/etc/mail-toaster/pfrule.sh"
 }
@@ -163,33 +156,16 @@ haraka	{
 EO_CONF
 }
 
-@test "migrate_jail_conf - repoints mount.fstab" {
+@test "migrate_jail_conf - repoints the generated lines, keeps the rest" {
   mjc_setup
   migrate_jail_conf haraka "$CONF" > /dev/null
-  run grep mount.fstab "$CONF"
-  assert_output --partial '"/etc/mail-toaster/haraka/fstab"'
-}
 
-@test "migrate_jail_conf - pfrule gains the jail name and drops pf.conf.d" {
-  mjc_setup
-  migrate_jail_conf haraka "$CONF" > /dev/null
   run cat "$CONF"
+  assert_output --partial 'mount.fstab = "/etc/mail-toaster/haraka/fstab";'
   assert_output --partial 'exec.created = "/etc/mail-toaster/pfrule.sh load haraka";'
   assert_output --partial 'exec.poststop = "/etc/mail-toaster/pfrule.sh unload haraka";'
   refute_output --partial "pf.conf.d"
-}
-
-@test "migrate_jail_conf - leaves no old paths behind" {
-  mjc_setup
-  migrate_jail_conf haraka "$CONF" > /dev/null
-  run grep -c "/data/haraka/etc" "$CONF"
-  assert_output "0"
-}
-
-@test "migrate_jail_conf - keeps the admin's own edits" {
-  mjc_setup
-  migrate_jail_conf haraka "$CONF" > /dev/null
-  run cat "$CONF"
+  refute_output --partial "/data/haraka/etc"
   assert_output --partial "devfs_ruleset = 7;"
   assert_output --partial 'path = "/jails/haraka";'
 }
@@ -202,7 +178,7 @@ EO_CONF
   assert_output --partial '"/etc/mail-toaster/dns/rc.d/poststart.sh"'
 }
 
-@test "migrate_jail_conf - a current conf is untouched and silent" {
+@test "migrate_jail_conf - a current or missing conf is a silent no-op" {
   mjc_setup
   migrate_jail_conf haraka "$CONF" > /dev/null
   local _before; _before=$(cat "$CONF")
@@ -211,12 +187,26 @@ EO_CONF
   assert_success
   assert_output ""
   [ "$(cat "$CONF")" = "$_before" ]
-}
 
-@test "migrate_jail_conf - a missing conf is not an error" {
-  mjc_setup
   run migrate_jail_conf haraka "$BATS_TEST_TMPDIR/nope.conf"
   assert_success
+}
+
+# repointing has to precede the check, or the warning fires on a conf just fixed
+@test "add_jail_conf_d - repoints the conf, then checks it" {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  local _calls="$BATS_TEST_TMPDIR/calls"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat - > /dev/null; }
+  migrate_jail_conf() { echo "migrate $1 $2" >> "$_calls"; }
+  warn_stale_jail_conf() { echo "warn $1 $2" >> "$_calls"; }
+
+  add_jail_conf_d mysql
+
+  run cat "$_calls"
+  assert_line --index 0 "migrate mysql /etc/jail.conf.d/mysql.conf"
+  assert_line --index 1 "warn mysql /etc/jail.conf.d/mysql.conf"
 }
 
 @test "migrate_jail_conf - only the named jail is repointed" {
@@ -310,16 +300,6 @@ EO_CONF
   assert_output --partial 'mount.fstab = "/etc/mail-toaster/mysql/fstab";'
   assert_output --partial 'exec.created = "/etc/mail-toaster/pfrule.sh load mysql";'
   assert_output --partial 'exec.poststop = "/etc/mail-toaster/pfrule.sh unload mysql";'
-}
-
-@test "add_jail_conf_d - runs pfrule from the host, not the jail's data volume" {
-  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
-  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
-  get_public_ip6() { export PUBLIC_IP6=""; }
-  store_config() { cat -; }
-
-  run add_jail_conf_d mysql
-  assert_success
   refute_output --partial "$(get_jail_data mysql)"
 }
 

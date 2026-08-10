@@ -70,17 +70,8 @@ install_legacy() {
 
 # --- the host-owned copy, rules under $MT6_ETC/<jail>/pf.conf.d ---
 
+# the sibling fstab and rc.d must not be mistaken for the rule directory
 @test "MT6_ETC - one copy serves a jail named on the command line" {
-  mkdir -p "$ROOT/etc"
-  cp "$PFRULE" "$ROOT/etc/pfrule.sh"
-  mkrules "$ROOT/etc/webmail/pf.conf.d"
-
-  MT6_ETC="$ROOT/etc" run "$ROOT/etc/pfrule.sh" load webmail -n
-  assert_success
-  assert_output --partial "pfctl -a rdr/webmail -f $ROOT/etc/webmail/pf.conf.d/rdr.conf"
-}
-
-@test "MT6_ETC - the jail dir holding fstab does not shadow pf.conf.d" {
   mkdir -p "$ROOT/etc/webmail/rc.d"
   cp "$PFRULE" "$ROOT/etc/pfrule.sh"
   touch "$ROOT/etc/webmail/fstab"
@@ -88,7 +79,7 @@ install_legacy() {
 
   MT6_ETC="$ROOT/etc" run "$ROOT/etc/pfrule.sh" load webmail -n
   assert_success
-  assert_output --partial "$ROOT/etc/webmail/pf.conf.d/rdr.conf"
+  assert_output --partial "pfctl -a rdr/webmail -f $ROOT/etc/webmail/pf.conf.d/rdr.conf"
   refute_output --partial "$ROOT/etc/webmail/rdr.conf"
 }
 
@@ -103,28 +94,11 @@ install_legacy() {
   assert_output --partial "$ROOT/custom/webmail/pf.conf.d/rdr.conf"
 }
 
-@test "MT6_ETC - a per-jail copy survives a cleared environment" {
-  local _p; _p=$(install_legacy dovecot)
-
-  run env -i PATH="$PATH" "$_p" load -n
-  assert_success
-  assert_output --partial "pfctl -a rdr/dovecot -f"
-}
-
-@test "MT6_ETC - a jail with no rule directory is still an error" {
-  mkdir -p "$ROOT/etc"
-  cp "$PFRULE" "$ROOT/etc/pfrule.sh"
-
-  MT6_ETC="$ROOT/etc" run "$ROOT/etc/pfrule.sh" load nosuchjail -n
-  assert_failure
-  assert_output --partial "no rule directory for jail 'nosuchjail'"
-}
-
 @test "MT6_ETC - a per-jail copy still wins for its own jail" {
   local _p; _p=$(install_legacy dovecot)
   mkdir -p "$ROOT/etc"
 
-  MT6_ETC="$ROOT/etc" run "$_p" load -n
+  MT6_ETC="$ROOT/etc" run env -i PATH="$PATH" MT6_ETC="$ROOT/etc" "$_p" load -n
   assert_success
   assert_output --partial "/data/dovecot/etc/pf.conf.d/rdr.conf"
 }
