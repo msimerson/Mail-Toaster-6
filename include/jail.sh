@@ -212,7 +212,8 @@ assure_devfs_ruleset()
 
 	tell_status "adding devfs ruleset $_num to $DEVFS_RULES"
 	{
-		printf '\n[%s=%s]\nadd include $devfsrules_jail\n' "$_name" "$_num"
+		printf '\n[%s=%s]\n' "$_name" "$_num"
+		printf 'add include $devfsrules_%s\n' hide_all unhide_basic unhide_login jail
 		for _path in "$@"; do
 			printf "add path '%s' unhide\n" "$_path"
 		done

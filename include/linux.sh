@@ -4,6 +4,16 @@ set -e
 
 # see examples in provision/centos and provision/ubuntu
 
+# A devfs mounted through mount.fstab ignores the jail's devfs_ruleset
+configure_linux_devfs()
+{
+	store_config "$STAGE_MNT/etc/fstab" "overwrite" <<EO_LINUX_FSTAB
+devfs    /compat/linux/dev      devfs    rw                    0 0
+tmpfs    /compat/linux/dev/shm  tmpfs    rw,size=1g,mode=1777  0 0
+fdescfs  /compat/linux/dev/fd   fdescfs  rw,linrdlnk           0 0
+EO_LINUX_FSTAB
+}
+
 configure_linuxulator()
 {
 	tell_status "enabling Linux emulation on Host (loads kernel modules)"

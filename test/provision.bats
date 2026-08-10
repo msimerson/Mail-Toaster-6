@@ -132,18 +132,29 @@ _no_start_required() {
 }
 
 # the ruleset has to exist before the stage jail asks for it
-# their compat/linux/dev views the jail's own filtered /dev
-@test "linux jails view the jail dev, not a second host devfs" {
+# a host mounted devfs ignores devfs_ruleset, so the jail mounts its own
+@test "linux jails mount compat/linux/dev themselves" {
   for _s in provision/centos.sh provision/ubuntu.sh provision/stalwart.sh; do
-    run grep "compat/linux/dev " "$_s"
-    assert_success
-    assert_output --partial "nullfs"
-    refute_output --partial "devfs     "
+    run grep "compat/linux/dev" "$_s"
+    refute_output --partial "ZFS_JAIL_MNT"
+
+    run grep -c "configure_linux_devfs" "$_s"
+    assert_output "1"
+
     run grep "^export JAIL_DEVFS_RULESET=" "$_s"
     assert_output --partial "JAIL_DEVFS_RULESET_LINUX"
+
     run grep -c "assure_devfs_linux_ruleset" "$_s"
     assert_output "1"
   done
+}
+
+@test "configure_linux_devfs mounts dev before its dependents" {
+  run grep -A3 "compat/linux/dev  *devfs" include/linux.sh
+  assert_success
+  assert_line --index 0 --partial "/compat/linux/dev "
+  assert_line --index 1 --partial "/compat/linux/dev/shm"
+  assert_line --index 2 --partial "/compat/linux/dev/fd"
 }
 
 @test "jails needing bpf create the ruleset themselves" {

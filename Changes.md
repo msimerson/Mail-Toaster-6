@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
-- linux jails: view the jail's filtered /dev, not a second host devfs
+- linux jails: mount compat/linux/dev inside the jail, where devfs_ruleset binds
 - dma: create /var/spool/dma when the port has not
 - mt: jail control files move to /etc/mail-toaster/<jail>
 - mt: one /etc/mail-toaster/pfrule.sh serves every jail

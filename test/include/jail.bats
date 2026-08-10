@@ -194,6 +194,9 @@ devfs_setup() {
 
   run cat "$DEVFS_RULES"
   assert_output --partial "[devfsrules_jail_bpf=7]"
+  assert_output --partial "add include \$devfsrules_hide_all"
+  assert_output --partial "add include \$devfsrules_unhide_basic"
+  assert_output --partial "add include \$devfsrules_unhide_login"
   assert_output --partial "add include \$devfsrules_jail"
   assert_output --partial "add path 'bpf*' unhide"
 

@@ -19,9 +19,6 @@ export JAIL_START_EXTRA="allow.mount
 export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB="
-$ZFS_JAIL_MNT/ubuntu/dev $ZFS_JAIL_MNT/ubuntu/compat/linux/dev nullfs rw,late  0 0
-tmpfs     $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/shm tmpfs     rw,late,size=1g,mode=1777  0 0
-fdescfs   $ZFS_JAIL_MNT/ubuntu/compat/linux/dev/fd  fdescfs   rw,late,linrdlnk 0 0
 linprocfs $ZFS_JAIL_MNT/ubuntu/compat/linux/proc    linprocfs rw,late  0 0
 linsysfs  $ZFS_JAIL_MNT/ubuntu/compat/linux/sys     linsysfs  rw,late  0 0
 #/tmp      $ZFS_JAIL_MNT/ubuntu/compat/linux/tmp     nullfs    rw,late  0 0
@@ -40,6 +37,7 @@ for _fs in dev proc sys tmp home; do
 done
 chmod 777 "$STAGE_MNT/compat/linux/tmp"
 assure_devfs_linux_ruleset
+configure_linux_devfs
 start_staged_jail ubuntu
 install_ubuntu
 promote_staged_jail ubuntu

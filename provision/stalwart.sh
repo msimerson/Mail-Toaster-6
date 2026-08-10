@@ -20,9 +20,6 @@ export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB
 JAIL_FSTAB="
-$ZFS_JAIL_MNT/stalwart/dev $ZFS_JAIL_MNT/stalwart/compat/linux/dev nullfs rw,late  0 0
-tmpfs     $ZFS_JAIL_MNT/stalwart/compat/linux/dev/shm tmpfs     rw,late,size=1g,mode=1777  0 0
-fdescfs   $ZFS_JAIL_MNT/stalwart/compat/linux/dev/fd  fdescfs   rw,late,linrdlnk 0 0
 linprocfs $ZFS_JAIL_MNT/stalwart/compat/linux/proc    linprocfs rw,late  0 0
 linsysfs  $ZFS_JAIL_MNT/stalwart/compat/linux/sys     linsysfs  rw,late  0 0
 $(get_jail_data stalwart)/linux $ZFS_JAIL_MNT/stalwart/compat/linux/stalwart nullfs rw,late 0,0
@@ -230,6 +227,7 @@ for _d in dev/shm dev/fd proc sys stalwart; do
 	mkdir -p "$STAGE_MNT/compat/linux/$_d"
 done
 assure_devfs_linux_ruleset
+configure_linux_devfs
 start_staged_jail stalwart
 install_stalwart
 configure_stalwart
