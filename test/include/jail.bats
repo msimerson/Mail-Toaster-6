@@ -145,6 +145,89 @@ setup() {
   assert_output "/etc/mail-toaster/pfrule.sh"
 }
 
+# --- migrate_jail_conf: repoint an edited conf ---
+
+mjc_setup() {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  tell_status() { echo "$1"; }
+  sed_inplace() { sed -i.bak "$@"; }
+  CONF="$BATS_TEST_TMPDIR/haraka.conf"
+  cat > "$CONF" <<'EO_CONF'
+haraka	{
+		path = "/jails/haraka";
+		mount.fstab = "/data/haraka/etc/fstab";
+		devfs_ruleset = 7;
+		exec.created = "/data/haraka/etc/pf.conf.d/pfrule.sh load";
+		exec.poststop = "/data/haraka/etc/pf.conf.d/pfrule.sh unload";
+	}
+EO_CONF
+}
+
+@test "migrate_jail_conf - repoints mount.fstab" {
+  mjc_setup
+  migrate_jail_conf haraka "$CONF" > /dev/null
+  run grep mount.fstab "$CONF"
+  assert_output --partial '"/etc/mail-toaster/haraka/fstab"'
+}
+
+@test "migrate_jail_conf - pfrule gains the jail name and drops pf.conf.d" {
+  mjc_setup
+  migrate_jail_conf haraka "$CONF" > /dev/null
+  run cat "$CONF"
+  assert_output --partial 'exec.created = "/etc/mail-toaster/pfrule.sh load haraka";'
+  assert_output --partial 'exec.poststop = "/etc/mail-toaster/pfrule.sh unload haraka";'
+  refute_output --partial "pf.conf.d"
+}
+
+@test "migrate_jail_conf - leaves no old paths behind" {
+  mjc_setup
+  migrate_jail_conf haraka "$CONF" > /dev/null
+  run grep -c "/data/haraka/etc" "$CONF"
+  assert_output "0"
+}
+
+@test "migrate_jail_conf - keeps the admin's own edits" {
+  mjc_setup
+  migrate_jail_conf haraka "$CONF" > /dev/null
+  run cat "$CONF"
+  assert_output --partial "devfs_ruleset = 7;"
+  assert_output --partial 'path = "/jails/haraka";'
+}
+
+@test "migrate_jail_conf - repoints dns rc.d scripts" {
+  mjc_setup
+  printf 'dns {\n\texec.poststart = "/data/dns/etc/rc.d/poststart.sh";\n}\n' > "$CONF"
+  migrate_jail_conf dns "$CONF" > /dev/null
+  run cat "$CONF"
+  assert_output --partial '"/etc/mail-toaster/dns/rc.d/poststart.sh"'
+}
+
+@test "migrate_jail_conf - a current conf is untouched and silent" {
+  mjc_setup
+  migrate_jail_conf haraka "$CONF" > /dev/null
+  local _before; _before=$(cat "$CONF")
+
+  run migrate_jail_conf haraka "$CONF"
+  assert_success
+  assert_output ""
+  [ "$(cat "$CONF")" = "$_before" ]
+}
+
+@test "migrate_jail_conf - a missing conf is not an error" {
+  mjc_setup
+  run migrate_jail_conf haraka "$BATS_TEST_TMPDIR/nope.conf"
+  assert_success
+}
+
+@test "migrate_jail_conf - only the named jail is repointed" {
+  mjc_setup
+  printf 'a {\n\tmount.fstab = "/data/haraka/etc/fstab";\n}\nb {\n\tmount.fstab = "/data/dovecot/etc/fstab";\n}\n' > "$CONF"
+  migrate_jail_conf haraka "$CONF" > /dev/null
+  run cat "$CONF"
+  assert_output --partial "/etc/mail-toaster/haraka/fstab"
+  assert_output --partial "/data/dovecot/etc/fstab"
+}
+
 @test "warn_stale_jail_conf - silent when the mount line is current" {
   export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
   local _conf="$BATS_TEST_TMPDIR/dovecot.conf"

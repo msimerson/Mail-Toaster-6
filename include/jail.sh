@@ -283,6 +283,28 @@ jail_conf_mount()
 	echo "mount.fstab = \"$(get_jail_host_etc "$1")/fstab\";"
 }
 
+migrate_jail_conf()
+{
+	local _jail="$1" _conf="$2"
+	local _old="$ZFS_DATA_MNT/$_jail/etc"
+	local _new _pfrule
+	_new="$(get_jail_host_etc "$_jail")"
+	_pfrule="$(get_pfrule_path)"
+
+	if ! grep -qsF "$_old/" "$_conf"; then return 0; fi
+
+	tell_status "repointing $_jail control paths in $_conf"
+	sed_inplace \
+		-e "s|\"$_old/pf\.conf\.d/pfrule\.sh load\"|\"$_pfrule load $_jail\"|" \
+		-e "s|\"$_old/pf\.conf\.d/pfrule\.sh unload\"|\"$_pfrule unload $_jail\"|" \
+		-e "s|$_old/|$_new/|g" \
+		"$_conf"
+
+	if grep -qsF "$_old/" "$_conf"; then
+		tell_status "WARNING: $_conf still names $_old, fix it by hand"
+	fi
+}
+
 warn_stale_jail_conf()
 {
 	local _jail="$1"
@@ -316,6 +338,7 @@ add_jail_conf()
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
 		tell_status "preserving $1 config in /etc/jail.conf"
+		migrate_jail_conf "$1" /etc/jail.conf
 		warn_stale_jail_conf "$1" /etc/jail.conf
 		return
 	fi
@@ -371,6 +394,7 @@ $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 	}
 EO_JAIL_RC
 
+	migrate_jail_conf "$1" "$_conf"
 	warn_stale_jail_conf "$1" "$_conf"
 }
 
