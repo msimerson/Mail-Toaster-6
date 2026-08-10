@@ -145,14 +145,24 @@ teardown() {
 
 @test "configure_haraka_watch enables the plugin and writes watch.ini" {
   printf '# status\n# syslog\n' > "$HARAKA_CONF/plugins"
-  export TOASTER_DOMAIN_NAME="example.com"
+  export TOASTER_HOSTNAME="mail.example.com"
   configure_haraka_watch > /dev/null
 
   run cat "$HARAKA_CONF/plugins"
   assert_line "watch"
 
   run cat "$HARAKA_CONF/watch.ini"
-  assert_output --partial "url=wss://example.com/watch"
+  assert_output --partial "url=wss://mail.example.com/watch"
+}
+
+@test "configure_haraka_watch - the wss url names a host" {
+  printf '# status\n# syslog\n' > "$HARAKA_CONF/plugins"
+  export TOASTER_HOSTNAME="mail.example.com"
+  configure_haraka_watch > /dev/null
+
+  run cat "$HARAKA_CONF/watch.ini"
+  refute_output --partial "wss:///"
+  assert_line --regexp '^url=wss://[a-z0-9.-]+/watch$'
 }
 
 @test "configure_haraka_plugins enables the whole default set" {

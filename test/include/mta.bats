@@ -21,6 +21,9 @@ EO_ALIASES
   export TOASTER_BASE_MTA=""
 
   load '../../include/mta.sh'
+
+  # -o root fails for a non-root test; GNU install makes that fatal
+  install() { echo "install $*" >> "$BASE/install.log"; }
 }
 
 teardown() {
@@ -118,6 +121,26 @@ sed_inplace() { sed -i.bak "$@"; }
   enable_dma > /dev/null
   run cat "$BASE/pkg.log"
   assert_output "pkg install -y dma"
+}
+
+@test "enable_dma - creates the queue directory the port omits" {
+  local _base="$BASE"
+  : > "$BASE/usr/libexec/dma"; chmod +x "$BASE/usr/libexec/dma"
+
+  enable_dma > /dev/null
+
+  run cat "$BASE/install.log"
+  assert_output "install -d -o root -g mail -m 0770 $BASE/var/spool/dma"
+}
+
+@test "enable_dma - leaves an existing queue directory alone" {
+  local _base="$BASE"
+  : > "$BASE/usr/libexec/dma"; chmod +x "$BASE/usr/libexec/dma"
+  mkdir -p "$BASE/var/spool/dma"
+
+  enable_dma > /dev/null
+
+  [ ! -f "$BASE/install.log" ]
 }
 
 @test "set_root_alias - uncomments root and sets the admin address" {

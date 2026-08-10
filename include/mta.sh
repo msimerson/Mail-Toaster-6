@@ -100,6 +100,12 @@ enable_dma()
 		_dma_path="$_base/usr/local/libexec/dma"
 	fi
 
+	# the port ships no queue directory; base dma has one from mtree
+	if [ ! -d "$_base/var/spool/dma" ]; then
+		tell_status "creating $_base/var/spool/dma"
+		install -d -o root -g mail -m 0770 "$_base/var/spool/dma" || exit 1
+	fi
+
 	tell_status "pointing mailer.conf at dma"
 	_relative_path="${_dma_path#"$_base"}"
 	tee "$_base/etc/mail/mailer.conf" <<EO_MAILER_CONF
