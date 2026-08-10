@@ -11,6 +11,10 @@ setup() {
   # one too, or /var vs /private/var breaks the comparison on macOS
   mkdir -p "$BATS_TEST_TMPDIR/root"
   ROOT="$(cd "$BATS_TEST_TMPDIR/root" && pwd -P)"
+
+  # the tests that omit -n really do execute; keep them off the host firewall
+  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  export PFCTL_LOG="$ROOT/pfctl.log"
 }
 
 mkrules() {
@@ -151,8 +155,7 @@ install_legacy() {
 
 # --- $ETC_PATH is writable by the jail whose rules it holds ---
 
-# No .conf here on purpose: an anchor file makes pfctl run and fail first, and
-# set -e would end the script before the tables are reached.
+# These omit -n so the execution path runs for real against the pfctl stub.
 # The marker is relative because a filename cannot hold a path separator.
 @test "a rule filename cannot reach a shell" {
   local _dir="$ROOT/data/dovecot/etc/pf.conf.d"
@@ -162,7 +165,11 @@ install_legacy() {
 
   cd "$ROOT"
   run "$_dir/pfrule.sh" unload
+  assert_success
   [ ! -f "$ROOT/pwned" ]
+  # the table really was processed, so the absence above means something
+  run grep -c '^-T$' "$PFCTL_LOG"
+  assert_output "1"
 }
 
 @test "a rule filename with a semicolon runs no second command" {
@@ -173,6 +180,7 @@ install_legacy() {
 
   cd "$ROOT"
   run "$_dir/pfrule.sh" unload
+  assert_success
   [ ! -f "$ROOT/pwned" ]
 }
 
@@ -182,9 +190,19 @@ install_legacy() {
   cp "$PFRULE" "$_dir/"
   printf '10.0.0.1\n' > "$_dir/two words.table"
 
-  run "$_dir/pfrule.sh" unload -n
+  run "$_dir/pfrule.sh" unload
   assert_success
-  assert_output --partial "pfctl -t two words -T flush"
+  run grep -c '^two words$' "$PFCTL_LOG"
+  assert_output "1"
+}
+
+@test "the anchor reaches pfctl as one argument" {
+  local _p; _p=$(install_legacy dovecot)
+
+  run "$_p" load
+  assert_success
+  run grep -c '^rdr/dovecot$' "$PFCTL_LOG"
+  assert_output "1"
 }
 
 # --- PFRULE_ETC has to name a real directory ---

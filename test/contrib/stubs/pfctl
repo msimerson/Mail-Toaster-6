@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Stand-in for pfctl(8) so the tests that deliberately omit -n exercise command
+# execution without touching the host firewall. Records argv one argument per
+# line in $PFCTL_LOG, which is how a test asserts that a name containing spaces
+# arrived as a single argument.
+
+if [ -n "${PFCTL_LOG:-}" ]; then
+    for _arg in "$@"; do
+        printf '%s\n' "$_arg" >> "$PFCTL_LOG"
+    done
+    printf -- '--\n' >> "$PFCTL_LOG"
+fi
+
+exit 0
