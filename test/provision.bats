@@ -131,8 +131,6 @@ _no_start_required() {
   assert_output --partial "enforce_statfs=1"
 }
 
-# the ruleset has to exist before the stage jail asks for it
-# a host mounted devfs ignores devfs_ruleset, so the jail mounts its own
 @test "linux jails let rc.d/linux mount /compat/linux" {
   run grep -A2 "stage_sysrc linux_mounts_enable" include/linux.sh
   assert_output --partial "linux_mounts_enable=YES"
@@ -159,7 +157,6 @@ _no_start_required() {
   done
 }
 
-# a second assignment in JAIL_CONF_EXTRA would win only by being emitted later
 @test "no provision script smuggles devfs_ruleset through JAIL_*_EXTRA" {
   run grep -l "JAIL_START_EXTRA=.*devfs_ruleset\|JAIL_CONF_EXTRA=.*devfs_ruleset" provision/*.sh
   assert_output ""
