@@ -574,6 +574,62 @@ host_etc_setup() {
   assert_success
 }
 
+@test "adopt_jail_host_etc - carries the .mt6 shadow so update semantics survive" {
+  host_etc_setup
+  echo "shadow" > "$OLD/pf.conf.d/rdr.conf.mt6"
+  echo "table" > "$OLD/pf.conf.d/dovecot.table"
+
+  adopt_jail_host_etc dovecot
+
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf.mt6"
+  assert_output "shadow"
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/dovecot.table"
+  assert_output "table"
+}
+
+@test "adopt_jail_host_etc - adopts only what pfrule.sh reads" {
+  host_etc_setup
+  echo "stray" > "$OLD/pf.conf.d/notes.txt"
+  echo "other jail" > "$OLD/pf.conf.d/haraka.table"
+
+  adopt_jail_host_etc dovecot
+
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/notes.txt" ]
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/haraka.table" ]
+}
+
+@test "adopt_jail_host_etc - a symlinked rule file is not adopted" {
+  host_etc_setup
+  echo "jail controlled" > "$ZFS_DATA_MNT/dovecot/evil.conf"
+  ln -s "$ZFS_DATA_MNT/dovecot/evil.conf" "$OLD/pf.conf.d/filter.conf"
+
+  adopt_jail_host_etc dovecot
+
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/filter.conf" ]
+}
+
+@test "adopt_jail_host_etc - a symlinked pf.conf.d is not adopted" {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  tell_status() { :; }
+  mkdir -p "$ZFS_DATA_MNT/dovecot/etc" "$ZFS_DATA_MNT/dovecot/elsewhere"
+  echo "jail controlled" > "$ZFS_DATA_MNT/dovecot/elsewhere/rdr.conf"
+  ln -s "$ZFS_DATA_MNT/dovecot/elsewhere" "$ZFS_DATA_MNT/dovecot/etc/pf.conf.d"
+
+  adopt_jail_host_etc dovecot
+
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d" ]
+}
+
+@test "adopt_jail_host_etc - what it adopts is a regular file, not a link" {
+  host_etc_setup
+  adopt_jail_host_etc dovecot
+
+  local _f="$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+  [ -f "$_f" ]
+  [ ! -L "$_f" ]
+}
+
 @test "retire_jail_host_etc - removes the old fstab and pf.conf.d" {
   host_etc_setup
   retire_jail_host_etc dovecot
