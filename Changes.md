@@ -5,6 +5,11 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- mt: jail control files move to /etc/mail-toaster/<jail>
+- mt: one /etc/mail-toaster/pfrule.sh serves every jail
+- mt: on rebuild, adopt a jail's pf.conf.d and retire the old copy once it is running
+- mt: keep the old location when an edited jail.conf still names it
+- pfrule: resolve rules under $MT6_ETC/<jail>/pf.conf.d
 - pfrule: run pfctl arguments directly
 - pfrule: accept the jail name as an argument, decouple from $0
 - pfrule: PFRULE_ETC names the rule directory outright, and must exist

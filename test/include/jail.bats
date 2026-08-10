@@ -127,16 +127,28 @@ setup() {
   assert_output "/data/base"
 }
 
-@test "get_jail_host_etc - control files the host reads for the jail" {
-  export ZFS_DATA_MNT="/data"
+@test "get_jail_host_etc - control files live on the host, not in the jail" {
+  export MT6_ETC="/etc/mail-toaster"
   run get_jail_host_etc dovecot
-  assert_output "/data/dovecot/etc"
+  assert_output "/etc/mail-toaster/dovecot"
+}
+
+@test "get_jail_host_etc - is outside the data volume the jail mounts" {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  run get_jail_host_etc dovecot
+  refute_output --partial "$(get_jail_data dovecot)"
+}
+
+@test "get_pfrule_path - one host-owned copy" {
+  export MT6_ETC="/etc/mail-toaster"
+  run get_pfrule_path
+  assert_output "/etc/mail-toaster/pfrule.sh"
 }
 
 @test "warn_stale_jail_conf - silent when the mount line is current" {
-  export ZFS_DATA_MNT="/data"
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
   local _conf="$BATS_TEST_TMPDIR/dovecot.conf"
-  printf 'dovecot {\n\tmount.fstab = "/data/dovecot/etc/fstab";\n}\n' > "$_conf"
+  printf 'dovecot {\n\tmount.fstab = "/etc/mail-toaster/dovecot/fstab";\n}\n' > "$_conf"
 
   run warn_stale_jail_conf dovecot "$_conf"
   assert_success
@@ -144,13 +156,13 @@ setup() {
 }
 
 @test "warn_stale_jail_conf - warns when the mount line is outdated" {
-  export ZFS_DATA_MNT="/data"
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
   local _conf="$BATS_TEST_TMPDIR/dovecot.conf"
   printf 'dovecot {\n\tmount.fstab = "/data/dovecot/host-etc/fstab";\n}\n' > "$_conf"
 
   run warn_stale_jail_conf dovecot "$_conf"
   assert_output --partial "out of date"
-  assert_output --partial 'mount.fstab = "/data/dovecot/etc/fstab";'
+  assert_output --partial 'mount.fstab = "/etc/mail-toaster/dovecot/fstab";'
 }
 
 @test "warn_stale_jail_conf - flags a base entry still declaring an fstab" {
@@ -205,16 +217,27 @@ setup() {
 }
 
 @test "add_jail_conf_d - a service jail keeps its fstab and pf rules" {
-  export ZFS_DATA_MNT="/data"
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
   dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
   get_public_ip6() { export PUBLIC_IP6=""; }
   store_config() { cat -; }
 
   run add_jail_conf_d mysql
   assert_success
-  assert_output --partial 'mount.fstab = "/data/mysql/etc/fstab";'
-  assert_output --partial "pf.conf.d/pfrule.sh load"
-  assert_output --partial "pf.conf.d/pfrule.sh unload"
+  assert_output --partial 'mount.fstab = "/etc/mail-toaster/mysql/fstab";'
+  assert_output --partial 'exec.created = "/etc/mail-toaster/pfrule.sh load mysql";'
+  assert_output --partial 'exec.poststop = "/etc/mail-toaster/pfrule.sh unload mysql";'
+}
+
+@test "add_jail_conf_d - runs pfrule from the host, not the jail's data volume" {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_success
+  refute_output --partial "$(get_jail_data mysql)"
 }
 
 @test "add_jail_conf - base mounts devfs rather than an fstab" {
@@ -234,6 +257,7 @@ setup() {
 
 mta_rdr_setup() {
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
   get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
   get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
   get_jail_ip()  { echo "172.16.15.9"; }
@@ -244,7 +268,7 @@ mta_rdr_setup() {
   mta_rdr_setup
   export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
   configure_mta_pf_rdr haraka
-  run cat "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
   assert_output --partial "port { 25 465 587 }"
 }
 
@@ -253,10 +277,10 @@ mta_rdr_setup() {
   export TOASTER_MTA="haraka" TOASTER_MSA="postfix"
   configure_mta_pf_rdr haraka
   configure_mta_pf_rdr postfix
-  run cat "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
   assert_output --partial "port { 25 }"
   refute_output --partial "465"
-  run cat "$ZFS_DATA_MNT/postfix/etc/pf.conf.d/rdr.conf"
+  run cat "$(get_jail_host_etc postfix)/pf.conf.d/rdr.conf"
   assert_output --partial "port { 465 587 }"
   refute_output --partial "25"
 }
@@ -266,20 +290,20 @@ mta_rdr_setup() {
   export TOASTER_MTA="postfix" TOASTER_MSA="haraka"
   configure_mta_pf_rdr haraka
   configure_mta_pf_rdr postfix
-  run cat "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
   assert_output --partial "port { 465 587 }"
-  run cat "$ZFS_DATA_MNT/postfix/etc/pf.conf.d/rdr.conf"
+  run cat "$(get_jail_host_etc postfix)/pf.conf.d/rdr.conf"
   assert_output --partial "port { 25 }"
 }
 
 @test "configure_mta_pf_rdr - removes stale rdr.conf when jail owns no ports" {
   mta_rdr_setup
   export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
-  mkdir -p "$ZFS_DATA_MNT/haraka/etc/pf.conf.d"
-  echo "stale rule" > "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf"
+  mkdir -p "$(get_jail_host_etc haraka)/pf.conf.d"
+  echo "stale rule" > "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
   run configure_mta_pf_rdr haraka
   assert_success
-  [ ! -f "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf" ]
+  [ ! -f "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf" ]
 }
 
 @test "configure_mta_pf_rdr - writes no file when jail owns no ports" {
@@ -287,7 +311,7 @@ mta_rdr_setup() {
   export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
   run configure_mta_pf_rdr haraka
   assert_success
-  [ ! -f "$ZFS_DATA_MNT/haraka/etc/pf.conf.d/rdr.conf" ]
+  [ ! -f "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf" ]
 }
 
 

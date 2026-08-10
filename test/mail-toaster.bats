@@ -124,8 +124,9 @@ setup() {
 @test "fstab_add_mount" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
-  mkdir -p "$tmpdir/myjail/etc"
-  local fstab="$tmpdir/myjail/etc/fstab"
+  export MT6_ETC="$tmpdir/etc"
+  local fstab; fstab="$(get_jail_host_etc myjail)/fstab"
+  mkdir -p "$(dirname "$fstab")"
   touch "$fstab" "${fstab}.stage"
 
   # Mock tell_status
@@ -247,8 +248,9 @@ setup() {
 @test "fstab_add_mount - skips entry already present" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
-  mkdir -p "$tmpdir/myjail/etc"
-  local fstab="$tmpdir/myjail/etc/fstab"
+  export MT6_ETC="$tmpdir/etc"
+  local fstab; fstab="$(get_jail_host_etc myjail)/fstab"
+  mkdir -p "$(dirname "$fstab")"
   printf '/src\t/dest\tnullfs\trw\t0\t0\n' > "$fstab"
   printf '/src\t/dest\tnullfs\trw\t0\t0\n' > "${fstab}.stage"
 
@@ -283,14 +285,15 @@ setup() {
   export STAGE_MNT="$tmpdir/jails/stage"
   export JAIL_FSTAB=""
   export TOASTER_USE_TMPFS=0
-  mkdir -p "$tmpdir/myjail/etc" "$tmpdir/stage/etc"
+  export MT6_ETC="$tmpdir/etc"
+  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
 
   tell_status() { :; }
 
   run install_fstab myjail
   assert_success
 
-  run grep "nullfs" "$tmpdir/myjail/etc/fstab"
+  run grep "nullfs" "$(get_jail_host_etc myjail)/fstab"
   assert_success
   assert_output --partial "$tmpdir/jails/myjail/data"
 
@@ -303,7 +306,8 @@ setup_tmpfs_fstab() {
   export STAGE_MNT="$1/jails/stage"
   export JAIL_FSTAB=""
   export TOASTER_USE_TMPFS=1
-  mkdir -p "$1/myjail/etc" "$1/stage/etc"
+  export MT6_ETC="$1/etc"
+  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
 
   tell_status() { :; }
 }
@@ -314,7 +318,7 @@ setup_tmpfs_fstab() {
 
   install_fstab myjail
 
-  run grep "$tmpdir/jails/myjail/tmp" "$tmpdir/myjail/etc/fstab"
+  run grep "$tmpdir/jails/myjail/tmp" "$(get_jail_host_etc myjail)/fstab"
   assert_success
   assert_output --partial "rw,mode=01777,noexec,nosuid"
 
@@ -327,7 +331,7 @@ setup_tmpfs_fstab() {
 
   install_fstab myjail
 
-  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/myjail/etc/fstab.stage"
+  run grep "$tmpdir/jails/stage/tmp" "$(get_jail_host_etc myjail)/fstab.stage"
   assert_success
   refute_output --partial "noexec"
   assert_output --partial "rw,mode=01777,nosuid"
@@ -341,7 +345,7 @@ setup_tmpfs_fstab() {
 
   install_fstab myjail
 
-  run grep "$tmpdir/jails/stage/var/run" "$tmpdir/myjail/etc/fstab.stage"
+  run grep "$tmpdir/jails/stage/var/run" "$(get_jail_host_etc myjail)/fstab.stage"
   assert_success
   assert_output --partial "rw,mode=01755,noexec,nosuid"
 
@@ -354,7 +358,7 @@ setup_tmpfs_fstab() {
 
   install_fstab myjail
 
-  run grep "$tmpdir/jails/stage/tmp" "$tmpdir/stage/etc/fstab"
+  run grep "$tmpdir/jails/stage/tmp" "$(get_jail_host_etc stage)/fstab"
   assert_success
   refute_output --partial "noexec"
 
@@ -368,13 +372,14 @@ setup_tmpfs_fstab() {
   export STAGE_MNT="$tmpdir/jails/stage"
   export JAIL_FSTAB="/extra/src /extra/dest nullfs rw 0 0"
   export TOASTER_USE_TMPFS=0
-  mkdir -p "$tmpdir/myjail/etc" "$tmpdir/stage/etc"
+  export MT6_ETC="$tmpdir/etc"
+  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
 
   tell_status() { :; }
 
   install_fstab myjail
 
-  run grep "/extra/src" "$tmpdir/myjail/etc/fstab"
+  run grep "/extra/src" "$(get_jail_host_etc myjail)/fstab"
   assert_success
 
   rm -rf "$tmpdir"
@@ -513,4 +518,139 @@ unmounted_paths() {
   run assure_ports_tree "$_ports"
   assert_output --partial "gitup ports"
   assert_output --partial "git clone https://github.com/freebsd/freebsd-ports.git"
+}
+
+# --- moving control files out of the jail's data volume, on rebuild ---
+
+host_etc_setup() {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  OLD="$ZFS_DATA_MNT/dovecot/etc"
+  mkdir -p "$OLD/pf.conf.d"
+  echo "rdr rule" > "$OLD/pf.conf.d/rdr.conf"
+  echo "old copy" > "$OLD/pf.conf.d/pfrule.sh"
+  touch "$OLD/fstab" "$OLD/fstab.stage"
+  tell_status() { :; }
+}
+
+@test "adopt_jail_host_etc - copies admin pf rules to the host" {
+  host_etc_setup
+  adopt_jail_host_etc dovecot
+
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+  assert_output "rdr rule"
+}
+
+@test "adopt_jail_host_etc - leaves the original in place" {
+  host_etc_setup
+  adopt_jail_host_etc dovecot
+
+  [ -f "$OLD/pf.conf.d/rdr.conf" ]
+}
+
+@test "adopt_jail_host_etc - does not carry the old pfrule.sh across" {
+  host_etc_setup
+  adopt_jail_host_etc dovecot
+
+  [ ! -f "$(get_jail_host_etc dovecot)/pf.conf.d/pfrule.sh" ]
+}
+
+@test "adopt_jail_host_etc - is a no-op once the host copy exists" {
+  host_etc_setup
+  mkdir -p "$(get_jail_host_etc dovecot)/pf.conf.d"
+  echo "edited on the host" > "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+
+  adopt_jail_host_etc dovecot
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+  assert_output "edited on the host"
+}
+
+@test "adopt_jail_host_etc - a jail with no old pf.conf.d is fine" {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  tell_status() { :; }
+
+  run adopt_jail_host_etc fresh
+  assert_success
+}
+
+@test "retire_jail_host_etc - removes the old fstab and pf.conf.d" {
+  host_etc_setup
+  retire_jail_host_etc dovecot
+
+  [ ! -e "$OLD/fstab" ]
+  [ ! -e "$OLD/fstab.stage" ]
+  [ ! -e "$OLD/pf.conf.d" ]
+}
+
+@test "retire_jail_host_etc - keeps what an edited jail.conf still names" {
+  host_etc_setup
+  tell_status() { echo "$1"; }
+  local _confd="$BATS_TEST_TMPDIR/jail.conf.d"
+  mkdir -p "$_confd"
+  printf 'dovecot {\n\tmount.fstab = "%s/fstab";\n}\n' "$OLD" > "$_confd/dovecot.conf"
+
+  # shellcheck disable=SC2317
+  grep() { command grep "$@" "$_confd/dovecot.conf" 2>/dev/null; }
+
+  run retire_jail_host_etc dovecot
+  assert_success
+  assert_output --partial "keeping $OLD"
+  assert_output --partial "dovecot.conf"
+  [ -f "$OLD/fstab" ]
+  [ -d "$OLD/pf.conf.d" ]
+}
+
+# --- promote_staged_jail retires the old location only after a clean boot ---
+
+promote_setup() {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  CALLS="$BATS_TEST_TMPDIR/calls"
+  : > "$CALLS"
+
+  tell_status() { :; }
+  seed_pkg_audit()        { :; }
+  stop_jail()             { :; }
+  stage_clear_caches()    { :; }
+  stage_unmount()         { :; }
+  ipcrm()                 { :; }
+  rename_staged_to_ready(){ :; }
+  rename_active_to_last() { :; }
+  rename_ready_to_active(){ :; }
+  enable_jail()           { :; }
+  proclaim_success()      { :; }
+  add_jail_conf()          { echo "add_jail_conf" >> "$CALLS"; }
+  retire_jail_host_etc()   { echo "retire" >> "$CALLS"; }
+  service()                { echo "start" >> "$CALLS"; return "${SERVICE_RC:-0}"; }
+}
+
+@test "promote_staged_jail - retires only after the jail starts" {
+  promote_setup
+  promote_staged_jail dovecot
+
+  run cat "$CALLS"
+  assert_line --index 0 "add_jail_conf"
+  assert_line --index 1 "start"
+  assert_line --index 2 "retire"
+}
+
+@test "promote_staged_jail - a failed start retires nothing" {
+  promote_setup
+  export SERVICE_RC=1
+
+  run promote_staged_jail dovecot
+  assert_failure
+
+  run cat "$CALLS"
+  refute_output --partial "retire"
+}
+
+@test "promote_staged_jail - retires after the conf is rewritten" {
+  promote_setup
+  promote_staged_jail dovecot
+
+  run grep -n . "$CALLS"
+  assert_output --partial "1:add_jail_conf"
+  assert_output --partial "3:retire"
 }

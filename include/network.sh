@@ -68,8 +68,8 @@ install_pfrule()
 	_pfdir="$(get_jail_host_etc "$1")/pf.conf.d"
 
 	mt6-fetch contrib pfrule.sh
-	install -d "$_pfdir"
-	install -C -m 0755 contrib/pfrule.sh "$_pfdir/pfrule.sh"
+	install -d -m 0755 "$_pfdir"
+	install -C -m 0755 contrib/pfrule.sh "$(get_pfrule_path)"
 }
 
 port_is_listening()

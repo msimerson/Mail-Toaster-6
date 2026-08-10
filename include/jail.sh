@@ -189,10 +189,17 @@ get_jail_data()
 	echo "$ZFS_DATA_MNT/$1"
 }
 
-# control files the host reads or runs on the jail's behalf, like fstab
+export MT6_ETC=${MT6_ETC:-"/etc/mail-toaster"}
+
+# Control files the host reads or runs on the jail's behalf: fstab, rc.d
 get_jail_host_etc()
 {
-	echo "$(get_jail_data "$1")/etc"
+	echo "$MT6_ETC/$1"
+}
+
+get_pfrule_path()
+{
+	echo "$MT6_ETC/pfrule.sh"
 }
 
 jail_is_running()
@@ -342,8 +349,8 @@ add_jail_conf_d()
 	local _pf_exec=""
 	if [ "$1" != "base" ]; then
 		_pf_exec="
-		exec.created = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh load\";
-		exec.poststop = \"$(get_jail_host_etc "$1")/pf.conf.d/pfrule.sh unload\";"
+		exec.created = \"$(get_pfrule_path) load $1\";
+		exec.poststop = \"$(get_pfrule_path) unload $1\";"
 	fi
 
 	local _conf; _conf="/etc/jail.conf.d/$(safe_jailname "$1").conf"

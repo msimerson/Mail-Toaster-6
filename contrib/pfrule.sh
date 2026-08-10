@@ -13,8 +13,11 @@ set -eu
 #
 # Naming the jail decouples the anchor name from the install location, so one
 # copy can serve every jail. Omit it and the jail name comes from $0
+#
+# Rules live in $MT6_ETC/<jail>/pf.conf.d, on the host
 
 SELF_DIR="$(dirname -- "$( readlink -f -- "$0"; )";)"
+MT6_ETC="${MT6_ETC:-/etc/mail-toaster}"
 
 usage() {
     echo "   usage: $0 [ load | unload ] [jail] [-n]"
@@ -50,6 +53,11 @@ jail_name_from_path() {
 resolve_etc_path() {
     if [ -n "${PFRULE_ETC:-}" ]; then
         echo "$PFRULE_ETC"
+        return 0
+    fi
+
+    if [ -d "$MT6_ETC/$JAIL_NAME/pf.conf.d" ]; then
+        echo "$MT6_ETC/$JAIL_NAME/pf.conf.d"
         return 0
     fi
 
