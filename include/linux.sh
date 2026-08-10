@@ -12,6 +12,11 @@ devfs    /compat/linux/dev      devfs    rw                    0 0
 tmpfs    /compat/linux/dev/shm  tmpfs    rw,size=1g,mode=1777  0 0
 fdescfs  /compat/linux/dev/fd   fdescfs  rw,linrdlnk           0 0
 EO_LINUX_FSTAB
+
+	# rc.d/mountcritlocal is nojail, so nothing else reads that fstab
+	if ! grep -qs "^/sbin/mount -a" "$STAGE_MNT/etc/rc.local"; then
+		echo "/sbin/mount -a" >> "$STAGE_MNT/etc/rc.local"
+	fi
 }
 
 configure_linuxulator()

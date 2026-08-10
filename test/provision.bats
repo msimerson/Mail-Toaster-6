@@ -149,6 +149,13 @@ _no_start_required() {
   done
 }
 
+@test "configure_linux_devfs arranges for the jail to mount it" {
+  run grep -A2 "mountcritlocal is nojail" include/linux.sh
+  assert_success
+  assert_output --partial "rc.local"
+  assert_output --partial "/sbin/mount -a"
+}
+
 @test "configure_linux_devfs mounts dev before its dependents" {
   run grep -A3 "compat/linux/dev  *devfs" include/linux.sh
   assert_success
