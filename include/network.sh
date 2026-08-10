@@ -7,9 +7,9 @@ get_public_facing_nic()
 	export PUBLIC_NIC
 
 	if [ "$_ver" = 'ipv6' ]; then
-		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | tail -n1)
+		PUBLIC_NIC=$(netstat -rnW | awk '/^default/ { print $6 }' | tail -n1)
 	else
-		PUBLIC_NIC=$(netstat -rn | grep default | awk '{ print $4 }' | head -n1)
+		PUBLIC_NIC=$(netstat -rnW | awk '/^default/ { print $6 }' | head -n1)
 	fi
 
 	if [ -z "$PUBLIC_NIC" ]; then
@@ -68,8 +68,8 @@ install_pfrule()
 	_pfdir="$(get_jail_host_etc "$1")/pf.conf.d"
 
 	mt6-fetch contrib pfrule.sh
-	install -d "$_pfdir"
-	install -C -m 0755 contrib/pfrule.sh "$_pfdir/pfrule.sh"
+	install -d -m 0755 "$_pfdir"
+	install -C -m 0755 contrib/pfrule.sh "$(get_pfrule_path)"
 }
 
 port_is_listening()

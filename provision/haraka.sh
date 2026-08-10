@@ -41,6 +41,20 @@ install_haraka()
 	stage_exec bash -c "cd /data && npm install --omit=dev $_plugins"
 }
 
+haraka_enable_plugin()
+{
+	local _plugin="$1"
+
+	if grep -qs "^$_plugin\$" "$HARAKA_CONF/plugins"; then return; fi
+
+	tell_status "enabling $_plugin plugin"
+	sed_inplace -e "/^# $_plugin\$/ s/# //" "$HARAKA_CONF/plugins"
+
+	if ! grep -qs "^$_plugin\$" "$HARAKA_CONF/plugins"; then
+		echo "$_plugin" | tee -a "$HARAKA_CONF/plugins"
+	fi
+}
+
 install_geoip_dbs()
 {
 	if ! zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
@@ -52,10 +66,7 @@ install_geoip_dbs()
 
 	fstab_add_mount haraka "$(get_jail_data geoip)/db" "$ZFS_JAIL_MNT/haraka/usr/local/share/GeoIP"
 
-	if ! grep -qs ^geoip "$HARAKA_CONF/plugins"; then
-		tell_status "enabling Haraka geoip plugin"
-		sed_inplace -e '/^# geoip/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin geoip
 }
 
 add_devfs_rule()
@@ -99,10 +110,7 @@ install_p0f()
 
 configure_haraka_syslog()
 {
-	if ! grep -qs ^syslog "$HARAKA_CONF/plugins"; then
-		tell_status "enable logging to syslog"
-		sed_inplace -e '/^# syslog$/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin syslog
 
 	if ! grep -qs daemon_log_file "$HARAKA_CONF/smtp.ini"; then
 		if [ ! -f "$HARAKA_CONF/smtp.ini" ]; then
@@ -203,12 +211,7 @@ socket_path=/tmp/.p0f_socket
 EO_P0F
 	fi
 
-	if ! grep -qs ^p0f "$HARAKA_CONF/plugins"; then
-		tell_status "enable Haraka p0f plugin"
-		sed_inplace \
-			-e '/^# p0f/ s/# //' \
-			"$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin p0f
 }
 
 configure_haraka_spamassassin()
@@ -218,10 +221,7 @@ configure_haraka_spamassassin()
 		return
 	fi
 
-	if ! grep -qs ^spamassasssin "$HARAKA_CONF/plugins"; then
-		tell_status "enabling Haraka spamassassin plugin"
-		sed_inplace -e '/^# spamassassin/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin spamassassin
 
 	if [ ! -f "$HARAKA_CONF/spamassassin.ini" ]; then
 		tell_status "configuring Haraka spamassassin plugin"
@@ -282,10 +282,7 @@ configure_haraka_clamav()
 		return
 	fi
 
-	if ! grep -qs ^clamd "$HARAKA_CONF/plugins"; then
-		tell_status "enabling Haraka clamav plugin"
-		sed_inplace -e '/^# clamd/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin clamd
 
 	if ! grep -qs ^clamd_socket "$HARAKA_CONF/clamd.ini"; then
 		tell_status "configure Haraka clamav plugin"
@@ -307,10 +304,7 @@ Phishing=false
 }
 
 configure_haraka_tls() {
-	if ! grep -qs ^tls "$HARAKA_CONF/plugins"; then
-		tell_status "enable TLS encryption"
-		sed_inplace -e '/^# tls$/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin tls
 
 	if [ -d "$HARAKA_CONF/tls" ]; then
 		local _installed="$HARAKA_CONF/tls/${TOASTER_HOSTNAME}.pem"
@@ -361,18 +355,12 @@ add_headers = always
 " | tee -a "$HARAKA_CONF/rspamd.ini"
 	fi
 
-	if ! grep -qs ^rspamd "$HARAKA_CONF/plugins"; then
-		tell_status "enabling rspamd plugin"
-		sed_inplace -e '/^# rspamd/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin rspamd
 }
 
 configure_haraka_watch()
 {
-	if ! grep -qs ^watch "$HARAKA_CONF/plugins"; then
-		tell_status "enabling watch plugin"
-		sed_inplace -e '/^# watch/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin watch
 
 	if [ ! -f "$HARAKA_CONF/watch.ini" ]; then
 		echo "[wss]
@@ -438,17 +426,9 @@ configure_haraka_plugins()
 		configure_install_default plugins
 	fi
 
-	# enable a bunch of plugins
-	sed_inplace \
-		-e '/^# process_title/ s/# //' \
-		-e '/^# spf$/    s/# //' \
-		-e '/^# bounce/  s/# //' \
-		-e '/^# uribl/   s/# //' \
-		-e '/^# attachment/ s/# //' \
-		-e '/^# dkim/    s/# //' \
-		-e '/^# karma/   s/# //' \
-		-e '/^# fcrdns/  s/# //' \
-		"$HARAKA_CONF/plugins"
+	for _p in process_title spf bounce uribl attachment dkim karma fcrdns; do
+		haraka_enable_plugin "$_p"
+	done
 }
 
 configure_install_default()
@@ -474,10 +454,7 @@ configure_install_default()
 
 configure_haraka_limit()
 {
-	if ! grep -qs ^limit "$HARAKA_CONF/plugins"; then
-		tell_status "adding limit plugin"
-		sed_inplace -e '/^# limit/ s/# //' "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin limit
 
 	if [ ! -f "$HARAKA_CONF/limit.ini" ]; then
 		configure_install_default limit.ini
@@ -536,10 +513,7 @@ plugins=send_email, access, helo.checks, headers, mail_from.is_resolvable, avg, 
 
 configure_haraka_redis()
 {
-	if ! grep -qs ^redis "$HARAKA_CONF/plugins"; then
-		tell_status "enabling redis plugin"
-		echo 'redis' | tee -a "$HARAKA_CONF/plugins"
-	fi
+	haraka_enable_plugin redis
 
 	if [ ! -f "$HARAKA_CONF/redis.ini" ]; then
 		echo "configuring redis plugin"
@@ -629,12 +603,7 @@ EO_RESULTS
 
 configure_haraka_log_reader()
 {
-	if grep -qs log-reader "$HARAKA_CONF/plugins"; then
-		return
-	fi
-
-	tell_status "enabling log-reader plugin"
-	echo log-reader >> "$HARAKA_CONF/plugins"
+	haraka_enable_plugin log-reader
 }
 
 configure_haraka_log_rotation()

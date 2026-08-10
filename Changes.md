@@ -5,6 +5,16 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- mt: jail control files move to /etc/mail-toaster/<jail>
+- mt: one /etc/mail-toaster/pfrule.sh serves every jail
+- pfrule: resolve rules under $MT6_ETC/<jail>/pf.conf.d
+- pfrule: accept the jail name as an argument, decouple from $0
+- pfrule: validate the operation and jail name
+- test: run test/contrib/*.bats in CI and test/run.sh
+- haraka: enable watch and p0f by append
+- mta: install dma when absent, ssmtp is now opt-in
+- mta: write dma.conf beside the installed dma, base or port
+- mt: MASQUERADE appends to the dma.conf that exists, if any
 - mt: store_config keeps a dated backup of updated configs
 - mt: jail.conf.d entries update when unedited, report when they don't
 - mt: report a jail.conf left behind by a path change
