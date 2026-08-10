@@ -120,6 +120,28 @@ sed_inplace() { sed -i.bak "$@"; }
   assert_output "pkg install -y dma"
 }
 
+@test "enable_dma - creates the queue directory the port omits" {
+  local _base="$BASE"
+  : > "$BASE/usr/libexec/dma"; chmod +x "$BASE/usr/libexec/dma"
+  install() { echo "install $*" >> "$BASE/install.log"; }
+
+  enable_dma > /dev/null
+
+  run cat "$BASE/install.log"
+  assert_output "install -d -o root -g mail -m 0770 $BASE/var/spool/dma"
+}
+
+@test "enable_dma - leaves an existing queue directory alone" {
+  local _base="$BASE"
+  : > "$BASE/usr/libexec/dma"; chmod +x "$BASE/usr/libexec/dma"
+  mkdir -p "$BASE/var/spool/dma"
+  install() { echo "install $*" >> "$BASE/install.log"; }
+
+  enable_dma > /dev/null
+
+  [ ! -f "$BASE/install.log" ]
+}
+
 @test "set_root_alias - uncomments root and sets the admin address" {
   local _base="$BASE"
 

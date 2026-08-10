@@ -345,7 +345,7 @@ configure_haraka_watch()
 
 	if [ ! -f "$HARAKA_CONF/watch.ini" ]; then
 		echo "[wss]
-url=wss://$TOASTER_DOMAIN_NAME/watch" > "$HARAKA_CONF/watch.ini"
+url=wss://$TOASTER_HOSTNAME/watch" > "$HARAKA_CONF/watch.ini"
 	fi
 }
 
