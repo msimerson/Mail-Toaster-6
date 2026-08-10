@@ -4,10 +4,9 @@ set -e -u
 
 . mail-toaster.sh
 
-export JAIL_START_EXTRA="devfs_ruleset=7
-		allow.raw_sockets=1"
+export JAIL_DEVFS_RULESET="$JAIL_DEVFS_RULESET_BPF"
+export JAIL_START_EXTRA="allow.raw_sockets=1"
 export JAIL_CONF_EXTRA="
-		devfs_ruleset = 7;
 		allow.raw_sockets;"
 export JAIL_FSTAB=""
 
@@ -94,6 +93,7 @@ test_dhcpd()
 
 base_snapshot_exists || exit
 create_staged_fs dhcp
+assure_devfs_bpf_ruleset
 start_staged_jail dhcp
 install_dhcpd
 configure_dhcpd

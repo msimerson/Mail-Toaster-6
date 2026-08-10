@@ -131,9 +131,27 @@ _no_start_required() {
   assert_output --partial "enforce_statfs=1"
 }
 
-@test "haraka exports devfs_ruleset in JAIL_START_EXTRA" {
-  run grep "^export JAIL_START_EXTRA" provision/haraka.sh
-  assert_output --partial "devfs_ruleset"
+# the ruleset has to exist before the stage jail asks for it
+@test "jails needing bpf create the ruleset themselves" {
+  for _s in provision/haraka.sh provision/dhcp.sh; do
+    run grep -n "assure_devfs_bpf_ruleset" "$_s"
+    assert_success
+    run sh -c "grep -n 'assure_devfs_bpf_ruleset\|start_staged_jail' $_s | tail -2 | head -1"
+    assert_output --partial "assure_devfs_bpf_ruleset"
+  done
+}
+
+@test "jails needing extra devices set JAIL_DEVFS_RULESET" {
+  for _s in provision/haraka.sh provision/dhcp.sh; do
+    run grep "^export JAIL_DEVFS_RULESET" "$_s"
+    assert_success
+  done
+}
+
+# a second assignment in JAIL_CONF_EXTRA would win only by being emitted later
+@test "no provision script smuggles devfs_ruleset through JAIL_*_EXTRA" {
+  run grep -l "JAIL_START_EXTRA=.*devfs_ruleset\|JAIL_CONF_EXTRA=.*devfs_ruleset" provision/*.sh
+  assert_output ""
 }
 
 # ---------------------------------------------------------------------------

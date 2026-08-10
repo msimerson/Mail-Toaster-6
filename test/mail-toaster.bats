@@ -520,6 +520,21 @@ unmounted_paths() {
   assert_output --partial "git clone https://github.com/freebsd/freebsd-ports.git"
 }
 
+@test "start_staged_jail - the stage jail gets the jail's own ruleset" {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails" MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  export STAGE_MNT="$ZFS_JAIL_MNT/stage" JAIL_NET_INTERFACE=lo1
+  export JAIL_DEVFS_RULESET=7 JAIL_START_EXTRA=""
+  tell_status() { :; }
+  jail() { echo "$@"; }
+  enable_bsd_cache() { :; }
+  pkg() { :; }
+
+  run start_staged_jail haraka
+  assert_success
+  assert_output --partial "devfs_ruleset=7"
+  assert_equal "$(echo "$output" | grep -c devfs_ruleset)" "1"
+}
+
 # --- moving control files out of the jail's data volume, on rebuild ---
 
 host_etc_setup() {
