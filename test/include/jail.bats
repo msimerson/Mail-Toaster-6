@@ -220,6 +220,78 @@ devfs_setup() {
   assert_equal "$(echo "$output" | grep -c JAIL_DEVFS_RULESET_BPF)" "2"
 }
 
+# --- an edited conf keeps no mount.devfs, so the jail would start with no /dev ---
+
+ajcd_setup() {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  tell_status() { echo "$1"; }
+  sed_inplace() { sed -i.bak "$@"; }
+  CONF="$BATS_TEST_TMPDIR/dovecot.conf"
+  printf 'dovecot\t{\n\t\thost.hostname = $name;\n\t\tpath = "/jails/dovecot";\n\t\tdevfs_ruleset = 7;\n\t}\n' > "$CONF"
+}
+
+@test "assure_jail_conf_devfs - adds mount.devfs to a conf without it" {
+  ajcd_setup
+  assure_jail_conf_devfs dovecot "$CONF" > /dev/null
+
+  run grep -c "mount.devfs;" "$CONF"
+  assert_output "1"
+  run grep "mount.devfs;" "$CONF"
+  assert_output "$(printf '\t\tmount.devfs;')"
+}
+
+@test "assure_jail_conf_devfs - keeps the admin's own edits" {
+  ajcd_setup
+  assure_jail_conf_devfs dovecot "$CONF" > /dev/null
+
+  run cat "$CONF"
+  assert_output --partial "devfs_ruleset = 7;"
+  assert_output --partial 'path = "/jails/dovecot";'
+}
+
+@test "assure_jail_conf_devfs - a conf that has it is untouched and silent" {
+  ajcd_setup
+  assure_jail_conf_devfs dovecot "$CONF" > /dev/null
+  local _before; _before=$(cat "$CONF")
+
+  run assure_jail_conf_devfs dovecot "$CONF"
+  assert_success
+  assert_output ""
+  [ "$(cat "$CONF")" = "$_before" ]
+}
+
+@test "assure_jail_conf_devfs - a missing conf is not an error" {
+  ajcd_setup
+  run assure_jail_conf_devfs dovecot "$BATS_TEST_TMPDIR/nope.conf"
+  assert_success
+}
+
+@test "assure_jail_conf_devfs - only the named jail gains it" {
+  ajcd_setup
+  printf 'dovecot\t{\n\t\tpath = "/jails/dovecot";\n\t}\nharaka\t{\n\t\tpath = "/jails/haraka";\n\t}\n' > "$CONF"
+  assure_jail_conf_devfs dovecot "$CONF" > /dev/null
+
+  run grep -c "mount.devfs;" "$CONF"
+  assert_output "1"
+  run sed -n '1,3p' "$CONF"
+  assert_output --partial "mount.devfs;"
+}
+
+@test "jail_conf_mount - the continuation line is indented in the conf" {
+  export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+  migrate_jail_conf() { :; }
+  assure_jail_conf_devfs() { :; }
+  warn_stale_jail_conf() { :; }
+
+  run add_jail_conf_d mysql
+  assert_success
+  assert_line "$(printf '\t\tmount.devfs;')"
+  assert_line "$(printf '\t\tmount.fstab = "/etc/mail-toaster/mysql/fstab";')"
+}
+
 # --- migrate_jail_conf: repoint an edited conf ---
 
 mjc_setup() {
@@ -275,20 +347,22 @@ EO_CONF
 }
 
 # repointing has to precede the check, or the warning fires on a conf just fixed
-@test "add_jail_conf_d - repoints the conf, then checks it" {
+@test "add_jail_conf_d - repairs and repoints the conf, then checks it" {
   export ZFS_DATA_MNT="/data" MT6_ETC="/etc/mail-toaster"
   local _calls="$BATS_TEST_TMPDIR/calls"
   dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
   get_public_ip6() { export PUBLIC_IP6=""; }
   store_config() { cat - > /dev/null; }
+  assure_jail_conf_devfs() { echo "devfs $1 $2" >> "$_calls"; }
   migrate_jail_conf() { echo "migrate $1 $2" >> "$_calls"; }
   warn_stale_jail_conf() { echo "warn $1 $2" >> "$_calls"; }
 
   add_jail_conf_d mysql
 
   run cat "$_calls"
-  assert_line --index 0 "migrate mysql /etc/jail.conf.d/mysql.conf"
-  assert_line --index 1 "warn mysql /etc/jail.conf.d/mysql.conf"
+  assert_line --index 0 "devfs mysql /etc/jail.conf.d/mysql.conf"
+  assert_line --index 1 "migrate mysql /etc/jail.conf.d/mysql.conf"
+  assert_line --index 2 "warn mysql /etc/jail.conf.d/mysql.conf"
 }
 
 @test "migrate_jail_conf - only the named jail is repointed" {
