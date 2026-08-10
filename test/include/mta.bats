@@ -21,6 +21,9 @@ EO_ALIASES
   export TOASTER_BASE_MTA=""
 
   load '../../include/mta.sh'
+
+  # -o root fails for a non-root test; GNU install makes that fatal
+  install() { echo "install $*" >> "$BASE/install.log"; }
 }
 
 teardown() {
@@ -123,7 +126,6 @@ sed_inplace() { sed -i.bak "$@"; }
 @test "enable_dma - creates the queue directory the port omits" {
   local _base="$BASE"
   : > "$BASE/usr/libexec/dma"; chmod +x "$BASE/usr/libexec/dma"
-  install() { echo "install $*" >> "$BASE/install.log"; }
 
   enable_dma > /dev/null
 
@@ -135,7 +137,6 @@ sed_inplace() { sed -i.bak "$@"; }
   local _base="$BASE"
   : > "$BASE/usr/libexec/dma"; chmod +x "$BASE/usr/libexec/dma"
   mkdir -p "$BASE/var/spool/dma"
-  install() { echo "install $*" >> "$BASE/install.log"; }
 
   enable_dma > /dev/null
 
