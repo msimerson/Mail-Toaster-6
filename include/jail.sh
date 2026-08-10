@@ -275,12 +275,12 @@ enable_jail()
 
 jail_conf_mount()
 {
-	echo "mount.devfs;"
+	printf '\t\tmount.devfs;\n'
 	if [ "$1" = "base" ]; then
 		return
 	fi
 
-	echo "mount.fstab = \"$(get_jail_host_etc "$1")/fstab\";"
+	printf '\t\tmount.fstab = "%s/fstab";\n' "$(get_jail_host_etc "$1")"
 }
 
 migrate_jail_conf()
@@ -305,6 +305,23 @@ migrate_jail_conf()
 	fi
 }
 
+# store_config preserves an edited conf, so a jail predating mount.devfs would
+# start with no /dev at all
+assure_jail_conf_devfs()
+{
+	local _jail="$1" _conf="$2"
+
+	if [ ! -f "$_conf" ]; then return 0; fi
+	if grep -qsF "mount.devfs;" "$_conf"; then return 0; fi
+
+	local _safe; _safe=$(safe_jailname "$_jail")
+
+	tell_status "adding mount.devfs to $_conf"
+	sed_inplace -e '/^'"$_safe"'[[:space:]]*{/a\
+		mount.devfs;
+' "$_conf"
+}
+
 warn_stale_jail_conf()
 {
 	local _jail="$1"
@@ -323,9 +340,9 @@ warn_stale_jail_conf()
 		$(jail_conf_mount "$_jail")
 	EO_MOUNT
 
-        if $_told; then
-                echo "  edit $_conf, or delete the $_jail entry and run this script again"
-                echo
+	if $_told; then
+		echo "  edit $_conf, or delete the $_jail entry and run this script again"
+		echo
 	fi
 }
 
@@ -348,6 +365,7 @@ add_jail_conf()
 
 	if grep -q "^$1\\>" /etc/jail.conf; then
 		tell_status "preserving $1 config in /etc/jail.conf"
+		assure_jail_conf_devfs "$1" /etc/jail.conf
 		migrate_jail_conf "$1" /etc/jail.conf
 		warn_stale_jail_conf "$1" /etc/jail.conf
 		return
@@ -355,7 +373,7 @@ add_jail_conf()
 
 	tell_status "adding $1 to /etc/jail.conf"
 	echo "$1	{$(get_safe_jail_path "$1")
-		$(jail_conf_mount "$1")
+$(jail_conf_mount "$1")
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
 		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${JAIL_CONF_EXTRA}
 	}" | tee -a /etc/jail.conf
@@ -392,7 +410,7 @@ add_jail_conf_d()
 $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 		host.hostname = \$name;
 		path = "$_path";
-		$(jail_conf_mount "$1")
+$(jail_conf_mount "$1")
 		devfs_ruleset = 4;
 
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
@@ -404,6 +422,7 @@ $(safe_jailname "$1")	{$(get_safe_jail_path "$1")
 	}
 EO_JAIL_RC
 
+	assure_jail_conf_devfs "$1" "$_conf"
 	migrate_jail_conf "$1" "$_conf"
 	warn_stale_jail_conf "$1" "$_conf"
 }
