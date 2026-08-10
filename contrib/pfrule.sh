@@ -17,7 +17,10 @@ set -eu
 # Rules live in $MT6_ETC/<jail>/pf.conf.d, on the host
 
 SELF_DIR="$(dirname -- "$( readlink -f -- "$0"; )";)"
-MT6_ETC="${MT6_ETC:-/etc/mail-toaster}"
+
+# jail.conf sets exec.clean, so exec.created gets no environment. The install
+# location is the root, and jail.conf names it absolutely.
+MT6_ETC="${MT6_ETC:-$SELF_DIR}"
 
 usage() {
     echo "   usage: $0 [ load | unload ] [jail] [-n]"

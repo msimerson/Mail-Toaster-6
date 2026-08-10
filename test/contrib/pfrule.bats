@@ -92,6 +92,25 @@ install_legacy() {
   refute_output --partial "$ROOT/etc/webmail/rdr.conf"
 }
 
+# jail.conf sets exec.clean, so exec.created runs with no environment
+@test "MT6_ETC - a custom root survives a cleared environment" {
+  mkdir -p "$ROOT/custom"
+  cp "$PFRULE" "$ROOT/custom/pfrule.sh"
+  mkrules "$ROOT/custom/webmail/pf.conf.d"
+
+  run env -i PATH="$PATH" "$ROOT/custom/pfrule.sh" load webmail -n
+  assert_success
+  assert_output --partial "$ROOT/custom/webmail/pf.conf.d/rdr.conf"
+}
+
+@test "MT6_ETC - a per-jail copy survives a cleared environment" {
+  local _p; _p=$(install_legacy dovecot)
+
+  run env -i PATH="$PATH" "$_p" load -n
+  assert_success
+  assert_output --partial "pfctl -a rdr/dovecot -f"
+}
+
 @test "MT6_ETC - a jail with no rule directory is still an error" {
   mkdir -p "$ROOT/etc"
   cp "$PFRULE" "$ROOT/etc/pfrule.sh"
