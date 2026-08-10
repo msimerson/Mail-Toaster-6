@@ -8,26 +8,80 @@ set -eu
 #
 # Use pfctl to load and unload PF rules into named anchors from config
 # files. See https://github.com/msimerson/Mail-Toaster-6/wiki/PF
+#
+#   pfrule.sh load|unload [jail] [-n]
+#
+# Naming the jail decouples the anchor name from the install location, so one
+# copy can serve every jail. Omit it and the jail name comes from $0
 
-ETC_PATH="$(dirname -- "$( readlink -f -- "$0"; )";)"
-JAIL_NAME=$(basename "$(dirname "$(dirname "$ETC_PATH")")")
-OPERATION=${1:-""}
-PREVIEW=${2:-""}
+SELF_DIR="$(dirname -- "$( readlink -f -- "$0"; )";)"
 
 usage() {
-    echo "   usage: $0 [ load | unload ] [-n]"
+    echo "   usage: $0 [ load | unload ] [jail] [-n]"
+    echo " "
+    echo "   jail   name of the jail whose anchors to manage."
+    echo "          Omit when pfrule lives in the jail's own rule directory."
+    echo "   -n     preview, print the pfctl commands instead of running them"
     echo " "
     exit 1
 }
 
+case "${1:-}" in
+    load|unload) OPERATION="$1"; shift ;;
+    *)           usage ;;
+esac
+
+JAIL_NAME=""
+PREVIEW=""
+for _arg in "$@"; do
+    case "$_arg" in
+        -n) PREVIEW="-n" ;;
+        -*) usage ;;
+        *)  JAIL_NAME="$_arg" ;;
+    esac
+done
+
+# a per-jail copy lives at <data>/<jail>/etc/pf.conf.d/pfrule.sh
+jail_name_from_path() {
+    basename "$(dirname "$(dirname "$SELF_DIR")")"
+}
+
+resolve_etc_path() {
+    if [ -n "${PFRULE_ETC:-}" ]; then
+        echo "$PFRULE_ETC"
+        return 0
+    fi
+
+    if [ "$(jail_name_from_path)" = "$JAIL_NAME" ]; then
+        echo "$SELF_DIR"
+        return 0
+    fi
+
+    return 1
+}
+
+if [ -z "$JAIL_NAME" ]; then
+    JAIL_NAME="$(jail_name_from_path)"
+fi
+
+if [ -z "$JAIL_NAME" ]; then
+    echo "$0: cannot determine the jail name, pass it as an argument" >&2
+    exit 1
+fi
+
+if ! ETC_PATH="$(resolve_etc_path)"; then
+    echo "$0: no rule directory for jail '$JAIL_NAME'" >&2
+    exit 1
+fi
+
 cleanup() {
-    if [ -f allow.conf ]; then
-        if [ -f filter.conf ]; then
-            echo "mv allow.conf allow.bak"
-            mv allow.conf allow.bak
+    if [ -f "$ETC_PATH/allow.conf" ]; then
+        if [ -f "$ETC_PATH/filter.conf" ]; then
+            echo "mv $ETC_PATH/allow.conf $ETC_PATH/allow.bak"
+            mv "$ETC_PATH/allow.conf" "$ETC_PATH/allow.bak"
         else
-            echo "mv allow.conf filter.conf"
-            mv allow.conf filter.conf
+            echo "mv $ETC_PATH/allow.conf $ETC_PATH/filter.conf"
+            mv "$ETC_PATH/allow.conf" "$ETC_PATH/filter.conf"
         fi
     fi
 }
@@ -82,7 +136,6 @@ for _anchor in binat nat rdr filter; do
     case "$OPERATION" in
         "load"   ) do_cmd "$_pfctl -f $_f" ;;
         "unload" ) flush "$_anchor" "$_pfctl" ;;
-        *        ) usage ;;
     esac
 done
 
