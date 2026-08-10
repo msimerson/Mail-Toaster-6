@@ -315,7 +315,7 @@ retire_jail_host_etc()
 	local _stale; _stale=$(grep -lsF "$_old/" /etc/jail.conf /etc/jail.conf.d/*.conf 2>/dev/null || true)
 	if [ -n "$_stale" ]; then
 		tell_status "WARNING: keeping $_old, still named in:"
-		echo "$_stale" | sed -e 's/^/    /'
+		echo "$_stale" | while read -r _f; do echo "    $_f"; done
 		echo "  repoint those at $(get_jail_host_etc "$1") and re-run to finish the move"
 		echo
 		return 0
