@@ -208,7 +208,7 @@ assure_devfs_ruleset()
 	local _name="$1" _num="$2" _path
 	shift 2
 
-	if grep -qs "$_name=$_num" "$DEVFS_RULES"; then return 0; fi
+	if grep -qs "^\[$_name=$_num\]" "$DEVFS_RULES"; then return 0; fi
 
 	tell_status "adding devfs ruleset $_num to $DEVFS_RULES"
 	{
