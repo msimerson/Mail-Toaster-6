@@ -117,6 +117,95 @@ install_legacy() {
   assert_output --partial "usage:"
 }
 
+@test "a second jail argument is rejected, not silently preferred" {
+  local _p; _p=$(install_legacy dovecot)
+  run "$_p" load dovecot haraka -n
+  assert_failure
+  assert_output --partial "usage:"
+}
+
+@test "a jail name with shell metacharacters is rejected" {
+  local _p; _p=$(install_legacy dovecot)
+  run "$_p" load 'dovecot;id' -n
+  assert_failure
+  assert_output --partial "invalid jail name"
+}
+
+@test "a jail name with whitespace is rejected" {
+  local _p; _p=$(install_legacy dovecot)
+  run "$_p" load 'two words' -n
+  assert_failure
+  assert_output --partial "invalid jail name"
+}
+
+@test "jail names MT6 actually uses are accepted" {
+  mkrules "$ROOT/rules"
+  local _p; _p=$(install_legacy dovecot)
+
+  for _n in mail_dmarc bhyve-ubuntu php7 bsd_cache; do
+    PFRULE_ETC="$ROOT/rules" run "$_p" unload "$_n" -n
+    assert_success
+    assert_output --partial "pfctl -a rdr/$_n -F nat"
+  done
+}
+
+# --- $ETC_PATH is writable by the jail whose rules it holds ---
+
+# No .conf here on purpose: an anchor file makes pfctl run and fail first, and
+# set -e would end the script before the tables are reached.
+# The marker is relative because a filename cannot hold a path separator.
+@test "a rule filename cannot reach a shell" {
+  local _dir="$ROOT/data/dovecot/etc/pf.conf.d"
+  mkdir -p "$_dir"
+  cp "$PFRULE" "$_dir/"
+  touch "$_dir/x\$(touch pwned).table"
+
+  cd "$ROOT"
+  run "$_dir/pfrule.sh" unload
+  [ ! -f "$ROOT/pwned" ]
+}
+
+@test "a rule filename with a semicolon runs no second command" {
+  local _dir="$ROOT/data/dovecot/etc/pf.conf.d"
+  mkdir -p "$_dir"
+  cp "$PFRULE" "$_dir/"
+  touch "$_dir/x;touch pwned;.table"
+
+  cd "$ROOT"
+  run "$_dir/pfrule.sh" unload
+  [ ! -f "$ROOT/pwned" ]
+}
+
+@test "a rule filename with spaces stays one pfctl argument" {
+  local _dir="$ROOT/data/dovecot/etc/pf.conf.d"
+  mkdir -p "$_dir"
+  cp "$PFRULE" "$_dir/"
+  printf '10.0.0.1\n' > "$_dir/two words.table"
+
+  run "$_dir/pfrule.sh" unload -n
+  assert_success
+  assert_output --partial "pfctl -t two words -T flush"
+}
+
+# --- PFRULE_ETC has to name a real directory ---
+
+@test "a PFRULE_ETC that does not exist is an error, not a silent no-op" {
+  local _p; _p=$(install_legacy dovecot)
+
+  PFRULE_ETC="$ROOT/nowhere" run "$_p" load dovecot -n
+  assert_failure
+  assert_output --partial "PFRULE_ETC is not a directory"
+}
+
+@test "a PFRULE_ETC naming a file is an error" {
+  local _p; _p=$(install_legacy dovecot)
+  touch "$ROOT/afile"
+
+  PFRULE_ETC="$ROOT/afile" run "$_p" unload dovecot -n
+  assert_failure
+  assert_output --partial "PFRULE_ETC is not a directory"
+}
+
 # --- anchors present and absent ---
 
 @test "only the anchors with a .conf are touched" {

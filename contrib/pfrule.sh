@@ -37,7 +37,8 @@ for _arg in "$@"; do
     case "$_arg" in
         -n) PREVIEW="-n" ;;
         -*) usage ;;
-        *)  JAIL_NAME="$_arg" ;;
+        *)  if [ -n "$JAIL_NAME" ]; then usage; fi
+            JAIL_NAME="$_arg" ;;
     esac
 done
 
@@ -69,6 +70,20 @@ if [ -z "$JAIL_NAME" ]; then
     exit 1
 fi
 
+# the name becomes a pf anchor, so hold it to what pfctl(8) will accept
+case "$JAIL_NAME" in
+    *[!A-Za-z0-9_.-]*)
+        echo "$0: invalid jail name '$JAIL_NAME'" >&2
+        exit 1 ;;
+esac
+
+# an unreadable PFRULE_ETC would leave every glob empty, so load and unload
+# would both report success having touched no firewall state at all
+if [ -n "${PFRULE_ETC:-}" ] && [ ! -d "$PFRULE_ETC" ]; then
+    echo "$0: PFRULE_ETC is not a directory: $PFRULE_ETC" >&2
+    exit 1
+fi
+
 if ! ETC_PATH="$(resolve_etc_path)"; then
     echo "$0: no rule directory for jail '$JAIL_NAME'" >&2
     exit 1
@@ -94,7 +109,7 @@ load_tables() {
         if [ -n "$_hit" ]; then
             echo "WARN: table $_table_name appears to ALSO exist in $_hit"
         fi
-        do_cmd "pfctl -t $_table_name -T replace -f $_f"
+        do_cmd pfctl -t "$_table_name" -T replace -f "$_f"
     done
 }
 
@@ -102,23 +117,22 @@ flush_tables() {
     for _f in "$ETC_PATH"/*.table; do
         [ -f "$_f" ] || continue
         _table_name=$(basename "$_f" .table)
-        do_cmd "pfctl -t $_table_name -T flush"
+        do_cmd pfctl -t "$_table_name" -T flush
     done
 }
 
 do_cmd() {
     if [ "$PREVIEW" = "-n" ]; then
-        echo "$1"
+        echo "$*"
     else
-        eval "$1"
+        "$@"
     fi
 }
 
 flush() {
     case "$1" in
-        "nat"   ) do_cmd "$2 -F nat"   ;;
-        "rdr"   ) do_cmd "$2 -F nat"   ;;
-        "filter") do_cmd "$2 -F rules" ;;
+        nat|rdr ) do_cmd pfctl -a "$2" -F nat   ;;
+        filter  ) do_cmd pfctl -a "$2" -F rules ;;
     esac
 }
 
@@ -131,11 +145,9 @@ for _anchor in binat nat rdr filter; do
     _f="$ETC_PATH/$_anchor.conf"
     [ -f "$_f" ] || continue
 
-    _pfctl="pfctl -a $_anchor/$JAIL_NAME"
-
     case "$OPERATION" in
-        "load"   ) do_cmd "$_pfctl -f $_f" ;;
-        "unload" ) flush "$_anchor" "$_pfctl" ;;
+        "load"   ) do_cmd pfctl -a "$_anchor/$JAIL_NAME" -f "$_f" ;;
+        "unload" ) flush "$_anchor" "$_anchor/$JAIL_NAME" ;;
     esac
 done
 
