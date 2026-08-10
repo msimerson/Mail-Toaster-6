@@ -296,21 +296,27 @@ adopt_jail_host_etc()
 {
 	local _old="$ZFS_DATA_MNT/$1/etc/pf.conf.d"
 	local _new; _new="$(get_jail_host_etc "$1")/pf.conf.d"
+	local _tmp="$_new.adopting"
 
-	# the jail can write $_old, so -d alone would accept a link out of it
 	if [ -L "$_old" ] || [ ! -d "$_old" ]; then return 0; fi
 	if [ -d "$_new" ]; then return 0; fi
 
 	tell_status "adopting $_old into $_new"
-	install -d -m 0755 "$_new" || exit 1
+	rm -rf "$_tmp"
+	install -d -m 0755 "$_tmp" || exit 1
 
 	local _f
-	for _f in allow.conf binat.conf filter.conf nat.conf rdr.conf \
-		"$1.table" insecure_mua.table
-	do
-		adopt_pf_file "$_old" "$_new" "$_f"
-		adopt_pf_file "$_old" "$_new" "$_f.mt6"
+	for _f in allow.conf binat.conf filter.conf nat.conf rdr.conf; do
+		adopt_pf_file "$_old" "$_tmp" "$_f"
+		adopt_pf_file "$_old" "$_tmp" "$_f.mt6"
 	done
+
+	# pfrule.sh globs *.table
+	for _f in "$_old"/*.table "$_old"/*.table.mt6; do
+		adopt_pf_file "$_old" "$_tmp" "${_f##*/}"
+	done
+
+	mv "$_tmp" "$_new" || exit 1
 }
 
 # a link would still resolve into the volume the jail writes
@@ -322,7 +328,6 @@ adopt_pf_file()
 	fi
 	if [ ! -f "$1/$3" ]; then return 0; fi
 
-	# store_config keeps shadows at 600, they duplicate the config verbatim
 	local _mode=0644
 	case "$3" in *.mt6) _mode=0600 ;; esac
 

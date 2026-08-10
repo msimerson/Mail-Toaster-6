@@ -601,15 +601,65 @@ host_etc_setup() {
   assert_output "$_pfd/rdr.conf"
 }
 
-@test "adopt_jail_host_etc - adopts only what pfrule.sh reads" {
+@test "adopt_jail_host_etc - adopts only the conf names pfrule.sh reads" {
   host_etc_setup
   echo "stray" > "$OLD/pf.conf.d/notes.txt"
-  echo "other jail" > "$OLD/pf.conf.d/haraka.table"
 
   adopt_jail_host_etc dovecot
 
   [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/notes.txt" ]
-  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/haraka.table" ]
+}
+
+@test "adopt_jail_host_etc - adopts a table the admin added" {
+  host_etc_setup
+  echo "10.0.0.0/8" > "$OLD/pf.conf.d/blocklist.table"
+  echo "shadow"     > "$OLD/pf.conf.d/blocklist.table.mt6"
+
+  adopt_jail_host_etc dovecot
+
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/blocklist.table"
+  assert_output "10.0.0.0/8"
+  run cat "$(get_jail_host_etc dovecot)/pf.conf.d/blocklist.table.mt6"
+  assert_output "shadow"
+}
+
+@test "adopt_jail_host_etc - a symlinked table is not adopted" {
+  host_etc_setup
+  echo "jail controlled" > "$ZFS_DATA_MNT/dovecot/evil"
+  ln -s "$ZFS_DATA_MNT/dovecot/evil" "$OLD/pf.conf.d/sneaky.table"
+
+  adopt_jail_host_etc dovecot
+
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/sneaky.table" ]
+}
+
+@test "adopt_jail_host_etc - no tables at all is not an error" {
+  host_etc_setup
+  rm -f "$OLD"/pf.conf.d/*.table
+
+  run adopt_jail_host_etc dovecot
+  assert_success
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d/*.table" ]
+}
+
+@test "adopt_jail_host_etc - publishes the directory only once complete" {
+  host_etc_setup
+  adopt_jail_host_etc dovecot
+
+  [ -d "$(get_jail_host_etc dovecot)/pf.conf.d" ]
+  [ ! -e "$(get_jail_host_etc dovecot)/pf.conf.d.adopting" ]
+}
+
+@test "adopt_jail_host_etc - a stale .adopting from a failed run is discarded" {
+  host_etc_setup
+  local _new="$(get_jail_host_etc dovecot)/pf.conf.d"
+  mkdir -p "$_new.adopting"
+  echo "junk" > "$_new.adopting/leftover.conf"
+
+  adopt_jail_host_etc dovecot
+
+  [ ! -e "$_new/leftover.conf" ]
+  [ -f "$_new/rdr.conf" ]
 }
 
 @test "adopt_jail_host_etc - a symlinked rule file is not adopted" {
