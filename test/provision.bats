@@ -133,35 +133,14 @@ _no_start_required() {
 
 # the ruleset has to exist before the stage jail asks for it
 # a host mounted devfs ignores devfs_ruleset, so the jail mounts its own
-@test "linux jails mount compat/linux/dev themselves" {
+@test "linux jails let rc.d/linux mount /compat/linux" {
+  run grep -A2 "stage_sysrc linux_mounts_enable" include/linux.sh
+  assert_output --partial "linux_mounts_enable=YES"
+
   for _s in provision/centos.sh provision/ubuntu.sh provision/stalwart.sh; do
-    run grep "compat/linux/dev" "$_s"
+    run grep "compat/linux/\(dev\|proc\|sys\)" "$_s"
     refute_output --partial "ZFS_JAIL_MNT"
-
-    run grep -c "configure_linux_devfs" "$_s"
-    assert_output "1"
-
-    run grep "^export JAIL_DEVFS_RULESET=" "$_s"
-    assert_output --partial "JAIL_DEVFS_RULESET_LINUX"
-
-    run grep -c "assure_devfs_linux_ruleset" "$_s"
-    assert_output "1"
   done
-}
-
-@test "configure_linux_devfs arranges for the jail to mount it" {
-  run grep -A2 "mountcritlocal is nojail" include/linux.sh
-  assert_success
-  assert_output --partial "rc.local"
-  assert_output --partial "/sbin/mount -a"
-}
-
-@test "configure_linux_devfs mounts dev before its dependents" {
-  run grep -A3 "compat/linux/dev  *devfs" include/linux.sh
-  assert_success
-  assert_line --index 0 --partial "/compat/linux/dev "
-  assert_line --index 1 --partial "/compat/linux/dev/shm"
-  assert_line --index 2 --partial "/compat/linux/dev/fd"
 }
 
 @test "jails needing bpf create the ruleset themselves" {

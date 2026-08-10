@@ -4,21 +4,6 @@ set -e
 
 # see examples in provision/centos and provision/ubuntu
 
-# A devfs mounted through mount.fstab ignores the jail's devfs_ruleset
-configure_linux_devfs()
-{
-	store_config "$STAGE_MNT/etc/fstab" "overwrite" <<EO_LINUX_FSTAB
-devfs    /compat/linux/dev      devfs    rw                    0 0
-tmpfs    /compat/linux/dev/shm  tmpfs    rw,size=1g,mode=1777  0 0
-fdescfs  /compat/linux/dev/fd   fdescfs  rw,linrdlnk           0 0
-EO_LINUX_FSTAB
-
-	# rc.d/mountcritlocal is nojail, so nothing else reads that fstab
-	if ! grep -qs "^/sbin/mount -a" "$STAGE_MNT/etc/rc.local"; then
-		echo "/sbin/mount -a" >> "$STAGE_MNT/etc/rc.local"
-	fi
-}
-
 configure_linuxulator()
 {
 	tell_status "enabling Linux emulation on Host (loads kernel modules)"
@@ -28,7 +13,7 @@ configure_linuxulator()
 
 	tell_status "enabling Linux emulation in jail"
 	stage_sysrc linux_enable=YES
-	stage_sysrc linux_mounts_enable=NO
+	stage_sysrc linux_mounts_enable=YES
 	stage_exec service linux start
 }
 

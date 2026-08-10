@@ -19,8 +19,6 @@ export JAIL_START_EXTRA="allow.mount
 export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB="
-linprocfs $ZFS_JAIL_MNT/centos/compat/linux/proc    linprocfs rw  0 0
-linsysfs  $ZFS_JAIL_MNT/centos/compat/linux/sys     linsysfs  rw  0 0
 #/tmp      $ZFS_JAIL_MNT/centos/compat/linux/tmp     nullfs    rw  0 0
 #/home     $ZFS_JAIL_MNT/centos/compat/linux/home    nullfs    rw  0 0"
 
@@ -36,7 +34,6 @@ for _fs in dev proc sys tmp home; do
 done
 chmod 777 "$STAGE_MNT/compat/linux/tmp"
 assure_devfs_linux_ruleset
-configure_linux_devfs
 start_staged_jail centos
 install_centos
 promote_staged_jail centos
