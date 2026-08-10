@@ -38,7 +38,6 @@ get_jail_ip()
 		return
 	fi
 
-	# return error code
 	return 2
 }
 
@@ -73,16 +72,12 @@ get_jail_ip6()
 		return
 	fi
 
-	# return error code
 	return 2
 }
 
 # Write a jail's inbound mail port redirects to its pf.conf.d/rdr.conf.
 # Port 25 (inbound MTA) follows $TOASTER_MTA; ports 465 and 587 (submission
-# and SMTPS, the MSA) follow $TOASTER_MSA. A jail only claims the ports whose
-# role names it, so exactly one jail redirects each port. Rewritten on every
-# provision so the rules track the current settings; when a jail no longer owns
-# any mail port its stale rdr.conf is removed.
+# and SMTPS, the MSA) follow $TOASTER_MSA.
 configure_mta_pf_rdr()
 {
 	local _jail="$1"
@@ -204,26 +199,36 @@ get_pfrule_path()
 
 export JAIL_DEVFS_RULESET=${JAIL_DEVFS_RULESET:-4}
 
-# devfsrules_jail hides bpf, which p0f and dhcpd need
 export DEVFS_RULES=${DEVFS_RULES:-"/etc/devfs.rules"}
 export JAIL_DEVFS_RULESET_BPF=${JAIL_DEVFS_RULESET_BPF:-7}
+export JAIL_DEVFS_RULESET_LINUX=${JAIL_DEVFS_RULESET_LINUX:-8}
+
+assure_devfs_ruleset()
+{
+	local _name="$1" _num="$2" _path
+	shift 2
+
+	if grep -qs "$_name=$_num" "$DEVFS_RULES"; then return 0; fi
+
+	tell_status "adding devfs ruleset $_num to $DEVFS_RULES"
+	{
+		printf '\n[%s=%s]\nadd include $devfsrules_jail\n' "$_name" "$_num"
+		for _path in "$@"; do
+			printf "add path '%s' unhide\n" "$_path"
+		done
+	} | tee -a "$DEVFS_RULES"
+
+	service devfs restart
+}
 
 assure_devfs_bpf_ruleset()
 {
-	if grep -qs "devfsrules_jail_bpf=$JAIL_DEVFS_RULESET_BPF" "$DEVFS_RULES"; then
-		return 0
-	fi
+	assure_devfs_ruleset devfsrules_jail_bpf "$JAIL_DEVFS_RULESET_BPF" 'bpf*'
+}
 
-	tell_status "adding devfs ruleset $JAIL_DEVFS_RULESET_BPF to $DEVFS_RULES"
-	tee -a "$DEVFS_RULES" <<EO_DEVFS
-
-[devfsrules_jail_bpf=$JAIL_DEVFS_RULESET_BPF]
-add include \$devfsrules_jail
-add path 'bpf*' unhide
-EO_DEVFS
-
-	# the kernel only learns a ruleset when devfs(8) loads the file
-	service devfs restart
+assure_devfs_linux_ruleset()
+{
+	assure_devfs_ruleset devfsrules_jail_linux "$JAIL_DEVFS_RULESET_LINUX" shm
 }
 
 jail_is_running()
@@ -329,8 +334,7 @@ migrate_jail_conf()
 	fi
 }
 
-# store_config preserves an edited conf, so a jail predating mount.devfs would
-# start with no /dev at all
+# store_config preserves edited confs, jails predating mount.devfs would start w/o /dev
 assure_jail_conf_devfs()
 {
 	local _jail="$1" _conf="$2"

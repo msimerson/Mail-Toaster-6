@@ -6,6 +6,7 @@ set -e -u
 
 mt6-include linux
 
+export JAIL_DEVFS_RULESET="$JAIL_DEVFS_RULESET_LINUX"
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
 		allow.mount.fdescfs
@@ -18,7 +19,7 @@ export JAIL_START_EXTRA="allow.mount
 export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB="
-devfs     $ZFS_JAIL_MNT/centos/compat/linux/dev     devfs     rw  0 0
+$ZFS_JAIL_MNT/centos/dev $ZFS_JAIL_MNT/centos/compat/linux/dev nullfs rw  0 0
 tmpfs     $ZFS_JAIL_MNT/centos/compat/linux/dev/shm tmpfs     rw,size=1g,mode=1777  0 0
 fdescfs   $ZFS_JAIL_MNT/centos/compat/linux/dev/fd  fdescfs   rw,linrdlnk 0 0
 linprocfs $ZFS_JAIL_MNT/centos/compat/linux/proc    linprocfs rw  0 0
@@ -37,6 +38,7 @@ for _fs in dev proc sys tmp home; do
 	mkdir -p "$STAGE_MNT/compat/linux/$_fs"
 done
 chmod 777 "$STAGE_MNT/compat/linux/tmp"
+assure_devfs_linux_ruleset
 start_staged_jail centos
 install_centos
 promote_staged_jail centos

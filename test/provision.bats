@@ -132,6 +132,20 @@ _no_start_required() {
 }
 
 # the ruleset has to exist before the stage jail asks for it
+# their compat/linux/dev views the jail's own filtered /dev
+@test "linux jails view the jail dev, not a second host devfs" {
+  for _s in provision/centos.sh provision/ubuntu.sh provision/stalwart.sh; do
+    run grep "compat/linux/dev " "$_s"
+    assert_success
+    assert_output --partial "nullfs"
+    refute_output --partial "devfs     "
+    run grep "^export JAIL_DEVFS_RULESET=" "$_s"
+    assert_output --partial "JAIL_DEVFS_RULESET_LINUX"
+    run grep -c "assure_devfs_linux_ruleset" "$_s"
+    assert_output "1"
+  done
+}
+
 @test "jails needing bpf create the ruleset themselves" {
   for _s in provision/haraka.sh provision/dhcp.sh; do
     run grep -n "assure_devfs_bpf_ruleset" "$_s"
