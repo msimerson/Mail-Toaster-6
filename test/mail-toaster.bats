@@ -386,6 +386,25 @@ setup_tmpfs_fstab() {
   rm -rf "$tmpdir"
 }
 
+# a jail relative source sits in column 0, where the old rewrite missed it
+@test "install_fstab - the stage fstab rewrites a source as well as a target" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir" ZFS_JAIL_MNT="$tmpdir/jails"
+  export STAGE_MNT="$tmpdir/jails/stage" TOASTER_USE_TMPFS=0
+  export MT6_ETC="$tmpdir/etc"
+  export JAIL_FSTAB="$ZFS_JAIL_MNT/myjail/dev $ZFS_JAIL_MNT/myjail/compat/linux/dev nullfs rw 0 0"
+  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
+  tell_status() { :; }
+
+  install_fstab myjail
+
+  run grep "compat/linux/dev" "$(get_jail_host_etc myjail)/fstab.stage"
+  assert_output --partial "$STAGE_MNT/dev $STAGE_MNT/compat/linux/dev"
+  refute_output --partial "$ZFS_JAIL_MNT/myjail"
+
+  rm -rf "$tmpdir"
+}
+
 @test "install_fstab appends JAIL_FSTAB when set" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"

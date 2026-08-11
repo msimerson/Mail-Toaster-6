@@ -6,6 +6,7 @@ set -e
 
 mt6-include linux
 
+export JAIL_DEVFS_RULESET="$JAIL_DEVFS_RULESET_LINUX"
 export JAIL_START_EXTRA="allow.mount
 		allow.mount.devfs
 		allow.mount.fdescfs
@@ -19,11 +20,6 @@ export JAIL_CONF_EXTRA='
 		allow.raw_sockets;'
 export JAIL_FSTAB
 JAIL_FSTAB="
-devfs     $ZFS_JAIL_MNT/stalwart/compat/linux/dev     devfs     rw,late  0 0
-tmpfs     $ZFS_JAIL_MNT/stalwart/compat/linux/dev/shm tmpfs     rw,late,size=1g,mode=1777  0 0
-fdescfs   $ZFS_JAIL_MNT/stalwart/compat/linux/dev/fd  fdescfs   rw,late,linrdlnk 0 0
-linprocfs $ZFS_JAIL_MNT/stalwart/compat/linux/proc    linprocfs rw,late  0 0
-linsysfs  $ZFS_JAIL_MNT/stalwart/compat/linux/sys     linsysfs  rw,late  0 0
 $(get_jail_data stalwart)/linux $ZFS_JAIL_MNT/stalwart/compat/linux/stalwart nullfs rw,late 0,0
 #/tmp      $ZFS_JAIL_MNT/stalwart/compat/linux/tmp     nullfs    rw,late  0 0
 #/home     $ZFS_JAIL_MNT/stalwart/compat/linux/home    nullfs    rw,late  0 0"
@@ -228,6 +224,7 @@ mkdir -p "$(get_jail_data stalwart)/linux"
 for _d in dev/shm dev/fd proc sys stalwart; do
 	mkdir -p "$STAGE_MNT/compat/linux/$_d"
 done
+assure_devfs_linux_ruleset
 start_staged_jail stalwart
 install_stalwart
 configure_stalwart

@@ -194,6 +194,9 @@ devfs_setup() {
 
   run cat "$DEVFS_RULES"
   assert_output --partial "[devfsrules_jail_bpf=7]"
+  assert_output --partial "add include \$devfsrules_hide_all"
+  assert_output --partial "add include \$devfsrules_unhide_basic"
+  assert_output --partial "add include \$devfsrules_unhide_login"
   assert_output --partial "add include \$devfsrules_jail"
   assert_output --partial "add path 'bpf*' unhide"
 
@@ -218,6 +221,70 @@ devfs_setup() {
   run grep -h "^export JAIL_DEVFS_RULESET" provision/haraka.sh provision/dhcp.sh
   assert_success
   assert_equal "$(echo "$output" | grep -c JAIL_DEVFS_RULESET_BPF)" "2"
+}
+
+# --- devfs rulesets ---
+
+devfs_rules_setup() {
+  export DEVFS_RULES="$BATS_TEST_TMPDIR/devfs.rules"
+  : > "$DEVFS_RULES"
+  tell_status() { :; }
+  service() { echo "service $*" >> "$BATS_TEST_TMPDIR/svc"; }
+}
+
+@test "assure_devfs_linux_ruleset - unhides the mountpoints linuxulator needs" {
+  devfs_rules_setup
+  assure_devfs_linux_ruleset > /dev/null
+
+  run cat "$DEVFS_RULES"
+  assert_output --partial "[devfsrules_jail_linux=8]"
+  assert_output --partial "add include \$devfsrules_jail"
+  assert_output --partial "add path 'shm' unhide"
+
+  run cat "$BATS_TEST_TMPDIR/svc"
+  assert_output "service devfs restart"
+}
+
+@test "assure_devfs_bpf_ruleset - still unhides bpf" {
+  devfs_rules_setup
+  assure_devfs_bpf_ruleset > /dev/null
+
+  run cat "$DEVFS_RULES"
+  assert_output --partial "[devfsrules_jail_bpf=7]"
+  assert_output --partial "add path 'bpf*' unhide"
+}
+
+@test "assure_devfs_ruleset - the two rulesets do not collide" {
+  devfs_rules_setup
+  assure_devfs_bpf_ruleset > /dev/null
+  assure_devfs_linux_ruleset > /dev/null
+
+  run grep -c "^\[devfsrules_jail_" "$DEVFS_RULES"
+  assert_output "2"
+  assert_not_equal "$JAIL_DEVFS_RULESET_BPF" "$JAIL_DEVFS_RULESET_LINUX"
+}
+
+# a substring match would take [..._linux=80] for ruleset 8 and skip creating it
+@test "assure_devfs_ruleset - a longer number is not mistaken for this one" {
+  devfs_rules_setup
+  printf '[devfsrules_jail_linux=80]\nadd include $devfsrules_jail\n' > "$DEVFS_RULES"
+
+  assure_devfs_linux_ruleset > /dev/null
+
+  run grep -c "^\\[devfsrules_jail_linux=8\\]" "$DEVFS_RULES"
+  assert_output "1"
+}
+
+@test "assure_devfs_ruleset - is a no-op when the ruleset is present" {
+  devfs_rules_setup
+  assure_devfs_linux_ruleset > /dev/null
+  local _before; _before=$(cat "$DEVFS_RULES")
+  rm -f "$BATS_TEST_TMPDIR/svc"
+
+  run assure_devfs_linux_ruleset
+  assert_success
+  [ "$(cat "$DEVFS_RULES")" = "$_before" ]
+  [ ! -f "$BATS_TEST_TMPDIR/svc" ]
 }
 
 # --- an edited conf keeps no mount.devfs, so the jail would start with no /dev ---

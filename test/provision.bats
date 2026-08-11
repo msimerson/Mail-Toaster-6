@@ -131,7 +131,16 @@ _no_start_required() {
   assert_output --partial "enforce_statfs=1"
 }
 
-# the ruleset has to exist before the stage jail asks for it
+@test "linux jails let rc.d/linux mount /compat/linux" {
+  run grep -A2 "stage_sysrc linux_mounts_enable" include/linux.sh
+  assert_output --partial "linux_mounts_enable=YES"
+
+  for _s in provision/centos.sh provision/ubuntu.sh provision/stalwart.sh; do
+    run grep "compat/linux/\(dev\|proc\|sys\)" "$_s"
+    refute_output --partial "ZFS_JAIL_MNT"
+  done
+}
+
 @test "jails needing bpf create the ruleset themselves" {
   for _s in provision/haraka.sh provision/dhcp.sh; do
     run grep -n "assure_devfs_bpf_ruleset" "$_s"
@@ -148,7 +157,6 @@ _no_start_required() {
   done
 }
 
-# a second assignment in JAIL_CONF_EXTRA would win only by being emitted later
 @test "no provision script smuggles devfs_ruleset through JAIL_*_EXTRA" {
   run grep -l "JAIL_START_EXTRA=.*devfs_ruleset\|JAIL_CONF_EXTRA=.*devfs_ruleset" provision/*.sh
   assert_output ""

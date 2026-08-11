@@ -13,7 +13,7 @@ configure_linuxulator()
 
 	tell_status "enabling Linux emulation in jail"
 	stage_sysrc linux_enable=YES
-	stage_sysrc linux_mounts_enable=NO
+	stage_sysrc linux_mounts_enable=YES
 	stage_exec service linux start
 }
 
