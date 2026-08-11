@@ -33,8 +33,7 @@ setup_file() {
 }
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   export MT6_TEST_ENV=1
   export ZFS_DATA_MNT="$BATS_FILE_TMPDIR/data"

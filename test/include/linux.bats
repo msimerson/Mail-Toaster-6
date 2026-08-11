@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
   export STAGE_MNT; STAGE_MNT=$(mktemp -d)
   mkdir -p "$STAGE_MNT/compat/linux/etc/apt"
   load '../../include/linux.sh'

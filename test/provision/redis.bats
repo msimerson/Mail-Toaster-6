@@ -1,19 +1,23 @@
 #!/usr/bin/env bats
 # Functional tests for provision/redis.sh
-# redis.sh uses `set -e`; configure_redis uses `sed -i.bak` (GNU-compatible).
-# We pre-create a stub redis.conf so configure_redis succeeds.
+#
+# setup_file sources redis.sh once, executing install and configure against
+# $BATS_FILE_TMPDIR. Tests read what that run produced; only the tests that
+# call a function with its own stubs pay to source the definitions.
 
-setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
-
+setup_file() {
   export MT6_TEST_ENV=1
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d)
+  export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  export REDIS_CONF="$STAGE_MNT/usr/local/etc/redis.conf"
+  export REDIS_FNS="$BATS_FILE_TMPDIR/redis_fns_only.sh"
 
-  # Pre-create directories and stub redis.conf so configure_redis can run
+  awk '/^base_snapshot_exists/{exit} {print}' \
+    "$BATS_TEST_DIRNAME/../../provision/redis.sh" > "$REDIS_FNS"
+
+  # configure_redis edits redis.conf in place, so it has to exist first
   mkdir -p "$STAGE_MNT/usr/local/etc"
-  cat > "$STAGE_MNT/usr/local/etc/redis.conf" <<'EOF'
+  cat > "$REDIS_CONF" <<'EOF'
 stop-writes-on-bgsave-error yes
 dir /var/db/redis/
 # syslog-enabled no
@@ -26,114 +30,80 @@ EOF
   . "$BATS_TEST_DIRNAME/../../provision/redis.sh"
 }
 
-teardown() {
-  rm -rf "$STAGE_MNT"
+setup() {
+  load '../test_helper/load'
 }
 
-# --- JAIL variable exports ---
+load_redis_fns() {
+  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  # shellcheck source=/dev/null
+  . "$REDIS_FNS"
+}
 
-@test "redis - JAIL_START_EXTRA is empty (no special capabilities)" {
+@test "redis - declares no jail extras" {
   assert_equal "$JAIL_START_EXTRA" ""
-}
-
-@test "redis - JAIL_CONF_EXTRA is empty" {
   assert_equal "$JAIL_CONF_EXTRA" ""
-}
-
-@test "redis - JAIL_FSTAB is empty" {
   assert_equal "$JAIL_FSTAB" ""
 }
 
-# --- Function existence ---
-
-@test "redis - defines install_redis" {
-  run type install_redis
-  assert_success
-}
-
-@test "redis - defines configure_redis" {
-  run type configure_redis
-  assert_success
-}
-
-@test "redis - defines start_redis" {
-  run type start_redis
-  assert_success
-}
-
-@test "redis - defines test_redis" {
-  run type test_redis
-  assert_success
+@test "redis - defines the jail lifecycle functions" {
+  load_redis_fns
+  local _fn
+  for _fn in install_redis configure_redis start_redis test_redis; do
+    run type "$_fn"
+    assert_success
+  done
 }
 
 # --- configure_redis outcomes ---
 
-@test "redis - configure disables stop-writes-on-bgsave-error" {
-  run grep "stop-writes-on-bgsave-error" "$STAGE_MNT/usr/local/etc/redis.conf"
+@test "redis - configure rewrites redis.conf for the jail" {
+  run grep "stop-writes-on-bgsave-error" "$REDIS_CONF"
   assert_output --partial "no"
   refute_output --partial "yes"
-}
 
-@test "redis - configure sets data dir to /data/db/" {
-  run grep "^dir" "$STAGE_MNT/usr/local/etc/redis.conf"
+  run grep "^dir" "$REDIS_CONF"
   assert_output --partial "/data/db/"
-}
 
-@test "redis - configure enables syslog" {
-  run grep "syslog-enabled" "$STAGE_MNT/usr/local/etc/redis.conf"
+  run grep "syslog-enabled" "$REDIS_CONF"
   assert_output --partial "yes"
-}
 
-@test "redis - configure disables protected-mode" {
-  run grep "^protected-mode" "$STAGE_MNT/usr/local/etc/redis.conf"
+  # the jail's own address is the only one it answers on
+  run grep "^protected-mode" "$REDIS_CONF"
   assert_output --partial "no"
-}
-
-@test "redis - configure comments out bind directive" {
-  run grep "^#bind" "$STAGE_MNT/usr/local/etc/redis.conf"
+  run grep "^#bind" "$REDIS_CONF"
   assert_success
 }
 
-@test "redis - configure creates newsyslog rotation config" {
-  [ -f "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis.conf" ]
-}
-
-@test "redis - configure creates data subdirectories" {
+@test "redis - configure creates the data directories and log rotation" {
   [ -d "$STAGE_MNT/data/db" ]
   [ -d "$STAGE_MNT/data/log" ]
   [ -d "$STAGE_MNT/data/etc" ]
+  [ -f "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/redis.conf" ]
 }
 
-# --- install_redis behaviour ---
+# --- install / start / test behaviour ---
 
 @test "redis - install uses redis package" {
+  load_redis_fns
   stage_pkg_install() { echo "PKG:$*"; }
   run install_redis
   assert_success
   assert_output --partial "PKG:redis"
 }
 
-# --- start_redis behaviour ---
-
-@test "redis - start enables redis service" {
+@test "redis - start enables the service and starts it" {
+  load_redis_fns
   stage_sysrc() { echo "SYSRC:$*"; }
-  stage_exec()  { :; }
-  run start_redis
-  assert_success
-  assert_output --partial "SYSRC:redis_enable=YES"
-}
-
-@test "redis - start calls service redis start" {
-  stage_sysrc() { :; }
   stage_exec()  { echo "EXEC:$*"; }
   run start_redis
   assert_success
+  assert_output --partial "SYSRC:redis_enable=YES"
   assert_output --partial "EXEC:service redis start"
 }
 
-# --- test_redis behaviour ---
-
 @test "redis - test checks port 6379" {
+  load_redis_fns
   stage_listening() { echo "PORT:$*"; }
   run test_redis
   assert_success

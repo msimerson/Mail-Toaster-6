@@ -49,16 +49,9 @@ conf()       { echo "$BATS_FILE_TMPDIR/$1/data/haproxy/etc/haproxy.conf"; }
 stage_conf() { echo "$BATS_FILE_TMPDIR/$1/stage/usr/local/etc/haproxy.conf"; }
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
-  export MT6_TEST_ENV=1
-  export ZFS_DATA_MNT="$BATS_FILE_TMPDIR/both/data"
-  export HAPROXY_CONF="$ZFS_DATA_MNT/haproxy/etc/haproxy.conf"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-
-  # shellcheck source=/dev/null
-  . "$BATS_FILE_TMPDIR/haproxy_fns_only.sh"
+  HAPROXY_CONF="$(conf both)"
 }
 
 # haproxy -c on a copy with the cert path and DH params pointed at fixtures
@@ -85,15 +78,9 @@ assert_haproxy_accepts() {
 
 # --- JAIL variable exports ---
 
-@test "haproxy - JAIL_START_EXTRA is empty" {
+@test "haproxy - declares no jail extras" {
   assert_equal "$JAIL_START_EXTRA" ""
-}
-
-@test "haproxy - JAIL_CONF_EXTRA is empty" {
   assert_equal "$JAIL_CONF_EXTRA" ""
-}
-
-@test "haproxy - JAIL_FSTAB is empty" {
   assert_equal "$JAIL_FSTAB" ""
 }
 
@@ -158,85 +145,31 @@ assert_haproxy_accepts() {
 
 # --- haproxy accepts the generated configs ---
 
-@test "haproxy.conf - haproxy validates dual stack config" {
-  assert_haproxy_accepts "$(conf both)"
-}
-
-@test "haproxy.conf - haproxy validates IPv4 only config" {
-  assert_haproxy_accepts "$(conf ip4only)"
-}
-
-@test "haproxy.conf - haproxy validates IPv6 only config" {
-  assert_haproxy_accepts "$(conf ip6only)"
-}
-
-@test "haproxy stage conf - haproxy validates dual stack config" {
-  assert_haproxy_accepts "$(stage_conf both)"
-}
-
-@test "haproxy stage conf - haproxy validates IPv4 only config" {
-  assert_haproxy_accepts "$(stage_conf ip4only)"
-}
-
-@test "haproxy stage conf - haproxy validates IPv6 only config" {
-  assert_haproxy_accepts "$(stage_conf ip6only)"
+@test "haproxy - validates every generated config" {
+  local _case
+  for _case in both ip4only ip6only; do
+    assert_haproxy_accepts "$(conf "$_case")"
+    assert_haproxy_accepts "$(stage_conf "$_case")"
+  done
 }
 
 # --- haproxy.conf security headers ---
 
-@test "haproxy.conf - X-Frame-Options header is present" {
-  run grep -q 'X-Frame-Options' "$HAPROXY_CONF"
-  assert_success
-}
-
-@test "haproxy.conf - X-Frame-Options set to sameorigin" {
-  run grep 'X-Frame-Options' "$HAPROXY_CONF"
-  assert_output --partial 'sameorigin'
-}
-
-@test "haproxy.conf - X-XSS-Protection header is present" {
-  run grep -q 'X-XSS-Protection' "$HAPROXY_CONF"
-  assert_success
-}
-
-@test "haproxy.conf - X-XSS-Protection set to block mode" {
-  run grep 'X-XSS-Protection' "$HAPROXY_CONF"
-  assert_output --partial '1; mode=block'
-}
-
-@test "haproxy.conf - X-Content-Type-Options header is present" {
-  run grep -q 'X-Content-Type-Options' "$HAPROXY_CONF"
-  assert_success
-}
-
-@test "haproxy.conf - X-Content-Type-Options set to nosniff" {
-  run grep 'X-Content-Type-Options' "$HAPROXY_CONF"
-  assert_output --partial 'nosniff'
-}
-
-@test "haproxy.conf - Referrer-Policy header is present" {
-  run grep -q 'Referrer-Policy' "$HAPROXY_CONF"
-  assert_success
-}
-
-@test "haproxy.conf - Referrer-Policy set to strict-origin-when-cross-origin" {
-  run grep 'Referrer-Policy' "$HAPROXY_CONF"
-  assert_output --partial 'strict-origin-when-cross-origin'
-}
-
-@test "haproxy.conf - Content-Security-Policy header is present" {
-  run grep -q 'Content-Security-Policy' "$HAPROXY_CONF"
-  assert_success
-}
-
-@test "haproxy.conf - CSP restricts default-src to self" {
-  run grep 'Content-Security-Policy' "$HAPROXY_CONF"
-  assert_output --partial "default-src 'self'"
-}
-
-@test "haproxy.conf - CSP restricts frame-ancestors to self" {
-  run grep 'Content-Security-Policy' "$HAPROXY_CONF"
-  assert_output --partial "frame-ancestors 'self'"
+# <header> <value it must carry>
+@test "haproxy.conf - sets the security headers" {
+  while read -r _header _value; do
+    [ -n "$_header" ] || continue
+    run grep "$_header" "$HAPROXY_CONF"
+    assert_success
+    assert_output --partial "$_value"
+  done <<'EO_HEADERS'
+X-Frame-Options         sameorigin
+X-XSS-Protection        1; mode=block
+X-Content-Type-Options  nosniff
+Referrer-Policy         strict-origin-when-cross-origin
+Content-Security-Policy default-src 'self'
+Content-Security-Policy frame-ancestors 'self'
+EO_HEADERS
 }
 
 @test "haproxy.conf - security headers use http-response set-header" {
@@ -248,34 +181,25 @@ assert_haproxy_accepts() {
 
 # --- /auth-check endpoint ---
 
-@test "haproxy.conf - auth-check returns 204 for authenticated users" {
+@test "haproxy.conf - auth-check answers the fetch probe without a challenge" {
   run grep -q 'http-request return status 204 if auth_check { http_auth(adminusers) }' "$HAPROXY_CONF"
   assert_success
-}
-
-@test "haproxy.conf - auth-check returns 204 for local clients" {
   run grep -q 'http-request return status 204 if auth_check is_local' "$HAPROXY_CONF"
   assert_success
-}
-
-@test "haproxy.conf - auth-check returns bare 401 (no WWW-Authenticate) for fetch probe" {
+  # a bare 401, no WWW-Authenticate, or the browser pops its own dialog
   run grep -q 'http-request return status 401 if auth_check' "$HAPROXY_CONF"
   assert_success
 }
 
-@test "haproxy.conf - auth-login returns cookie-setting page for authenticated users" {
+@test "haproxy.conf - auth-login sets the admin cookie, else challenges" {
   run grep 'http-request return.*200.*auth_login.*http_auth' "$HAPROXY_CONF"
   assert_success
   assert_output --partial 'is_admin=1'
-}
 
-@test "haproxy.conf - auth-login returns cookie-setting page for local clients" {
   run grep 'http-request return.*200.*auth_login is_local' "$HAPROXY_CONF"
   assert_success
   assert_output --partial 'is_admin=1'
-}
 
-@test "haproxy.conf - auth-login sends WWW-Authenticate challenge for unauthenticated users" {
   run grep -q 'http-request auth realm "Restricted" if auth_login' "$HAPROXY_CONF"
   assert_success
 }

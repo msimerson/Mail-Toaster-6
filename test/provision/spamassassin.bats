@@ -1,111 +1,86 @@
 #!/usr/bin/env bats
 # Functional tests for provision/spamassassin.sh
+#
+# setup_file sources spamassassin.sh once, executing install and configure
+# against $BATS_FILE_TMPDIR. Tests read what that run produced; only the tests
+# that call a function with its own stubs pay to source the definitions.
 
-setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
-
+setup_file() {
   export MT6_TEST_ENV=1
-  # Use a dot-free path: configure_spamassassin uses `cut -f1-2 -d.` to derive
-  # the target filename from *.sample files; dots in parent dirs break that.
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d /tmp/mt6saXXXXXX)
+  # configure_spamassassin derives target filenames from *.sample with
+  # `cut -f1-2 -d.`, so no parent directory may contain a dot
+  export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
-  # Redirect ZFS data/jail mounts to temp tree so no real paths are touched
   export ZFS_DATA_MNT="$STAGE_MNT/data"
   export ZFS_JAIL_MNT="$STAGE_MNT/jails"
   export ZFS_DATA_VOL="zroot${ZFS_DATA_MNT}"
   export ZFS_JAIL_VOL="zroot${ZFS_JAIL_MNT}"
 
-  # Skip MySQL sub-install (requires live DB connection)
+  # the MySQL sub-install wants a live DB
   export TOASTER_MYSQL=0
 
-  # Pre-create directories that provision steps expect to exist before running
-  mkdir -p "$STAGE_MNT/etc/razor"
-  mkdir -p "$STAGE_MNT/usr/local/etc/mail"
-  mkdir -p "$STAGE_MNT/usr/local/etc/newsyslog.conf.d"
-  mkdir -p "$STAGE_MNT/data/spamassassin"
+  export SA_SCRIPT="$BATS_TEST_DIRNAME/../../provision/spamassassin.sh"
+  export SA_FNS="$BATS_FILE_TMPDIR/spamassassin_fns_only.sh"
+  awk '/^base_snapshot_exists/{exit} {print}' "$SA_SCRIPT" > "$SA_FNS"
 
-  # razor-agent.conf must exist or install_spamassassin_razor aborts
+  mkdir -p "$STAGE_MNT/etc/razor" "$STAGE_MNT/usr/local/etc/mail" \
+    "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" "$ZFS_DATA_MNT/spamassassin/etc" \
+    "$STAGE_MNT/usr/ports/mail/spamassassin"
+
+  # install_spamassassin_razor aborts without it
   echo "logfile = razor-agent.log" > "$STAGE_MNT/etc/razor/razor-agent.conf"
 
-  # install_spamassassin_port checks for a ports tree before building
-  mkdir -p "$STAGE_MNT/usr/ports/mail/spamassassin"
-
-  # local.cf.sample seed: configure_spamassassin globs *.sample and uses
-  # `cut -f1-2 -d.` to derive the target name, so it needs to exist.
-  mkdir -p "$STAGE_MNT/data/spamassassin/etc"
-  touch "$STAGE_MNT/data/spamassassin/etc/local.cf.sample"
+  touch "$ZFS_DATA_MNT/spamassassin/etc/local.cf.sample"
 
   # shellcheck source=/dev/null
-  . "$BATS_TEST_DIRNAME/../../provision/spamassassin.sh"
+  . "$SA_SCRIPT"
 }
 
-teardown() {
-  rm -rf "$STAGE_MNT"
+setup() {
+  load '../test_helper/load'
+  SA_ETC="$ZFS_DATA_MNT/spamassassin/etc"
+}
+
+load_sa_fns() {
+  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  # shellcheck source=/dev/null
+  . "$SA_FNS"
 }
 
 # --- JAIL variable exports ---
 
-@test "spamassassin - JAIL_START_EXTRA is empty" {
+@test "spamassassin - declares no jail extras beyond the GeoIP mount" {
   assert_equal "$JAIL_START_EXTRA" ""
-}
-
-@test "spamassassin - JAIL_CONF_EXTRA is empty" {
   assert_equal "$JAIL_CONF_EXTRA" ""
-}
-
-@test "spamassassin - JAIL_FSTAB contains GeoIP nullfs mount when geoip present" {
-  assert_equal "$JAIL_FSTAB" "$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
+  assert_equal "$JAIL_FSTAB" \
+    "$ZFS_DATA_MNT/geoip/db $ZFS_JAIL_MNT/spamassassin/usr/local/share/GeoIP nullfs rw 0 0"
 }
 
 @test "spamassassin - JAIL_FSTAB empty when geoip dataset absent" {
-  # Re-run only the fstab guard from the provision script with the geoip
-  # dataset reported missing; the mount must not be declared.
   zfs_filesystem_exists() { return 1; }
   JAIL_FSTAB="preset"
-  eval "$(sed -n '/^export JAIL_FSTAB=""$/,/^fi$/p' \
-    "$BATS_TEST_DIRNAME/../../provision/spamassassin.sh")"
+  eval "$(sed -n '/^export JAIL_FSTAB=""$/,/^fi$/p' "$SA_SCRIPT")"
   assert_equal "$JAIL_FSTAB" ""
 }
 
-# --- Function existence ---
-
-@test "spamassassin - defines install_spamassassin" {
-  run type install_spamassassin
-  assert_success
-}
-
-@test "spamassassin - defines configure_spamassassin" {
-  run type configure_spamassassin
-  assert_success
-}
-
-@test "spamassassin - defines start_spamassassin" {
-  run type start_spamassassin
-  assert_success
-}
-
-@test "spamassassin - defines test_spamassassin" {
-  run type test_spamassassin
-  assert_success
+@test "spamassassin - defines the jail lifecycle functions" {
+  load_sa_fns
+  local _fn
+  for _fn in install_spamassassin configure_spamassassin start_spamassassin \
+             test_spamassassin; do
+    run type "$_fn"
+    assert_success
+  done
 }
 
 # --- install filesystem outcomes ---
 
-@test "spamassassin - install creates GeoIP share directory" {
+@test "spamassassin - install creates the GeoIP and data directories" {
   [ -d "$STAGE_MNT/usr/local/share/GeoIP" ]
-}
-
-@test "spamassassin - install creates data/spamassassin/etc directory" {
   [ -d "$ZFS_DATA_MNT/spamassassin/etc" ]
-}
-
-@test "spamassassin - install creates data/spamassassin/var directory" {
   [ -d "$ZFS_DATA_MNT/spamassassin/var" ]
 }
-
-# --- install_spamassassin_razor outcomes ---
 
 @test "spamassassin - razor config gets logfile path set" {
   run grep "^logfile" "$STAGE_MNT/etc/razor/razor-agent.conf"
@@ -114,42 +89,24 @@ teardown() {
 
 # --- configure_spamassassin filesystem outcomes ---
 
-@test "spamassassin - configure writes local.pre with TextCat plugin" {
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/local.pre"
+@test "spamassassin - configure writes local.pre with the plugins" {
+  run cat "$SA_ETC/local.pre"
   assert_output --partial "Mail::SpamAssassin::Plugin::TextCat"
-}
-
-@test "spamassassin - configure writes local.pre with ASN plugin" {
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/local.pre"
   assert_output --partial "Mail::SpamAssassin::Plugin::ASN"
-}
-
-@test "spamassassin - configure writes local.pre with DMARC plugin" {
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/local.pre"
   assert_output --partial "Mail::SpamAssassin::Plugin::DMARC"
 }
 
-@test "spamassassin - configure writes local.cf with report_safe 0" {
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/local.cf"
+@test "spamassassin - configure writes local.cf with the scanner settings" {
+  run cat "$SA_ETC/local.cf"
   assert_output --partial "report_safe"
-}
-
-@test "spamassassin - configure writes local.cf enabling razor2" {
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/local.cf"
   assert_output --partial "use_razor2"
-}
-
-@test "spamassassin - configure writes local.cf enabling DCC" {
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/local.cf"
   assert_output --partial "use_dcc"
 }
 
 # --- configure_geoip / RelayCountry outcomes ---
 
 @test "spamassassin - configure_geoip enables RelayCountry when geoip present" {
-  # setup() sources the script with the stub zfs_filesystem_exists returning 0,
-  # so configure_geoip has already written relaycountry.pre.
-  run cat "$ZFS_DATA_MNT/spamassassin/etc/relaycountry.pre"
+  run cat "$SA_ETC/relaycountry.pre"
   assert_success
   assert_output --partial "loadplugin Mail::SpamAssassin::Plugin::RelayCountry"
   assert_output --partial "country_db_type"
@@ -157,7 +114,10 @@ teardown() {
 }
 
 @test "spamassassin - configure_geoip removes RelayCountry when geoip absent" {
-  _sa_etc="$ZFS_DATA_MNT/spamassassin/etc"
+  load_sa_fns
+  # configure_spamassassin leaves _sa_etc set for it; work on a private copy so
+  # the file the previous test reads survives
+  _sa_etc="$BATS_TEST_TMPDIR/etc"
   mkdir -p "$_sa_etc"
   echo "loadplugin Mail::SpamAssassin::Plugin::RelayCountry" > "$_sa_etc/relaycountry.pre"
   zfs_filesystem_exists() { return 1; }
@@ -166,46 +126,32 @@ teardown() {
   [ ! -f "$_sa_etc/relaycountry.pre" ]
 }
 
-# --- install_spamassassin behaviour ---
+# --- install / start / test behaviour ---
 
 @test "spamassassin - install uses p5-Mail-SPF package" {
+  load_sa_fns
   stage_pkg_install() { echo "PKG:$*"; }
   stage_exec()        { :; }
   run install_spamassassin
   assert_output --partial "PKG:p5-Mail-SPF"
 }
 
-# --- start_spamassassin behaviour ---
-
-@test "spamassassin - start enables spamd service" {
+@test "spamassassin - start enables spamd and starts sa-spamd" {
+  load_sa_fns
   stage_sysrc() { echo "SYSRC:$*"; }
-  stage_exec()  { :; }
-  run start_spamassassin
-  assert_success
-  assert_output --partial "SYSRC:spamd_enable=YES"
-}
-
-@test "spamassassin - start calls service sa-spamd start" {
-  stage_sysrc() { :; }
   stage_exec()  { echo "EXEC:$*"; }
   run start_spamassassin
   assert_success
+  assert_output --partial "SYSRC:spamd_enable=YES"
   assert_output --partial "EXEC:service sa-spamd start"
 }
 
-# --- test_spamassassin behaviour ---
-
-@test "spamassassin - test checks for running perl process" {
+@test "spamassassin - test checks the perl process and port 783" {
+  load_sa_fns
   stage_test_running() { echo "RUNNING:$*"; }
-  stage_listening()    { :; }
-  run test_spamassassin
-  assert_output --partial "RUNNING:perl"
-}
-
-@test "spamassassin - test checks port 783" {
-  stage_test_running() { :; }
   stage_listening()    { echo "PORT:$*"; }
   run test_spamassassin
   assert_success
+  assert_output --partial "RUNNING:perl"
   assert_output --partial "PORT:783"
 }
