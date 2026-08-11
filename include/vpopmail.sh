@@ -64,6 +64,7 @@ vpopmail_port_fixups() {
 
 install_vpopmail_port()
 {
+	assure_ports_tree
 	install_vpopmail_deps
 
 	if [ "$TOASTER_MYSQL" = "1" ]; then
