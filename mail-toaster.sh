@@ -72,6 +72,11 @@ mt6-include()
 	. "include/$1.sh"
 }
 
+is_valid_domain_name() {
+	local _part='[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?'
+	printf '%s' "$1" | grep -qsE '^('"$_part"'\.)+'"$_part"'$'
+}
+
 mt6_init()
 {
 	for _i in util config zfs jail network; do
@@ -99,13 +104,13 @@ mt6_init()
 	fi
 
 	# shellcheck disable=2317
-	if [ "$TOASTER_HOSTNAME" = "mail.example.com" ]; then
+	if [ "$TOASTER_HOSTNAME" = "mail.example.com" ] || ! is_valid_domain_name "$TOASTER_HOSTNAME"; then
 		mt6_config_hint TOASTER_HOSTNAME; return 1; exit 1
 	fi
 	echo "toaster host: $TOASTER_HOSTNAME"
 
 	# shellcheck disable=2317
-	if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ]; then
+	if [ "$TOASTER_MAIL_DOMAIN" = "example.com" ] || ! is_valid_domain_name "$TOASTER_MAIL_DOMAIN"; then
 		mt6_config_hint TOASTER_MAIL_DOMAIN; return 1; exit 1
 	fi
 	echo "email domain: $TOASTER_MAIL_DOMAIN"
