@@ -10,10 +10,13 @@ mt6-include nginx
 
 configure_nginx_server()
 {
+	local _listen_ipv6='
+		listen  [::]:80;'
+	[ -n "${PUBLIC_IP6:-}" ] || _listen_ipv6=''
+
 	_NGINX_SERVER='
 	server {
-		listen       80;
-		listen  [::]:80;
+		listen       80;'"$_listen_ipv6"'
 
 		server_name  pkg;
 
@@ -33,8 +36,7 @@ configure_nginx_server()
 
 	_NGINX_SERVER='
 	server {
-		listen       80;
-		listen  [::]:80;
+		listen       80;'"$_listen_ipv6"'
 
 		server_name  freebsd-update;
 
@@ -55,8 +57,7 @@ configure_nginx_server()
 
 	_NGINX_SERVER='
 	server {
-		listen       80;
-		listen  [::]:80;
+		listen       80;'"$_listen_ipv6"'
 
 		server_name  vulnxml;
 
