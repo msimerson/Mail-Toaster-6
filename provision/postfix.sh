@@ -206,6 +206,7 @@ configure_postfix()
 		stage_sysrc postfix_pidfile=/data/spool/pid/master.pid
 	fi
 
+	[ -d "$ZFS_DATA_MNT/postfix/etc" ] || stage_exec mkdir /data/etc
 	configure_postfix_main_cf
 	configure_postfix_master_cf
 

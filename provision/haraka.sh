@@ -676,7 +676,7 @@ configure_haraka()
 	configure_haraka_http
 	configure_haraka_tls
 	configure_haraka_dkim
-	configure_haraka_p0f
+	[ "$(sysctl -n security.jail.jailed)" = 1 ] || configure_haraka_p0f
 	configure_haraka_spamassassin
 	configure_haraka_rspamd
 	configure_haraka_clamav
