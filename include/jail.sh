@@ -197,6 +197,7 @@ get_pfrule_path()
 	echo "$MT6_ETC/pfrule.sh"
 }
 
+[ "$(sysctl -n security.jail.jailed)" != 1 ] || JAIL_DEVFS_RULESET=0
 export JAIL_DEVFS_RULESET=${JAIL_DEVFS_RULESET:-4}
 
 export DEVFS_RULES=${DEVFS_RULES:-"/etc/devfs.rules"}

@@ -371,6 +371,8 @@ start_staged_jail()
 
 	tell_status "stage jail $_name startup"
 
+	[ "$(sysctl -n security.jail.jailed)" != 1 ] || JAIL_DEVFS_RULESET=0
+
 	# shellcheck disable=2086
 	jail -c \
 		name=stage \
