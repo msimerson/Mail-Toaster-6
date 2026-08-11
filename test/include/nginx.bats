@@ -8,6 +8,9 @@ setup() {
 mt6-include() { :; }
 tell_status() { :; }
 
+get_public_ip4() { :; }
+get_public_ip6() { :; }
+
 # faithful copy of include/jail.sh get_jail_data
 get_jail_data() { echo "$ZFS_DATA_MNT/$1"; }
 
@@ -71,6 +74,62 @@ store_config() {
   assert_failure
 }
 
+# nginx_listen() - both families, absent one commented out
+
+@test "nginx_listen - both families present" {
+  export PUBLIC_IP4="192.0.2.1"
+  export PUBLIC_IP6="2001:db8::1"
+
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+listen  \[::\]:80;$'
+}
+
+@test "nginx_listen - IPv6 absent is commented out" {
+  export PUBLIC_IP4="192.0.2.1"
+  export PUBLIC_IP6=""
+
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+#listen  \[::\]:80;$'
+}
+
+@test "nginx_listen - IPv4 absent is commented out" {
+  export PUBLIC_IP4=""
+  export PUBLIC_IP6="2001:db8::1"
+
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+#listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+listen  \[::\]:80;$'
+}
+
+@test "nginx_listen - defaults to port 80" {
+  export PUBLIC_IP4="192.0.2.1"
+  export PUBLIC_IP6="2001:db8::1"
+
+  run nginx_listen
+  assert_output --partial "listen       80;"
+  assert_output --partial "listen  [::]:80;"
+}
+
+@test "nginx_listen - appends options to both families" {
+  export PUBLIC_IP4="192.0.2.1"
+  export PUBLIC_IP6=""
+
+  run nginx_listen 443 ssl
+  assert_output --partial "listen       443 ssl;"
+  assert_output --partial "#listen  [::]:443 ssl;"
+}
+
+@test "nginx_listen - both families absent are both commented out" {
+  export PUBLIC_IP4=""
+  export PUBLIC_IP6=""
+
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+#listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+#listen  \[::\]:80;$'
+}
+
 # configure_nginx_server_d - creates nginx server block config
 
 @test "configure_nginx_server_d - works when PUBLIC_IP6 is unset" {
@@ -115,6 +174,7 @@ store_config() {
 @test "configure_nginx_server_d - contains listen 80" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
+  export PUBLIC_IP4="192.0.2.1"
   export PUBLIC_IP6=""
   export _NGINX_SERVER="server_name test.example.com;"
 
@@ -127,16 +187,34 @@ store_config() {
   rm -rf "$tmpdir"
 }
 
-@test "configure_nginx_server_d - adds IPv6 listen when PUBLIC_IP6 set" {
+@test "configure_nginx_server_d - comments out IPv6 listen when PUBLIC_IP6 empty" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
+  export PUBLIC_IP4="192.0.2.1"
+  export PUBLIC_IP6=""
+  export _NGINX_SERVER="server_name test.example.com;"
+
+  configure_nginx_server_d myjail
+
+  run grep "\[::\]:80" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+  assert_success
+  assert_output --partial "#listen"
+
+  rm -rf "$tmpdir"
+}
+
+@test "configure_nginx_server_d - enables IPv6 listen when PUBLIC_IP6 set" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export PUBLIC_IP4="192.0.2.1"
   export PUBLIC_IP6="2001:db8::1"
   export _NGINX_SERVER="server_name test.example.com;"
 
   configure_nginx_server_d myjail
 
-  run grep "\[::\]" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+  run grep "\[::\]:80" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
   assert_success
+  refute_output --partial "#"
 
   rm -rf "$tmpdir"
 }

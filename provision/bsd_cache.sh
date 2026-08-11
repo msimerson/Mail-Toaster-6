@@ -10,10 +10,9 @@ mt6-include nginx
 
 configure_nginx_server()
 {
-	_NGINX_SERVER='
+	_NGINX_SERVER="
 	server {
-		listen       80;
-		listen  [::]:80;
+$(nginx_listen 80)
 
 		server_name  pkg;
 
@@ -27,14 +26,13 @@ configure_nginx_server()
 			proxy_cache_valid        404 5m;
 		}
 	}
-'
+"
 	export _NGINX_SERVER
 	configure_nginx_server_d bsd_cache pkg
 
-	_NGINX_SERVER='
+	_NGINX_SERVER="
 	server {
-		listen       80;
-		listen  [::]:80;
+$(nginx_listen 80)
 
 		server_name  freebsd-update;
 
@@ -49,14 +47,13 @@ configure_nginx_server()
 			proxy_cache_valid        404 5m;
 		}
 	}
-'
+"
 	export _NGINX_SERVER
 	configure_nginx_server_d bsd_cache update
 
-	_NGINX_SERVER='
+	_NGINX_SERVER="
 	server {
-		listen       80;
-		listen  [::]:80;
+$(nginx_listen 80)
 
 		server_name  vulnxml;
 
@@ -71,7 +68,7 @@ configure_nginx_server()
 			proxy_cache_valid        404 5m;
 		}
 	}
-'
+"
 	export _NGINX_SERVER
 	configure_nginx_server_d bsd_cache vulnxml
 }

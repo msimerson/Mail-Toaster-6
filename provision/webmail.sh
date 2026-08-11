@@ -52,16 +52,9 @@ configure_nginx_server_port_443()
 {
 	if [ "$TOASTER_WEBMAIL_PROXY" != "nginx" ]; then return; fi
 
-	local _NGINX_SERVER='
+	local _NGINX_SERVER; _NGINX_SERVER="
 	server {
-		listen      443 ssl;'
-
-	if [ -n "$PUBLIC_IP6" ]; then
-		_NGINX_SERVER="$_NGINX_SERVER
-		listen [::]:443 ssl;"
-	fi
-
-	_NGINX_SERVER="$_NGINX_SERVER
+$(nginx_listen 443 ssl)
 
 		server_name $TOASTER_HOSTNAME;"
 
@@ -89,8 +82,6 @@ configure_nginx_server_port_443()
 
 configure_nginx_server()
 {
-	get_public_ip6
-
 	configure_nginx_server_port_80
 	configure_nginx_server_port_443
 

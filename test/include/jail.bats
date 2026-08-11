@@ -94,6 +94,23 @@ setup() {
   assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
+@test "add_jail_conf - ip6.addr is commented out without a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() {
+    if [ "$1" -eq 4 ]; then echo "4"; fi
+  }
+
+  tee() { cat -; }
+  grep() { return 1; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf mysql
+  assert_success
+  assert_output --partial "ip4.addr = lo1|172.16.15.4;"
+  assert_output --partial "#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+}
+
 @test "add_jail_conf_d" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
@@ -105,6 +122,36 @@ setup() {
   run add_jail_conf_d mysql
   assert_success
   assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+  refute_output --partial "#ip6.addr"
+}
+
+@test "add_jail_conf_d - ip6.addr is commented out without a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_success
+  assert_output --partial "#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+}
+
+@test "jail_conf_ip6 - declared with a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  run jail_conf_ip6 mysql
+  assert_output "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+}
+
+@test "jail_conf_ip6 - commented out without a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+
+  run jail_conf_ip6 mysql
+  assert_output "#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
 # --- base declares no mounts and runs no pf rules ---

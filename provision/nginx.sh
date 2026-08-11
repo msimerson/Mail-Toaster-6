@@ -6,6 +6,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
+mt6-include nginx
+
 install_nginx()
 {
 	stage_pkg_install nginx || exit
@@ -16,14 +18,17 @@ configure_nginx()
 	local _nginx_conf="$STAGE_MNT/usr/local/etc/nginx/conf.d"
 	mkdir -p "$_nginx_conf" || exit
 
+	local _listen; _listen=$(nginx_listen 80 | sed -e 's/^[[:space:]]*/+        /')
+
 	patch -d "$STAGE_MNT/usr/local/etc/nginx" <<EO_NGINX_CONF
 --- nginx.conf-dist     2016-01-16 16:20:58.874842000 -0800
 +++ nginx.conf  2016-01-16 16:22:36.860852732 -0800
-@@ -34,7 +34,10 @@
+@@ -34,7 +34,11 @@
  
      server {
-         listen       80;
+-        listen       80;
 -        server_name  localhost;
+$_listen
 +        server_name  nginx;
 +
 +        set_real_ip_from $(get_jail_ip4 haproxy);

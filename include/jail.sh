@@ -381,6 +381,16 @@ warn_stale_jail_conf()
 	fi
 }
 
+jail_conf_ip6()
+{
+	local _addr; _addr="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");"
+
+	get_public_ip6
+	if [ -z "${PUBLIC_IP6:-}" ]; then _addr="#$_addr"; fi
+
+	echo "$_addr"
+}
+
 add_jail_conf()
 {
 	local _jail_ip; _jail_ip=$(get_jail_ip4 "$1");
@@ -410,7 +420,7 @@ add_jail_conf()
 	echo "$1	{$(get_safe_jail_path "$1")
 $(jail_conf_mount "$1")
 		ip4.addr = $JAIL_NET_INTERFACE|${_jail_ip};
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");${JAIL_CONF_EXTRA}
+		$(jail_conf_ip6 "$1")${JAIL_CONF_EXTRA}
 	}" | tee -a /etc/jail.conf
 }
 
@@ -421,12 +431,7 @@ add_jail_conf_d()
 		fatal_err "can't determine IP for $1"
 	fi
 
-	# configure IPv6 if the system has an external/public IPv6 address
-	local _IP6=""
-	get_public_ip6
-	if [ -n "$PUBLIC_IP6" ]; then
-		_IP6="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");"
-	fi
+	local _IP6; _IP6=$(jail_conf_ip6 "$1")
 
 	local _path="$ZFS_JAIL_MNT/$1"
 	if [ "$1" = "base" ]; then _path="$BASE_MNT"; fi
@@ -502,6 +507,6 @@ assure_ip6_addr_is_declared()
 	tell_status "adding ip6.addr to $1 section in /etc/jail.conf"
 	sed_inplace \
 		-e "/^$1/,/ip4/ s/ip4.*;/&\\
-		ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");/" \
+		$(jail_conf_ip6 "$1")/" \
 		/etc/jail.conf
 }

@@ -205,6 +205,7 @@ configure_nginx_server_d() { :; }
 start_nginx()              { :; }
 test_nginx()               { :; }
 contains()                 { [ "${1#*"$2"}" != "$1" ]; }
+nginx_listen()             { printf '\t\tlisten       %s%s;\n\t\tlisten  [::]:%s%s;\n' "${1:-80}" "${2:+ $2}" "${1:-80}" "${2:+ $2}"; }
 
 # MTA include stubs
 configure_mta()            { :; }

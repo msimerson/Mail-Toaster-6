@@ -7,6 +7,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 - jail: rename get_jail_ip to get_jail_ip4
 - perf(test): source the assertion libraries once, scripts once per file
+- nginx: add nginx_listen(), emitting IPv4 and IPv6 listen directives
 - linux jails: rc.d/linux mounts /compat/linux inside the jail
 - dma: create /var/spool/dma when the port has not
 - mt: jail control files move to /etc/mail-toaster/<jail>
