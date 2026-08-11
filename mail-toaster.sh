@@ -73,7 +73,7 @@ mt6-include()
 }
 
 is_valid_domain_name() {
-	local _part='[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?'
+	local _part='[a-zA-Z0-9_]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?'
 	printf '%s' "$1" | grep -qsE '^('"$_part"'\.)+'"$_part"'$'
 }
 
