@@ -7,7 +7,7 @@ set -e -u
 export JAIL_START_EXTRA="allow.sysvipc=1"
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB
-JAIL_FSTAB="$(get_jail_data vpopmail)/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw 0 0"
+JAIL_FSTAB="$(get_jail_data vpopmail)/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopmail nullfs rw,nosuid 0 0"
 
 mt6-include vpopmail
 mt6-include mua
