@@ -763,9 +763,13 @@ promote_setup() {
 @test "is_valid_domain_name - a valid domain name succeeds" {
   run is_valid_domain_name "xn--bcher-kva.example.xn--e1a4c"
   assert_success
+  run is_valid_domain_name "110.com"
+  assert_success
 }
 
 @test "is_valid_domain_name - an invalid domain name fails" {
   run is_valid_domain_name "mail_toaster.net"
+  assert_failure
+  run is_valid_domain_name "mail-toaster-net"
   assert_failure
 }
