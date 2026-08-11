@@ -198,8 +198,10 @@ install_fstab()
 	fi
 
 	tell_status "writing data mount to $_fstab"
+	local _nosuid=",nosuid"
+	[ "$1" != vpopmail ] || _nosuid=""
 	echo "# Device                Mountpoint      FStype  Options         Dump    Pass#" | tee "$_fstab" || exit 1
-	echo "$_data_mount       $_jail_mount/data nullfs  rw,nosuid   0  0" | tee -a "$_fstab"
+	echo "$_data_mount       $_jail_mount/data nullfs  rw$_nosuid   0  0" | tee -a "$_fstab"
 
 	if [ -n "$JAIL_FSTAB" ]; then
 		tell_status "appending JAIL_FSTAB to fstab"
