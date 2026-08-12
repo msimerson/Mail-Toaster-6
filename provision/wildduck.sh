@@ -361,39 +361,55 @@ configure_pf()
 	local _pf_etc
 	_pf_etc="$(get_jail_host_etc wildduck)/pf.conf.d"
 
-	get_public_ip4
-	get_public_ip6
+	local _rdr4="" _rdr6="" _nat4="" _nat6=""
 
-	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-int_ip4 = "$(get_jail_ip4 wildduck)"
-int_ip6 = "$(get_jail_ip6 wildduck)"
-
-ext_ip4 = "$PUBLIC_IP4"
-ext_ip6 = "$PUBLIC_IP6"
+	if has_public_ip4; then
+		_rdr4="ext_ip4 = \"$PUBLIC_IP4\"
 
 # mail traffic to wildduck
 rdr inet  proto tcp from any to \$ext_ip4 port { 25 465 587 993 995 } -> \$int_ip4
+
+# send HTTP traffic to haproxy, or uncomment to send it to webmail
+rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
+#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip webmail)"
+		_nat4="ext_ip4 = \"$PUBLIC_IP4\"
+nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4"
+	fi
+
+	if jail_has_ip6; then
+		_rdr6="ext_ip6 = \"$PUBLIC_IP6\"
+
+# mail traffic to wildduck
 rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_ip6
 
-# send HTTP traffic to haproxy
-rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip4 haproxy)
+# send HTTP traffic to haproxy, or uncomment to send it to webmail
 rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
+#rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 webmail)"
+		_nat6="ext_ip6 = \"$PUBLIC_IP6\"
+nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6"
+	fi
 
-# or send HTTP traffic to webmail
-#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip4 webmail)
-#rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 webmail)
+	local _int_ip6=""
+	if jail_has_ip6; then _int_ip6="int_ip6 = \"$(get_jail_ip6 wildduck)\""; fi
+
+	store_config "$_pf_etc/rdr.conf" "update" <<EO_PF_RDR
+int_ip4 = "$(get_jail_ip wildduck)"
+$_int_ip6
+
+$_rdr4
+
+$_rdr6
 EO_PF_RDR
 
-	store_config "$_pf_etc/nat.conf" <<EO_PF_NAT
-int_ip4 = "$(get_jail_ip4 wildduck)"
-int_ip6 = "$(get_jail_ip6 wildduck)"
+	store_config "$_pf_etc/nat.conf" "update" <<EO_PF_NAT
+int_ip4 = "$(get_jail_ip wildduck)"
+$_int_ip6
 
 ext_if = "$PUBLIC_NIC"
-ext_ip4 = "$PUBLIC_IP4"
-ext_ip6 = "$PUBLIC_IP6"
 
-nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4
-nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6
+$_nat4
+
+$_nat6
 EO_PF_NAT
 
 	configure_pf_jail_table wildduck
@@ -466,14 +482,17 @@ authenticated=true
 private_ip=true
 EO_RSPAMD
 
-	get_public_ip4
-
 	sed_inplace \
-		-e '/^;public_ip/ s/^;//' \
-		-e "/^public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
 		-e '/^;nodes/ s/^;//' \
 		-e '/^nodes/ s/cpus/1/' \
 		"$_cfg/smtp.ini"
+
+	if has_public_ip4; then
+		sed_inplace \
+			-e '/^;public_ip/ s/^;//' \
+			-e "/^public_ip/ s/N.N.N.N/$PUBLIC_IP4/" \
+			"$_cfg/smtp.ini"
+	fi
 
 	sed_inplace \
 		-e '/^;spamd_socket/ s/^;//' \

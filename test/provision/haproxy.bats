@@ -87,7 +87,8 @@ assert_haproxy_accepts() {
 # --- frontend binds ---
 #
 # 'bind :::80 v4v6' refuses to start on a host without IPv6, so each address
-# family gets its own bind and only the families the host has are emitted.
+# family gets its own bind and IPv6 is emitted only where the host has one.
+# IPv4 always binds: the jails reach haproxy at its private IPv4 address.
 
 @test "haproxy.conf - dual stack binds both families" {
   run grep '^	bind ' "$(conf both)"
@@ -104,11 +105,11 @@ assert_haproxy_accepts() {
   refute_line --partial '[::]'
 }
 
-@test "haproxy.conf - IPv6 only host binds no IPv4" {
+@test "haproxy.conf - IPv6 only host still binds IPv4" {
   run grep '^	bind ' "$(conf ip6only)"
   assert_line '	bind [::]:80 alpn http/1.1'
   assert_line '	bind [::]:443 alpn http/1.1 ssl crt /data/etc/tls.d'
-  refute_line --partial '0.0.0.0'
+  assert_line '	bind 0.0.0.0:80 alpn http/1.1'
 }
 
 @test "haproxy.conf - with no public address detected, falls back to IPv4" {
@@ -137,10 +138,12 @@ assert_haproxy_accepts() {
   refute_line --partial '['
 }
 
-@test "haproxy stage conf - IPv6 only host binds no IPv4" {
+# the jail's private IPv4 is there whatever the host has, and the DNS records
+# and haproxy backends for the other jails all name it
+@test "haproxy stage conf - IPv6 only host still binds the private IPv4" {
   run grep '^    bind ' "$(stage_conf ip6only)"
   assert_line '    bind [fd7a:e5cd:1fc1:c597:dead:beef:cafe:00fe]:80 alpn http/1.1'
-  refute_line --partial '172.16.15'
+  assert_line '    bind 172.16.15.1:80 alpn http/1.1'
 }
 
 # --- haproxy accepts the generated configs ---

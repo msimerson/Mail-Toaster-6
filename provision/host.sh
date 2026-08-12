@@ -184,7 +184,8 @@ constrain_sshd_to_host()
 	get_public_ip4
 	get_public_ip6
 
-	local IP_MSG="	Your public IP(s) are detected as $PUBLIC_IP4"
+	local IP_MSG="	Your public IP(s) are detected as"
+	if [ -n "$PUBLIC_IP4" ]; then IP_MSG="$IP_MSG $PUBLIC_IP4"; fi
 	if [ -n "$PUBLIC_IP6" ]; then
 		IP_MSG="$IP_MSG
 		and $PUBLIC_IP6"
@@ -204,7 +205,9 @@ constrain_sshd_to_host()
 
 	tell_status "Limiting SSHd to host IP address"
 
-	sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP4"
+	if [ -n "$PUBLIC_IP4" ]; then
+		sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP4"
+	fi
 	if [ -n "$PUBLIC_IP6" ]; then
 		sysrc sshd_flags+=" \-o ListenAddress=$PUBLIC_IP6"
 	fi
@@ -236,6 +239,17 @@ EO_SSHD_REORDER
 	chmod 755 "$_file"
 }
 
+lookup_geo_defaults()
+{
+	_cc=$(fetch -q -o - https://ipinfo.io/country || echo)
+	_state=$(fetch -q -o - https://ipinfo.io/region || echo)
+	_city=$(fetch -q -o - https://ipinfo.io/city || echo)
+
+	if [ -z "$_cc$_state$_city" ]; then
+		tell_status "no answer from ipinfo.io, locality unset"
+	fi
+}
+
 update_openssl_defaults()
 {
 	if grep -q commonName_default /etc/ssl/openssl.cnf; then
@@ -243,9 +257,7 @@ update_openssl_defaults()
 	fi
 
 	tell_status "updating openssl.cnf defaults"
-	local _cc;    _cc=$(fetch -q -4 -o - https://ipinfo.io/country)
-	local _state; _state=$(fetch -q -4 -o - https://ipinfo.io/region)
-	local _city;  _city=$(fetch -q -4 -o - https://ipinfo.io/city)
+	lookup_geo_defaults
 	sed_inplace \
 		-e '/^commonName_max.*/ a\
 commonName_default = '"$TOASTER_HOSTNAME" \
@@ -295,7 +307,14 @@ configure_tls_certs()
 		openssl req -x509 -nodes -days 2190 -newkey rsa:2048 \
 			-keyout "$KEYFILE" -out "$CRTFILE"
 	else
-		local SUBJ="/C=$_cc/ST=$_state/L=$_city/O=Mail Toaster/CN=$TOASTER_HOSTNAME"
+		lookup_geo_defaults
+
+		local SUBJ=""
+		[ -z "$_cc" ]    || SUBJ="$SUBJ/C=$_cc"
+		[ -z "$_state" ] || SUBJ="$SUBJ/ST=$_state"
+		[ -z "$_city" ]  || SUBJ="$SUBJ/L=$_city"
+		SUBJ="$SUBJ/O=Mail Toaster/CN=$TOASTER_HOSTNAME"
+
 		echo "subject: $SUBJ"
 		openssl req -x509 -nodes -days 2190 -newkey rsa:2048 \
 			-keyout "$KEYFILE" -out "$CRTFILE" -subj "$SUBJ"
@@ -340,7 +359,7 @@ check_global_listeners()
 {
 	tell_status "checking for host listeners on all IPs"
 
-	if sockstat -L -4 | grep -E '\*:[0-9]' | grep -v 123; then
+	if sockstat -L -4 -6 | grep -E '\*:[0-9]' | grep -v 123; then
 		echo "oops!, you should not having anything listening on all your IP addresses!"
 		if [ -t 0 ]; then exit 2; fi
 
@@ -376,13 +395,35 @@ configure_ipv6()
 
 add_jail_nat()
 {
-	get_public_ip4
+	configure_pf_conf
 
+	kldstat -q -m pf || kldload pf
+
+	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
+	if ! /sbin/pfctl -s Running; then
+		/etc/rc.d/pf start
+	else
+		/sbin/pfctl -f /etc/pf.conf
+	fi
+
+	pf_bruteforce_expire
+}
+
+configure_pf_conf()
+{
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
-	if [ -z "$PUBLIC_IP4" ]; then fatal_err "PUBLIC_IP4 unset!"; fi
+
+	local _members=""
+
+	if has_public_ip4; then _members="\$ext_ip4"; fi
+	if has_public_ip6; then _members="${_members:+$_members, }\$ext_ip6"; fi
+
+	if [ -z "$_members" ]; then
+		fatal_err "no public IPv4 or IPv6 found on $PUBLIC_NIC!"
+	fi
 
 	tell_status "setting up the PF firewall and NAT for jails"
-	store_config "/etc/pf.conf" <<EO_PF_RULES
+	store_config "/etc/pf.conf" "update" <<EO_PF_RULES
 ## Macros
 
 ext_if="$PUBLIC_NIC"
@@ -392,7 +433,7 @@ ext_ip6="$PUBLIC_IP6"
 jail_ip4="$JAIL_NET_PREFIX.0${JAIL_NET_MASK}"
 jail_ip6="$JAIL_NET6:0/112"
 
-table <ext_ip>  { \$ext_ip4, \$ext_ip6 } persist
+table <ext_ip>  { $_members } persist
 table <ext_ip4> { \$ext_ip4 } persist
 table <ext_ip6> { \$ext_ip6 } persist
 
@@ -441,23 +482,6 @@ pass in quick on \$ext_if proto tcp to port ssh \
         (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 
 EO_PF_RULES
-
-	if [ -z "$PUBLIC_IP6" ]; then
-		sed_inplace \
-			-e '/^table <ext_ip>/ s/, \$ext_ip6//' \
-			/etc/pf.conf
-	fi
-
-	kldstat -q -m pf || kldload pf
-
-	grep -q ^pf_enable /etc/rc.conf || sysrc pf_enable=YES
-	if ! /sbin/pfctl -s Running; then
-		/etc/rc.d/pf start
-	else
-		/sbin/pfctl -f /etc/pf.conf
-	fi
-
-	pf_bruteforce_expire
 }
 
 install_jailmanage()

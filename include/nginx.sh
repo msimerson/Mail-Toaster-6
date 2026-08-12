@@ -57,14 +57,10 @@ nginx_listen()
 	local _opts="${2:-}"
 	if [ -n "$_opts" ]; then _opts=" $_opts"; fi
 
-	get_public_ip4
-	get_public_ip6
+	local _c6=""; if ! jail_has_ip6; then _c6="#"; fi
 
-	local _c4=""; if [ -z "${PUBLIC_IP4:-}" ]; then _c4="#"; fi
-	local _c6=""; if [ -z "${PUBLIC_IP6:-}" ]; then _c6="#"; fi
-
-	printf '\t\t%slisten       %s%s;\n\t\t%slisten  [::]:%s%s;\n' \
-		"$_c4" "$_port" "$_opts" "$_c6" "$_port" "$_opts"
+	printf '\t\tlisten       %s%s;\n\t\t%slisten  [::]:%s%s;\n' \
+		"$_port" "$_opts" "$_c6" "$_port" "$_opts"
 }
 
 contains() {
@@ -106,7 +102,7 @@ $(nginx_listen 80)"
 		_suffix=''
 	fi
 
-	store_config "$_server_conf" <<EO_NGINX_SERVER_CONF
+	store_config "$_server_conf" "update" <<EO_NGINX_SERVER_CONF
 	$_prefix
 		$_NGINX_SERVER
 		$_suffix
@@ -126,7 +122,7 @@ configure_nginx()
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
-	store_config "$_etcdir/nginx.conf" <<EO_NGINX_CONF
+	store_config "$_etcdir/nginx.conf" "update" <<EO_NGINX_CONF
 # load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;

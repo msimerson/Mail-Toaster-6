@@ -2,7 +2,7 @@
 
 safe_jailname()
 {
-	# constrain jail name chars to alpha-numeric and _
+	# constrain name chars to alpha-numeric and _
 	# shellcheck disable=SC2001
 	echo "$1" | sed -e 's/[^a-zA-Z0-9]/_/g'
 }
@@ -110,9 +110,14 @@ configure_mta_pf_rdr()
 
 	configure_pf_jail_table "$_jail"
 
+	local _rdr6=""
+	if jail_has_ip6; then
+		_rdr6="rdr inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")"
+	fi
+
 	store_config "$_pf_etc/rdr.conf" "overwrite" <<EO_PF_RDR
-rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip4 "$_jail")
-rdr inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")
+rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip "$_jail")
+$_rdr6
 EO_PF_RDR
 
 	store_config "$_pf_etc/filter.conf" <<EO_PF_FILTER
@@ -126,15 +131,13 @@ configure_pf_jail_table()
 	local _pf_etc
 	_pf_etc="$(get_jail_host_etc "$_jail")/pf.conf.d"
 
-	get_public_ip4
-	get_public_ip6
-
-	store_config "$_pf_etc/$_jail.table" <<EO_PF_TABLE
-$PUBLIC_IP4
-$PUBLIC_IP6
-$(get_jail_ip4 "$_jail")
-$(get_jail_ip6 "$_jail")
-EO_PF_TABLE
+	# pfctl -T replace rejects the file over a blank line
+	{
+		has_public_ip4 && echo "$PUBLIC_IP4"
+		has_public_ip6 && echo "$PUBLIC_IP6"
+		get_jail_ip "$_jail"
+		jail_has_ip6 && get_jail_ip6 "$_jail"
+	} | store_config "$_pf_etc/$_jail.table" "update"
 }
 
 get_reverse_ip()
@@ -381,12 +384,19 @@ warn_stale_jail_conf()
 	fi
 }
 
+# A jail always gets an ip4.addr on the private network. It gets an ip6.addr
+# only where the host has a public IPv6, so this answers "can a service in this
+# jail bind IPv6" for every generated config.
+jail_has_ip6()
+{
+	has_public_ip6
+}
+
 jail_conf_ip6()
 {
 	local _addr; _addr="ip6.addr = $JAIL_NET_INTERFACE|$(get_jail_ip6 "$1");"
 
-	get_public_ip6
-	if [ -z "${PUBLIC_IP6:-}" ]; then _addr="#$_addr"; fi
+	if ! jail_has_ip6; then _addr="#$_addr"; fi
 
 	echo "$_addr"
 }
@@ -436,7 +446,6 @@ add_jail_conf_d()
 	local _path="$ZFS_JAIL_MNT/$1"
 	if [ "$1" = "base" ]; then _path="$BASE_MNT"; fi
 
-	# base redirects no ports, so the host has no pf rules to run for it
 	local _pf_exec=""
 	if [ "$1" != "base" ]; then
 		_pf_exec="
@@ -494,19 +503,34 @@ add_automount()
 
 assure_ip6_addr_is_declared()
 {
-	if ! grep -qs "^$1" /etc/jail.conf; then
+	local _jail="$1" _conf="${2:-/etc/jail.conf}"
+
+	if ! grep -qs "^$_jail" "$_conf"; then
 		# config for this jail hasn't been created yet
 		return
 	fi
 
-	if awk "/^$1/,/}/" /etc/jail.conf | grep -q ip6; then
+	local _section; _section=$(awk "/^$_jail/,/}/" "$_conf")
+
+	if echo "$_section" | grep -q '^[[:space:]]*ip6\.addr'; then
 		echo "ip6.addr is already declared"
 		return
 	fi
 
-	tell_status "adding ip6.addr to $1 section in /etc/jail.conf"
+	# a commented entry is waiting on the host to have one.
+	if echo "$_section" | grep -q '^[[:space:]]*#ip6\.addr'; then
+		if ! jail_has_ip6; then return; fi
+
+		tell_status "enabling ip6.addr in $_jail section in $_conf"
+		sed_inplace \
+			-e "/^$_jail/,/}/ s/^\\([[:space:]]*\\)#ip6\\.addr/\\1ip6.addr/" \
+			"$_conf"
+		return
+	fi
+
+	tell_status "adding ip6.addr to $_jail section in $_conf"
 	sed_inplace \
-		-e "/^$1/,/ip4/ s/ip4.*;/&\\
-		$(jail_conf_ip6 "$1")/" \
-		/etc/jail.conf
+		-e "/^$_jail/,/ip4/ s/ip4.*;/&\\
+		$(jail_conf_ip6 "$_jail")/" \
+		"$_conf"
 }

@@ -21,12 +21,18 @@ install_unbound()
 
 get_mt6_data()
 {
-	local _spf_ips
+	# a bare "ip4:" or "ip6:" is a syntax error that voids the whole record
+	# (RFC 7208 4.6.4), so an address the host does not have is left out
+	local _spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip6:$JAIL_NET6::/112"
 
-	if [ -z "$PUBLIC_IP6" ]; then
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112"
-	else
-		_spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip4:$PUBLIC_IP4 ip6:$JAIL_NET6::/112 ip6:$PUBLIC_IP6"
+	if has_public_ip4; then _spf_ips="$_spf_ips ip4:$PUBLIC_IP4"; fi
+	if has_public_ip6; then _spf_ips="$_spf_ips ip6:$PUBLIC_IP6"; fi
+
+	local _has_ip6=0 _hostname_aaaa=""
+	if jail_has_ip6; then
+		_has_ip6=1
+		_hostname_aaaa="
+	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\""
 	fi
 
 	echo "
@@ -34,8 +40,7 @@ get_mt6_data()
 	   local-zone: $TOASTER_MAIL_DOMAIN typetransparent
 	   local-data: \"stage		A $(get_jail_ip4 stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
-	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip4 vpopmail)\"
-	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\"
+	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"$_hostname_aaaa
 	   local-data: '$TOASTER_MAIL_DOMAIN TXT \"v=spf1 a mx $_spf_ips -all\"'
 	   local-data: \"freebsd-update		A $(get_jail_ip4 bsd_cache)\"
 	   local-data: \"pkg				A $(get_jail_ip4 bsd_cache)\"
@@ -49,33 +54,40 @@ get_mt6_data()
 
 	for _j in $JAIL_ORDERED_LIST; do
 		echo "
-	   local-data: \"$_j		A $(get_jail_ip4 "$_j")\"
-	   local-data: \"$(get_reverse_ip "$_j") PTR $_j\"
-	   local-data: \"$_j		AAAA $(get_jail_ip6 "$_j")\"
+	   local-data: \"$_j		A $(get_jail_ip "$_j")\"
+	   local-data: \"$(get_reverse_ip "$_j") PTR $_j\""
+
+		if [ "$_has_ip6" = 0 ]; then continue; fi
+
+		echo "	   local-data: \"$_j		AAAA $(get_jail_ip6 "$_j")\"
 	   local-data: \"$(get_reverse_ip6 "$_j") PTR $_j\""
 	done
 }
 
 install_access_conf()
 {
-	get_public_ip4
-
 	# An empty address would emit "access-control:  allow", which unbound
 	# rejects. Omit the entry instead of writing a file that will not parse.
 	local _public_acl=""
-	if [ -n "$PUBLIC_IP4" ]; then
+	if has_public_ip4; then
 		_public_acl="	   access-control: $PUBLIC_IP4 allow"
 	else
 		tell_status "no public IPv4 found, omitting its access-control entry"
 	fi
 
-	store_config "$(get_jail_data dns)/access.conf" <<EO_UNBOUND_ACCESS
+	local _public_acl6=""
+	if has_public_ip6; then
+		_public_acl6="	   access-control: $PUBLIC_IP6 allow"
+	fi
+
+	store_config "$(get_jail_data dns)/access.conf" "update" <<EO_UNBOUND_ACCESS
 
 	   access-control: 0.0.0.0/0 refuse
 	   access-control: 127.0.0.0/8 allow
 	   access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow
 $_public_acl
 	   access-control: $JAIL_NET6::/112 allow
+$_public_acl6
 
 EO_UNBOUND_ACCESS
 }
@@ -132,9 +144,16 @@ EO_UNBOUND
 tweak_unbound_conf()
 {
 	tell_status "configuring unbound.conf"
-	# control.conf for the munin stats plugin
+
+	local _prefer_ip6="no"
+	if ! has_public_ip4; then
+		tell_status "no public IPv4 found, preferring IPv6 for resolution"
+		_prefer_ip6="yes"
+	fi
+
 	# shellcheck disable=1004
 	sed_inplace \
+		-e "s/# prefer-ip6: no\$/prefer-ip6: $_prefer_ip6/" \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
 		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
 		-e '/# use-syslog/s/# //' \
@@ -144,13 +163,13 @@ tweak_unbound_conf()
 		-e '/hide-identity: /s/no/yes/' \
 		-e '/# hide-version: /s/# //' \
 		-e '/hide-version: /s/no/yes/' \
-		-e '/# access-control: ::ffff:127.*/ a\ 
+		-e '/# access-control: ::ffff:127.*/ a\
 include: "/data/access.conf" \
 ' \
-		-e '/# local-data-ptr:.*/ a\ 
+		-e '/# local-data-ptr:.*/ a\
 include: "/data/mt6-local.conf" \
 ' \
-		-e '/^remote-control:/ a\ 
+		-e '/^remote-control:/ a\
 	include: "/data/control.conf" \
 ' \
 		-e '/fwd.example.com$/ a\

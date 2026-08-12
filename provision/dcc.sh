@@ -33,11 +33,10 @@ install_dcc_port_options()
 	local SET=DCCIFD
 	local UNSET="DCCGREY DCCD DCCM PORTS_MILTER"
 
-	get_public_ip6
-	if [ -z "$PUBLIC_IP6" ]; then
-		UNSET="$UNSET IPV6"
-	else
+	if jail_has_ip6; then
 		SET="$SET IPV6"
+	else
+		UNSET="$UNSET IPV6"
 	fi
 
 	stage_make_conf dcc-dccd_SET "mail_dcc-dccd_SET=$SET"
@@ -84,7 +83,7 @@ start_dcc()
 	tell_status "starting up dcc-ifd"
 	stage_sysrc dccifd_enable=YES
 	stage_exec service dccifd start
-	if [ -n "$PUBLIC_IP6" ]; then
+	if jail_has_ip6; then
 		stage_exec cdcc info
 	else
 		stage_exec cdcc IPv6=off info
