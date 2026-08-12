@@ -127,13 +127,13 @@ assert_haproxy_accepts() {
 
 @test "haproxy stage conf - dual stack binds both families" {
   run grep '^    bind ' "$(stage_conf both)"
-  assert_line '    bind 172.16.15.1:80 alpn http/1.1'
+  assert_line '    bind 172.16.15.254:80 alpn http/1.1'
   assert_line '    bind [fd7a:e5cd:1fc1:c597:dead:beef:cafe:00fe]:80 alpn http/1.1'
 }
 
 @test "haproxy stage conf - IPv4 only host binds no IPv6" {
   run grep '^    bind ' "$(stage_conf ip4only)"
-  assert_line '    bind 172.16.15.1:80 alpn http/1.1'
+  assert_line '    bind 172.16.15.254:80 alpn http/1.1'
   refute_line --partial '['
 }
 

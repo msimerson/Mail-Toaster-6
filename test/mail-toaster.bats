@@ -283,7 +283,7 @@ setup_fstab_tree() {
   assert_output --partial "$ZFS_JAIL_MNT/myjail/data"
 
   # the jail mounts its own devfs, the host declares none
-  run grep "devfs" "$BATS_TEST_TMPDIR/myjail/etc/fstab"
+  run grep "devfs" "$(get_jail_host_etc myjail)/fstab"
   assert_failure
 }
 

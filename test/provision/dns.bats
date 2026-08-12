@@ -197,14 +197,85 @@ load_dns_fns() {
   assert_output --partial "EXEC:host dns"
 }
 
-@test "dns - test writes nameserver to resolv.conf" {
+@test "dns - test leaves resolv.conf on the dns jail, not the stage IP it probed with" {
   load_dns_fns
   # it writes into the tree, so work on a copy the other tests do not read
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   mkdir -p "$STAGE_MNT/etc"
   stage_test_running() { :; }
   stage_exec()         { :; }
+
   test_unbound
-  run grep "^nameserver" "$STAGE_MNT/etc/resolv.conf"
-  assert_success
+
+  run cat "$STAGE_MNT/etc/resolv.conf"
+  assert_output --partial "nameserver $(get_jail_ip dns)"
+  refute_output --partial "$(get_jail_ip stage)"
+}
+
+# --- switch_host_resolver behaviour ---
+
+@test "dns - switch_host_resolver writes the poststart and prestop hooks" {
+  load_dns_fns
+  store_exec() { echo "EXEC:$1"; cat - > /dev/null; }
+
+  run switch_host_resolver
+  assert_output --partial "EXEC:$(get_jail_host_etc dns)/rc.d/poststart.sh"
+  assert_output --partial "EXEC:$(get_jail_host_etc dns)/rc.d/prestop.sh"
+}
+
+# --- install_access_conf behaviour ---
+
+setup_access_conf() {
+  load_dns_fns
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$ZFS_DATA_MNT/dns"
+  ACCESS_CONF="$ZFS_DATA_MNT/dns/access.conf"
+}
+
+@test "dns - access.conf includes the public IPv4 when one is known" {
+  setup_access_conf
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+
+  install_access_conf
+
+  run cat "$ACCESS_CONF"
+  assert_output --partial "access-control: 203.0.113.7 allow"
+}
+
+@test "dns - access.conf omits the entry rather than emit the empty one unbound rejects" {
+  setup_access_conf
+  get_public_ip4() { export PUBLIC_IP4=""; }
+
+  install_access_conf
+
+  run grep -c "access-control:[[:space:]]*allow" "$ACCESS_CONF"
+  assert_output "0"
+}
+
+@test "dns - access.conf keeps the jail network entries whatever the public IP" {
+  setup_access_conf
+  get_public_ip4() { export PUBLIC_IP4=""; }
+
+  install_access_conf
+
+  run cat "$ACCESS_CONF"
+  assert_output --partial "access-control: 0.0.0.0/0 refuse"
+  assert_output --partial "access-control: 127.0.0.0/8 allow"
+  assert_output --partial "access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow"
+}
+
+@test "dns - install_access_conf finds its own PUBLIC_IP4" {
+  setup_access_conf
+
+  # shellcheck source=/dev/null
+  . "$BATS_TEST_DIRNAME/../../include/network.sh"
+
+  get_public_facing_nic() { export PUBLIC_NIC="em0"; }
+  ifconfig() { echo "	inet 198.51.100.4 netmask 0xffffff00"; }
+
+  unset PUBLIC_IP4
+  install_access_conf
+
+  run cat "$ACCESS_CONF"
+  assert_output --partial "access-control: 198.51.100.4 allow"
 }
