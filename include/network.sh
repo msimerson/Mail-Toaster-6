@@ -110,6 +110,7 @@ EO_ACME_CRON
 install_minimal_hosts()
 {
 	store_config "$STAGE_MNT/etc/hosts" "append" <<EO_HOSTS
+$(get_jail_ip dns) dns
 $(get_jail_ip syslog) syslog
 $(get_jail_ip bsd_cache) pkg vulnxml freebsd-update
 EO_HOSTS
