@@ -1,7 +1,6 @@
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   # Mock some variables that are normally set by mail-toaster.sh
   export ZFS_JAIL_MNT="/jails"

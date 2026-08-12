@@ -1,8 +1,7 @@
 # https://bats-core.readthedocs.io/en/stable/writing-tests.html
 
 setup() {
-  load 'test_helper/bats-support/load'
-  load 'test_helper/bats-assert/load'
+  load 'test_helper/load'
   export MT6_TEST_ENV=1
   load ../mail-toaster.sh
   # Manually load includes that mt6_init would have loaded
@@ -81,41 +80,36 @@ setup() {
   assert_output --partial "Success! A new 'test' jail is provisioned"
 }
 
-@test "get_random_pass 20" {
+@test "get_random_pass - honors the requested length and character set" {
   run get_random_pass 20
-  #echo "# $output" >&3
   assert_success
   assert_equal ${#output} 20
-}
 
-@test "get_random_pass (defaults)" {
   run get_random_pass
-  #echo "# $output" >&3
   assert_success
   assert_equal ${#output} 14
-}
 
-@test "get_random_pass 14 strong" {
   run get_random_pass 14 strong
-  #echo "# $output" >&3
   assert_success
-  #assert_equal ${#output} 14
-}
 
-@test "get_random_pass 14 safe" {
   run get_random_pass 14 safe
-  #echo "# $output" >&3
   assert_success
-  #assert_equal ${#output} 14
 }
 
-@test "get_jail_ip mysql" {
+# a jail's address is its position in JAIL_ORDERED_LIST
+@test "get_jail_ip - each jail lands on its own octet" {
+  run get_jail_ip syslog
+  assert_success
+  assert_output "172.16.15.1"
+
+  run get_jail_ip dns
+  assert_success
+  assert_output "172.16.15.3"
+
   run get_jail_ip mysql
   assert_success
   assert_output "172.16.15.4"
-}
 
-@test "get_jail_ip haraka" {
   run get_jail_ip haraka
   assert_success
   assert_output "172.16.15.9"
@@ -212,18 +206,6 @@ setup() {
   rm -rf "$STAGE_MNT"
 }
 
-@test "get_jail_ip dns" {
-  run get_jail_ip dns
-  assert_success
-  assert_output "172.16.15.3"
-}
-
-@test "get_jail_ip syslog" {
-  run get_jail_ip syslog
-  assert_success
-  assert_output "172.16.15.1"
-}
-
 @test "check_last_hour - returns failure when no timestamp exists" {
   local tmp; tmp=$(mktemp -d)
   TMPDIR="$tmp" run check_last_hour
@@ -278,151 +260,77 @@ setup() {
   assert_failure
 }
 
-@test "install_fstab creates fstab with data nullfs mount" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  export ZFS_DATA_MNT="$tmpdir"
-  export ZFS_JAIL_MNT="$tmpdir/jails"
-  export STAGE_MNT="$tmpdir/jails/stage"
-  export JAIL_FSTAB=""
-  export TOASTER_USE_TMPFS=0
-  export MT6_ETC="$tmpdir/etc"
+setup_fstab_tree() {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR"
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  export STAGE_MNT="$BATS_TEST_TMPDIR/jails/stage"
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  export JAIL_FSTAB="${1:-}"
+  export TOASTER_USE_TMPFS="${2:-0}"
   mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
 
   tell_status() { :; }
+}
+
+@test "install_fstab creates the data nullfs mount and no host devfs mount" {
+  setup_fstab_tree
 
   run install_fstab myjail
   assert_success
 
   run grep "nullfs" "$(get_jail_host_etc myjail)/fstab"
   assert_success
-  assert_output --partial "$tmpdir/jails/myjail/data"
+  assert_output --partial "$ZFS_JAIL_MNT/myjail/data"
 
-  rm -rf "$tmpdir"
-}
-
-@test "install_fstab creates no host devfs mount" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  export ZFS_DATA_MNT="$tmpdir"
-  export ZFS_JAIL_MNT="$tmpdir/jails"
-  export STAGE_MNT="$tmpdir/jails/stage"
-  export JAIL_FSTAB=""
-  export TOASTER_USE_TMPFS=0
-  export MT6_ETC="$tmpdir/etc"
-  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
-
-  tell_status() { :; }
-
-  run install_fstab myjail
-  assert_success
-
-  run grep "devfs" "$tmpdir/myjail/etc/fstab"
+  # the jail mounts its own devfs, the host declares none
+  run grep "devfs" "$(get_jail_host_etc myjail)/fstab"
   assert_failure
-
-  rm -rf "$tmpdir"
 }
 
-setup_tmpfs_fstab() {
-  export ZFS_DATA_MNT="$1"
-  export ZFS_JAIL_MNT="$1/jails"
-  export STAGE_MNT="$1/jails/stage"
-  export JAIL_FSTAB=""
-  export TOASTER_USE_TMPFS=1
-  export MT6_ETC="$1/etc"
-  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
-
-  tell_status() { :; }
-}
-
-@test "install_fstab mounts the runtime /tmp noexec" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  setup_tmpfs_fstab "$tmpdir"
+@test "install_fstab appends JAIL_FSTAB when set" {
+  setup_fstab_tree "/extra/src /extra/dest nullfs rw 0 0"
 
   install_fstab myjail
 
-  run grep "$tmpdir/jails/myjail/tmp" "$(get_jail_host_etc myjail)/fstab"
+  run grep "/extra/src" "$(get_jail_host_etc myjail)/fstab"
   assert_success
-  assert_output --partial "rw,mode=01777,noexec,nosuid"
-
-  rm -rf "$tmpdir"
-}
-
-@test "install_fstab mounts the stage /tmp exec, so ports can build there" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  setup_tmpfs_fstab "$tmpdir"
-
-  install_fstab myjail
-
-  run grep "$tmpdir/jails/stage/tmp" "$(get_jail_host_etc myjail)/fstab.stage"
-  assert_success
-  refute_output --partial "noexec"
-  assert_output --partial "rw,mode=01777,nosuid"
-
-  rm -rf "$tmpdir"
-}
-
-@test "install_fstab keeps the stage /var/run noexec" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  setup_tmpfs_fstab "$tmpdir"
-
-  install_fstab myjail
-
-  run grep "$tmpdir/jails/stage/var/run" "$(get_jail_host_etc myjail)/fstab.stage"
-  assert_success
-  assert_output --partial "rw,mode=01755,noexec,nosuid"
-
-  rm -rf "$tmpdir"
-}
-
-@test "install_fstab copies the exec /tmp into the stage shutdown fstab" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  setup_tmpfs_fstab "$tmpdir"
-
-  install_fstab myjail
-
-  run grep "$tmpdir/jails/stage/tmp" "$(get_jail_host_etc stage)/fstab"
-  assert_success
-  refute_output --partial "noexec"
-
-  rm -rf "$tmpdir"
 }
 
 # a jail relative source sits in column 0, where the old rewrite missed it
 @test "install_fstab - the stage fstab rewrites a source as well as a target" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  export ZFS_DATA_MNT="$tmpdir" ZFS_JAIL_MNT="$tmpdir/jails"
-  export STAGE_MNT="$tmpdir/jails/stage" TOASTER_USE_TMPFS=0
-  export MT6_ETC="$tmpdir/etc"
+  setup_fstab_tree
   export JAIL_FSTAB="$ZFS_JAIL_MNT/myjail/dev $ZFS_JAIL_MNT/myjail/compat/linux/dev nullfs rw 0 0"
-  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
-  tell_status() { :; }
 
   install_fstab myjail
 
   run grep "compat/linux/dev" "$(get_jail_host_etc myjail)/fstab.stage"
   assert_output --partial "$STAGE_MNT/dev $STAGE_MNT/compat/linux/dev"
   refute_output --partial "$ZFS_JAIL_MNT/myjail"
-
-  rm -rf "$tmpdir"
 }
 
-@test "install_fstab appends JAIL_FSTAB when set" {
-  local tmpdir; tmpdir=$(mktemp -d)
-  export ZFS_DATA_MNT="$tmpdir"
-  export ZFS_JAIL_MNT="$tmpdir/jails"
-  export STAGE_MNT="$tmpdir/jails/stage"
-  export JAIL_FSTAB="/extra/src /extra/dest nullfs rw 0 0"
-  export TOASTER_USE_TMPFS=0
-  export MT6_ETC="$tmpdir/etc"
-  mkdir -p "$(get_jail_host_etc myjail)" "$(get_jail_host_etc stage)"
-
-  tell_status() { :; }
+# ports build in /tmp, so the stage jail gets an exec /tmp the running jail does not
+@test "install_fstab - tmpfs mounts differ between the stage and the jail" {
+  setup_fstab_tree "" 1
 
   install_fstab myjail
 
-  run grep "/extra/src" "$(get_jail_host_etc myjail)/fstab"
+  run grep "$ZFS_JAIL_MNT/myjail/tmp" "$(get_jail_host_etc myjail)/fstab"
   assert_success
+  assert_output --partial "rw,mode=01777,noexec,nosuid"
 
-  rm -rf "$tmpdir"
+  run grep "$STAGE_MNT/tmp" "$(get_jail_host_etc myjail)/fstab.stage"
+  assert_success
+  refute_output --partial "noexec"
+  assert_output --partial "rw,mode=01777,nosuid"
+
+  run grep "$STAGE_MNT/var/run" "$(get_jail_host_etc myjail)/fstab.stage"
+  assert_success
+  assert_output --partial "rw,mode=01755,noexec,nosuid"
+
+  # the shutdown fstab has to name the same exec /tmp, or unmounting misses it
+  run grep "$STAGE_MNT/tmp" "$(get_jail_host_etc stage)/fstab"
+  assert_success
+  refute_output --partial "noexec"
 }
 
 @test "stage_fbsd_pkgbase derives base_release_<minor> and invokes pkg" {
@@ -492,39 +400,20 @@ unmounted_paths() {
   stage_unmount | awk '/^umount /{ print $2 }'
 }
 
-@test "stage_unmount unmounts nested mounts before their parents" {
+@test "stage_unmount unmounts every stage mount, deepest first, once each" {
   fake_mount
   run unmounted_paths
   assert_success
+
+  # a parent unmounted first would leave the nested mount stranded
   assert_line --index 0 "$STAGE_MNT/usr/ports/distfiles"
   assert_line --index 1 "$STAGE_MNT/usr/ports"
-}
-
-@test "stage_unmount unmounts each mountpoint once" {
-  fake_mount
-  run unmounted_paths
-  assert_success
-  assert_equal "${#lines[@]}" 4
-}
-
-@test "stage_unmount unmounts the stage devfs" {
-  fake_mount
-  run unmounted_paths
-  assert_success
   assert_line "$STAGE_MNT/dev"
-}
+  assert_equal "${#lines[@]}" 4
 
-@test "stage_unmount leaves the stage root mounted" {
-  fake_mount
-  run unmounted_paths
-  assert_success
+  # the stage root itself stays, the jail is still there to promote
   refute_line "$STAGE_MNT"
-}
 
-@test "stage_unmount ignores mounts outside the stage" {
-  fake_mount
-  run unmounted_paths
-  assert_success
   # 'stage' as a substring elsewhere in the mount line is not a stage mount
   refute_line "${STAGE_MNT}-other/data"
   refute_line "$ZFS_JAIL_MNT/dovecot/stagefiles"
@@ -591,6 +480,7 @@ host_etc_setup() {
 @test "adopt_jail_host_etc - copies the rules, leaves the original in place" {
   host_etc_setup
   echo "shadow"    > "$OLD/pf.conf.d/rdr.conf.mt6"
+  chmod 600 "$OLD/pf.conf.d/rdr.conf.mt6"
   echo "10.0.0.0/8"> "$OLD/pf.conf.d/blocklist.table"
   echo "tshadow"   > "$OLD/pf.conf.d/blocklist.table.mt6"
   echo "stray"     > "$OLD/pf.conf.d/notes.txt"
@@ -608,20 +498,12 @@ host_etc_setup() {
   [ ! -e "$_new/notes.txt" ]
 
   [ -f "$OLD/pf.conf.d/rdr.conf" ]
-}
 
-@test "adopt_jail_host_etc - keeps a .mt6 shadow at 0600" {
-  host_etc_setup
-  echo "secret" > "$OLD/pf.conf.d/rdr.conf.mt6"
-  chmod 600 "$OLD/pf.conf.d/rdr.conf.mt6"
-
-  adopt_jail_host_etc dovecot
-
-  local _pfd="$(get_jail_host_etc dovecot)/pf.conf.d"
-  run find "$_pfd" -name "rdr.conf.mt6" -perm 600
-  assert_output "$_pfd/rdr.conf.mt6"
-  run find "$_pfd" -name "rdr.conf" -perm 644
-  assert_output "$_pfd/rdr.conf"
+  # a .mt6 shadow can hold a credential, so it keeps its tighter mode
+  run find "$_new" -name "rdr.conf.mt6" -perm 600
+  assert_output "$_new/rdr.conf.mt6"
+  run find "$_new" -name "rdr.conf" -perm 644
+  assert_output "$_new/rdr.conf"
 }
 
 @test "adopt_jail_host_etc - a symlink is never adopted" {

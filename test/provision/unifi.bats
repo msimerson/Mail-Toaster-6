@@ -4,23 +4,24 @@
 # store_unifi_mongodb_dsn mints a credential and writes it to conf.d/, so every
 # test runs with MT6_CONF_DIR pointed at a tmpdir.
 
+setup_file() {
+  export UNIFI_FNS="$BATS_FILE_TMPDIR/unifi_fns_only.sh"
+  awk '/^store_unifi_mongodb_dsn$/{exit} {print}' \
+    "$BATS_TEST_DIRNAME/../../provision/unifi.sh" > "$UNIFI_FNS"
+}
+
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   export MT6_TEST_ENV=1
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d)
-  export ZFS_DATA_MNT; ZFS_DATA_MNT=$(mktemp -d)
-  export ZFS_JAIL_MNT; ZFS_JAIL_MNT=$(mktemp -d)
-  export MT6_CONF_DIR; MT6_CONF_DIR=$(mktemp -d)/conf.d
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  export MT6_CONF_DIR="$BATS_TEST_TMPDIR/conf.d"
 
-  # Function definitions only; the execution block provisions a jail.
-  local _fns="$BATS_TEST_TMPDIR/unifi_fns_only.sh"
-  awk '/^store_unifi_mongodb_dsn$/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/unifi.sh" > "$_fns"
   # shellcheck source=/dev/null
-  . "$_fns"
+  . "$UNIFI_FNS"
 }
 
 @test "unifi - defines store_unifi_mongodb_dsn" {

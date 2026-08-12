@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   export BASE; BASE=$(mktemp -d)
   mkdir -p "$BASE/etc/mail" "$BASE/usr/libexec" "$BASE/usr/local/libexec"
