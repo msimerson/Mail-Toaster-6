@@ -641,3 +641,149 @@ promote_setup() {
   refute_output --partial "retire"
 }
 
+
+# --- unprovision clears the control files the host keeps per jail ---
+
+setup_unprovision_tree() {
+  export MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  mkdir -p "$(get_jail_host_etc myjail)/pf.conf.d" \
+           "$(get_jail_host_etc myjail)/rc.d" \
+           "$(get_jail_host_etc otherjail)/pf.conf.d"
+  : > "$(get_jail_host_etc myjail)/fstab"
+  : > "$(get_jail_host_etc myjail)/pf.conf.d/rdr.conf"
+  : > "$(get_jail_host_etc myjail)/rc.d/poststart.sh"
+  : > "$(get_jail_host_etc otherjail)/pf.conf.d/rdr.conf"
+  : > "$MT6_ETC/pfrule.sh"
+
+  tell_status() { :; }
+  sysrc()       { :; }
+}
+
+@test "unprovision_etc - removes the jail's control files" {
+  setup_unprovision_tree
+
+  unprovision_etc myjail
+
+  [ ! -d "$(get_jail_host_etc myjail)" ]
+}
+
+@test "unprovision_etc - leaves the other jails alone" {
+  setup_unprovision_tree
+
+  unprovision_etc myjail
+
+  [ -f "$(get_jail_host_etc otherjail)/pf.conf.d/rdr.conf" ]
+  [ -f "$MT6_ETC/pfrule.sh" ]
+}
+
+@test "unprovision_etc - a jail that was never provisioned is not an error" {
+  setup_unprovision_tree
+
+  run unprovision_etc neverbuilt
+  assert_success
+}
+
+# an empty jail name would resolve to $MT6_ETC itself
+@test "unprovision_etc - refuses to run without a jail name" {
+  setup_unprovision_tree
+
+  run unprovision_etc ""
+  assert_success
+  [ -d "$MT6_ETC" ]
+  [ -f "$MT6_ETC/pfrule.sh" ]
+}
+
+@test "unprovision <jail> - clears the control files along with the jail" {
+  setup_unprovision_tree
+  service()               { :; }
+  unprovision_filesystem() { return 0; }
+  unprovision_rc()         { :; }
+
+  unprovision myjail
+
+  [ ! -d "$(get_jail_host_etc myjail)" ]
+  [ -f "$(get_jail_host_etc otherjail)/pf.conf.d/rdr.conf" ]
+}
+
+@test "unprovision_files - removes the whole control directory" {
+  setup_unprovision_tree
+  export JAIL_NET_PREFIX="172.16.15"
+  sed_inplace() { :; }
+  grep()        { return 1; }
+
+  # it names /etc/jail.conf and /etc/pf.conf outright; keep the test off them
+  rm() {
+    local _a
+    for _a in "$@"; do
+      case "$_a" in
+        -*) ;;
+        "$BATS_TEST_TMPDIR"/*) ;;
+        *) return 0 ;;
+      esac
+    done
+    command rm "$@"
+  }
+
+  unprovision_files
+
+  [ ! -d "$MT6_ETC" ]
+}
+
+@test "unprovision_etc - a jail name cannot escape MT6_ETC" {
+  setup_unprovision_tree
+  mkdir -p "$BATS_TEST_TMPDIR/outside"
+  : > "$BATS_TEST_TMPDIR/outside/keep"
+
+  run unprovision_etc "../outside"
+  assert_success
+
+  [ -f "$BATS_TEST_TMPDIR/outside/keep" ]
+  [ -d "$(get_jail_host_etc myjail)" ]
+}
+
+@test "unprovision_etc - refuses anything that is not a jail name" {
+  setup_unprovision_tree
+  local _name
+  for _name in . .. "a b" "a;b" "a/b" "-rf"; do
+    run unprovision_etc "$_name"
+    assert_success
+  done
+
+  [ -f "$MT6_ETC/pfrule.sh" ]
+  [ -d "$(get_jail_host_etc myjail)" ]
+  [ -d "$(get_jail_host_etc otherjail)" ]
+}
+
+@test "unprovision_rc - refuses a name that would escape jail.conf.d" {
+  setup_unprovision_tree
+  sysrc() { echo "$*" >> "$BATS_TEST_TMPDIR/sysrc.log"; }
+
+  run unprovision_rc "../../tmp/evil"
+  assert_success
+
+  [ ! -f "$BATS_TEST_TMPDIR/sysrc.log" ]
+}
+
+@test "unprovision_rc - still disables a real jail" {
+  setup_unprovision_tree
+  sysrc() { echo "$*" >> "$BATS_TEST_TMPDIR/sysrc.log"; }
+
+  unprovision_rc myjail
+
+  run cat "$BATS_TEST_TMPDIR/sysrc.log"
+  assert_output --partial "jail_list-= myjail"
+}
+
+@test "unprovision_files - refuses to remove a root MT6_ETC" {
+  setup_unprovision_tree
+  export MT6_ETC="/"
+  export JAIL_NET_PREFIX="172.16.15"
+  sed_inplace() { :; }
+  grep()        { return 1; }
+  rm() { echo "$*" >> "$BATS_TEST_TMPDIR/rm.log"; }
+
+  unprovision_files
+
+  run cat "$BATS_TEST_TMPDIR/rm.log"
+  refute_output --regexp '(^| )/$'
+}

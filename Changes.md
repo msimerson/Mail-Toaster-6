@@ -13,6 +13,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - host: pf.conf gains ext_if6, each family NATs on its own default route NIC
 - host: ntp rule covers every public NIC, not just the IPv4 one
 - host: ssh rate limit applies on every interface, jail and loopback sources exempt
+- mt: unprovision removes the jail's /etc/mail-toaster/<jail> control files
 - linux jails: rc.d/linux mounts /compat/linux inside the jail
 - dma: create /var/spool/dma when the port has not
 - mt: jail control files move to /etc/mail-toaster/<jail>
