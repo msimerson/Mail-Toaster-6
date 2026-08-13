@@ -40,6 +40,32 @@ host_has() {
   get_public_ip6() { :; }
 }
 
+# each get_public_ip* resolves its own family's default route into PUBLIC_NIC,
+# so the last one called used to decide ext_if for both
+@test "configure_pf_conf - each family NATs on its own interface" {
+  export PUBLIC_IP4="203.0.113.7" PUBLIC_IP6="2001:db8::1"
+  get_public_ip4() { export PUBLIC_NIC="em0"; }
+  get_public_ip6() { export PUBLIC_NIC="gif0"; }
+
+  configure_pf_conf > /dev/null
+
+  run cat "$PF_CONF"
+  assert_line 'ext_if="em0"'
+  assert_line 'ext_if6="gif0"'
+}
+
+@test "configure_pf_conf - a single family host NATs both rules on its one interface" {
+  export PUBLIC_IP4="" PUBLIC_IP6="2001:db8::1"
+  get_public_ip4() { export PUBLIC_NIC="gif0"; }
+  get_public_ip6() { export PUBLIC_NIC="gif0"; }
+
+  configure_pf_conf > /dev/null
+
+  run cat "$PF_CONF"
+  assert_line 'ext_if="gif0"'
+  assert_line 'ext_if6="gif0"'
+}
+
 @test "configure_pf_conf - a dual stack host NATs and tables both families" {
   host_has "203.0.113.7" "2001:db8::1"
 
@@ -49,8 +75,8 @@ host_has() {
   assert_line 'table <ext_ip>  { $ext_ip4, $ext_ip6 } persist'
   assert_line 'table <ext_ip4> { $ext_ip4 } persist'
   assert_line 'table <ext_ip6> { $ext_ip6 } persist'
-  assert_line 'nat on $ext_if inet  from $jail_ip4 to any -> ($ext_if)'
-  assert_line 'nat on $ext_if inet6 from $jail_ip6 to any -> <ext_ip6>'
+  assert_line 'nat on $ext_if  inet  from $jail_ip4 to any -> ($ext_if)'
+  assert_line 'nat on $ext_if6 inet6 from $jail_ip6 to any -> <ext_ip6>'
 }
 
 # an empty macro inside { } expands to an empty table, which pf accepts. A
@@ -85,8 +111,8 @@ host_has() {
     run cat "$PF_CONF"
     assert_line 'table <ext_ip4> { $ext_ip4 } persist'
     assert_line 'table <ext_ip6> { $ext_ip6 } persist'
-    assert_line 'nat on $ext_if inet  from $jail_ip4 to any -> ($ext_if)'
-    assert_line 'nat on $ext_if inet6 from $jail_ip6 to any -> <ext_ip6>'
+    assert_line 'nat on $ext_if  inet  from $jail_ip4 to any -> ($ext_if)'
+    assert_line 'nat on $ext_if6 inet6 from $jail_ip6 to any -> <ext_ip6>'
   done
 }
 

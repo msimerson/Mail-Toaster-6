@@ -133,6 +133,7 @@ load_dns_fns() {
 }
 
 @test "dns - get_mt6_data publishes AAAA records when the jails have IPv6" {
+  load_dns_fns
   export PUBLIC_IP6="2001:db8::1"
   run get_mt6_data
   assert_output --partial "AAAA"
@@ -142,6 +143,7 @@ load_dns_fns() {
 # an AAAA for an address no jail is listening on is a connection every client
 # tries first and waits out
 @test "dns - get_mt6_data publishes no AAAA records when the jails have none" {
+  load_dns_fns
   export PUBLIC_IP6=""
   run get_mt6_data
   refute_output --partial "AAAA"
@@ -149,6 +151,7 @@ load_dns_fns() {
 }
 
 @test "dns - get_mt6_data still publishes A records without IPv6" {
+  load_dns_fns
   export PUBLIC_IP6=""
   run get_mt6_data
   assert_output --partial "local-data: \"dns		A "
@@ -305,10 +308,12 @@ setup_access_conf() {
 }
 
 @test "dns - access.conf includes the public IPv6 when one is known" {
-  rm -f "$ZFS_DATA_MNT/dns/access.conf"
+  setup_access_conf
   get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
   install_access_conf
-  run cat "$ZFS_DATA_MNT/dns/access.conf"
+
+  run cat "$ACCESS_CONF"
   assert_output --partial "access-control: 2001:db8::1 allow"
 }
 
@@ -316,8 +321,10 @@ setup_access_conf() {
 
 # tweak_unbound_conf rewrites the sample; give each case an untouched copy
 unbound_conf_from_sample() {
-  export UNBOUND_DIR="$STAGE_MNT/usr/local/etc/unbound"
-  cp "$UNBOUND_DIR/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf"
+  load_dns_fns
+  export UNBOUND_DIR="$BATS_TEST_TMPDIR/unbound"
+  mkdir -p "$UNBOUND_DIR"
+  cp "$STAGE_MNT/usr/local/etc/unbound/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf"
 }
 
 @test "dns - a dual stack host leaves unbound preferring IPv4" {

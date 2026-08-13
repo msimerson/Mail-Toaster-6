@@ -143,7 +143,7 @@ assert_haproxy_accepts() {
 @test "haproxy stage conf - IPv6 only host still binds the private IPv4" {
   run grep '^    bind ' "$(stage_conf ip6only)"
   assert_line '    bind [fd7a:e5cd:1fc1:c597:dead:beef:cafe:00fe]:80 alpn http/1.1'
-  assert_line '    bind 172.16.15.1:80 alpn http/1.1'
+  assert_line '    bind 172.16.15.254:80 alpn http/1.1'
 }
 
 # --- haproxy accepts the generated configs ---

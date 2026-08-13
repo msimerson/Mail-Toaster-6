@@ -413,20 +413,24 @@ configure_pf_conf()
 {
 	if [ -z "$PUBLIC_NIC" ]; then fatal_err "PUBLIC_NIC unset!"; fi
 
-	local _members=""
+	local _members="" _nic4="" _nic6=""
 
-	if has_public_ip4; then _members="\$ext_ip4"; fi
-	if has_public_ip6; then _members="${_members:+$_members, }\$ext_ip6"; fi
+	if has_public_ip4; then _members="\$ext_ip4"; _nic4="$PUBLIC_NIC"; fi
+	if has_public_ip6; then _members="${_members:+$_members, }\$ext_ip6"; _nic6="$PUBLIC_NIC"; fi
 
 	if [ -z "$_members" ]; then
 		fatal_err "no public IPv4 or IPv6 found on $PUBLIC_NIC!"
 	fi
 
+	if [ -z "$_nic4" ]; then _nic4="$_nic6"; fi
+	if [ -z "$_nic6" ]; then _nic6="$_nic4"; fi
+
 	tell_status "setting up the PF firewall and NAT for jails"
 	store_config "/etc/pf.conf" "update" <<EO_PF_RULES
 ## Macros
 
-ext_if="$PUBLIC_NIC"
+ext_if="$_nic4"
+ext_if6="$_nic6"
 ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
@@ -447,8 +451,8 @@ binat-anchor "binat/*"
 nat-anchor "nat/*"
 
 # default route to the internet for jails
-nat on \$ext_if inet  from \$jail_ip4 to any -> (\$ext_if)
-nat on \$ext_if inet6 from \$jail_ip6 to any -> <ext_ip6>
+nat on \$ext_if  inet  from \$jail_ip4 to any -> (\$ext_if)
+nat on \$ext_if6 inet6 from \$jail_ip6 to any -> <ext_ip6>
 
 ## Redirection
 

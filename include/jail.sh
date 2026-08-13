@@ -384,9 +384,8 @@ warn_stale_jail_conf()
 	fi
 }
 
-# A jail always gets an ip4.addr on the private network. It gets an ip6.addr
-# only where the host has a public IPv6, so this answers "can a service in this
-# jail bind IPv6" for every generated config.
+# A jail always gets an ip4.addr on lo1. It gets an ip6.addr only when the host has
+# a public IPv6. This answers "can a service in this jail bind IPv6".
 jail_has_ip6()
 {
 	has_public_ip6
