@@ -381,7 +381,7 @@ start_staged_jail()
 		host.hostname="$_name" \
 		path="$_path" \
 		interface="$JAIL_NET_INTERFACE" \
-		ip4.addr="$(get_jail_ip stage)" \
+		ip4.addr="$(get_jail_ip4 stage)" \
 		ip6.addr="$(get_jail_ip6 stage)" \
 		exec.start="/bin/sh /etc/rc" \
 		exec.stop="/bin/sh /etc/rc.shutdown" \
@@ -433,7 +433,7 @@ stage_resolv_conf()
 	if ! jail_is_running dns; then return; fi
 
 	tell_status "configuring DNS for local recursor"
-	echo "nameserver $(get_jail_ip  dns)" >  "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip4  dns)" >  "$STAGE_MNT/etc/resolv.conf"
 	echo "nameserver $(get_jail_ip6 dns)" >> "$STAGE_MNT/etc/resolv.conf"
 }
 
@@ -767,7 +767,7 @@ provision()
 		mt6)  provision_mt6; return;;
 	esac
 
-	if ! get_jail_ip "$1"; then
+	if ! get_jail_ip4 "$1"; then
 		if [ "$1" = "skel" ]; then
 			provision_skeleton "$@"
 		else

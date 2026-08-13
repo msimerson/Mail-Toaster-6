@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- jail: rename get_jail_ip to get_jail_ip4
 - perf(test): source the assertion libraries once, scripts once per file
 - linux jails: rc.d/linux mounts /compat/linux inside the jail
 - dma: create /var/spool/dma when the port has not

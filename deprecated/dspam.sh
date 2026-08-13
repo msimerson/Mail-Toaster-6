@@ -42,7 +42,7 @@ configure_dspam_mysql()
 	_dpass=$(get_random_pass 18 safe)
 
 	for _jail in dspam stage; do
-		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		for _ip in $(get_jail_ip4 "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			echo "CREATE USER IF NOT EXISTS 'dspam'@'${_ip}' IDENTIFIED BY '${_dpass}';" | mysql_query || exit 1
 			echo "GRANT ALL PRIVILEGES ON dspam.* to 'dspam'@'${_ip}';" | mysql_query || exit 1
@@ -64,7 +64,7 @@ configure_dspam()
 	configure_dspam_mysql
 
 	tee -a "$_etc/dspam.conf" <<EO_DSPAM_MYSQL
-MySQLServer             $(get_jail_ip mysql)
+MySQLServer             $(get_jail_ip4 mysql)
 MySQLUser               dspam
 MySQLPass               $_dpass
 MySQLDb                 dspam

@@ -121,7 +121,7 @@ bayes_journal_max_size  1024000
 bayes_expiry_max_db_size 1024000
 
 bayes_store_module  Mail::SpamAssassin::BayesStore::Redis
-bayes_sql_dsn       server=$(get_jail_ip redis):6379;database=2
+bayes_sql_dsn       server=$(get_jail_ip4 redis):6379;database=2
 bayes_token_ttl 21d
 bayes_seen_ttl   8d
 bayes_auto_expire 1
@@ -203,7 +203,7 @@ trusted_networks $JAIL_NET_PREFIX.
 skip_rbl_checks         0
 use_razor2              1
 use_dcc                 1
-dcc_dccifd_path 		$(get_jail_ip dcc):1025
+dcc_dccifd_path 		$(get_jail_ip4 dcc):1025
 
 ok_languages            en
 ok_locales              en
@@ -234,7 +234,7 @@ configure_spamassassin_mysql()
 
 	tee -a "$_sa_etc/sql.cf" <<EO_MYSQL_CONF
     # Users scores is useful with the Squirrelmail SASQL plugin
-    # user_scores_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
+    # user_scores_dsn                 DBI:mysql:spamassassin:$(get_jail_ip4 mysql)
     # user_scores_sql_username        spamassassin
     # user_scores_sql_password        $_my_pass
 
@@ -249,7 +249,7 @@ configure_spamassassin_mysql()
 
     # Bayes in Redis now, by default. Likely a bad choice to enable this.
     # bayes_store_module              Mail::SpamAssassin::BayesStore::SQL
-    # bayes_sql_dsn                   DBI:mysql:spamassassin:$(get_jail_ip mysql)
+    # bayes_sql_dsn                   DBI:mysql:spamassassin:$(get_jail_ip4 mysql)
     # bayes_sql_username              spamassassin
     # bayes_sql_password              $_my_pass
     # bayes_sql_override_username     someusername
@@ -257,7 +257,7 @@ configure_spamassassin_mysql()
     # for AWL or TxRep plugin
     # auto_whitelist_factory       Mail::SpamAssassin::SQLBasedAddrList
     # txrep_factory                Mail::SpamAssassin::DBBasedAddrList
-    # user_awl_dsn                 DBI:mysql:spamassassin:$(get_jail_ip mysql)
+    # user_awl_dsn                 DBI:mysql:spamassassin:$(get_jail_ip4 mysql)
     # user_awl_sql_username        spamassassin
     # user_awl_sql_password        $_my_pass
     # user_awl_sql_table           awl
@@ -286,7 +286,7 @@ EO_MYSQL_CONF
 ) ENGINE=InnoDB;" | mysql_query spamassassin
 
 	mysql_create_user spamassassin "$_my_pass" spamassassin \
-		"$(get_jail_ip spamassassin)" "$(get_jail_ip stage)" "$(get_jail_ip squirrelmail)" \
+		"$(get_jail_ip4 spamassassin)" "$(get_jail_ip4 stage)" "$(get_jail_ip4 squirrelmail)" \
 		"$(get_jail_ip6 spamassassin)" "$(get_jail_ip6 stage)" "$(get_jail_ip6 squirrelmail)"
 }
 

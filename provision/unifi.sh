@@ -60,7 +60,7 @@ install_unifi()
 
 	tell_status "installing pf rule for acme.sh"
 	store_config "$_pf_etc/filter.conf" <<EO_FILTER
-pass in quick inet  proto tcp from any to $(get_jail_ip unifi) port 443
+pass in quick inet  proto tcp from any to $(get_jail_ip4 unifi) port 443
 pass in quick inet6 proto tcp from any to $(get_jail_ip6 unifi) port 443
 EO_FILTER
 

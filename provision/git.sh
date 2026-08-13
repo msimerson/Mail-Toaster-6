@@ -78,7 +78,7 @@ configure_pf()
 	local _pf_etc; _pf_etc="$(get_jail_host_etc git)/pf.conf.d"
 
 	store_config "$_pf_etc/rdr.conf" <<EO_GIT_RDR
-int_ip4 = "$(get_jail_ip git)"
+int_ip4 = "$(get_jail_ip4 git)"
 int_ip6 = "$(get_jail_ip6 git)"
 
 rdr inet  proto tcp from any to <ext_ip4> port { 8080 } -> \$int_ip4 80

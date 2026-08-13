@@ -61,13 +61,13 @@ CREATE TABLE userprefs (
 	fi
 
 	tee -a "$SQ_DIR/config/config_local.php" <<EO_SQUIRREL_SQL
-\$prefs_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip mysql)/squirrelmail';
-\$addrbook_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip mysql)/squirrelmail';
+\$prefs_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip4 mysql)/squirrelmail';
+\$addrbook_dsn = 'mysql://squirrelmail:${sqpass}@$(get_jail_ip4 mysql)/squirrelmail';
 EO_SQUIRREL_SQL
 
 
 	for _jail in squirrelmail stage; do
-		for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+		for _ip in $(get_jail_ip4 "$_jail") $(get_jail_ip6 "$_jail");
 		do
 			echo "CREATE USER IF NOT EXISTS 'squirrelmail'@'${_ip}' IDENTIFIED BY '${sqpass}';" | mysql_query || exit 1
 			echo "GRANT ALL PRIVILEGES ON squirrelmail.* to 'squirrelmail'@'${_ip}';" | mysql_query || exit 1
@@ -151,7 +151,7 @@ configure_squirrelmail_local()
 \$signout_page = 'https://$TOASTER_HOSTNAME/';
 \$domain = '$TOASTER_MAIL_DOMAIN';
 
-\$smtpServerAddress = '$(get_jail_ip "$TOASTER_MSA")';
+\$smtpServerAddress = '$(get_jail_ip4 "$TOASTER_MSA")';
 \$smtpPort = 465;
 \$use_smtp_tls = true;
 // PHP 5.6 enables verify_peer by default, which is good but in this context,
@@ -168,7 +168,7 @@ configure_squirrelmail_local()
 ];
 \$smtp_auth_mech = 'login';
 
-\$imapServerAddress = '$(get_jail_ip dovecot)';
+\$imapServerAddress = '$(get_jail_ip4 dovecot)';
 \$imap_server_type = 'dovecot';
 \$use_imap_tls     = false;
 

@@ -31,7 +31,7 @@ configure_dhcpd()
 
 	local _pf_etc; _pf_etc="$(get_jail_host_etc dhcp)/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-rdr inet  proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip  dhcp)
+rdr inet  proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip4  dhcp)
 rdr inet6 proto tcp from any to <ext_ips> port { 67 68 } -> $(get_jail_ip6 dhcp)
 EO_PF_RDR
 

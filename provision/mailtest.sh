@@ -32,7 +32,7 @@ test_mailtest()
 
 	local _email _server _pass
 	_email="postmaster@$TOASTER_MAIL_DOMAIN"
-	_server=$(get_jail_ip haraka)
+	_server=$(get_jail_ip4 haraka)
 	_pass=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "$_email")
 
 	tell_status "sending an email to $_email"

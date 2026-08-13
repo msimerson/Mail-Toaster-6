@@ -35,7 +35,7 @@ configure_redis()
 
 	tell_status "add Redis address, for default Lua modules backend"
 	store_config "$RSPAMD_ETC/local.d/redis.conf" <<EO_REDIS
-	servers = "$(get_jail_ip redis):6379";
+	servers = "$(get_jail_ip4 redis):6379";
 	db    = "5";
 EO_REDIS
 }
@@ -44,7 +44,7 @@ configure_dcc() {
 	tell_status "enabling DCC"
 	store_config "$RSPAMD_ETC/local.d/dcc.conf" <<EO_DCC
 	enabled = true;
-	servers = $(get_jail_ip dcc):1025;
+	servers = $(get_jail_ip4 dcc):1025;
 	timeout = 5s;
 EO_DCC
 }
@@ -86,7 +86,7 @@ configure_dmarc()
 		email = "$TOASTER_ADMIN_EMAIL";
 		# uncomment this when the reports are working
 		override_address = "$TOASTER_ADMIN_EMAIL";
-		smtp = "$(get_jail_ip "$TOASTER_MTA")";
+		smtp = "$(get_jail_ip4 "$TOASTER_MTA")";
 	}
 EO_DMARC
 }
@@ -112,7 +112,7 @@ configure_stats()
 		}
 
 		backend = "redis";
-		servers = "$(get_jail_ip redis):6379";
+		servers = "$(get_jail_ip4 redis):6379";
 		database = "6";
 
 		min_tokens = 11;
@@ -256,7 +256,7 @@ configure_controller()
 
 	store_config "$RSPAMD_ETC/local.d/worker-controller.inc" <<EO_CONTROLLER
 password = "$(jexec stage rspamadm pw -p "$_pass")";
-secure_ip = $(get_jail_ip dovecot);
+secure_ip = $(get_jail_ip4 dovecot);
 secure_ip = $(get_jail_ip6 dovecot);
 EO_CONTROLLER
 }

@@ -211,7 +211,7 @@ enable_bsd_cache()
 	tell_status "enabling bsd_cache"
 
 	store_config "$STAGE_MNT/etc/resolv.conf" "overwrite" <<EO_RESOLV
-nameserver $(get_jail_ip dns)
+nameserver $(get_jail_ip4 dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
 

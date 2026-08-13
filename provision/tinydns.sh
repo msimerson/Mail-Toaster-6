@@ -51,13 +51,13 @@ test_tinydns()
 	fi
 
 	tell_status "testing UDP DNS query"
-	drill    "$_fqdn" @"$(get_jail_ip stage)"
+	drill    "$_fqdn" @"$(get_jail_ip4 stage)"
 
 	tell_status "testing TCP DNS query"
-	drill -t "$_fqdn" @"$(get_jail_ip stage)"
+	drill -t "$_fqdn" @"$(get_jail_ip4 stage)"
 
 	tell_status "switching tinydns IP to deployment IP"
-	get_jail_ip tinydns | tee "$STAGE_MNT/var/service/tinydns/env/IP" "$STAGE_MNT/var/service/axfrdns/env/IP"
+	get_jail_ip4 tinydns | tee "$STAGE_MNT/var/service/tinydns/env/IP" "$STAGE_MNT/var/service/axfrdns/env/IP"
 	get_jail_ip6 tinydns | tee "$STAGE_MNT/var/service/tinydns-v6/env/IP" "$STAGE_MNT/var/service/axfrdns-v6/env/IP"
 
 	stage_exec service svscan stop

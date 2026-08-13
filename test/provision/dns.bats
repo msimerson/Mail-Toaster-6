@@ -6,7 +6,7 @@
 # call a function pay to source the definitions.
 #
 # bats traps DEBUG, which makes every subshell spawn expensive. get_mt6_data
-# spawns one per jail via $(get_jail_ip ...), so running configure_unbound per
+# spawns one per jail via $(get_jail_ip4 ...), so running configure_unbound per
 # test cost more than the rest of the file put together.
 
 setup_file() {
@@ -208,8 +208,8 @@ load_dns_fns() {
   test_unbound
 
   run cat "$STAGE_MNT/etc/resolv.conf"
-  assert_output --partial "nameserver $(get_jail_ip dns)"
-  refute_output --partial "$(get_jail_ip stage)"
+  assert_output --partial "nameserver $(get_jail_ip4 dns)"
+  refute_output --partial "$(get_jail_ip4 stage)"
 }
 
 # --- switch_host_resolver behaviour ---

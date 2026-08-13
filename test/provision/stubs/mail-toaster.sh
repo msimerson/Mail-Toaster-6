@@ -77,7 +77,7 @@ seed_pkg_audit()           { :; }
 # Jail helpers
 jail_is_running()          { return 1; }
 # mirrors include/jail.sh, less the host(1) fallback for an unlisted jail
-get_jail_ip() {
+get_jail_ip4() {
   local _start=${JAIL_NET_START:-1} _octet
 
   case "$1" in

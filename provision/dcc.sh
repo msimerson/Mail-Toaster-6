@@ -73,7 +73,7 @@ pass in quick proto udp from any port 6277 to <dcc>
 EO_PF_FILTER
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-rdr inet  proto tcp from any to <ext_ip4> port 6277 -> $(get_jail_ip  dcc)
+rdr inet  proto tcp from any to <ext_ip4> port 6277 -> $(get_jail_ip4  dcc)
 rdr inet6 proto tcp from any to <ext_ip6> port 6277 -> $(get_jail_ip6 dcc)
 EO_PF_RDR
 

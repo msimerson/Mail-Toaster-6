@@ -111,7 +111,7 @@ install_horde_mysql()
 	\$conf['cookie']['path'] = '/horde';
 	\$conf['sql']['username'] = 'horde';
 	\$conf['sql']['password'] = '$_hordepass';
-	\$conf['sql']['hostspec'] = '$(get_jail_ip mysql)';
+	\$conf['sql']['hostspec'] = '$(get_jail_ip4 mysql)';
 	\$conf['sql']['port'] = 3306;
 	\$conf['sql']['protocol'] = 'tcp';
 	\$conf['sql']['database'] = 'horde';
@@ -175,7 +175,7 @@ install_horde_mysql()
 	\$conf['history']['driver'] = 'Sql';
 	\$conf['davstorage']['params']['driverconfig'] = 'horde';
 	\$conf['davstorage']['driver'] = 'Sql';
-	\$conf['mailer']['params']['host'] = '$(get_jail_ip "$TOASTER_MSA")';
+	\$conf['mailer']['params']['host'] = '$(get_jail_ip4 "$TOASTER_MSA")';
 	\$conf['mailer']['params']['port'] = 587;
 	\$conf['mailer']['params']['secure'] = 'tls';
 	\$conf['mailer']['params']['username_auth'] = true;
@@ -229,7 +229,7 @@ EO_HORDE_PREFS
 		tell_status "configuring horde mysql permissions"
 
 		for _jail in horde stage; do
-			for _ip in $(get_jail_ip "$_jail") $(get_jail_ip6 "$_jail");
+			for _ip in $(get_jail_ip4 "$_jail") $(get_jail_ip6 "$_jail");
 			do
 				echo "CREATE USER IF NOT EXISTS 'horde'@'${_ip}' IDENTIFIED BY '${_hordepass}';" | mysql_query || exit 1
 				echo "GRANT ALL PRIVILEGES ON horde.* to 'horde'@'${_ip}';" | mysql_query || exit 1
@@ -273,7 +273,7 @@ EO_HORDE_IMP_CONF
 	local _horde_imp_backend="$STAGE_MNT/usr/local/www/horde/imp/config/backends.local.php"
 	cp "$STAGE_MNT/usr/local/www/horde/imp/config/backends.php" $_horde_imp_backend
 	sed_inplace \
-		-e "s/'hostspec' => 'localhost'/'hostspec' => '$(get_jail_ip dovecot)'/" \
+		-e "s/'hostspec' => 'localhost'/'hostspec' => '$(get_jail_ip4 dovecot)'/" \
 		"$_horde_imp_backend" || exit
 }
 
@@ -339,7 +339,7 @@ EO_INGO_HOOKS
 	Ingo::RULE_ALL => array(
 	'driver' => 'vfs',
 	'params' => array(
-	'hostspec' => '$(get_jail_ip horde)',
+	'hostspec' => '$(get_jail_ip4 horde)',
 	'filename' => '.mailfilter',
 	'vfs_path' => '/usr/local/vpopmail/domains/%d/%f/Maildir',
 	'vfstype' => 'ftp',

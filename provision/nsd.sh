@@ -67,10 +67,10 @@ test_nsd()
 	echo "it worked."
 
 	tell_status "testing UDP DNS query"
-	drill -Q   www.example.com @"$(get_jail_ip stage)" || exit 1
+	drill -Q   www.example.com @"$(get_jail_ip4 stage)" || exit 1
 
 	tell_status "testing TCP DNS query"
-	drill -Q -t www.example.com @"$(get_jail_ip stage)" || exit 1
+	drill -Q -t www.example.com @"$(get_jail_ip4 stage)" || exit 1
 }
 
 base_snapshot_exists || exit
