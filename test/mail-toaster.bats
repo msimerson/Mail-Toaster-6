@@ -728,3 +728,62 @@ setup_unprovision_tree() {
 
   [ ! -d "$MT6_ETC" ]
 }
+
+@test "unprovision_etc - a jail name cannot escape MT6_ETC" {
+  setup_unprovision_tree
+  mkdir -p "$BATS_TEST_TMPDIR/outside"
+  : > "$BATS_TEST_TMPDIR/outside/keep"
+
+  run unprovision_etc "../outside"
+  assert_success
+
+  [ -f "$BATS_TEST_TMPDIR/outside/keep" ]
+  [ -d "$(get_jail_host_etc myjail)" ]
+}
+
+@test "unprovision_etc - refuses anything that is not a jail name" {
+  setup_unprovision_tree
+  local _name
+  for _name in . .. "a b" "a;b" "a/b" "-rf"; do
+    run unprovision_etc "$_name"
+    assert_success
+  done
+
+  [ -f "$MT6_ETC/pfrule.sh" ]
+  [ -d "$(get_jail_host_etc myjail)" ]
+  [ -d "$(get_jail_host_etc otherjail)" ]
+}
+
+@test "unprovision_rc - refuses a name that would escape jail.conf.d" {
+  setup_unprovision_tree
+  sysrc() { echo "$*" >> "$BATS_TEST_TMPDIR/sysrc.log"; }
+
+  run unprovision_rc "../../tmp/evil"
+  assert_success
+
+  [ ! -f "$BATS_TEST_TMPDIR/sysrc.log" ]
+}
+
+@test "unprovision_rc - still disables a real jail" {
+  setup_unprovision_tree
+  sysrc() { echo "$*" >> "$BATS_TEST_TMPDIR/sysrc.log"; }
+
+  unprovision_rc myjail
+
+  run cat "$BATS_TEST_TMPDIR/sysrc.log"
+  assert_output --partial "jail_list-= myjail"
+}
+
+@test "unprovision_files - refuses to remove a root MT6_ETC" {
+  setup_unprovision_tree
+  export MT6_ETC="/"
+  export JAIL_NET_PREFIX="172.16.15"
+  sed_inplace() { :; }
+  grep()        { return 1; }
+  rm() { echo "$*" >> "$BATS_TEST_TMPDIR/rm.log"; }
+
+  unprovision_files
+
+  run cat "$BATS_TEST_TMPDIR/rm.log"
+  refute_output --regexp '(^| )/$'
+}
