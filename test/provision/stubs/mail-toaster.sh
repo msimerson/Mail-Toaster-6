@@ -124,6 +124,8 @@ safe_jailname()            { echo "$1" | tr '.-' '__'; }
 add_jail_conf()            { :; }
 add_jail_conf_d()          { :; }
 assure_ip6_addr_is_declared() { :; }
+configure_pf_jail_table()  { :; }
+configure_mta_pf_rdr()     { :; }
 install_fstab()            { :; }
 fstab_add_mount()          { :; }
 

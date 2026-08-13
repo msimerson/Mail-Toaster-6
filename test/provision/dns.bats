@@ -357,3 +357,36 @@ unbound_conf_from_sample() {
   run grep -c '^[[:space:]]*do-ip4: no' "$UNBOUND_DIR/unbound.conf"
   assert_output "0"
 }
+
+@test "dns - a jail with IPv6 binds the wildcard" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+  tweak_unbound_conf
+
+  run grep 'interface: ::0' "$UNBOUND_DIR/unbound.conf"
+  assert_output --regexp '^[[:space:]]*interface: ::0'
+}
+
+@test "dns - a jail without IPv6 leaves that interface commented" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  tweak_unbound_conf
+
+  run grep 'interface: ::0' "$UNBOUND_DIR/unbound.conf"
+  assert_output --regexp '^[[:space:]]*#'
+}
+
+@test "dns - the IPv4 interface binds whatever the jail has" {
+  local _case
+  for _case in "2001:db8::1" ""; do
+    unbound_conf_from_sample
+    get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+    eval "get_public_ip6() { export PUBLIC_IP6=\"$_case\"; }"
+    tweak_unbound_conf
+
+    run grep '^[[:space:]]*interface: 0.0.0.0' "$UNBOUND_DIR/unbound.conf"
+    assert_success
+  done
+}

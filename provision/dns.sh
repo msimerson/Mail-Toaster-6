@@ -149,11 +149,17 @@ tweak_unbound_conf()
 		_prefer_ip6="yes"
 	fi
 
+	local _if6="interface: ::0"
+	if ! jail_has_ip6; then
+		tell_status "no IPv6 for this jail, unbound will not bind it"
+		_if6="# interface: ::0"
+	fi
+
 	# shellcheck disable=1004
 	sed_inplace \
 		-e "s/# prefer-ip6: no\$/prefer-ip6: $_prefer_ip6/" \
 		-e 's/# interface: 192.0.2.153$/interface: 0.0.0.0/' \
-		-e 's/# interface: 192.0.2.154$/interface: ::0/' \
+		-e "s/# interface: 192.0.2.154\$/$_if6/" \
 		-e '/# use-syslog/s/# //' \
 		-e '/# chroot: /s/# //' \
 		-e '/chroot: /s/".*"/""/' \

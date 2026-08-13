@@ -361,9 +361,10 @@ configure_pf()
 	local _pf_etc
 	_pf_etc="$(get_jail_host_etc wildduck)/pf.conf.d"
 
-	local _rdr4="" _rdr6="" _nat4="" _nat6=""
+	local _rdr4="" _rdr6="" _nat4="" _nat6="" _nic4="" _nic6=""
 
 	if has_public_ip4; then
+		_nic4="$PUBLIC_NIC"
 		_rdr4="ext_ip4 = \"$PUBLIC_IP4\"
 
 # mail traffic to wildduck
@@ -377,6 +378,7 @@ nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4"
 	fi
 
 	if jail_has_ip6; then
+		_nic6="$PUBLIC_NIC"
 		_rdr6="ext_ip6 = \"$PUBLIC_IP6\"
 
 # mail traffic to wildduck
@@ -386,8 +388,11 @@ rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_i
 rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
 #rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 webmail)"
 		_nat6="ext_ip6 = \"$PUBLIC_IP6\"
-nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6"
+nat on \$ext_if6 from \$int_ip6 to any -> \$ext_ip6"
 	fi
+
+	if [ -z "$_nic4" ]; then _nic4="$_nic6"; fi
+	if [ -z "$_nic6" ]; then _nic6="$_nic4"; fi
 
 	local _int_ip6=""
 	if jail_has_ip6; then _int_ip6="int_ip6 = \"$(get_jail_ip6 wildduck)\""; fi
@@ -405,7 +410,8 @@ EO_PF_RDR
 int_ip4 = "$(get_jail_ip4 wildduck)"
 $_int_ip6
 
-ext_if = "$PUBLIC_NIC"
+ext_if  = "$_nic4"
+ext_if6 = "$_nic6"
 
 $_nat4
 
