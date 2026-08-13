@@ -27,6 +27,7 @@ setup_file() {
   # Minimal unbound.conf.sample with all patterns tweak_unbound_conf targets.
   cat > "$STAGE_MNT/usr/local/etc/unbound/unbound.conf.sample" <<'EOF'
 server:
+	# prefer-ip6: no
 	# interface: 192.0.2.153
 	# interface: 192.0.2.154
 	# use-syslog: no
@@ -129,6 +130,32 @@ load_dns_fns() {
   export PUBLIC_IP6=""
   run get_mt6_data
   refute_output --partial "ip6:2001:db8"
+}
+
+@test "dns - get_mt6_data publishes AAAA records when the jails have IPv6" {
+  load_dns_fns
+  export PUBLIC_IP6="2001:db8::1"
+  run get_mt6_data
+  assert_output --partial "AAAA"
+  assert_output --partial "1.0.0.0.fd7a.ip6.arpa"
+}
+
+# an AAAA for an address no jail is listening on is a connection every client
+# tries first and waits out
+@test "dns - get_mt6_data publishes no AAAA records when the jails have none" {
+  load_dns_fns
+  export PUBLIC_IP6=""
+  run get_mt6_data
+  refute_output --partial "AAAA"
+  refute_output --partial "ip6.arpa"
+}
+
+@test "dns - get_mt6_data still publishes A records without IPv6" {
+  load_dns_fns
+  export PUBLIC_IP6=""
+  run get_mt6_data
+  assert_output --partial "local-data: \"dns		A "
+  assert_output --partial "in-addr.arpa PTR dns"
 }
 
 # --- tweak_unbound_conf outcomes (verified on the post-setup unbound.conf) ---
@@ -278,4 +305,88 @@ setup_access_conf() {
 
   run cat "$ACCESS_CONF"
   assert_output --partial "access-control: 198.51.100.4 allow"
+}
+
+@test "dns - access.conf includes the public IPv6 when one is known" {
+  setup_access_conf
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  install_access_conf
+
+  run cat "$ACCESS_CONF"
+  assert_output --partial "access-control: 2001:db8::1 allow"
+}
+
+# --- outgoing address family follows the host ---
+
+# tweak_unbound_conf rewrites the sample; give each case an untouched copy
+unbound_conf_from_sample() {
+  load_dns_fns
+  export UNBOUND_DIR="$BATS_TEST_TMPDIR/unbound"
+  mkdir -p "$UNBOUND_DIR"
+  cp "$STAGE_MNT/usr/local/etc/unbound/unbound.conf.sample" "$UNBOUND_DIR/unbound.conf"
+}
+
+@test "dns - a dual stack host leaves unbound preferring IPv4" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  tweak_unbound_conf
+
+  run grep '^[[:space:]]*prefer-ip6:' "$UNBOUND_DIR/unbound.conf"
+  assert_output --partial "prefer-ip6: no"
+}
+
+# an IPv6 only host has no NAT rule for the jail network, so every outgoing
+# IPv4 query waits out its timeout before unbound tries the IPv6 address
+@test "dns - an IPv6 only host prefers IPv6 for resolution" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4=""; }
+  tweak_unbound_conf
+
+  run grep '^[[:space:]]*prefer-ip6:' "$UNBOUND_DIR/unbound.conf"
+  assert_output --partial "prefer-ip6: yes"
+}
+
+# do-ip4 governs answering as well as asking, and every jail queries dns at its
+# private IPv4, so it must stay enabled on a host with no public IPv4
+@test "dns - an IPv6 only host still answers over IPv4" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4=""; }
+  tweak_unbound_conf
+
+  run grep -c '^[[:space:]]*do-ip4: no' "$UNBOUND_DIR/unbound.conf"
+  assert_output "0"
+}
+
+@test "dns - a jail with IPv6 binds the wildcard" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+  tweak_unbound_conf
+
+  run grep 'interface: ::0' "$UNBOUND_DIR/unbound.conf"
+  assert_output --regexp '^[[:space:]]*interface: ::0'
+}
+
+@test "dns - a jail without IPv6 leaves that interface commented" {
+  unbound_conf_from_sample
+  get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  tweak_unbound_conf
+
+  run grep 'interface: ::0' "$UNBOUND_DIR/unbound.conf"
+  assert_output --regexp '^[[:space:]]*#'
+}
+
+@test "dns - the IPv4 interface binds whatever the jail has" {
+  local _case
+  for _case in "2001:db8::1" ""; do
+    unbound_conf_from_sample
+    get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
+    eval "get_public_ip6() { export PUBLIC_IP6=\"$_case\"; }"
+    tweak_unbound_conf
+
+    run grep '^[[:space:]]*interface: 0.0.0.0' "$UNBOUND_DIR/unbound.conf"
+    assert_success
+  done
 }

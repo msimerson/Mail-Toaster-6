@@ -70,7 +70,25 @@ setup() {
   assert_output "[::0]"
 }
 
-@test "configure_haraka_smtp_ini binds every port to that address" {
+# haraka.sh populates no address itself, so reading PUBLIC_IP6 straight left an
+# IPv6 only host listening on 0.0.0.0 and taking no mail at all
+@test "haraka_listen_addr does not depend on its caller for PUBLIC_IP6" {
+  # the real has_public_ip6, which jail_has_ip6 defers to
+  # shellcheck source=/dev/null
+  . "$BATS_TEST_DIRNAME/../../include/network.sh"
+
+  # stub what it shells out to. These must come after the source above, or
+  # network.sh replaces get_public_facing_nic with the real one, which reads the
+  # host routing table and fails wherever netstat has no "default" line.
+  get_public_facing_nic() { export PUBLIC_NIC="em0"; }
+  ifconfig() { echo "	inet6 2001:db8::1 prefixlen 64"; }
+
+  unset PUBLIC_IP6
+  run haraka_listen_addr
+  assert_output "[::0]"
+}
+
+@test "configure_haraka_smtp_ini binds IPv4 when no public IPv6" {
   printf ';listen=[::0]:25\n' > "$HARAKA_CONF/smtp.ini"
   unset PUBLIC_IP6
   configure_haraka_smtp_ini

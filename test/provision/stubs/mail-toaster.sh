@@ -124,6 +124,8 @@ safe_jailname()            { echo "$1" | tr '.-' '__'; }
 add_jail_conf()            { :; }
 add_jail_conf_d()          { :; }
 assure_ip6_addr_is_declared() { :; }
+configure_pf_jail_table()  { :; }
+configure_mta_pf_rdr()     { :; }
 install_fstab()            { :; }
 fstab_add_mount()          { :; }
 
@@ -144,6 +146,9 @@ stage_resolv_conf()        { :; }
 port_is_listening()        { return 0; }
 get_random_ip6net()        { echo "fd7a:e5cd:1fc1:dead:beef:cafe:1"; }
 get_public_ip()            { :; }
+has_public_ip4()           { get_public_ip4; [ -n "${PUBLIC_IP4:-}" ]; }
+has_public_ip6()           { get_public_ip6; [ -n "${PUBLIC_IP6:-}" ]; }
+jail_has_ip6()             { has_public_ip6; }
 get_public_ip4()           { :; }
 get_public_ip6()           { :; }
 get_public_facing_nic()    { :; }
@@ -205,6 +210,7 @@ configure_nginx_server_d() { :; }
 start_nginx()              { :; }
 test_nginx()               { :; }
 contains()                 { [ "${1#*"$2"}" != "$1" ]; }
+nginx_listen()             { printf '\t\tlisten       %s%s;\n\t\tlisten  [::]:%s%s;\n' "${1:-80}" "${2:+ $2}" "${1:-80}" "${2:+ $2}"; }
 
 # MTA include stubs
 configure_mta()            { :; }

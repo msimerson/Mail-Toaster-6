@@ -94,6 +94,23 @@ setup() {
   assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
+@test "add_jail_conf - ip6.addr is commented out without a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() {
+    if [ "$1" -eq 4 ]; then echo "4"; fi
+  }
+
+  tee() { cat -; }
+  grep() { return 1; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf mysql
+  assert_success
+  assert_output --partial "ip4.addr = lo1|172.16.15.4;"
+  assert_output --partial "#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+}
+
 @test "add_jail_conf_d" {
   export JAIL_NET6="fd7a:e5cd:1fc1:c597"
   dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
@@ -105,6 +122,36 @@ setup() {
   run add_jail_conf_d mysql
   assert_success
   assert_output --partial "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+  refute_output --partial "#ip6.addr"
+}
+
+@test "add_jail_conf_d - ip6.addr is commented out without a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  store_config() { cat -; }
+
+  run add_jail_conf_d mysql
+  assert_success
+  assert_output --partial "#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+}
+
+@test "jail_conf_ip6 - declared with a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  run jail_conf_ip6 mysql
+  assert_output "ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+}
+
+@test "jail_conf_ip6 - commented out without a public IPv6" {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597"
+  dec_to_hex() { if [ "$1" -eq 4 ]; then echo "4"; fi; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+
+  run jail_conf_ip6 mysql
+  assert_output "#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
 }
 
 # --- base declares no mounts and runs no pf rules ---
@@ -602,4 +649,121 @@ mta_rdr_setup() {
   [ ! -f "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf" ]
 }
 
+@test "configure_mta_pf_rdr - writes no file when jail owns no ports" {
+  mta_rdr_setup
+  export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
+  run configure_mta_pf_rdr haraka
+  assert_success
+  [ ! -f "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf" ]
+}
 
+# --- the address families a jail has, at the moment it is [re]built ---
+
+@test "configure_mta_pf_rdr - a jail with no IPv6 gets no inet6 redirect" {
+  mta_rdr_setup
+  get_public_ip6() { export PUBLIC_IP6=""; }
+  export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
+
+  configure_mta_pf_rdr haraka
+
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
+  assert_output --partial "rdr inet  proto tcp"
+  # redirecting to an address the jail does not have sends mail nowhere
+  refute_output --partial "rdr inet6"
+}
+
+@test "configure_pf_jail_table - holds every address the jail answers on" {
+  mta_rdr_setup
+
+  configure_pf_jail_table haraka
+
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/haraka.table"
+  assert_line "203.0.113.7"
+  assert_line "2001:db8::1"
+  assert_line "172.16.15.9"
+  assert_line "fd7a::9"
+}
+
+# pfctl -T replace rejects the file over a blank line, taking the jail's
+# redirects down with it
+@test "configure_pf_jail_table - a missing address family leaves no blank line" {
+  mta_rdr_setup
+  get_public_ip4() { export PUBLIC_IP4=""; }
+
+  configure_pf_jail_table haraka
+
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/haraka.table"
+  refute_line ""
+  refute_output --partial "203.0.113.7"
+  assert_line "172.16.15.9"
+}
+
+@test "configure_pf_jail_table - a jail with no IPv6 lists no IPv6 address" {
+  mta_rdr_setup
+  get_public_ip6() { export PUBLIC_IP6=""; }
+
+  configure_pf_jail_table haraka
+
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/haraka.table"
+  refute_line ""
+  refute_output --partial "fd7a::9"
+  assert_line "172.16.15.9"
+}
+
+# --- assure_ip6_addr_is_declared: /etc/jail.conf, the pre jail.conf.d layout ---
+
+ip6_declared_setup() {
+  export JAIL_NET6="fd7a:e5cd:1fc1:c597" JAIL_NET_INTERFACE="lo1"
+  dec_to_hex() { echo "4"; }
+  tell_status() { echo "$1"; }
+  sed_inplace() { sed -i.bak "$@"; }
+
+  JAIL_CONF="$BATS_TEST_TMPDIR/jail.conf"
+  printf 'mysql\t{\n\t\tip4.addr = lo1|172.16.15.4;\n%s\n\t}\n' "$1" > "$JAIL_CONF"
+}
+
+@test "assure_ip6_addr_is_declared - an active declaration is left alone" {
+  ip6_declared_setup "		ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  run assure_ip6_addr_is_declared mysql "$JAIL_CONF"
+  assert_output --partial "already declared"
+
+  run cat "$JAIL_CONF"
+  refute_output --partial "#ip6.addr"
+}
+
+# the guard used to match the comment as a declaration, so a host that gained
+# IPv6 kept a jail that could never bind it
+@test "assure_ip6_addr_is_declared - a commented entry is enabled once the host has IPv6" {
+  ip6_declared_setup "		#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  assure_ip6_addr_is_declared mysql "$JAIL_CONF"
+
+  run cat "$JAIL_CONF"
+  assert_line --regexp '^[[:space:]]+ip6\.addr = lo1\|fd7a:e5cd:1fc1:c597:4;$'
+  refute_output --partial "#ip6.addr"
+}
+
+@test "assure_ip6_addr_is_declared - a commented entry stays while the host has no IPv6" {
+  ip6_declared_setup "		#ip6.addr = lo1|fd7a:e5cd:1fc1:c597:4;"
+  get_public_ip6() { export PUBLIC_IP6=""; }
+
+  assure_ip6_addr_is_declared mysql "$JAIL_CONF"
+
+  run cat "$JAIL_CONF"
+  assert_line --regexp '^[[:space:]]+#ip6\.addr'
+  # one comment, not one per run
+  assert_equal "$(grep -c 'ip6.addr' "$JAIL_CONF")" "1"
+}
+
+@test "assure_ip6_addr_is_declared - a jail with no entry gains one" {
+  ip6_declared_setup "		devfs_ruleset = 4;"
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  assure_ip6_addr_is_declared mysql "$JAIL_CONF"
+
+  run cat "$JAIL_CONF"
+  assert_line --regexp '^[[:space:]]+ip6\.addr = lo1\|fd7a:e5cd:1fc1:c597:4;$'
+}

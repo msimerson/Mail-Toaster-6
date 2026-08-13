@@ -351,8 +351,7 @@ url=wss://$TOASTER_HOSTNAME/watch" > "$HARAKA_CONF/watch.ini"
 
 haraka_listen_addr()
 {
-	if [ -n "${PUBLIC_IP6:-}" ]; then
-		# IPv4 and IPv6
+	if jail_has_ip6; then
 		echo "[::0]"
 	else
 		echo "0.0.0.0"

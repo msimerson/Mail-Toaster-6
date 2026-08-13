@@ -34,9 +34,7 @@ get_public_ip4()
 	# callers rely on the PUBLIC_NIC this exports, so look it up either way
 	get_public_facing_nic ipv4
 
-	# PUBLIC_IP4 is the public facing address, which need not be bound to a
-	# local interface. ifconfig finds it only where the two coincide, so a
-	# configured value wins.
+	# PUBLIC_IP4 is the public *facing* address
 	if [ -n "$PUBLIC_IP4" ]; then return; fi
 
 	export PUBLIC_IP4
@@ -52,6 +50,18 @@ get_public_ip6()
 
 	export PUBLIC_IP6
 	PUBLIC_IP6=$(ifconfig "$PUBLIC_NIC" inet6 | grep inet6 | grep -v fe80 | awk '{print $2}' | head -n1)
+}
+
+has_public_ip4()
+{
+	get_public_ip4
+	[ -n "${PUBLIC_IP4:-}" ]
+}
+
+has_public_ip6()
+{
+	get_public_ip6
+	[ -n "${PUBLIC_IP6:-}" ]
 }
 
 get_random_ip6net()
@@ -91,7 +101,6 @@ install_acme_sh()
 	stage_exec sh -c "[ -e /data/home/acme/deploy] || ln -s /usr/local/share/examples/acme.sh/deploy /data/home/acme/deploy"
 	stage_exec ln -s /data/home/acme /root/.acme.sh
 
-	# renew the certs automatically
 	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/acme.sh" <<EO_ACME_CRON
 #!/usr/local/bin/bash
 /usr/local/sbin/acme.sh --cron

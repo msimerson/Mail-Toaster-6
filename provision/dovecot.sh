@@ -47,8 +47,7 @@ configure_dovecot_local_conf() {
 	_localconf="$(get_jail_data dovecot)/etc/local.conf"
 
 	local _listen='listen = *'
-	get_public_ip6
-	if [ -n "$PUBLIC_IP6" ]; then _listen="$_listen, ::"; fi
+	if jail_has_ip6; then _listen="$_listen, ::"; fi
 
 	if grep -q "/data/etc/ssl/" $_localconf; then
 		tell_status "Upgrading $_localconf to /data/etc/tls/"

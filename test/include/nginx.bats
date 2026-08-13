@@ -3,26 +3,22 @@
 setup() {
   load '../test_helper/load'
   load '../../include/nginx.sh'
+  # the real store_config: "update" is what carries a changed template onto a
+  # rebuild, and a copy of it here would not prove that
+  load '../../include/util.sh'
 }
 
 mt6-include() { :; }
 tell_status() { :; }
 
+get_public_ip4() { :; }
+get_public_ip6() { :; }
+
+# faithful copy of include/jail.sh jail_has_ip6
+jail_has_ip6() { get_public_ip6; [ -n "${PUBLIC_IP6:-}" ]; }
+
 # faithful copy of include/jail.sh get_jail_data
 get_jail_data() { echo "$ZFS_DATA_MNT/$1"; }
-
-# faithful copy of include/util.sh store_config: always writes <file>.mt6,
-# installs the live file only when absent (or on overwrite/append)
-store_config() {
-  local _operation=${2:-""}
-  [ -d "$(dirname "$1")" ] || mkdir -p "$(dirname "$1")"
-  cat - > "$1.mt6"
-  if [ ! -f "$1" ] || [ "$_operation" = "overwrite" ]; then
-    cp "$1.mt6" "$1"
-  elif [ "$_operation" = "append" ]; then
-    cat "$1.mt6" >> "$1"
-  fi
-}
 
 # contains() - pure string membership test
 
@@ -71,6 +67,54 @@ store_config() {
   assert_failure
 }
 
+# nginx_listen() - both families, IPv6 commented out when the jail has none
+
+@test "nginx_listen - a jail with IPv6 listens on both families" {
+  export PUBLIC_IP6="2001:db8::1"
+
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+listen  \[::\]:80;$'
+}
+
+@test "nginx_listen - a jail without IPv6 has that listen commented out" {
+  export PUBLIC_IP6=""
+
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+#listen  \[::\]:80;$'
+}
+
+# Every jail has a private IPv4 address whatever the host has. Commenting this
+# listen out left nginx bound to [::] only, where the haproxy backends and the
+# bsd_cache DNS records could not reach it.
+@test "nginx_listen - IPv4 listens with or without a public IPv4" {
+  export PUBLIC_IP4="" PUBLIC_IP6="2001:db8::1"
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+listen[[:space:]]+80;$'
+
+  export PUBLIC_IP4="" PUBLIC_IP6=""
+  run nginx_listen 80
+  assert_line --index 0 --regexp '^[[:space:]]+listen[[:space:]]+80;$'
+  assert_line --index 1 --regexp '^[[:space:]]+#listen  \[::\]:80;$'
+}
+
+@test "nginx_listen - defaults to port 80" {
+  export PUBLIC_IP6="2001:db8::1"
+
+  run nginx_listen
+  assert_output --partial "listen       80;"
+  assert_output --partial "listen  [::]:80;"
+}
+
+@test "nginx_listen - appends options to both families" {
+  export PUBLIC_IP6=""
+
+  run nginx_listen 443 ssl
+  assert_output --partial "listen       443 ssl;"
+  assert_output --partial "#listen  [::]:443 ssl;"
+}
+
 # configure_nginx_server_d - creates nginx server block config
 
 @test "configure_nginx_server_d - works when PUBLIC_IP6 is unset" {
@@ -115,6 +159,7 @@ store_config() {
 @test "configure_nginx_server_d - contains listen 80" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
+  export PUBLIC_IP4="192.0.2.1"
   export PUBLIC_IP6=""
   export _NGINX_SERVER="server_name test.example.com;"
 
@@ -127,7 +172,22 @@ store_config() {
   rm -rf "$tmpdir"
 }
 
-@test "configure_nginx_server_d - adds IPv6 listen when PUBLIC_IP6 set" {
+@test "configure_nginx_server_d - comments out IPv6 listen when PUBLIC_IP6 empty" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export PUBLIC_IP6=""
+  export _NGINX_SERVER="server_name test.example.com;"
+
+  configure_nginx_server_d myjail
+
+  run grep "\[::\]:80" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+  assert_success
+  assert_output --partial "#listen"
+
+  rm -rf "$tmpdir"
+}
+
+@test "configure_nginx_server_d - enables IPv6 listen when PUBLIC_IP6 set" {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
   export PUBLIC_IP6="2001:db8::1"
@@ -135,8 +195,9 @@ store_config() {
 
   configure_nginx_server_d myjail
 
-  run grep "\[::\]" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+  run grep "\[::\]:80" "$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
   assert_success
+  refute_output --partial "#"
 
   rm -rf "$tmpdir"
 }
@@ -192,6 +253,70 @@ store_config() {
 
   run grep "worker_processes" "$tmpdir/myjail/etc/nginx/nginx.conf.mt6"
   assert_success
+
+  rm -rf "$tmpdir"
+}
+
+# --- a rebuild follows the host it is rebuilt on ---
+
+# The listen directives are decided at build time. A toaster first built with
+# no IPv6 has them commented out, and nothing but a rebuild can enable them.
+@test "configure_nginx_server_d - a rebuild enables IPv6 once the host has it" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export _NGINX_SERVER="server_name test.example.com;"
+  local _conf="$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+
+  export PUBLIC_IP6=""
+  configure_nginx_server_d myjail
+  run grep "\[::\]:80" "$_conf"
+  assert_output --partial "#listen"
+
+  export PUBLIC_IP6="2001:db8::1"
+  configure_nginx_server_d myjail
+  run grep "\[::\]:80" "$_conf"
+  assert_success
+  refute_output --partial "#listen"
+
+  rm -rf "$tmpdir"
+}
+
+@test "configure_nginx_server_d - a rebuild comments IPv6 out once the host loses it" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export _NGINX_SERVER="server_name test.example.com;"
+  local _conf="$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+
+  export PUBLIC_IP6="2001:db8::1"
+  configure_nginx_server_d myjail
+
+  export PUBLIC_IP6=""
+  configure_nginx_server_d myjail
+  run grep "\[::\]:80" "$_conf"
+  assert_output --partial "#listen"
+
+  rm -rf "$tmpdir"
+}
+
+# an admin who edited the server block keeps it, IPv6 or not
+@test "configure_nginx_server_d - a rebuild leaves an edited config alone" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  export ZFS_DATA_MNT="$tmpdir"
+  export _NGINX_SERVER="server_name test.example.com;"
+  local _conf="$tmpdir/myjail/etc/nginx/server.d/myjail.conf"
+
+  export PUBLIC_IP6=""
+  configure_nginx_server_d myjail
+  echo "# hand written" >> "$_conf"
+
+  export PUBLIC_IP6="2001:db8::1"
+  configure_nginx_server_d myjail
+
+  run cat "$_conf"
+  assert_output --partial "# hand written"
+  # the shadow still shows what a pristine config would have held
+  run grep "\[::\]:80" "$_conf.mt6"
+  refute_output --partial "#listen"
 
   rm -rf "$tmpdir"
 }

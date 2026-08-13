@@ -51,6 +51,18 @@ EO_NG_NSL
 
 }
 
+nginx_listen()
+{
+	local _port="${1:-80}"
+	local _opts="${2:-}"
+	if [ -n "$_opts" ]; then _opts=" $_opts"; fi
+
+	local _c6=""; if ! jail_has_ip6; then _c6="#"; fi
+
+	printf '\t\tlisten       %s%s;\n\t\t%slisten  [::]:%s%s;\n' \
+		"$_port" "$_opts" "$_c6" "$_port" "$_opts"
+}
+
 contains() {
 	string="$1"
 	substring="$2"
@@ -71,13 +83,8 @@ configure_nginx_server_d()
 
 	# no more proxy protocol on backends, since nginx can't
 	# send proxy protocol AND route URIs at the same time
-	local _prefix='server {
-		listen       80;'
-
-	if [ -n "${PUBLIC_IP6:-}" ]; then
-		_prefix="$_prefix
-		listen  [::]:80;"
-	fi
+	local _prefix; _prefix="server {
+$(nginx_listen 80)"
 
 	local _suffix='location ~ /\.ht {
 			deny  all;
@@ -95,7 +102,7 @@ configure_nginx_server_d()
 		_suffix=''
 	fi
 
-	store_config "$_server_conf" <<EO_NGINX_SERVER_CONF
+	store_config "$_server_conf" "update" <<EO_NGINX_SERVER_CONF
 	$_prefix
 		$_NGINX_SERVER
 		$_suffix
@@ -115,7 +122,7 @@ configure_nginx()
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
-	store_config "$_etcdir/nginx.conf" <<EO_NGINX_CONF
+	store_config "$_etcdir/nginx.conf" "update" <<EO_NGINX_CONF
 # load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;

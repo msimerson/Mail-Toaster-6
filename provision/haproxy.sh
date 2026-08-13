@@ -42,9 +42,8 @@ install_haproxy_libressl()
 	stage_port_install net/haproxy
 }
 
-# haproxy has no way to bind "whatever this host has", so emit one bind per
-# address family the host actually has. 'bind :::80 v4v6' fails to start on
-# hosts without IPv6.
+# emit one bind per address family.
+# 'bind :::80 v4v6' fails to start on hosts without IPv6.
 haproxy_binds()
 {
 	local _ip4="$2"
@@ -53,19 +52,13 @@ haproxy_binds()
 	local _indent
 	_indent=$(printf '%b' "$1")
 
-	get_public_ip4
-	get_public_ip6
+	printf '%sbind %s:80 alpn http/1.1\n' "$_indent" "$_ip4"
+	printf '%sbind %s:443 alpn http/1.1 ssl crt /data/etc/tls.d\n' "$_indent" "$_ip4"
 
-	# with neither address detected, IPv4 is the safer guess
-	if [ -n "$PUBLIC_IP4" ] || [ -z "$PUBLIC_IP6" ]; then
-		printf '%sbind %s:80 alpn http/1.1\n' "$_indent" "$_ip4"
-		printf '%sbind %s:443 alpn http/1.1 ssl crt /data/etc/tls.d\n' "$_indent" "$_ip4"
-	fi
+	if ! jail_has_ip6; then return; fi
 
-	if [ -n "$PUBLIC_IP6" ]; then
-		printf '%sbind [%s]:80 alpn http/1.1\n' "$_indent" "$_ip6"
-		printf '%sbind [%s]:443 alpn http/1.1 ssl crt /data/etc/tls.d\n' "$_indent" "$_ip6"
-	fi
+	printf '%sbind [%s]:80 alpn http/1.1\n' "$_indent" "$_ip6"
+	printf '%sbind [%s]:443 alpn http/1.1 ssl crt /data/etc/tls.d\n' "$_indent" "$_ip6"
 }
 
 configure_haproxy_dot_conf()
@@ -73,7 +66,7 @@ configure_haproxy_dot_conf()
 	local _data_cf
 	_data_cf="$(get_jail_data haproxy)/etc/haproxy.conf"
 
-	store_config "$_data_cf" <<EO_HAPROXY_CONF
+	store_config "$_data_cf" "update" <<EO_HAPROXY_CONF
 global
 	daemon
 	maxconn     256  # Total Max Connections. This is dependent on ulimit
@@ -305,7 +298,7 @@ EO_HAPROXY_CONF
 
 	_data_cf="$STAGE_MNT/usr/local/etc/haproxy.conf"
 
-	store_config "$_data_cf" <<EO_HAPROXY_STAGE_CONF
+	store_config "$_data_cf" "update" <<EO_HAPROXY_STAGE_CONF
 global
     daemon
     log 172.16.15.1 local0 err

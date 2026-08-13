@@ -68,15 +68,17 @@ install_nginx_vpopmail()
 
 	configure_nginx vpopmail
 
-	_NGINX_SERVER='
+	_NGINX_SERVER="
 	server {
 		server_name vpopmail;
 
 		root  /data/htdocs;
 		index index.html;
 
-		listen 80;
-
+$(nginx_listen 80)
+"
+	# single quoted, the $variables below are nginx's, not the shell's
+	_NGINX_SERVER="$_NGINX_SERVER"'
 		location /qmailadmin/ {
 			alias /data/htdocs/qmailadmin/;
 		}
