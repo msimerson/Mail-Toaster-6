@@ -9,6 +9,10 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - perf(test): source the assertion libraries once, scripts once per file
 - nginx: add nginx_listen(), emitting IPv4 and IPv6 listen directives
 - refactor(net): build clean on IPv4-only, v6-only, and dual-stack
+- jail: rename get_jail_ip to get_jail_ip4, get_jail_ip remains as an alias
+- host: pf.conf gains ext_if6, each family NATs on its own default route NIC
+- host: ntp rule covers every public NIC, not just the IPv4 one
+- host: ssh rate limit applies on every interface, jail and loopback sources exempt
 - linux jails: rc.d/linux mounts /compat/linux inside the jail
 - dma: create /var/spool/dma when the port has not
 - mt: jail control files move to /etc/mail-toaster/<jail>

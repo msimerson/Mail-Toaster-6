@@ -425,12 +425,16 @@ configure_pf_conf()
 	if [ -z "$_nic4" ]; then _nic4="$_nic6"; fi
 	if [ -z "$_nic6" ]; then _nic6="$_nic4"; fi
 
+	local _ifs="$_nic4"
+	if [ "$_nic6" != "$_nic4" ]; then _ifs="$_ifs $_nic6"; fi
+
 	tell_status "setting up the PF firewall and NAT for jails"
 	store_config "/etc/pf.conf" "update" <<EO_PF_RULES
 ## Macros
 
 ext_if="$_nic4"
 ext_if6="$_nic6"
+ext_ifs="{ $_ifs }"
 ext_ip4="$PUBLIC_IP4"
 ext_ip6="$PUBLIC_IP6"
 
@@ -443,6 +447,7 @@ table <ext_ip6> { \$ext_ip6 } persist
 
 table <bruteforce> persist
 table <sshguard> persist
+table <ssh_exempt> { \$jail_ip4, \$jail_ip6, 127.0.0.0/8, ::1 } persist
 
 ## NAT / Network Address Translation
 
@@ -479,9 +484,9 @@ pass in inet6 proto udp from port 547 to port 546
 pass in inet6 proto ipv6-icmp icmp6-type { 134, 135, 136 }
 
 # NTP
-pass out quick on \$ext_if proto udp to any port ntp keep state
+pass out quick on \$ext_ifs proto udp to any port ntp keep state
 
-pass in quick on \$ext_if proto tcp to port ssh \
+pass in quick proto tcp from ! <ssh_exempt> to port ssh \
         flags S/SA synproxy state \
         (max-src-conn 10, max-src-conn-rate 8/15, overload <bruteforce> flush global)
 

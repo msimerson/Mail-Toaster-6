@@ -370,8 +370,8 @@ configure_pf()
 rdr inet  proto tcp from any to \$ext_ip4 port { 25 465 587 993 995 } -> \$int_ip4
 
 # send HTTP traffic to haproxy, or uncomment to send it to webmail
-rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
-#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip webmail)"
+rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip4 haproxy)
+#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip4 webmail)"
 		_nat4="ext_ip4 = \"$PUBLIC_IP4\"
 nat on \$ext_if from \$int_ip4 to any -> \$ext_ip4"
 	fi
@@ -393,7 +393,7 @@ nat on \$ext_if from \$int_ip6 to any -> \$ext_ip6"
 	if jail_has_ip6; then _int_ip6="int_ip6 = \"$(get_jail_ip6 wildduck)\""; fi
 
 	store_config "$_pf_etc/rdr.conf" "update" <<EO_PF_RDR
-int_ip4 = "$(get_jail_ip wildduck)"
+int_ip4 = "$(get_jail_ip4 wildduck)"
 $_int_ip6
 
 $_rdr4
@@ -402,7 +402,7 @@ $_rdr6
 EO_PF_RDR
 
 	store_config "$_pf_etc/nat.conf" "update" <<EO_PF_NAT
-int_ip4 = "$(get_jail_ip wildduck)"
+int_ip4 = "$(get_jail_ip4 wildduck)"
 $_int_ip6
 
 ext_if = "$PUBLIC_NIC"

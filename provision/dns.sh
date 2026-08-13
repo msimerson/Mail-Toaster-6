@@ -21,8 +21,6 @@ install_unbound()
 
 get_mt6_data()
 {
-	# a bare "ip4:" or "ip6:" is a syntax error that voids the whole record
-	# (RFC 7208 4.6.4), so an address the host does not have is left out
 	local _spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip6:$JAIL_NET6::/112"
 
 	if has_public_ip4; then _spf_ips="$_spf_ips ip4:$PUBLIC_IP4"; fi
@@ -40,7 +38,7 @@ get_mt6_data()
 	   local-zone: $TOASTER_MAIL_DOMAIN typetransparent
 	   local-data: \"stage		A $(get_jail_ip4 stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
-	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"$_hostname_aaaa
+	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip4 vpopmail)\"$_hostname_aaaa
 	   local-data: '$TOASTER_MAIL_DOMAIN TXT \"v=spf1 a mx $_spf_ips -all\"'
 	   local-data: \"freebsd-update		A $(get_jail_ip4 bsd_cache)\"
 	   local-data: \"pkg				A $(get_jail_ip4 bsd_cache)\"
@@ -54,7 +52,7 @@ get_mt6_data()
 
 	for _j in $JAIL_ORDERED_LIST; do
 		echo "
-	   local-data: \"$_j		A $(get_jail_ip "$_j")\"
+	   local-data: \"$_j		A $(get_jail_ip4 "$_j")\"
 	   local-data: \"$(get_reverse_ip "$_j") PTR $_j\""
 
 		if [ "$_has_ip6" = 0 ]; then continue; fi

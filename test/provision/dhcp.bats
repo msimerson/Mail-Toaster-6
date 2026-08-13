@@ -53,5 +53,5 @@ setup() {
   configure_dhcpd > /dev/null
 
   run cat "$RDR_CONF"
-  assert_output --partial "port { 67 68 } -> $(get_jail_ip dhcp)"
+  assert_output --partial "port { 67 68 } -> $(get_jail_ip4 dhcp)"
 }

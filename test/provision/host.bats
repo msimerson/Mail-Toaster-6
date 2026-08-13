@@ -54,6 +54,41 @@ host_has() {
   assert_line 'ext_if6="gif0"'
 }
 
+# scoping the rule to an interface let ssh over a v6 tunnel escape the limit.
+# It matches every interface now, so the jail network is excluded by source.
+@test "configure_pf_conf - ssh is rate limited on every interface" {
+  export PUBLIC_IP4="203.0.113.7" PUBLIC_IP6="2001:db8::1"
+  get_public_ip4() { export PUBLIC_NIC="em0"; }
+  get_public_ip6() { export PUBLIC_NIC="gif0"; }
+
+  configure_pf_conf > /dev/null
+
+  run cat "$PF_CONF"
+  assert_line --partial 'pass in quick proto tcp from ! <ssh_exempt> to port ssh'
+  refute_line --partial 'on $ext_if proto tcp to port ssh'
+  refute_line --partial 'on $ext_ifs proto tcp to port ssh'
+}
+
+@test "configure_pf_conf - jail and loopback sources are exempt from the ssh limit" {
+  host_has "203.0.113.7" "2001:db8::1"
+
+  configure_pf_conf > /dev/null
+
+  run cat "$PF_CONF"
+  assert_line 'table <ssh_exempt> { $jail_ip4, $jail_ip6, 127.0.0.0/8, ::1 } persist'
+}
+
+@test "configure_pf_conf - one interface is not listed twice" {
+  export PUBLIC_IP4="203.0.113.7" PUBLIC_IP6="2001:db8::1"
+  get_public_ip4() { export PUBLIC_NIC="em0"; }
+  get_public_ip6() { export PUBLIC_NIC="em0"; }
+
+  configure_pf_conf > /dev/null
+
+  run cat "$PF_CONF"
+  assert_line 'ext_ifs="{ em0 }"'
+}
+
 @test "configure_pf_conf - a single family host NATs both rules on its one interface" {
   export PUBLIC_IP4="" PUBLIC_IP6="2001:db8::1"
   get_public_ip4() { export PUBLIC_NIC="gif0"; }
