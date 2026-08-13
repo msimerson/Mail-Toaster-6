@@ -2,8 +2,7 @@
 # contrib/pfrule.sh resolves its rule directory across the layouts MT6 has used
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   PFRULE="$BATS_TEST_DIRNAME/../../contrib/pfrule.sh"
   # pfrule.sh readlink -f's its own path, so the fixture has to be the resolved

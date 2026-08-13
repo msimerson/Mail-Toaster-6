@@ -1,17 +1,20 @@
 #!/usr/bin/env bats
 # Functional tests for provision/statsd.sh
+#
+# setup_file sources statsd.sh once against $BATS_FILE_TMPDIR, through the stub
+# mail-toaster.sh on PATH.
 
-setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
-
+setup_file() {
   export MT6_TEST_ENV=1
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d)
+  export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  export STATSD_FNS="$BATS_FILE_TMPDIR/statsd_fns_only.sh"
 
-  # Pre-create dirs and stub config.js so install_statsd can run
-  mkdir -p "$STAGE_MNT/var/lib"
-  mkdir -p "$STAGE_MNT/usr/local/share/statsd/lib"
+  awk '/^base_snapshot_exists/{exit} {print}' \
+    "$BATS_TEST_DIRNAME/../../provision/statsd.sh" > "$STATSD_FNS"
+
+  # install_statsd edits config.js in place, so it has to exist first
+  mkdir -p "$STAGE_MNT/var/lib" "$STAGE_MNT/usr/local/share/statsd/lib"
   printf ' process.EventEmitter = require("events").EventEmitter;\n' \
     > "$STAGE_MNT/usr/local/share/statsd/lib/config.js"
 
@@ -19,58 +22,34 @@ setup() {
   . "$BATS_TEST_DIRNAME/../../provision/statsd.sh"
 }
 
-teardown() {
-  rm -rf "$STAGE_MNT"
+setup() {
+  load '../test_helper/load'
+  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  # shellcheck source=/dev/null
+  . "$STATSD_FNS"
 }
 
-# --- JAIL variable exports ---
-
-@test "statsd - JAIL_START_EXTRA is empty" {
+@test "statsd - declares no jail extras" {
   assert_equal "$JAIL_START_EXTRA" ""
-}
-
-@test "statsd - JAIL_CONF_EXTRA is empty" {
   assert_equal "$JAIL_CONF_EXTRA" ""
-}
-
-@test "statsd - JAIL_FSTAB is empty" {
   assert_equal "$JAIL_FSTAB" ""
 }
 
-# --- Function existence ---
-
-@test "statsd - defines install_statsd" {
-  run type install_statsd
-  assert_success
+@test "statsd - defines the jail lifecycle functions" {
+  local _fn
+  for _fn in install_statsd start_statsd test_statsd; do
+    run type "$_fn"
+    assert_success
+  done
 }
 
-@test "statsd - defines start_statsd" {
-  run type start_statsd
-  assert_success
-}
-
-@test "statsd - defines test_statsd" {
-  run type test_statsd
-  assert_success
-}
-
-# --- install_statsd behaviour ---
-
-@test "statsd - install uses statsd package" {
+@test "statsd - install uses the statsd package and enables it" {
   stage_pkg_install() { echo "PKG:$*"; }
-  stage_sysrc()       { :; }
-  run install_statsd
-  assert_output --partial "PKG:statsd"
-}
-
-@test "statsd - install enables statsd via sysrc" {
-  stage_pkg_install() { return 0; }
   stage_sysrc()       { echo "SYSRC:$*"; }
   run install_statsd
+  assert_output --partial "PKG:statsd"
   assert_output --partial "SYSRC:statsd_enable=YES"
 }
-
-# --- start_statsd behaviour ---
 
 @test "statsd - start calls service statsd start" {
   stage_exec() { echo "EXEC:$*"; }
@@ -78,8 +57,6 @@ teardown() {
   assert_success
   assert_output --partial "EXEC:service statsd start"
 }
-
-# --- test_statsd behaviour ---
 
 @test "statsd - test checks statsd is running" {
   stage_test_running() { echo "RUNNING:$*"; }

@@ -60,8 +60,7 @@ EOF
 }
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   export MT6_TEST_ENV=1
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
@@ -82,73 +81,21 @@ teardown() {
 
 # --- JAIL variable exports ---
 
-@test "mysql - JAIL_START_EXTRA is empty" {
+@test "mysql - declares no jail extras" {
   assert_equal "$JAIL_START_EXTRA" ""
-}
-
-@test "mysql - JAIL_CONF_EXTRA is empty" {
   assert_equal "$JAIL_CONF_EXTRA" ""
-}
-
-@test "mysql - JAIL_FSTAB is empty" {
   assert_equal "$JAIL_FSTAB" ""
 }
 
-# --- Function existence ---
-
-@test "mysql - defines install_db_server" {
-  run type install_db_server
-  assert_success
-}
-
-@test "mysql - defines install_mysql" {
-  run type install_mysql
-  assert_success
-}
-
-@test "mysql - defines install_mariadb" {
-  run type install_mariadb
-  assert_success
-}
-
-@test "mysql - defines configure_mysql" {
-  run type configure_mysql
-  assert_success
-}
-
-@test "mysql - defines start_mysql" {
-  run type start_mysql
-  assert_success
-}
-
-@test "mysql - defines test_mysql" {
-  run type test_mysql
-  assert_success
-}
-
-@test "mysql - defines write_pass_to_conf" {
-  run type write_pass_to_conf
-  assert_success
-}
-
-@test "mysql - defines configure_mysql_keys" {
-  run type configure_mysql_keys
-  assert_success
-}
-
-@test "mysql - defines configure_mysql_root_password" {
-  run type configure_mysql_root_password
-  assert_success
-}
-
-@test "mysql - defines migrate_mysql_dbs" {
-  run type migrate_mysql_dbs
-  assert_success
-}
-
-@test "mysql - defines check_mysql_native_passwords" {
-  run type check_mysql_native_passwords
-  assert_success
+@test "mysql - defines the functions the provisioner calls" {
+  local _fn
+  for _fn in install_db_server install_mysql install_mariadb configure_mysql \
+             start_mysql test_mysql write_pass_to_conf configure_mysql_keys \
+             configure_mysql_root_password migrate_mysql_dbs \
+             check_mysql_native_passwords; do
+    run type "$_fn"
+    assert_success
+  done
 }
 
 # --- configure_mysql outcomes (verified against the post-setup_file my.cnf) ---
@@ -200,17 +147,11 @@ EOF
   [ -f "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mysql.conf" ]
 }
 
-@test "mysql - configure enables mysql service via sysrc" {
+@test "mysql - configure enables the service and points it at /data/db" {
   stage_sysrc() { echo "SYSRC:$*"; }
   run configure_mysql
   assert_success
   assert_output --partial "SYSRC:mysql_enable=YES"
-}
-
-@test "mysql - configure sets mysql_dbdir via sysrc" {
-  stage_sysrc() { echo "SYSRC:$*"; }
-  run configure_mysql
-  assert_success
   assert_output --partial "SYSRC:mysql_dbdir=/data/db"
 }
 

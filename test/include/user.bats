@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
   export ZFS_JAIL_MNT; ZFS_JAIL_MNT=$(mktemp -d)
   export STAGE_MNT; STAGE_MNT=$(mktemp -d)
   load '../../include/user.sh'

@@ -76,15 +76,42 @@ seed_pkg_audit()           { :; }
 
 # Jail helpers
 jail_is_running()          { return 1; }
+# mirrors include/jail.sh, less the host(1) fallback for an unlisted jail
 get_jail_ip() {
-  local _name="$1" _idx=1
+  local _start=${JAIL_NET_START:-1} _octet
+
+  case "$1" in
+    syslog) echo "$JAIL_NET_PREFIX.$_start";         return ;;
+    base*)  echo "$JAIL_NET_PREFIX.$((_start + 1))"; return ;;
+    stage)  echo "$JAIL_NET_PREFIX.254";             return ;;
+  esac
+
+  _octet="$_start"
   for _j in $JAIL_ORDERED_LIST; do
-    if [ "$_j" = "$_name" ]; then echo "$JAIL_NET_PREFIX.$_idx"; return 0; fi
-    _idx=$((_idx + 1))
+    if [ "$1" = "$_j" ]; then echo "$JAIL_NET_PREFIX.$_octet"; return; fi
+    _octet=$((_octet + 1))
   done
-  echo "172.16.15.1"
+
+  return 2
 }
-get_jail_ip6()             { echo "fd7a:e5cd:1fc1:c597:dead:beef:cafe:00fe"; }
+
+get_jail_ip6() {
+  local _start=${JAIL_NET_START:-1} _octet
+
+  case "$1" in
+    syslog) echo "$JAIL_NET6:$(dec_to_hex "$_start")";       return ;;
+    base*)  echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"; return ;;
+    stage)  echo "$JAIL_NET6:$(dec_to_hex 254)";             return ;;
+  esac
+
+  _octet="$_start"
+  for _j in $JAIL_ORDERED_LIST; do
+    if [ "$1" = "$_j" ]; then echo "$JAIL_NET6:$(dec_to_hex "$_octet")"; return; fi
+    _octet=$((_octet + 1))
+  done
+
+  return 2
+}
 get_jail_data()            { echo "${ZFS_DATA_MNT}/$1"; }
 export MT6_ETC=${MT6_ETC:-"/etc/mail-toaster"}
 get_jail_host_etc()        { echo "${MT6_ETC}/$1"; }

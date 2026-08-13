@@ -1,12 +1,20 @@
 #!/usr/bin/env bats
 # Functional tests for provision/haraka.sh
+#
+# Every test edits the config tree, so each gets its own $BATS_TEST_TMPDIR.
+# setup_file strips the execution block once; setup only sources the result.
+
+setup_file() {
+  export HARAKA_FNS="$BATS_FILE_TMPDIR/haraka_fns_only.sh"
+  sed '/^preinstall_checks$/,$d' \
+    "$BATS_TEST_DIRNAME/../../provision/haraka.sh" > "$HARAKA_FNS"
+}
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   export MT6_TEST_ENV=1
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d /tmp/mt6hkXXXXXX)
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   export ZFS_DATA_MNT="$STAGE_MNT/data"
@@ -20,36 +28,20 @@ setup() {
   mkdir -p "$HARAKA_CONF"
   printf '# syslog\n' > "$HARAKA_CONF/plugins"
 
-  # source the function definitions only; the execution block at the bottom
-  # provisions a jail
-  sed '/^preinstall_checks$/,$d' "$BATS_TEST_DIRNAME/../../provision/haraka.sh" \
-    > "$STAGE_MNT/haraka-functions.sh"
   # shellcheck source=/dev/null
-  . "$STAGE_MNT/haraka-functions.sh"
+  . "$HARAKA_FNS"
 }
 
-teardown() {
-  rm -rf "$STAGE_MNT"
-}
-
-@test "configure_haraka_syslog logs to the data volume" {
+@test "configure_haraka_syslog keeps the maillog on the data volume" {
   configure_haraka_syslog
 
   run cat "$STAGE_MNT/etc/syslog.conf"
   assert_success
   assert_output --partial "/data/log/maillog"
   refute_output --partial "/var/log/maillog"
-}
-
-@test "configure_haraka_syslog creates the log dir and maillog" {
-  configure_haraka_syslog
 
   [ -d "$ZFS_DATA_MNT/haraka/log" ]
   [ -f "$ZFS_DATA_MNT/haraka/log/maillog" ]
-}
-
-@test "configure_haraka_syslog points log-reader at the data volume" {
-  configure_haraka_syslog
 
   run cat "$HARAKA_CONF/log.reader.ini"
   assert_success
@@ -68,33 +60,27 @@ teardown() {
 
 # --- listen address follows IPv6 availability ---
 
-@test "haraka_listen_addr returns 0.0.0.0 when no public IPv6" {
+@test "haraka_listen_addr follows IPv6 availability" {
   unset PUBLIC_IP6
   run haraka_listen_addr
   assert_output "0.0.0.0"
-}
 
-@test "haraka_listen_addr returns [::0] when public IPv6 present" {
   export PUBLIC_IP6="2001:db8::1"
   run haraka_listen_addr
   assert_output "[::0]"
 }
 
-@test "configure_haraka_smtp_ini binds IPv4 when no public IPv6" {
+@test "configure_haraka_smtp_ini binds every port to that address" {
   printf ';listen=[::0]:25\n' > "$HARAKA_CONF/smtp.ini"
   unset PUBLIC_IP6
   configure_haraka_smtp_ini
-
   run cat "$HARAKA_CONF/smtp.ini"
   assert_output --partial "listen=0.0.0.0:25,0.0.0.0:465,0.0.0.0:587"
   refute_output --partial "[::0]"
-}
 
-@test "configure_haraka_smtp_ini binds IPv6 when public IPv6 present" {
   printf ';listen=[::0]:25\n' > "$HARAKA_CONF/smtp.ini"
   export PUBLIC_IP6="2001:db8::1"
   configure_haraka_smtp_ini
-
   run cat "$HARAKA_CONF/smtp.ini"
   assert_output --partial "listen=[::0]:25,[::0]:465,[::0]:587"
 }
@@ -113,17 +99,15 @@ teardown() {
 @test "haraka_enable_plugin appends when Haraka ships no entry" {
   printf '# status\n# syslog\n' > "$HARAKA_CONF/plugins"
   haraka_enable_plugin watch > /dev/null
-
-  run cat "$HARAKA_CONF/plugins"
-  assert_line "watch"
-}
-
-@test "haraka_enable_plugin appends p0f when Haraka ships no entry" {
-  printf '# karma\n# geoip\n' > "$HARAKA_CONF/plugins"
   haraka_enable_plugin p0f > /dev/null
 
   run cat "$HARAKA_CONF/plugins"
+  assert_line "watch"
   assert_line "p0f"
+
+  # the plugins it was not asked about stay as Haraka shipped them
+  assert_line "# status"
+  assert_line "# syslog"
 }
 
 @test "haraka_enable_plugin does not double-add an enabled plugin" {
@@ -132,15 +116,6 @@ teardown() {
 
   run grep -c '^watch$' "$HARAKA_CONF/plugins"
   assert_output "1"
-}
-
-@test "haraka_enable_plugin leaves other commented plugins alone" {
-  printf '# status\n# syslog\n' > "$HARAKA_CONF/plugins"
-  haraka_enable_plugin watch > /dev/null
-
-  run cat "$HARAKA_CONF/plugins"
-  assert_line "# status"
-  assert_line "# syslog"
 }
 
 @test "configure_haraka_watch enables the plugin and writes watch.ini" {
@@ -153,14 +128,7 @@ teardown() {
 
   run cat "$HARAKA_CONF/watch.ini"
   assert_output --partial "url=wss://mail.example.com/watch"
-}
-
-@test "configure_haraka_watch - the wss url names a host" {
-  printf '# status\n# syslog\n' > "$HARAKA_CONF/plugins"
-  export TOASTER_HOSTNAME="mail.example.com"
-  configure_haraka_watch > /dev/null
-
-  run cat "$HARAKA_CONF/watch.ini"
+  # an empty hostname would leave wss:/// and the browser nowhere to connect
   refute_output --partial "wss:///"
   assert_line --regexp '^url=wss://[a-z0-9.-]+/watch$'
 }

@@ -1,12 +1,17 @@
 #!/usr/bin/env bats
 # Functional tests for provision/postfix.sh
 
+setup_file() {
+  export POSTFIX_FNS="$BATS_FILE_TMPDIR/postfix_fns_only.sh"
+  sed '/^base_snapshot_exists/,$d' \
+    "$BATS_TEST_DIRNAME/../../provision/postfix.sh" > "$POSTFIX_FNS"
+}
+
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   export MT6_TEST_ENV=1
-  export STAGE_MNT; STAGE_MNT=$(mktemp -d /tmp/mt6pfXXXXXX)
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   export ZFS_DATA_MNT="$STAGE_MNT/data"
@@ -37,19 +42,11 @@ smtp      inet  n       -       n       -       -       smtpd
 pickup    unix  n       -       n       60      1       pickup
 EOF
 
-  # source the function definitions only; the execution block at the bottom
-  # provisions a jail
-  sed '/^base_snapshot_exists/,$d' "$BATS_TEST_DIRNAME/../../provision/postfix.sh" \
-    > "$STAGE_MNT/postfix-functions.sh"
   # shellcheck source=/dev/null
-  . "$STAGE_MNT/postfix-functions.sh"
+  . "$POSTFIX_FNS"
 }
 
-teardown() {
-  rm -rf "$STAGE_MNT"
-}
-
-@test "enable_postfix_submission uncomments the submission service block" {
+@test "enable_postfix_submission uncomments the submission and smtps blocks" {
   enable_postfix_submission "$MASTER_CF"
 
   run cat "$MASTER_CF"
@@ -57,18 +54,11 @@ teardown() {
   assert_line "submission inet n       -       n       -       -       smtpd"
   assert_line "  -o syslog_name=postfix/submission"
   assert_line "  -o smtpd_tls_security_level=encrypt"
-}
-
-@test "enable_postfix_submission uncomments the smtps service block" {
-  enable_postfix_submission "$MASTER_CF"
-
-  run cat "$MASTER_CF"
-  assert_success
   assert_line "smtps     inet  n       -       n       -       -       smtpd"
   assert_line "  -o smtpd_tls_wrappermode=yes"
 }
 
-@test "enable_postfix_submission leaves unrelated commented services alone" {
+@test "enable_postfix_submission leaves the rest of master.cf alone" {
   enable_postfix_submission "$MASTER_CF"
 
   run cat "$MASTER_CF"
@@ -76,13 +66,7 @@ teardown() {
   assert_line "#smtp      inet  n       -       n       -       1       postscreen"
   assert_line "smtp      inet  n       -       n       -       -       smtpd"
   assert_line "pickup    unix  n       -       n       60      1       pickup"
-}
-
-@test "enable_postfix_submission leaves non-option text commented" {
-  enable_postfix_submission "$MASTER_CF"
-
-  run cat "$MASTER_CF"
-  assert_success
+  # prose in the comment block is not an -o option to uncomment
   assert_line "#     Instead of specifying complex smtpd_<xxx>_restrictions here,"
 }
 

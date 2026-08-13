@@ -1,7 +1,6 @@
 
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load '../test_helper/load'
 
   # Mock variables
   export JAIL_NET_PREFIX="172.16.15"
@@ -17,52 +16,42 @@ setup() {
   load '../../include/network.sh'
 }
 
-@test "safe_jailname - replaces dots" {
+# a jail name reaches jail.conf, where only alpha-numerics and _ are legal
+@test "safe_jailname - replaces the characters jail.conf rejects" {
   run safe_jailname "my.jail"
   assert_output "my_jail"
-}
 
-@test "safe_jailname - replaces dashes" {
   run safe_jailname "my-jail"
   assert_output "my_jail"
 }
 
-@test "get_jail_ip - syslog" {
+# a jail's address is its position in JAIL_ORDERED_LIST
+@test "get_jail_ip - each jail lands on its own octet" {
   run get_jail_ip syslog
   assert_output "172.16.15.1"
-}
 
-@test "get_jail_ip - dns" {
   run get_jail_ip dns
   assert_output "172.16.15.3"
-}
 
-@test "get_jail_ip - mysql" {
   run get_jail_ip mysql
   assert_output "172.16.15.4"
 }
 
-@test "jail_is_running - yes" {
-  jls() {
-    echo "myjail"
-  }
+@test "jail_is_running - follows jls" {
+  jls() { echo "myjail"; }
   run jail_is_running myjail
   assert_success
-}
 
-@test "jail_is_running - no" {
   jls() { return 1; }
   run jail_is_running myjail
   assert_failure
 }
 
-@test "jail_conf_header - dns" {
+@test "jail_conf_header - each jail gets its own path" {
   run jail_conf_header dns
   assert_output --partial "path = \"/jails/dns\";"
   assert_output --partial "interface = lo1;"
-}
 
-@test "jail_conf_header - base" {
   run jail_conf_header base
   assert_output --partial "path = \"/jails/base-13.2-RELEASE\";"
 }
@@ -204,19 +193,6 @@ devfs_setup() {
   assert_output "service devfs restart"
 }
 
-@test "assure_devfs_bpf_ruleset - is a no-op when already present" {
-  export DEVFS_RULES="$BATS_TEST_TMPDIR/devfs.rules"
-  printf '%s\n' "[devfsrules_jail_bpf=7]" "add path 'bpf*' unhide" > "$DEVFS_RULES"
-  local _before; _before=$(cat "$DEVFS_RULES")
-  tell_status() { :; }
-  service() { echo "restarted" > "$BATS_TEST_TMPDIR/svc"; }
-
-  run assure_devfs_bpf_ruleset
-  assert_success
-  [ "$(cat "$DEVFS_RULES")" = "$_before" ]
-  [ ! -f "$BATS_TEST_TMPDIR/svc" ]
-}
-
 @test "assure_devfs_bpf_ruleset - the jails needing bpf ask for that ruleset" {
   run grep -h "^export JAIL_DEVFS_RULESET" provision/haraka.sh provision/dhcp.sh
   assert_success
@@ -245,15 +221,6 @@ devfs_rules_setup() {
   assert_output "service devfs restart"
 }
 
-@test "assure_devfs_bpf_ruleset - still unhides bpf" {
-  devfs_rules_setup
-  assure_devfs_bpf_ruleset > /dev/null
-
-  run cat "$DEVFS_RULES"
-  assert_output --partial "[devfsrules_jail_bpf=7]"
-  assert_output --partial "add path 'bpf*' unhide"
-}
-
 @test "assure_devfs_ruleset - the two rulesets do not collide" {
   devfs_rules_setup
   assure_devfs_bpf_ruleset > /dev/null
@@ -275,14 +242,19 @@ devfs_rules_setup() {
   assert_output "1"
 }
 
+# restarting devfs for a ruleset that is already there would bounce every jail
 @test "assure_devfs_ruleset - is a no-op when the ruleset is present" {
   devfs_rules_setup
+  assure_devfs_bpf_ruleset > /dev/null
   assure_devfs_linux_ruleset > /dev/null
   local _before; _before=$(cat "$DEVFS_RULES")
   rm -f "$BATS_TEST_TMPDIR/svc"
 
+  run assure_devfs_bpf_ruleset
+  assert_success
   run assure_devfs_linux_ruleset
   assert_success
+
   [ "$(cat "$DEVFS_RULES")" = "$_before" ]
   [ ! -f "$BATS_TEST_TMPDIR/svc" ]
 }
@@ -615,19 +587,17 @@ mta_rdr_setup() {
   assert_output --partial "port { 25 }"
 }
 
-@test "configure_mta_pf_rdr - removes stale rdr.conf when jail owns no ports" {
+@test "configure_mta_pf_rdr - a jail owning no ports gets no rdr.conf" {
   mta_rdr_setup
   export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
-  mkdir -p "$(get_jail_host_etc haraka)/pf.conf.d"
-  echo "stale rule" > "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
+
   run configure_mta_pf_rdr haraka
   assert_success
   [ ! -f "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf" ]
-}
 
-@test "configure_mta_pf_rdr - writes no file when jail owns no ports" {
-  mta_rdr_setup
-  export TOASTER_MTA="postfix" TOASTER_MSA="postfix"
+  # a rule left from when it did own them would still redirect mail here
+  mkdir -p "$(get_jail_host_etc haraka)/pf.conf.d"
+  echo "stale rule" > "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
   run configure_mta_pf_rdr haraka
   assert_success
   [ ! -f "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf" ]
