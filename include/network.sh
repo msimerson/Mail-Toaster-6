@@ -107,20 +107,25 @@ install_acme_sh()
 EO_ACME_CRON
 }
 
-install_minimal_hosts()
+hosts_entry()
 {
-	local _hosts6=""
+	local _has6="$1" _jail="$2"; shift 2
 
-	if jail_has_ip6; then
-		_hosts6="
-$(get_jail_ip6 dns) dns
-$(get_jail_ip6 syslog) syslog
-$(get_jail_ip6 bsd_cache) pkg vulnxml freebsd-update"
+	if [ "$_has6" = 1 ]; then
+		printf '%s %s\n' "$(get_jail_ip6 "$_jail")" "$*"
 	fi
 
-	store_config "$STAGE_MNT/etc/hosts" "append" <<EO_HOSTS
-$(get_jail_ip4 dns) dns
-$(get_jail_ip4 syslog) syslog
-$(get_jail_ip4 bsd_cache) pkg vulnxml freebsd-update$_hosts6
-EO_HOSTS
+	printf '%s %s\n' "$(get_jail_ip4 "$_jail")" "$*"
+}
+
+install_minimal_hosts()
+{
+	local _has6=0
+	if jail_has_ip6; then _has6=1; fi
+
+	{
+		hosts_entry "$_has6" dns dns
+		hosts_entry "$_has6" syslog syslog
+		hosts_entry "$_has6" bsd_cache pkg vulnxml freebsd-update
+	} | store_config "$STAGE_MNT/etc/hosts" "append"
 }

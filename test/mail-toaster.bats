@@ -786,6 +786,8 @@ setup_unprovision_tree() {
 
   run cat "$BATS_TEST_TMPDIR/rm.log"
   refute_output --regexp '(^| )/$'
+}
+
 # --- every jail resolves the names it needs before unbound answers ---
 
 setup_minimal_hosts() {
