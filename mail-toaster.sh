@@ -836,6 +836,17 @@ unprovision_filesystems()
 	fi
 }
 
+unprovision_etc()
+{
+	if [ -z "$1" ] || [ -z "$MT6_ETC" ]; then return 0; fi
+
+	local _etc; _etc=$(get_jail_host_etc "$1")
+	if [ ! -d "$_etc" ]; then return 0; fi
+
+	tell_status "rm -r $_etc"
+	rm -r "$_etc"
+}
+
 unprovision_files()
 {
 	for _f in /etc/jail.conf /etc/pf.conf /usr/local/sbin/jailmanage; do
@@ -844,6 +855,11 @@ unprovision_files()
 			rm "$_f"
 		fi
 	done
+
+	if [ -n "$MT6_ETC" ] && [ -d "$MT6_ETC" ]; then
+		tell_status "rm -r $MT6_ETC"
+		rm -r "$MT6_ETC"
+	fi
 
 	if grep -q "^$JAIL_NET_PREFIX" /etc/hosts; then
 		sed_inplace -e "/^$JAIL_NET_PREFIX.*/d" /etc/hosts
@@ -874,6 +890,7 @@ unprovision()
 		service jail stop stage "$1"
 		unprovision_filesystem "$1" || return 1
 		unprovision_rc "$1"
+		unprovision_etc "$1"
 		return
 	fi
 
