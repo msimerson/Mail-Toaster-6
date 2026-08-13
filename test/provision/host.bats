@@ -219,3 +219,32 @@ host_has() {
   assert_output --partial "-4"
   assert_output --partial "-6"
 }
+
+# --- syslogd listens on the families the jails can send from ---
+
+syslogd_flags() {
+  grep()    { return 1; }
+  service() { :; }
+  sysrc()   { echo "$*" > "$BATS_TEST_TMPDIR/sysrc"; }
+
+  update_syslogd > /dev/null
+  cat "$BATS_TEST_TMPDIR/sysrc"
+}
+
+# the -a rule already allowed the jail IPv6 range, but nothing ever bound it
+@test "update_syslogd - binds IPv6 when the jails have it" {
+  host_has "203.0.113.7" "2001:db8::1"
+
+  run syslogd_flags
+  assert_output --partial "-b $JAIL_NET_PREFIX.1"
+  assert_output --partial "-b [$JAIL_NET6:1]"
+  assert_output --partial "-a [$JAIL_NET6:0]/112:*"
+}
+
+@test "update_syslogd - binds IPv4 only when the jails have no IPv6" {
+  host_has "203.0.113.7" ""
+
+  run syslogd_flags
+  assert_output --partial "-b $JAIL_NET_PREFIX.1"
+  refute_output --partial "-b [$JAIL_NET6:1]"
+}

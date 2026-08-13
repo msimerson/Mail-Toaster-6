@@ -786,4 +786,115 @@ setup_unprovision_tree() {
 
   run cat "$BATS_TEST_TMPDIR/rm.log"
   refute_output --regexp '(^| )/$'
+# --- every jail resolves the names it needs before unbound answers ---
+
+setup_minimal_hosts() {
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT/etc"
+  # what base.txz ships, via lib/libc/net/hosts
+  printf '::1\t\t\tlocalhost localhost.my.domain\n127.0.0.1\t\tlocalhost localhost.my.domain\n' \
+    > "$STAGE_MNT/etc/hosts"
+  tell_status() { :; }
+  get_public_ip6() { export PUBLIC_IP6=""; }
+}
+
+@test "install_minimal_hosts - adds the names a jail needs to bootstrap" {
+  setup_minimal_hosts
+
+  install_minimal_hosts
+
+  run cat "$STAGE_MNT/etc/hosts"
+  assert_output --partial "$(get_jail_ip4 dns) dns"
+  assert_output --partial "$(get_jail_ip4 syslog) syslog"
+  assert_output --partial "$(get_jail_ip4 bsd_cache) pkg vulnxml freebsd-update"
+}
+
+# it appends; overwriting would take localhost with it
+@test "install_minimal_hosts - keeps the localhost entries base ships" {
+  setup_minimal_hosts
+
+  install_minimal_hosts
+
+  run cat "$STAGE_MNT/etc/hosts"
+  assert_output --partial "127.0.0.1"
+  assert_output --partial "::1"
+  assert_line --regexp '^127\.0\.0\.1[[:space:]]+localhost'
+}
+
+@test "create_staged_fs - every jail gets the minimal hosts, not just dns" {
+  setup_minimal_hosts
+  export ZFS_JAIL_VOL="zroot/jails" ZFS_DATA_VOL="zroot/data" BASE_SNAP="zroot/jails/base@p0"
+  cleanup_staged_fs()           { :; }
+  zfs()                         { :; }
+  stage_sysrc()                 { :; }
+  assure_ip6_addr_is_declared() { :; }
+  stage_resolv_conf()           { :; }
+  zfs_create_fs()               { :; }
+  adopt_jail_host_etc()         { :; }
+  install_fstab()               { :; }
+  install_pfrule()              { :; }
+
+  create_staged_fs myjail > /dev/null
+
+  run cat "$STAGE_MNT/etc/hosts"
+  assert_output --partial "$(get_jail_ip4 dns) dns"
+  assert_output --partial "127.0.0.1"
+}
+
+@test "install_minimal_hosts - a jail with IPv6 gets those addresses too" {
+  setup_minimal_hosts
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  install_minimal_hosts
+
+  run cat "$STAGE_MNT/etc/hosts"
+  assert_output --partial "$(get_jail_ip6 dns) dns"
+  assert_output --partial "$(get_jail_ip6 bsd_cache) pkg vulnxml freebsd-update"
+}
+
+@test "install_minimal_hosts - syslog gets both families" {
+  setup_minimal_hosts
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  install_minimal_hosts
+
+  run grep -c ' syslog$' "$STAGE_MNT/etc/hosts"
+  assert_output "2"
+
+  run cat "$STAGE_MNT/etc/hosts"
+  assert_output --partial "$(get_jail_ip4 syslog) syslog"
+  assert_output --partial "$(get_jail_ip6 syslog) syslog"
+}
+
+@test "install_minimal_hosts - a jail without IPv6 gets no v6 entries" {
+  setup_minimal_hosts
+  get_public_ip6() { export PUBLIC_IP6=""; }
+
+  install_minimal_hosts
+
+  run grep -c ' dns$' "$STAGE_MNT/etc/hosts"
+  assert_output "1"
+
+  run grep -c 'freebsd-update$' "$STAGE_MNT/etc/hosts"
+  assert_output "1"
+}
+
+# base pairs ::1 above 127.0.0.1 for localhost; match that
+@test "install_minimal_hosts - IPv6 precedes IPv4 for each name" {
+  setup_minimal_hosts
+  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
+
+  install_minimal_hosts
+
+  run awk '$2 == "dns" { print $1 }' "$STAGE_MNT/etc/hosts"
+  assert_line --index 0 "$(get_jail_ip6 dns)"
+  assert_line --index 1 "$(get_jail_ip4 dns)"
+
+  run awk '$2 == "syslog" { print $1 }' "$STAGE_MNT/etc/hosts"
+  assert_line --index 0 "$(get_jail_ip6 syslog)"
+  assert_line --index 1 "$(get_jail_ip4 syslog)"
+
+  run awk '$2 == "pkg" { print $1 }' "$STAGE_MNT/etc/hosts"
+  assert_line --index 0 "$(get_jail_ip6 bsd_cache)"
+  assert_line --index 1 "$(get_jail_ip4 bsd_cache)"
 }
