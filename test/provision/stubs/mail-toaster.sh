@@ -95,6 +95,10 @@ get_jail_ip4() {
   return 2
 }
 
+get_jail_ip() {
+  get_jail_ip4 "$@"
+}
+
 get_jail_ip6() {
   local _start=${JAIL_NET_START:-1} _octet
 

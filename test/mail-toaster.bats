@@ -96,7 +96,6 @@ setup() {
   assert_success
 }
 
-# a jail's address is its position in JAIL_ORDERED_LIST
 @test "get_jail_ip4 - each jail lands on its own octet" {
   run get_jail_ip4 syslog
   assert_success
