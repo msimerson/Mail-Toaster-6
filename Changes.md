@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
+- jail: rename get_jail_ip to get_jail_ip4
 - perf(test): source the assertion libraries once, scripts once per file
 - nginx: add nginx_listen(), emitting IPv4 and IPv6 listen directives
 - refactor(net): build clean on IPv4-only, v6-only, and dual-stack
