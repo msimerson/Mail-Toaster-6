@@ -81,8 +81,8 @@ get_jail_ip6()
 }
 
 # Write a jail's inbound mail port redirects to its pf.conf.d/rdr.conf.
-# Port 25 (inbound MTA) follows $TOASTER_MTA; ports 465 and 587 (submission
-# and SMTPS, the MSA) follow $TOASTER_MSA.
+# Port 25 (inbound MTA) follows $TOASTER_MTA
+# Ports 465 and 587 (submission) follow $TOASTER_MSA.
 configure_mta_pf_rdr()
 {
 	local _jail="$1"
