@@ -248,3 +248,12 @@ syslogd_flags() {
   assert_output --partial "-b $JAIL_NET_PREFIX.1"
   refute_output --partial "-b [$JAIL_NET6:1]"
 }
+
+# an allow rule for a range nothing can send from reads like working IPv6 syslog
+@test "update_syslogd - allows only the families it binds" {
+  host_has "203.0.113.7" ""
+
+  run syslogd_flags
+  assert_output --partial "-a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*"
+  refute_output --partial "-a [$JAIL_NET6:0]/112:*"
+}

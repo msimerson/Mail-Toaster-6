@@ -89,10 +89,12 @@ disable_ntpd()
 
 update_syslogd()
 {
-	local _bind6=""
-	if jail_has_ip6; then _bind6=" -b [$JAIL_NET6:1]"; fi
+	local _ip6=""
+	if jail_has_ip6; then
+		_ip6=" -b [$JAIL_NET6:1] -a [$JAIL_NET6:0]/112:*"
+	fi
 
-	local _sysflags="-b $JAIL_NET_PREFIX.1$_bind6 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*$_ip6 -cc"
 
 	if grep -q ^syslogd_flags /etc/rc.conf; then
 		tell_status "preserving syslogd_flags"

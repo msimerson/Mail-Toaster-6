@@ -6,7 +6,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 ## 2026-08
 
 - base: jails get minimal /etc/hosts w/IPv6
-- host: syslogd binds the jail IPv6 address, not just the IPv4
+- host: syslogd binds the jail IPv6 address when present
 - jail: rename get_jail_ip to get_jail_ip4
 - perf(test): source the assertion libraries once, scripts once per file
 - nginx: add nginx_listen(), emitting IPv4 and IPv6 listen directives
