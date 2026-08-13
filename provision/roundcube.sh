@@ -49,14 +49,14 @@ install_roundcube_mysql()
 	local _rcc_dir="$STAGE_MNT/usr/local/www/roundcube/config"
 	sed_inplace \
 		-e "s/roundcube:pass@/roundcube:${_rcpass}@/" \
-		-e "s/@localhost\//@$(get_jail_ip mysql)\//" \
+		-e "s/@localhost\//@$(get_jail_ip4 mysql)\//" \
 		"$_rcc_dir/config.inc.php"
 
 	if [ "$_init_db" = "1" ]; then
 		tell_status "configuring roundcube mysql permissions"
 
 		mysql_create_user roundcube "$_rcpass" roundcubemail \
-			"$(get_jail_ip roundcube)" "$(get_jail_ip stage)" \
+			"$(get_jail_ip4 roundcube)" "$(get_jail_ip4 stage)" \
 			"$(get_jail_ip6 roundcube)" "$(get_jail_ip6 stage)"
 
 		roundcube_init_db
@@ -72,7 +72,7 @@ roundcube_init_db()
 	# since 1.7 the installer entry point is public_html/installer.php; the
 	# installer/ dir it loads sits outside the document root
 	if ! curl -i -sS --fail -F initdb='Initialize database' -XPOST \
-		"http://$(get_jail_ip stage)/installer.php?_step=3"; then
+		"http://$(get_jail_ip4 stage)/installer.php?_step=3"; then
 		fatal_err "roundcube installer did not respond at /installer.php"
 	fi
 }
@@ -274,7 +274,7 @@ configure_roundcube()
 	local _dovecot_ip
 	if  [ -z "$ROUNDCUBE_DEFAULT_HOST" ];
 	then
-		_dovecot_ip=$(get_jail_ip dovecot)
+		_dovecot_ip=$(get_jail_ip4 dovecot)
 	else
 		_dovecot_ip="$ROUNDCUBE_DEFAULT_HOST"
 	fi

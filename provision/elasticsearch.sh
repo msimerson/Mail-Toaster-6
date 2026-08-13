@@ -102,7 +102,7 @@ install_beats()
 	local _xcfg="$STAGE_MNT/usr/local/etc/beats/metricbeat.modules.d/elasticsearch-xpack.yml"
 	cp "$STAGE_MNT/usr/local/share/examples/beats/metricbeat.modules.d/elasticsearch-xpack.yml.disabled" "$_xcfg"
 	sed_inplace \
-		-e "/hosts:/ s/localhost/$(get_jail_ip elasticsearch)/" \
+		-e "/hosts:/ s/localhost/$(get_jail_ip4 elasticsearch)/" \
 		"$_xcfg"
 
 	if ! stage_exec -c 'cd /usr/local/etc/beats && metricbeat modules enable elasticsearch-xpack'; then
@@ -133,7 +133,7 @@ configure_elasticsearch()
 	fi
 
 	sed_inplace \
-		-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip stage)/" \
+		-e "/^#network.host:/ s/#//; s/192.168.0.1/$(get_jail_ip4 stage)/" \
 		-e '/^#node.name/ s/^#//; s/node-1/stage/' \
 		-e '/^#cluster.initial/ s/^#//; s/node-1/stage/; s/, "node-2"//' \
 			"$_conf"
@@ -148,7 +148,7 @@ configure_elasticsearch()
 		chown 965 "$_data_conf"
 
 		sed_inplace \
-			-e "/^network.host:/ s/$(get_jail_ip stage)/$(get_jail_ip elasticsearch)/" \
+			-e "/^network.host:/ s/$(get_jail_ip4 stage)/$(get_jail_ip4 elasticsearch)/" \
 			-e '/^path.data: / s/var/data/' \
 			-e '/^path.logs: / s/var/data/' \
 			-e '/^path\./ s/\/elasticsearch//' \

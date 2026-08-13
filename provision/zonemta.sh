@@ -19,8 +19,8 @@ install_zonemta_webadmin()
 	fi
 
 	sed_inplace \
-		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
-		-e "/^host/  s/localhost/$(get_jail_ip redis)/; s/\/2/\/7/" \
+		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+		-e "/^host/  s/localhost/$(get_jail_ip4 redis)/; s/\/2/\/7/" \
 		-e "/^db = / s/2/7/" \
 		"$STAGE_MNT/data/admin/config/default.toml"
 }
@@ -42,13 +42,13 @@ install_zonemta()
 	fi
 
 	sed_inplace \
-		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
-		-e "/^redis/ s/localhost/$(get_jail_ip redis)/; s/\/2/\/7/" \
+		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+		-e "/^redis/ s/localhost/$(get_jail_ip4 redis)/; s/\/2/\/7/" \
 		"$STAGE_MNT/data/zone-mta/config/dbs-production.toml"
 
 	sed_inplace \
-		-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
-		-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
+		-e "/^mongo/   s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+		-e "/^host = / s/localhost/$(get_jail_ip4 redis)/" \
 		"$STAGE_MNT/data/zone-mta/config/dbs-development.toml"
 
 	# stage_exec bash -c "cd /data/zone-mta && npm install zonemta-delivery-counters --save"

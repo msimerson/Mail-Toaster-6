@@ -214,82 +214,82 @@ $(haproxy_binds '\t' 0.0.0.0 ::)
 	default_backend www_webmail
 
 	backend www_vpopmail
-	server vpopmail $(get_jail_ip vpopmail):80
+	server vpopmail $(get_jail_ip4 vpopmail):80
 
 	backend www_sqwebmail
-	server sqwebmail $(get_jail_ip sqwebmail):80
+	server sqwebmail $(get_jail_ip4 sqwebmail):80
 
 	backend www_haraka
-	server haraka $(get_jail_ip haraka):80
+	server haraka $(get_jail_ip4 haraka):80
 	http-request replace-uri /haraka/(.*) /\1
 
 	backend websocket_haraka
 	timeout queue 5s
 	timeout server 86400s
 	timeout connect 86400s
-	server haraka $(get_jail_ip haraka):80
+	server haraka $(get_jail_ip4 haraka):80
 
 	backend www_webmail
-	server webmail $(get_jail_ip webmail):80
+	server webmail $(get_jail_ip4 webmail):80
 	http-response set-header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.jquery.com; style-src 'self' 'unsafe-inline' https://code.jquery.com; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:; frame-ancestors 'self';"
 
 	backend www_roundcube
-	server roundcube $(get_jail_ip roundcube):80
+	server roundcube $(get_jail_ip4 roundcube):80
 	http-request replace-path /roundcube/(.*) /\1
 
 	backend www_squirrelmail
-	server squirrelmail $(get_jail_ip squirrelmail):80
+	server squirrelmail $(get_jail_ip4 squirrelmail):80
 
 	backend www_rainloop
-	server rainloop $(get_jail_ip rainloop):80
+	server rainloop $(get_jail_ip4 rainloop):80
 	http-request replace-path /rainloop/(.*) /\1
 
 	backend www_snappymail
-	server snappymail $(get_jail_ip snappymail):80
+	server snappymail $(get_jail_ip4 snappymail):80
 	http-response del-header X-Frame-Options
 
 	backend www_munin
-	server munin $(get_jail_ip munin):80
+	server munin $(get_jail_ip4 munin):80
 
 	backend www_rspamd
-	server rspamd $(get_jail_ip rspamd):11334
+	server rspamd $(get_jail_ip4 rspamd):11334
 	http-request replace-path /rspamd/(.*) /\1
 
 	backend www_nictool
-	server nictool $(get_jail_ip nictool):80
+	server nictool $(get_jail_ip4 nictool):80
 	http-request replace-path /nictool/(.*) /\1
 
 	backend www_mediawiki
-	server mediawiki $(get_jail_ip mediawiki):80
+	server mediawiki $(get_jail_ip4 mediawiki):80
 
 	backend www_smf
-	server smf $(get_jail_ip smf):80
+	server smf $(get_jail_ip4 smf):80
 
 	backend www_wordpress
-	server wordpress $(get_jail_ip wordpress):80
+	server wordpress $(get_jail_ip4 wordpress):80
 
 	backend www_stage
-	server stage $(get_jail_ip stage):80
+	server stage $(get_jail_ip4 stage):80
 
 	backend www_horde
-	server horde $(get_jail_ip horde):80
+	server horde $(get_jail_ip4 horde):80
 
 	backend www_prometheus
-	server prometheus $(get_jail_ip prometheus):9090
+	server prometheus $(get_jail_ip4 prometheus):9090
 	http-request replace-path /prometheus/(.*) /\1
 
 	backend www_grafana
-	server grafana $(get_jail_ip grafana):3000
+	server grafana $(get_jail_ip4 grafana):3000
 	http-request replace-path /grafana/(.*) /\1
 
 	backend www_dmarc
-	server dmarc $(get_jail_ip mail_dmarc):8080
+	server dmarc $(get_jail_ip4 mail_dmarc):8080
 
 	backend www_nagios
-	server nagios $(get_jail_ip nagios):80
+	server nagios $(get_jail_ip4 nagios):80
 
 	backend www_kibana
-	server kibana $(get_jail_ip elasticsearch):5601
+	server kibana $(get_jail_ip4 elasticsearch):5601
 	http-request replace-uri /kibana/(.*) /\1
 
 	backend www_haproxy
@@ -320,7 +320,7 @@ defaults
     timeout     client 30s
 
 frontend default-http
-$(haproxy_binds '    ' "$(get_jail_ip stage)" "$(get_jail_ip6 stage)")
+$(haproxy_binds '    ' "$(get_jail_ip4 stage)" "$(get_jail_ip6 stage)")
 
     default_backend www_webmail
 
@@ -423,7 +423,7 @@ configure_haproxy()
 
 	_pf_etc="$(get_jail_host_etc haproxy)/pf.conf.d"
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip haproxy)
+rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> $(get_jail_ip4 haproxy)
 rdr inet6 proto tcp from any to <ext_ip6> port { 80 443 } -> $(get_jail_ip6 haproxy)
 EO_PF_RDR
 

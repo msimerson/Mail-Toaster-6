@@ -179,7 +179,7 @@ store_config() {
   local tmpdir; tmpdir=$(mktemp -d)
   export ZFS_DATA_MNT="$tmpdir"
   stage_sysrc() { :; }
-  get_jail_ip() { echo "172.16.15.1"; }
+  get_jail_ip4() { echo "172.16.15.1"; }
   get_jail_ip6() { echo "::1"; }
 
   mkdir -p "$tmpdir/myjail/etc/nginx"

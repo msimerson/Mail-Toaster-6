@@ -151,9 +151,9 @@ configure_wildduck()
 	if grep -qE '^mongo.*127' "$_cfg/dbs.toml"; then
 		tell_status "configuring $_cfg/dbs.toml"
 		sed_inplace \
-			-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
-			-e "/^#redis/ s/127.0.0.1/$(get_jail_ip redis)/; s|/3|/9|" \
-			-e "/^host=/ s/127.0.0.1/$(get_jail_ip redis)/" \
+			-e "/^mongo/ s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+			-e "/^#redis/ s/127.0.0.1/$(get_jail_ip4 redis)/; s|/3|/9|" \
+			-e "/^host=/ s/127.0.0.1/$(get_jail_ip4 redis)/" \
 			-e "/^db=3/ s/3/9/" \
 			"$_cfg/dbs.toml"
 
@@ -237,7 +237,7 @@ configure_wildduck_webmail()
 			-e "/^name=/ s/Wild Duck/$TOASTER_ORG_NAME/" \
 			-e '/^title=/ s/wildduck-www/wildduck-webmail/' \
 			-e "/domain/ s/localhost/$WILDDUCK_MAIL_DOMAIN/" \
-			-e "/redis=/ s/127.0.0.1/$(get_jail_ip redis)/; s|/5|/9|" \
+			-e "/redis=/ s/127.0.0.1/$(get_jail_ip4 redis)/; s|/5|/9|" \
 			-e '/host=/ s/false/""/' \
 			-e '/proxy=/ s/false/true/' \
 			-e '/secret=/ s/a cat/a secret elephant cat/' \
@@ -255,8 +255,8 @@ configure_zonemta()
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/dbs-production.toml"; then
 		tell_status "configuring $_cfg/dbs-production.toml"
 		sed_inplace \
-			-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
-			-e "/^redis/ s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
+			-e "/^mongo/ s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+			-e "/^redis/ s/localhost/$(get_jail_ip4 redis)/; s|/2|/9|" \
 			"$_cfg/dbs-production.toml"
 
 		if [ -z ${ZONEMTA_MONGO_DSN+x} ]; then
@@ -274,8 +274,8 @@ configure_zonemta()
 	if ! grep -q "$JAIL_NET_PREFIX" "$_cfg/dbs-development.toml"; then
 		tell_status "configuring $_cfg/dbs-development.toml"
 		sed_inplace \
-			-e "/^mongo/   s/127.0.0.1/$(get_jail_ip mongodb)/" \
-			-e "/^host = / s/localhost/$(get_jail_ip redis)/" \
+			-e "/^mongo/   s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+			-e "/^host = / s/localhost/$(get_jail_ip4 redis)/" \
 			"$_cfg/dbs-development.toml"
 	fi
 
@@ -344,8 +344,8 @@ EO_WILDDUCK
 configure_zonemta_admin()
 {
 	sed_inplace \
-		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
-		-e "/^host/  s/localhost/$(get_jail_ip redis)/; s|/2|/9|" \
+		-e "/^mongo/ s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
+		-e "/^host/  s/localhost/$(get_jail_ip4 redis)/; s|/2|/9|" \
 		-e "/^db = / s/2/9/" \
 		"$STAGE_MNT/data/zone-mta-admin/config/default.toml"
 
@@ -365,7 +365,7 @@ configure_pf()
 	get_public_ip6
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-int_ip4 = "$(get_jail_ip wildduck)"
+int_ip4 = "$(get_jail_ip4 wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
 ext_ip4 = "$PUBLIC_IP4"
@@ -376,16 +376,16 @@ rdr inet  proto tcp from any to \$ext_ip4 port { 25 465 587 993 995 } -> \$int_i
 rdr inet6 proto tcp from any to \$ext_ip6 port { 25 465 587 993 995 } -> \$int_ip6
 
 # send HTTP traffic to haproxy
-rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip haproxy)
+rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip4 haproxy)
 rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 haproxy)
 
 # or send HTTP traffic to webmail
-#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip webmail)
+#rdr inet  proto tcp from any to \$ext_ip4 port { 80 443 } -> $(get_jail_ip4 webmail)
 #rdr inet6 proto tcp from any to \$ext_ip6 port { 80 443 } -> $(get_jail_ip6 webmail)
 EO_PF_RDR
 
 	store_config "$_pf_etc/nat.conf" <<EO_PF_NAT
-int_ip4 = "$(get_jail_ip wildduck)"
+int_ip4 = "$(get_jail_ip4 wildduck)"
 int_ip6 = "$(get_jail_ip6 wildduck)"
 
 ext_if = "$PUBLIC_NIC"
@@ -411,7 +411,7 @@ configure_haraka()
 
 	tell_status "installing $_cfg/clamd.ini"
 	cat <<EO_CLAM > "$_cfg/clamd.ini"
-clamd_socket=$(get_jail_ip clamav):3310
+clamd_socket=$(get_jail_ip4 clamav):3310
 timeout=29
 [reject]
 error=false
@@ -452,7 +452,7 @@ EO_HELO
 
 	tell_status "installing $_cfg/rspamd.ini"
 	cat <<EO_RSPAMD > "$_cfg/rspamd.ini"
-host = $(get_jail_ip rspamd)
+host = $(get_jail_ip4 rspamd)
 add_headers = always
 
 [header]
@@ -477,7 +477,7 @@ EO_RSPAMD
 
 	sed_inplace \
 		-e '/^;spamd_socket/ s/^;//' \
-		-e "/^spamd_socket/ s/127.0.0.1/$(get_jail_ip spamassassin)/" \
+		-e "/^spamd_socket/ s/127.0.0.1/$(get_jail_ip4 spamassassin)/" \
 		-e '/^;spamd_user=first-recipient (see docs)/ s/^;//' \
 		-e '/^spamd_user=first-recipient (see docs)/ s/ (see docs)//' \
 		-e '/; reject_threshold/ s/; ?//' \
@@ -498,7 +498,7 @@ EO_RSPAMD
 		sed \
 			-e "/host:/ s/'127.0.0.1'/redis/" \
 			-e "/db:/ s/3/9/" \
-			-e "/mongodb:/ s/127.0.0.1/$(get_jail_ip mongodb)/" \
+			-e "/mongodb:/ s/127.0.0.1/$(get_jail_ip4 mongodb)/" \
 			"$(get_jail_data wildduck)/haraka/plugins/wildduck/config/wildduck.yaml" \
 			> "$_cfg/wildduck.yaml"
 			# -e "/secret: / s/secret value/$TODO/" \
@@ -550,7 +550,7 @@ test_wildduck()
 
 	# MUA_TEST_USER="postmaster@${WILDDUCK_MAIL_DOMAIN}"
 	# MUA_TEST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${MUA_TEST_USER}")
-	# MUA_TEST_HOST=$(get_jail_ip stage)
+	# MUA_TEST_HOST=$(get_jail_ip4 stage)
 
 	# test_imap
 	# test_pop3

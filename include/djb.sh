@@ -83,7 +83,7 @@ configure_svscan()
 configure_tinydns4()
 {
 	tell_status "creating tinydns server"
-	stage_exec tinydns-conf tinydns bin /var/service/tinydns "$(get_jail_ip stage)"
+	stage_exec tinydns-conf tinydns bin /var/service/tinydns "$(get_jail_ip4 stage)"
 	store_exec "$STAGE_MNT/var/service/tinydns/run" <<EO_TINYDNS_RUN
 #!/bin/sh
 
@@ -121,7 +121,7 @@ EO_TINYDNS_RUN
 configure_axfrdns4()
 {
 	tell_status "creating axfrdns server"
-	stage_exec axfrdns-conf tinydns bin /var/service/axfrdns /data "$(get_jail_ip stage)"
+	stage_exec axfrdns-conf tinydns bin /var/service/axfrdns /data "$(get_jail_ip4 stage)"
 	store_exec "$STAGE_MNT/var/service/axfrdns/run" <<'EO_AXFRDNS_RUN'
 #!/bin/sh
 

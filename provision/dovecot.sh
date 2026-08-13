@@ -459,7 +459,7 @@ configure_sieve_learn_rspamd()
 
 	tell_status "adding learn-ham-rspamd.sh"
 	tee "$SIEVE_DIR/learn-ham-rspamd.sh" <<EO_RSPAM_LEARN_HAM
-exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnham
+exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip4 rspamd):11334/learnham
 EO_RSPAM_LEARN_HAM
 	chmod +x "$SIEVE_DIR/learn-ham-rspamd.sh"
 
@@ -473,7 +473,7 @@ EO_REPORT_HAM_RSPAMD
 
 	tell_status "adding learn-spam-rspamd.sh"
 	tee "$SIEVE_DIR/learn-spam-rspamd.sh" <<EO_RSPAM_LEARN_SPAM
-exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip rspamd):11334/learnspam
+exec /usr/local/bin/curl -s -S -XPOST --data-binary @- http://$(get_jail_ip4 rspamd):11334/learnspam
 EO_RSPAM_LEARN_SPAM
 	chmod +x "$SIEVE_DIR/learn-spam-rspamd.sh"
 
@@ -501,7 +501,7 @@ configure_sieve_learn_spamassassin()
 
 	tell_status "creating learn-ham-sa.sh"
 	tee "$SIEVE_DIR/learn-ham-sa.sh" <<EO_RSPAM_LEARN_HAM
-exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=ham -u \${1}
+exec /data/bin/spamc -d $(get_jail_ip4 spamassassin) --learntype=ham -u \${1}
 EO_RSPAM_LEARN_HAM
 	chmod +x "$SIEVE_DIR/learn-ham-sa.sh"
 
@@ -515,7 +515,7 @@ EO_REPORT_HAM_SA
 
 	tell_status "creating learn-spam-sa.sh"
 	tee "$SIEVE_DIR/learn-spam-sa.sh" <<EO_RSPAM_LEARN_SPAM
-exec /data/bin/spamc -d $(get_jail_ip spamassassin) --learntype=spam -u \${1}
+exec /data/bin/spamc -d $(get_jail_ip4 spamassassin) --learntype=spam -u \${1}
 EO_RSPAM_LEARN_SPAM
 	chmod +x "$SIEVE_DIR/learn-spam-sa.sh"
 
@@ -563,7 +563,7 @@ EO_PF_INSECURE
 	configure_pf_jail_table dovecot
 
 	store_config "$_pf_etc/rdr.conf" <<EO_PF_RDR
-int_ip4 = "$(get_jail_ip dovecot)"
+int_ip4 = "$(get_jail_ip4 dovecot)"
 int_ip6 = "$(get_jail_ip6 dovecot)"
 
 rdr inet  proto tcp from any to <ext_ip4> port { 993 995 } -> \$int_ip4
@@ -652,7 +652,7 @@ test_dovecot()
 
 	MUA_TEST_USER="postmaster@${TOASTER_MAIL_DOMAIN}"
 	MUA_TEST_PASS=$(jexec vpopmail /usr/local/vpopmail/bin/vuserinfo -C "${MUA_TEST_USER}")
-	MUA_TEST_HOST=$(get_jail_ip stage)
+	MUA_TEST_HOST=$(get_jail_ip4 stage)
 	export MUA_TEST_HOST; export MUA_TEST_USER; export MUA_TEST_PASS
 
 	test_imap

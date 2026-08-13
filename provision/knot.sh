@@ -75,10 +75,10 @@ test_knot()
 	echo "it worked."
 
 	tell_status "testing UDP DNS query"
-	drill -Q   www.example.com @"$(get_jail_ip stage)"
+	drill -Q   www.example.com @"$(get_jail_ip4 stage)"
 
 	tell_status "testing TCP DNS query"
-	drill -Q -t www.example.com @"$(get_jail_ip stage)"
+	drill -Q -t www.example.com @"$(get_jail_ip4 stage)"
 
 	if [ -f "$STAGE_MNT/data/etc/knot.conf" ]; then
 		tell_status "switching knot config to /data/etc/knot.conf"

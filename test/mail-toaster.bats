@@ -96,21 +96,20 @@ setup() {
   assert_success
 }
 
-# a jail's address is its position in JAIL_ORDERED_LIST
-@test "get_jail_ip - each jail lands on its own octet" {
-  run get_jail_ip syslog
+@test "get_jail_ip4 - each jail lands on its own octet" {
+  run get_jail_ip4 syslog
   assert_success
   assert_output "172.16.15.1"
 
-  run get_jail_ip dns
+  run get_jail_ip4 dns
   assert_success
   assert_output "172.16.15.3"
 
-  run get_jail_ip mysql
+  run get_jail_ip4 mysql
   assert_success
   assert_output "172.16.15.4"
 
-  run get_jail_ip haraka
+  run get_jail_ip4 haraka
   assert_success
   assert_output "172.16.15.9"
 }
@@ -190,9 +189,9 @@ setup() {
   export STAGE_MNT=$(mktemp -d)
   mkdir -p "$STAGE_MNT/etc"
 
-  # Mock jail_is_running and get_jail_ip
+  # Mock jail_is_running and get_jail_ip4
   jail_is_running() { return 0; }
-  get_jail_ip() { echo "1.2.3.4"; }
+  get_jail_ip4() { echo "1.2.3.4"; }
   get_jail_ip6() { echo "fe80::1"; }
   tell_status() { :; }
 

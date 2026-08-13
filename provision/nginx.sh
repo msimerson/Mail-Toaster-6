@@ -26,7 +26,7 @@ configure_nginx()
 -        server_name  localhost;
 +        server_name  nginx;
 +
-+        set_real_ip_from $(get_jail_ip haproxy);
++        set_real_ip_from $(get_jail_ip4 haproxy);
 +        real_ip_header X-Forwarded-For;
  
          #charset koi8-r;

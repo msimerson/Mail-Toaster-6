@@ -136,7 +136,7 @@ configure_haraka_smtp_forward()
 {
 	if [ ! -f "$HARAKA_CONF/smtp_forward.ini" ]; then
 		tell_status "configure smtp forward to vpopmail jail"
-		echo "host=$(get_jail_ip vpopmail)
+		echo "host=$(get_jail_ip4 vpopmail)
 port=25
 " | tee -a "$HARAKA_CONF/smtp_forward.ini"
 	fi
@@ -146,7 +146,7 @@ configure_haraka_vpopmail()
 {
 	if [ ! -f "$HARAKA_CONF/auth_vpopmaild.ini" ]; then
 		tell_status "config SMTP AUTH using vpopmaild"
-		echo "host=$(get_jail_ip vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
+		echo "host=$(get_jail_ip4 vpopmail)" > "$HARAKA_CONF/auth_vpopmaild.ini"
 	fi
 
 	if ! grep -qs ^auth/auth_vpopmaild "$HARAKA_CONF/plugins"; then
@@ -165,9 +165,9 @@ configure_haraka_qmail_deliverable()
 	if [ ! -f "$HARAKA_CONF/qmail-deliverable.ini" ]; then
 		tell_status "config recipient validation with Qmail::Deliverable"
 		echo "check_outbound=true
-host=$(get_jail_ip vpopmail)
+host=$(get_jail_ip4 vpopmail)
 queue=smtp_forward
-next_hop=lmtp://$(get_jail_ip dovecot)" | \
+next_hop=lmtp://$(get_jail_ip4 dovecot)" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
@@ -206,7 +206,7 @@ configure_haraka_spamassassin()
 
 	if [ ! -f "$HARAKA_CONF/spamassassin.ini" ]; then
 		tell_status "configuring Haraka spamassassin plugin"
-		echo "spamd_socket=$(get_jail_ip spamassassin):783
+		echo "spamd_socket=$(get_jail_ip4 spamassassin):783
 old_headers_action=rename
 spamd_user=first-recipient
 reject_threshold=10
@@ -221,7 +221,7 @@ configure_haraka_avg()
 
 	tell_status "configuring Haraka avg plugin"
 	if ! grep -qs ^host "$HARAKA_CONF/avg.ini"; then
-		echo "host = $(get_jail_ip avg)
+		echo "host = $(get_jail_ip4 avg)
 tmpdir=/data/avg/spool
 " | tee -a "$HARAKA_CONF/avg.ini"
 	fi
@@ -267,7 +267,7 @@ configure_haraka_clamav()
 
 	if ! grep -qs ^clamd_socket "$HARAKA_CONF/clamd.ini"; then
 		tell_status "configure Haraka clamav plugin"
-		echo "clamd_socket=$(get_jail_ip clamav):3310
+		echo "clamd_socket=$(get_jail_ip4 clamav):3310
 
 [reject]
 virus=true
@@ -331,7 +331,7 @@ configure_haraka_rspamd()
 
 	if ! grep -qs ^host "$HARAKA_CONF/rspamd.ini"; then
 		tell_status "configure Haraka rspamd plugin"
-		echo "host = $(get_jail_ip rspamd)
+		echo "host = $(get_jail_ip4 rspamd)
 add_headers = always
 " | tee -a "$HARAKA_CONF/rspamd.ini"
 	fi
@@ -484,7 +484,7 @@ configure_haraka_karma()
 	echo "
 [redis]
 dbid=1
-server_ip=$(get_jail_ip redis)
+server_ip=$(get_jail_ip4 redis)
 
 [deny_excludes]
 plugins=send_email, access, helo.checks, headers, mail_from.is_resolvable, avg, limit, attachment, tls
@@ -500,11 +500,11 @@ configure_haraka_redis()
 		echo "configuring redis plugin"
 		tee "$HARAKA_CONF/redis.ini" <<EO_REDIS_CONF
 [server]
-host=$(get_jail_ip redis)
+host=$(get_jail_ip4 redis)
 db=3
 
 [pubsub]
-host=$(get_jail_ip redis)
+host=$(get_jail_ip4 redis)
 EO_REDIS_CONF
 	fi
 }
@@ -531,7 +531,7 @@ configure_haraka_haproxy()
 {
 	if [ ! -f "$HARAKA_CONF/haproxy_hosts" ]; then
 		tell_status "enable haproxy support"
-		get_jail_ip haproxy | tee -a "$HARAKA_CONF/haproxy_hosts"
+		get_jail_ip4 haproxy | tee -a "$HARAKA_CONF/haproxy_hosts"
 	fi
 }
 
@@ -601,14 +601,14 @@ EO_HARAKA
 configure_haraka_access()
 {
 	local ACCESS="$HARAKA_CONF/connect.rdns_access.whitelist"
-	if grep -qs "$(get_jail_ip stage)" "$ACCESS"; then
+	if grep -qs "$(get_jail_ip4 stage)" "$ACCESS"; then
 		return
 	fi
 
 	tell_status "whitelisting the staging IP"
 	tee -a "$ACCESS" <<EO_WL
-$(get_jail_ip munin)
-$(get_jail_ip stage)
+$(get_jail_ip4 munin)
+$(get_jail_ip4 stage)
 EO_WL
 }
 
@@ -621,7 +621,7 @@ configure_haraka_dcc()
 	tell_status "configuring DCC"
 	tee -a "$HARAKA_CONF/dcc.ini" <<EO_DCC
 [dccifd]
-host=$(get_jail_ip dcc)
+host=$(get_jail_ip4 dcc)
 port=1025
 EO_DCC
 }
@@ -655,7 +655,7 @@ configure_haraka()
 	fi
 
 	if [ ! -f "$HARAKA_CONF/rate_limit.ini" ]; then
-		echo "redis_server = $(get_jail_ip redis)" > "$HARAKA_CONF/rate_limit.ini"
+		echo "redis_server = $(get_jail_ip4 redis)" > "$HARAKA_CONF/rate_limit.ini"
 	fi
 
 	if [ ! -f "$HARAKA_CONF/plugins" ]; then

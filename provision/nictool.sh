@@ -113,7 +113,7 @@ install_nictool_server()
 		sed_inplace -e '/dsn/ s/127.0.0.1/mysql/' "$_ntsconf"
 
 		mysql_create_user nictool lootcin205 nictool \
-			"$(get_jail_ip nictool)" "$(get_jail_ip stage)" \
+			"$(get_jail_ip4 nictool)" "$(get_jail_ip4 stage)" \
 			"$(get_jail_ip6 nictool)" "$(get_jail_ip6 stage)"
 	fi
 

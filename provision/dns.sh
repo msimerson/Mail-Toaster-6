@@ -32,14 +32,14 @@ get_mt6_data()
 	echo "
 
 	   local-zone: $TOASTER_MAIL_DOMAIN typetransparent
-	   local-data: \"stage		A $(get_jail_ip stage)\"
+	   local-data: \"stage		A $(get_jail_ip4 stage)\"
 	   local-data: \"$(get_reverse_ip stage) PTR stage\"
-	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip vpopmail)\"
+	   local-data: \"$TOASTER_HOSTNAME A $(get_jail_ip4 vpopmail)\"
 	   local-data: \"$TOASTER_HOSTNAME AAAA $(get_jail_ip6 vpopmail)\"
 	   local-data: '$TOASTER_MAIL_DOMAIN TXT \"v=spf1 a mx $_spf_ips -all\"'
-	   local-data: \"freebsd-update		A $(get_jail_ip bsd_cache)\"
-	   local-data: \"pkg				A $(get_jail_ip bsd_cache)\"
-	   local-data: \"vulnxml		    A $(get_jail_ip bsd_cache)\""
+	   local-data: \"freebsd-update		A $(get_jail_ip4 bsd_cache)\"
+	   local-data: \"pkg				A $(get_jail_ip4 bsd_cache)\"
+	   local-data: \"vulnxml		    A $(get_jail_ip4 bsd_cache)\""
 
 	if [ "$TOASTER_HOSTNAME" != "$TOASTER_MAIL_DOMAIN" ]; then
 		echo -n "
@@ -49,7 +49,7 @@ get_mt6_data()
 
 	for _j in $JAIL_ORDERED_LIST; do
 		echo "
-	   local-data: \"$_j		A $(get_jail_ip "$_j")\"
+	   local-data: \"$_j		A $(get_jail_ip4 "$_j")\"
 	   local-data: \"$(get_reverse_ip "$_j") PTR $_j\"
 	   local-data: \"$_j		AAAA $(get_jail_ip6 "$_j")\"
 	   local-data: \"$(get_reverse_ip6 "$_j") PTR $_j\""
@@ -241,13 +241,13 @@ test_unbound()
 	stage_test_running unbound
 
 	# use stage IP for DNS resolution
-	echo "nameserver $(get_jail_ip stage)" | tee "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip4 stage)" | tee "$STAGE_MNT/etc/resolv.conf"
 
 	# test if we get an answer
 	stage_exec host dns
 
 	# set it back to production value
-	echo "nameserver $(get_jail_ip dns)" | tee "$STAGE_MNT/etc/resolv.conf"
+	echo "nameserver $(get_jail_ip4 dns)" | tee "$STAGE_MNT/etc/resolv.conf"
 	echo "it worked."
 
 	if [ -f "$(get_jail_data dns)/unbound.conf" ]; then
@@ -264,7 +264,7 @@ switch_host_resolver()
 
 	store_exec "$(get_jail_host_etc dns)/rc.d/poststart.sh" <<EO_POSTSTART
 #!/bin/sh
-echo "nameserver $(get_jail_ip dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns -m 0
+echo "nameserver $(get_jail_ip4 dns) $(get_jail_ip6 dns)" | /sbin/resolvconf -a lo1.dns -m 0
 EO_POSTSTART
 
 	store_exec "$(get_jail_host_etc dns)/rc.d/prestop.sh" <<EO_PRESTOP

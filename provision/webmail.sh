@@ -117,11 +117,11 @@ configure_nginx_server()
 		location /roundcube {
 			rewrite /roundcube/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass         http://$(get_jail_ip roundcube):80;
+			proxy_pass         http://$(get_jail_ip4 roundcube):80;
 		}
 
 		location /snappymail {
-			proxy_pass	http://$(get_jail_ip snappymail):80;
+			proxy_pass	http://$(get_jail_ip4 snappymail):80;
 			proxy_hide_header X-Frame-Options;
 		}
 
@@ -129,12 +129,12 @@ configure_nginx_server()
 			include /data/etc/nginx/protected.conf;
 			rewrite /haraka/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass	http://$(get_jail_ip haraka):80;
+			proxy_pass	http://$(get_jail_ip4 haraka):80;
 		}
 
 		location /watch {
 			include /data/etc/nginx/protected.conf;
-			proxy_pass	http://$(get_jail_ip haraka):80;
+			proxy_pass	http://$(get_jail_ip4 haraka):80;
 
 			proxy_http_version 1.1;
 			proxy_set_header Upgrade \$http_upgrade;
@@ -145,105 +145,105 @@ configure_nginx_server()
 		}
 
 		location /logs/ {
-			proxy_pass	http://$(get_jail_ip haraka):80;
+			proxy_pass	http://$(get_jail_ip4 haraka):80;
 		}
 
 		location ~ /(qmailadmin|vqadmin) {
-			proxy_pass	http://$(get_jail_ip vpopmail):80;
+			proxy_pass	http://$(get_jail_ip4 vpopmail):80;
 		}
 
 		location /images/mt {
-			proxy_pass	http://$(get_jail_ip vpopmail):80;
+			proxy_pass	http://$(get_jail_ip4 vpopmail):80;
 		}
 
 		location ~ /sqwebmail {
-			proxy_pass	http://$(get_jail_ip sqwebmail):80;
+			proxy_pass	http://$(get_jail_ip4 sqwebmail):80;
 		}
 
 		location /rspamd/ {
 			include /data/etc/nginx/protected.conf;
-			proxy_pass	http://$(get_jail_ip rspamd):11334/;
+			proxy_pass	http://$(get_jail_ip4 rspamd):11334/;
 		}
 
 		location /dmarc {
 			include /data/etc/nginx/protected.conf;
-			proxy_pass	http://$(get_jail_ip mail_dmarc):8080/;
+			proxy_pass	http://$(get_jail_ip4 mail_dmarc):8080/;
 		}
 
 		location /munin {
 			include /data/etc/nginx/protected.conf;
-			proxy_pass	http://$(get_jail_ip munin):80;
+			proxy_pass	http://$(get_jail_ip4 munin):80;
 		}
 
 		location /nagios {
 			include /data/etc/nginx/protected.conf;
-			proxy_pass	http://$(get_jail_ip nagios):80;
+			proxy_pass	http://$(get_jail_ip4 nagios):80;
 		}
 
 		location /squirrelmail {
-			proxy_pass	http://$(get_jail_ip squirrelmail):80;
+			proxy_pass	http://$(get_jail_ip4 squirrelmail):80;
 		}
 
 		location /rainloop {
 			rewrite /rainloop/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass         http://$(get_jail_ip rainloop):80;
+			proxy_pass         http://$(get_jail_ip4 rainloop):80;
 		}
 
 		location /nictool {
 			rewrite /nictool/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass         http://$(get_jail_ip nictool):80;
+			proxy_pass         http://$(get_jail_ip4 nictool):80;
 		}
 
 		location /wiki {
-			proxy_pass	http://$(get_jail_ip mediawiki):80;
+			proxy_pass	http://$(get_jail_ip4 mediawiki):80;
 		}
 
 		location /w/ {
-			proxy_pass	http://$(get_jail_ip mediawiki):80;
+			proxy_pass	http://$(get_jail_ip4 mediawiki):80;
 		}
 
 		location /smf {
-			proxy_pass	http://$(get_jail_ip smf):80;
+			proxy_pass	http://$(get_jail_ip4 smf):80;
 		}
 
 		location /wordpress {
-			proxy_pass	http://$(get_jail_ip wordpress):80;
+			proxy_pass	http://$(get_jail_ip4 wordpress):80;
 		}
 
 		location /stage {
-			proxy_pass	http://$(get_jail_ip stage):80;
+			proxy_pass	http://$(get_jail_ip4 stage):80;
 		}
 
 		location /horde {
-			proxy_pass	http://$(get_jail_ip horde):80;
+			proxy_pass	http://$(get_jail_ip4 horde):80;
 		}
 
 		location /prometheus {
 			include /data/etc/nginx/protected.conf;
 			rewrite /prometheus/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass         http://$(get_jail_ip prometheus):9090;
+			proxy_pass         http://$(get_jail_ip4 prometheus):9090;
 		}
 
 		location /grafana {
 			include /data/etc/nginx/protected.conf;
 			rewrite /grafana/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass         http://$(get_jail_ip grafana):3000;
+			proxy_pass         http://$(get_jail_ip4 grafana):3000;
 		}
 
 		location /kibana {
 			include /data/etc/nginx/protected.conf;
 			rewrite /kibana/(.*) /\$1  break;
 			proxy_redirect     off;
-			proxy_pass         http://$(get_jail_ip elasticsearch):5601;
+			proxy_pass         http://$(get_jail_ip4 elasticsearch):5601;
 		}
 
 		location /zonemta {
 			rewrite /zonemta/(.*) /\$1  break;
-			proxy_pass         http://$(get_jail_ip zonemta):8082;
+			proxy_pass         http://$(get_jail_ip4 zonemta):8082;
 			proxy_set_header   Host \$host;
 			proxy_set_header   X-Forwarded-For \$remote_addr;
 			proxy_set_header   X-Forwarded-Proto \$scheme;
@@ -251,7 +251,7 @@ configure_nginx_server()
 
 		location /wildduck {
 			rewrite /wildduck/(.*) /\$1  break;
-			proxy_pass         http://$(get_jail_ip wildduck):3000;
+			proxy_pass         http://$(get_jail_ip4 wildduck):3000;
 			proxy_set_header   Host \$host;
 			proxy_set_header   X-Forwarded-For \$remote_addr;
 			proxy_set_header   X-Forwarded-Proto \$scheme;
@@ -362,7 +362,7 @@ configure_nginx_acme()
 	mkdir -p "$(get_jail_data webmail)/etc/acme/letsencrypt"
 
 	store_config "$_acme_conf" <<EO_NGINX_ACME
-	resolver $(get_jail_ip dns) valid=60s;
+	resolver $(get_jail_ip4 dns) valid=60s;
 
 	acme_shared_zone zone=ngx_acme_shared:1M;
 
@@ -388,7 +388,7 @@ configure_webmail_pf()
 
 	if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
 		store_config "$_pf_etc/rdr.conf" <<EO_WEBMAIL_RDR
-int_ip4 = "$(get_jail_ip webmail)"
+int_ip4 = "$(get_jail_ip4 webmail)"
 int_ip6 = "$(get_jail_ip6 webmail)"
 
 rdr inet  proto tcp from any to <ext_ip4> port { 80 443 } -> \$int_ip4

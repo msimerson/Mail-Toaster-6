@@ -25,15 +25,14 @@ setup() {
   assert_output "my_jail"
 }
 
-# a jail's address is its position in JAIL_ORDERED_LIST
-@test "get_jail_ip - each jail lands on its own octet" {
-  run get_jail_ip syslog
+@test "get_jail_ip4 - each jail lands on its own octet" {
+  run get_jail_ip4 syslog
   assert_output "172.16.15.1"
 
-  run get_jail_ip dns
+  run get_jail_ip4 dns
   assert_output "172.16.15.3"
 
-  run get_jail_ip mysql
+  run get_jail_ip4 mysql
   assert_output "172.16.15.4"
 }
 
@@ -551,7 +550,7 @@ mta_rdr_setup() {
   export MT6_ETC="$BATS_TEST_TMPDIR/etc"
   get_public_ip4() { export PUBLIC_IP4="203.0.113.7"; }
   get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
-  get_jail_ip()  { echo "172.16.15.9"; }
+  get_jail_ip4()  { echo "172.16.15.9"; }
   get_jail_ip6() { echo "fd7a::9"; }
 }
 

@@ -196,14 +196,14 @@ install_vpopmail_mysql_grants()
 	local _ip="${JAIL_NET_PREFIX}.0/24"
 
 	sed_inplace \
-		-e "s/^localhost/$(get_jail_ip mysql)/" \
+		-e "s/^localhost/$(get_jail_ip4 mysql)/" \
 		-e 's/root/vpopmail/' \
 		-e "s/secret/$_vpass/" \
 		"$_vpe"
 
 	tell_status "setting up mysql user vpopmail"
 	mysql_create_user vpopmail "$_vpass" vpopmail stage vpopmail dovecot \
-		"$(get_jail_ip stage)" "$(get_jail_ip vpopmail)" "$(get_jail_ip dovecot)" \
+		"$(get_jail_ip4 stage)" "$(get_jail_ip4 vpopmail)" "$(get_jail_ip4 dovecot)" \
 		"$(get_jail_ip6 stage)" "$(get_jail_ip6 vpopmail)" "$(get_jail_ip6 dovecot)"
 }
 

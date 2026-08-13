@@ -7,7 +7,7 @@ safe_jailname()
 	echo "$1" | sed -e 's/[^a-zA-Z0-9]/_/g'
 }
 
-get_jail_ip()
+get_jail_ip4()
 {
 	local _start=${JAIL_NET_START:=1}
 
@@ -39,6 +39,11 @@ get_jail_ip()
 	fi
 
 	return 2
+}
+
+get_jail_ip()
+{
+	get_jail_ip4 "$@"
 }
 
 get_jail_ip6()
@@ -76,8 +81,8 @@ get_jail_ip6()
 }
 
 # Write a jail's inbound mail port redirects to its pf.conf.d/rdr.conf.
-# Port 25 (inbound MTA) follows $TOASTER_MTA; ports 465 and 587 (submission
-# and SMTPS, the MSA) follow $TOASTER_MSA.
+# Port 25 (inbound MTA) follows $TOASTER_MTA
+# Ports 465 and 587 (submission) follow $TOASTER_MSA.
 configure_mta_pf_rdr()
 {
 	local _jail="$1"
@@ -106,7 +111,7 @@ configure_mta_pf_rdr()
 	configure_pf_jail_table "$_jail"
 
 	store_config "$_pf_etc/rdr.conf" "overwrite" <<EO_PF_RDR
-rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip "$_jail")
+rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip4 "$_jail")
 rdr inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")
 EO_PF_RDR
 
@@ -127,14 +132,14 @@ configure_pf_jail_table()
 	store_config "$_pf_etc/$_jail.table" <<EO_PF_TABLE
 $PUBLIC_IP4
 $PUBLIC_IP6
-$(get_jail_ip "$_jail")
+$(get_jail_ip4 "$_jail")
 $(get_jail_ip6 "$_jail")
 EO_PF_TABLE
 }
 
 get_reverse_ip()
 {
-	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
+	local _jail_ip; _jail_ip=$(get_jail_ip4 "$1")
 	if [ -z "$_jail_ip" ]; then
 		echo "unknown jail: $1" >&2
 		exit 1
@@ -378,7 +383,7 @@ warn_stale_jail_conf()
 
 add_jail_conf()
 {
-	local _jail_ip; _jail_ip=$(get_jail_ip "$1");
+	local _jail_ip; _jail_ip=$(get_jail_ip4 "$1");
 	if [ -z "$_jail_ip" ]; then
 		fatal_err "can't determine IP for $1"
 	fi
@@ -411,7 +416,7 @@ $(jail_conf_mount "$1")
 
 add_jail_conf_d()
 {
-	local _jail_ip; _jail_ip=$(get_jail_ip "$1")
+	local _jail_ip; _jail_ip=$(get_jail_ip4 "$1")
 	if [ -z "$_jail_ip" ]; then
 		fatal_err "can't determine IP for $1"
 	fi

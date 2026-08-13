@@ -140,8 +140,8 @@ http {
 
 	keepalive_timeout  65;
 
-	set_real_ip_from $(get_jail_ip haproxy);
-	set_real_ip_from $(get_jail_ip webmail);
+	set_real_ip_from $(get_jail_ip4 haproxy);
+	set_real_ip_from $(get_jail_ip4 webmail);
 	set_real_ip_from $(get_jail_ip6 haproxy);
 	set_real_ip_from $(get_jail_ip6 webmail);
 	real_ip_header   X-Forwarded-For;
