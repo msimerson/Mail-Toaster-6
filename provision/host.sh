@@ -87,15 +87,40 @@ disable_ntpd()
 	fi
 }
 
+# values update_syslogd has generated over time, safe to replace on upgrade
+syslogd_flags_are_ours()
+{
+	local _v4="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*"
+
+	case "$1" in
+		"$_v4 -cc") ;;
+		"$_v4 -a [$JAIL_NET6]/64:* -cc") ;;
+		"$_v4 -a [$JAIL_NET6]/112:* -cc") ;;
+		"$_v4 -a [$JAIL_NET6:0]/112:* -cc") ;;
+		"$_v4 -b [$JAIL_NET6:1] -a [$JAIL_NET6:0]/112:* -cc") ;;
+		"-b $JAIL_NET_PREFIX.1 -b [$JAIL_NET6:1] -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc") ;;
+		*) return 1 ;;
+	esac
+}
+
 update_syslogd()
 {
-	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
+	local _ip6=""
+	if jail_has_ip6; then
+		_ip6=" -b [$JAIL_NET6:1] -a [$JAIL_NET6:0]/112:*"
+	fi
 
-	if grep -q ^syslogd_flags /etc/rc.conf; then
+	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*$_ip6 -cc"
+
+	local _current; _current=$(sysrc -n syslogd_flags 2>/dev/null)
+
+	if [ "$_current" = "$_sysflags" ]; then return; fi
+
+	if [ -n "$_current" ] && ! syslogd_flags_are_ours "$_current"; then
 		tell_status "preserving syslogd_flags"
 		echo "CAUTION: double check syslogd_flags in /etc/rc.conf"
 		echo "existing:"
-		grep ^syslogd_flags /etc/rc.conf
+		echo "syslogd_flags=$_current"
 		echo "desired:"
 		echo "syslogd_flags=$_sysflags"
 		return

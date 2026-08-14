@@ -279,6 +279,7 @@ create_staged_fs()
 
 	assure_ip6_addr_is_declared "$1"
 	stage_resolv_conf
+	install_minimal_hosts
 	for _dma_conf in "$STAGE_MNT/usr/local/etc/dma/dma.conf" "$STAGE_MNT/etc/dma/dma.conf"; do
 		if [ -f "$_dma_conf" ]; then
 			echo "MASQUERADE $1@$TOASTER_MAIL_DOMAIN" >> "$_dma_conf"

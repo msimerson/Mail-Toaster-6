@@ -219,3 +219,79 @@ host_has() {
   assert_output --partial "-4"
   assert_output --partial "-6"
 }
+
+# --- syslogd listens on the families the jails can send from ---
+
+syslogd_flags() {
+  service() { :; }
+  sysrc() {
+    if [ "$1" = "-n" ]; then echo "${SYSRC_CURRENT:-}"; return; fi
+    echo "$*" > "$BATS_TEST_TMPDIR/sysrc"
+  }
+
+  update_syslogd > "$BATS_TEST_TMPDIR/said"
+  cat "$BATS_TEST_TMPDIR/sysrc" 2>/dev/null
+}
+
+# the -a rule already allowed the jail IPv6 range, but nothing ever bound it
+@test "update_syslogd - binds IPv6 when the jails have it" {
+  host_has "203.0.113.7" "2001:db8::1"
+
+  run syslogd_flags
+  assert_output --partial "-b $JAIL_NET_PREFIX.1"
+  assert_output --partial "-b [$JAIL_NET6:1]"
+  assert_output --partial "-a [$JAIL_NET6:0]/112:*"
+}
+
+@test "update_syslogd - binds IPv4 only when the jails have no IPv6" {
+  host_has "203.0.113.7" ""
+
+  run syslogd_flags
+  assert_output --partial "-b $JAIL_NET_PREFIX.1"
+  refute_output --partial "-b [$JAIL_NET6:1]"
+}
+
+# an allow rule for a range nothing can send from reads like working IPv6 syslog
+@test "update_syslogd - allows only the families it binds" {
+  host_has "203.0.113.7" ""
+
+  run syslogd_flags
+  assert_output --partial "-a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*"
+  refute_output --partial "-a [$JAIL_NET6:0]/112:*"
+}
+
+# every host built by a previous version has flags already set, and the old
+# guard returned on sight of them
+@test "update_syslogd - upgrades flags a previous version generated" {
+  host_has "203.0.113.7" "2001:db8::1"
+  export SYSRC_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
+
+  run syslogd_flags
+  assert_output --partial "-b [$JAIL_NET6:1]"
+}
+
+@test "update_syslogd - upgrades the older /64 and /112 forms too" {
+  host_has "203.0.113.7" "2001:db8::1"
+  local _form
+  for _form in "-a [$JAIL_NET6]/64:*" "-a [$JAIL_NET6]/112:*"; do
+    export SYSRC_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* $_form -cc"
+    run syslogd_flags
+    assert_output --partial "-b [$JAIL_NET6:1]"
+  done
+}
+
+@test "update_syslogd - leaves a customized value alone" {
+  host_has "203.0.113.7" "2001:db8::1"
+  export SYSRC_CURRENT="-b 198.51.100.9 -a 10.0.0.0/8:* -vv"
+
+  run syslogd_flags
+  assert_output ""
+}
+
+@test "update_syslogd - writes nothing when the flags are already right" {
+  host_has "203.0.113.7" "2001:db8::1"
+  export SYSRC_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -b [$JAIL_NET6:1] -a [$JAIL_NET6:0]/112:* -cc"
+
+  run syslogd_flags
+  assert_output ""
+}
