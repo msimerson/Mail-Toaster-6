@@ -225,16 +225,21 @@ host_has() {
 syslogd_flags() {
   service() { :; }
   # a read that names no file falls back to /etc/defaults/rc.conf, where the
-  # base system sets syslogd_flags="-s"
+  # base system sets syslogd_flags="-s". Naming one exits 1 when that file
+  # does not set the variable.
   sysrc() {
     case "$*" in
-      "-f /etc/rc.conf -n "*) echo "${SYSRC_CURRENT:-}"; return ;;
+      "-f /etc/rc.conf -n "*) [ -n "${SYSRC_CURRENT:-}" ] || return 1
+                              echo "$SYSRC_CURRENT"; return ;;
       "-n "*)                 echo "${SYSRC_CURRENT:--s}"; return ;;
     esac
     echo "$*" > "$BATS_TEST_TMPDIR/sysrc"
   }
 
-  update_syslogd > "$BATS_TEST_TMPDIR/said"
+  rm -f "$BATS_TEST_TMPDIR/sysrc"
+  # host.sh runs under set -e, which bats disables for a run command. The
+  # subshell restores it, and contains an abort instead of ending the test.
+  ( set -e; update_syslogd > "$BATS_TEST_TMPDIR/said" )
   cat "$BATS_TEST_TMPDIR/sysrc" 2>/dev/null
 }
 

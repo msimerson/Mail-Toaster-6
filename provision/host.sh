@@ -113,8 +113,10 @@ update_syslogd()
 	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*$_ip6 -cc"
 
 	# an unscoped read falls back to /etc/defaults/rc.conf, whose -s then
-	# looks like an admin's own setting and blocks the update
-	local _current; _current=$(sysrc -f /etc/rc.conf -n syslogd_flags 2>/dev/null)
+	# looks like an admin's own setting and blocks the update. A file that
+	# does not set it exits 1, which would abort this set -e script.
+	local _current
+	_current=$(sysrc -f /etc/rc.conf -n syslogd_flags 2>/dev/null) || _current=""
 
 	if [ "$_current" = "$_sysflags" ]; then return; fi
 
