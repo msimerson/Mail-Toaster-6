@@ -224,13 +224,27 @@ host_has() {
 
 syslogd_flags() {
   service() { :; }
+  # a read that names no file falls back to /etc/defaults/rc.conf, where the
+  # base system sets syslogd_flags="-s"
   sysrc() {
-    if [ "$1" = "-n" ]; then echo "${SYSRC_CURRENT:-}"; return; fi
+    case "$*" in
+      "-f /etc/rc.conf -n "*) echo "${SYSRC_CURRENT:-}"; return ;;
+      "-n "*)                 echo "${SYSRC_CURRENT:--s}"; return ;;
+    esac
     echo "$*" > "$BATS_TEST_TMPDIR/sysrc"
   }
 
   update_syslogd > "$BATS_TEST_TMPDIR/said"
   cat "$BATS_TEST_TMPDIR/sysrc" 2>/dev/null
+}
+
+# a fresh host has no syslogd_flags of its own, only the base system default
+@test "update_syslogd - a stock host gets our flags" {
+  host_has "203.0.113.7" "2001:db8::1"
+
+  run syslogd_flags
+  assert_output --partial "-b $JAIL_NET_PREFIX.1"
+  refute_output --partial "preserving"
 }
 
 # the -a rule already allowed the jail IPv6 range, but nothing ever bound it
