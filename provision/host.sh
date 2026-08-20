@@ -87,6 +87,18 @@ disable_ntpd()
 	fi
 }
 
+# sysrc -n reports a /etc/defaults/rc.conf value as if the admin had set it,
+# and -f does not suppress that fallback, so read the file itself
+rc_conf_get()
+{
+	local _file="${2:-/etc/rc.conf}"
+	[ -f "$_file" ] || return 0
+
+	# a later assignment wins, as it would when rc.conf is sourced. sed finds
+	# no match without failing, which grep in a pipeline would.
+	sed -n "s/^$1=//p" "$_file" | tail -1 | sed -e 's/^"//' -e 's/"$//'
+}
+
 # values update_syslogd has generated over time, safe to replace on upgrade
 syslogd_flags_are_ours()
 {
@@ -112,11 +124,7 @@ update_syslogd()
 
 	local _sysflags="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:*$_ip6 -cc"
 
-	# an unscoped read falls back to /etc/defaults/rc.conf, whose -s then
-	# looks like an admin's own setting and blocks the update. A file that
-	# does not set it exits 1, which would abort this set -e script.
-	local _current
-	_current=$(sysrc -f /etc/rc.conf -n syslogd_flags 2>/dev/null) || _current=""
+	local _current; _current=$(rc_conf_get syslogd_flags)
 
 	if [ "$_current" = "$_sysflags" ]; then return; fi
 

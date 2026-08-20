@@ -222,19 +222,56 @@ host_has() {
 
 # --- syslogd listens on the families the jails can send from ---
 
+# sysrc -n answers from /etc/defaults/rc.conf for a variable /etc/rc.conf does
+# not set, with or without -f, so rc_conf_get reads the file itself
+@test "rc_conf_get - a variable the file does not set is empty" {
+  echo 'sshd_enable="YES"' > "$BATS_TEST_TMPDIR/rc.conf"
+
+  run rc_conf_get syslogd_flags "$BATS_TEST_TMPDIR/rc.conf"
+  assert_output ""
+}
+
+@test "rc_conf_get - a set variable comes back unquoted" {
+  echo 'syslogd_flags="-b 10.0.0.1 -cc"' > "$BATS_TEST_TMPDIR/rc.conf"
+
+  run rc_conf_get syslogd_flags "$BATS_TEST_TMPDIR/rc.conf"
+  assert_output "-b 10.0.0.1 -cc"
+}
+
+@test "rc_conf_get - an unquoted value comes back whole" {
+  echo 'syslogd_flags=-ss' > "$BATS_TEST_TMPDIR/rc.conf"
+
+  run rc_conf_get syslogd_flags "$BATS_TEST_TMPDIR/rc.conf"
+  assert_output "-ss"
+}
+
+# rc.conf is sourced, so a second assignment is the one that takes effect
+@test "rc_conf_get - the last assignment wins" {
+  printf 'syslogd_flags="-a first"\nsyslogd_flags="-a second"\n' \
+    > "$BATS_TEST_TMPDIR/rc.conf"
+
+  run rc_conf_get syslogd_flags "$BATS_TEST_TMPDIR/rc.conf"
+  assert_output "-a second"
+}
+
+@test "rc_conf_get - a missing file is empty, not an error" {
+  run rc_conf_get syslogd_flags "$BATS_TEST_TMPDIR/absent.conf"
+  assert_success
+  assert_output ""
+}
+
+# a name that only appears as another variable's suffix is not a match
+@test "rc_conf_get - the match is anchored to the whole name" {
+  echo 'other_syslogd_flags="-vv"' > "$BATS_TEST_TMPDIR/rc.conf"
+
+  run rc_conf_get syslogd_flags "$BATS_TEST_TMPDIR/rc.conf"
+  assert_output ""
+}
+
 syslogd_flags() {
   service() { :; }
-  # a read that names no file falls back to /etc/defaults/rc.conf, where the
-  # base system sets syslogd_flags="-s". Naming one exits 1 when that file
-  # does not set the variable.
-  sysrc() {
-    case "$*" in
-      "-f /etc/rc.conf -n "*) [ -n "${SYSRC_CURRENT:-}" ] || return 1
-                              echo "$SYSRC_CURRENT"; return ;;
-      "-n "*)                 echo "${SYSRC_CURRENT:--s}"; return ;;
-    esac
-    echo "$*" > "$BATS_TEST_TMPDIR/sysrc"
-  }
+  rc_conf_get() { echo "${RC_CONF_CURRENT:-}"; }
+  sysrc() { echo "$*" > "$BATS_TEST_TMPDIR/sysrc"; }
 
   rm -f "$BATS_TEST_TMPDIR/sysrc"
   # host.sh runs under set -e, which bats disables for a run command. The
@@ -283,7 +320,7 @@ syslogd_flags() {
 # guard returned on sight of them
 @test "update_syslogd - upgrades flags a previous version generated" {
   host_has "203.0.113.7" "2001:db8::1"
-  export SYSRC_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
+  export RC_CONF_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -a [$JAIL_NET6:0]/112:* -cc"
 
   run syslogd_flags
   assert_output --partial "-b [$JAIL_NET6:1]"
@@ -293,7 +330,7 @@ syslogd_flags() {
   host_has "203.0.113.7" "2001:db8::1"
   local _form
   for _form in "-a [$JAIL_NET6]/64:*" "-a [$JAIL_NET6]/112:*"; do
-    export SYSRC_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* $_form -cc"
+    export RC_CONF_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* $_form -cc"
     run syslogd_flags
     assert_output --partial "-b [$JAIL_NET6:1]"
   done
@@ -301,7 +338,7 @@ syslogd_flags() {
 
 @test "update_syslogd - leaves a customized value alone" {
   host_has "203.0.113.7" "2001:db8::1"
-  export SYSRC_CURRENT="-b 198.51.100.9 -a 10.0.0.0/8:* -vv"
+  export RC_CONF_CURRENT="-b 198.51.100.9 -a 10.0.0.0/8:* -vv"
 
   run syslogd_flags
   assert_output ""
@@ -309,7 +346,7 @@ syslogd_flags() {
 
 @test "update_syslogd - writes nothing when the flags are already right" {
   host_has "203.0.113.7" "2001:db8::1"
-  export SYSRC_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -b [$JAIL_NET6:1] -a [$JAIL_NET6:0]/112:* -cc"
+  export RC_CONF_CURRENT="-b $JAIL_NET_PREFIX.1 -a $JAIL_NET_PREFIX.0$JAIL_NET_MASK:* -b [$JAIL_NET6:1] -a [$JAIL_NET6:0]/112:* -cc"
 
   run syslogd_flags
   assert_output ""

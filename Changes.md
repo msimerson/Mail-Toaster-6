@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-08
 
-- host: read syslogd_flags from /etc/rc.conf, not the base system defaults
+- host: read syslogd_flags from /etc/rc.conf
 - base: jails get minimal /etc/hosts w/IPv6
 - host: syslogd binds the jail IPv6 address when present
 - jail: rename get_jail_ip to get_jail_ip4
