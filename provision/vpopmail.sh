@@ -7,8 +7,9 @@ set -e
 service_config vpopmail
 export TOASTER_VQADMIN=${TOASTER_VQADMIN:-"0"}
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_START_EXTRA="allow.chflags=1"
+export JAIL_CONF_EXTRA="
+		allow.chflags = 1;"
 export JAIL_FSTAB
 JAIL_FSTAB="$(get_jail_data vpopmail)/home $ZFS_JAIL_MNT/vpopmail/usr/local/vpopmail nullfs rw 0 0"
 
