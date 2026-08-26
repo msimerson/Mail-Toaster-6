@@ -78,6 +78,7 @@ gitlab        allow.sysvipc=1
 mongodb       allow.sysvipc=1
 mongodb       allow.mlock=1
 elasticsearch enforce_statfs=1
+vpopmail      allow.chflags=1
 EO_PERMS
 }
 
