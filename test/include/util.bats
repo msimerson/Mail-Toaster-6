@@ -393,3 +393,69 @@ setup() {
   run reverse_list a b
   assert_output "b a "
 }
+
+pkg_cache_root() {
+  local _root="$BATS_TEST_TMPDIR/root"
+  mkdir -p "$_root/usr/local/etc/pkg/repos" "$_root/etc"
+  echo "#VULNXML_SITE: https://vuxml.freebsd.org/freebsd/vuln.xml.xz" \
+    > "$_root/usr/local/etc/pkg.conf"
+  echo "ServerName update.FreeBSD.org" > "$_root/etc/freebsd-update.conf"
+  echo "$_root"
+}
+
+@test "pkg_use_bsd_cache - disables a FreeBSD.conf base.sh already wrote" {
+  chroot() { echo "15.1-RELEASE"; }
+  sed_inplace() { sed -i.bak "$@"; }
+  local _root; _root=$(pkg_cache_root)
+
+  echo 'FreeBSD-ports: { url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest" }' \
+    > "$_root/usr/local/etc/pkg/repos/FreeBSD.conf"
+
+  pkg_use_bsd_cache "$_root"
+
+  run cat "$_root/usr/local/etc/pkg/repos/FreeBSD.conf"
+  assert_output --partial "FreeBSD-ports"
+  assert_output --partial "enabled: no"
+  refute_output --partial "pkg.FreeBSD.org"
+}
+
+@test "pkg_use_bsd_cache - names the pre-15 repo FreeBSD" {
+  chroot() { echo "14.3-RELEASE-p2"; }
+  sed_inplace() { sed -i.bak "$@"; }
+  local _root; _root=$(pkg_cache_root)
+
+  pkg_use_bsd_cache "$_root"
+
+  run cat "$_root/usr/local/etc/pkg/repos/FreeBSD.conf"
+  assert_output --partial "FreeBSD: {"
+  refute_output --partial "FreeBSD-ports"
+}
+
+@test "pkg_use_bsd_cache - points MT6 at the cache" {
+  chroot() { echo "15.1-RELEASE"; }
+  sed_inplace() { sed -i.bak "$@"; }
+  local _root; _root=$(pkg_cache_root)
+  TOASTER_PKG_BRANCH=latest
+
+  pkg_use_bsd_cache "$_root"
+
+  run cat "$_root/usr/local/etc/pkg/repos/MT6.conf"
+  assert_output --partial 'url: "http://pkg/${ABI}/latest"'
+  assert_output --partial "enabled: yes"
+}
+
+@test "pkg_use_bsd_cache - redirects vulnxml and freebsd-update" {
+  chroot() { echo "15.1-RELEASE"; }
+  sed_inplace() { sed -i.bak "$@"; }
+  local _root; _root=$(pkg_cache_root)
+
+  pkg_use_bsd_cache "$_root"
+
+  run cat "$_root/usr/local/etc/pkg.conf"
+  assert_output --partial "VULNXML_SITE"
+  assert_output --partial "vulnxml/freebsd"
+  refute_output --partial "vuxml.freebsd.org"
+
+  run cat "$_root/etc/freebsd-update.conf"
+  assert_output "ServerName freebsd-update"
+}

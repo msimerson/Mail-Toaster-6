@@ -118,29 +118,7 @@ update_existing_jails()
 		if [ "$_j" = "bsd_cache" ]; then continue; fi
 		if [ ! -d "$ZFS_JAIL_MNT/$_j/etc" ]; then continue; fi
 
-		local _repo_dir="$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg/repos"
-		if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
-
-		store_config "$_repo_dir/FreeBSD.conf" "overwrite" <<EO_PKG_CONF
-FreeBSD: {
-	enabled: no
-}
-EO_PKG_CONF
-
-		store_config "$_repo_dir/MT6.conf" "overwrite" <<EO_PKG_MT6
-MT6: {
-	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
-	enabled: yes
-}
-EO_PKG_MT6
-
-		# cache pkg audit vulnerability db
-		sed_inplace \
-			-e '/^#VULNXML_SITE/ s/^#//; s/vuxml.freebsd.org/vulnxml/' \
-			"$ZFS_JAIL_MNT/$_j/usr/local/etc/pkg.conf"
-
-		sed_inplace -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
-			"$ZFS_JAIL_MNT/$_j/etc/freebsd-update.conf"
+		pkg_use_bsd_cache "$ZFS_JAIL_MNT/$_j"
 
 		echo "done"
 	done
