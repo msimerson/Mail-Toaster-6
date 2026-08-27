@@ -199,6 +199,45 @@ reverse_list()
 	echo "$_rev_list"
 }
 
+# MT6 serves the same packages as the direct ports repo, from a catalog nginx
+# may have cached hours earlier. pkg resolves shlib providers across every
+# enabled repo at once, so leaving both on lets it pair a package from one
+# catalog with providers from the other. Point pkg at exactly one catalog.
+pkg_use_bsd_cache()
+{
+	local _root="$1"
+
+	local _repo_dir="$_root/usr/local/etc/pkg/repos"
+	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
+
+	local _repo_name="FreeBSD-ports"
+	if [ "$(freebsd_major "$_root")" -lt "15" ]; then _repo_name="FreeBSD"; fi
+
+	# overwrite: base.sh seeds this file with configure_pkg_latest, so a
+	# preserving write leaves the direct repo enabled and says nothing
+	store_config "$_repo_dir/FreeBSD.conf" "overwrite" <<EO_PKG_CONF
+$_repo_name: {
+	enabled: no
+}
+EO_PKG_CONF
+
+	store_config "$_repo_dir/MT6.conf" "overwrite" <<EO_PKG_MT6
+MT6: {
+	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
+	enabled: yes
+}
+EO_PKG_MT6
+
+	# cache pkg audit vulnerability db
+	sed_inplace \
+		-e '/^#VULNXML_SITE/ s/^#//' \
+		-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
+		"$_root/usr/local/etc/pkg.conf"
+
+	sed_inplace -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
+		"$_root/etc/freebsd-update.conf"
+}
+
 enable_bsd_cache()
 {
 	if ! jail_is_running bsd_cache; then return; fi
@@ -215,31 +254,5 @@ nameserver $(get_jail_ip4 dns)
 nameserver $(get_jail_ip6 dns)
 EO_RESOLV
 
-	local _repo_dir="$STAGE_MNT/usr/local/etc/pkg/repos"
-	if [ ! -d "$_repo_dir" ]; then mkdir -p "$_repo_dir"; fi
-
-	local _repo_name="FreeBSD-ports"
-	if [ "$(freebsd_major "$STAGE_MNT")" -lt "15" ]; then _repo_name="FreeBSD"; fi
-
-	store_config "$_repo_dir/FreeBSD.conf" <<EO_PKG_CONF
-$_repo_name: {
-	enabled: no
-}
-EO_PKG_CONF
-
-	store_config "$_repo_dir/MT6.conf" <<EO_PKG_MT6
-MT6: {
-	url: "http://pkg/\${ABI}/$TOASTER_PKG_BRANCH",
-	enabled: yes
-}
-EO_PKG_MT6
-
-	# cache pkg audit vulnerability db
-	sed_inplace \
-		-e '/^#VULNXML_SITE/ s/^#//' \
-		-e '/^VULNXML_SITE/ s/vuxml.freebsd.org/vulnxml/' \
-		"$STAGE_MNT/usr/local/etc/pkg.conf"
-
-	sed_inplace -e '/^ServerName/ s/update.FreeBSD.org/freebsd-update/' \
-		"$STAGE_MNT/etc/freebsd-update.conf"
+	pkg_use_bsd_cache "$STAGE_MNT"
 }
