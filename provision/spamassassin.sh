@@ -4,9 +4,8 @@ set -e
 
 . mail-toaster.sh
 
-export JAIL_START_EXTRA="allow.chflags=1"
-export JAIL_CONF_EXTRA="
-                allow.chflags = 1;"
+export JAIL_START_EXTRA=""
+export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 if zfs_filesystem_exists "$ZFS_DATA_VOL/geoip"; then
 	export JAIL_FSTAB

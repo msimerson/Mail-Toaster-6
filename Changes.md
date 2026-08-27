@@ -6,7 +6,6 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 ## 2026-08
 
 - bsd_cache: correctly disable the direct pkg repo
-- vpopmail: jail gets allow.chflags, maildrop's deps need it
 - host: read syslogd_flags from /etc/rc.conf
 - base: jails get minimal /etc/hosts w/IPv6
 - host: syslogd binds the jail IPv6 address when present
