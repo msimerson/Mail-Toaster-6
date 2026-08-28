@@ -24,10 +24,15 @@ install_dmarc()
 
 	tell_status "Mail::DMARC installed"
 
-	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive" <<EO_DMARC
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_receive" <<EO_DMARC_RECV
 #!/bin/sh
 /usr/local/bin/dmarc_receive --imap
-EO_DMARC
+EO_DMARC_RECV
+
+	store_exec "$STAGE_MNT/usr/local/etc/periodic/daily/dmarc_send" <<EO_DMARC_SEND
+#!/bin/sh
+/usr/local/bin/dmarc_send_reports
+EO_DMARC_SEND
 
 	install_dmarc_config
 }
