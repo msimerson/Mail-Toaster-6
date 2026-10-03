@@ -3,6 +3,10 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-10
+
+- tachyon: new provisioner, the successor to snappymail
+
 ## 2026-08
 
 - bsd_cache: correctly disable the direct pkg repo
