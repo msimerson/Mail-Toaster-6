@@ -25,7 +25,7 @@ install_haraka()
 
 	tell_status "installing Haraka"
 	if [ -n "$TOASTER_HARAKA_VERSION" ]; then
-		stage_exec bash -c "npm install -g --omit=dev haraka@$TOASTER_HARAKA_VERSION"
+		stage_exec bash -c "npm install -g --omit=dev --allow-scripts=modern-syslog haraka@$TOASTER_HARAKA_VERSION"
 	else
 		stage_exec bash -c "git clone https://github.com/haraka/Haraka.git /usr/local/lib/node_modules/haraka"
 		stage_exec bash -c "cd /usr/local/lib/node_modules/haraka && npm install --omit=dev"
