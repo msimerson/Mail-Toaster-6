@@ -116,6 +116,10 @@ configure_nginx_server()
 			proxy_hide_header X-Frame-Options;
 		}
 
+		location /tachyon {
+			proxy_pass	http://$(get_jail_ip4 tachyon):80;
+		}
+
 		location /haraka/ {
 			include /data/etc/nginx/protected.conf;
 			rewrite /haraka/(.*) /\$1  break;
@@ -415,7 +419,7 @@ configure_webmail()
 		cp "$_htdocs/index.html" "$_htdocs/index.html-$(date +%Y.%m.%d)"
 	fi
 
-	for _f in index.html mt.js style.css img/snappymail.png img/roundcube.png img/qmailadmin.png; do
+	for _f in index.html mt.js style.css img/snappymail.png img/tachyon.svg img/roundcube.png img/qmailadmin.png; do
 		fetch -o "$_htdocs/$_f" "$TOASTER_SRC_URL/htdocs/$_f"
 	done
 

@@ -138,6 +138,7 @@ $(haproxy_binds '\t' 0.0.0.0 ::)
 	acl roundcube    path_beg /roundcube
 	acl rainloop     path_beg /rainloop
 	acl snappymail   path_beg /snappymail
+	acl tachyon      path_beg /tachyon
 	acl squirrelmail path_beg /squirrelmail
 	acl nictool      path_beg /nictool
 	acl mediawiki    path_beg /wiki
@@ -189,6 +190,7 @@ $(haproxy_binds '\t' 0.0.0.0 ::)
 	use_backend www_roundcube    if  roundcube
 	use_backend www_rainloop     if  rainloop
 	use_backend www_snappymail   if  snappymail
+	use_backend www_tachyon      if  tachyon
 	use_backend www_squirrelmail if  squirrelmail
 	use_backend www_nictool      if  nictool
 	use_backend www_mediawiki    if  mediawiki
@@ -240,6 +242,9 @@ $(haproxy_binds '\t' 0.0.0.0 ::)
 	backend www_snappymail
 	server snappymail $(get_jail_ip4 snappymail):80
 	http-response del-header X-Frame-Options
+
+	backend www_tachyon
+	server tachyon $(get_jail_ip4 tachyon):80
 
 	backend www_munin
 	server munin $(get_jail_ip4 munin):80

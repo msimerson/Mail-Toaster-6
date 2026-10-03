@@ -2,6 +2,7 @@
 const WEBMAIL = [
     { label: 'Roundcube',  href: '/roundcube/',  img: '/img/roundcube.png',  check: '/roundcube/'  },
     { label: 'Snappymail', href: '/snappymail/', img: '/img/snappymail.png', check: '/snappymail/' },
+    { label: 'Tachyon',    href: '/tachyon/',    img: '/img/tachyon.svg',    check: '/tachyon/'    },
     { label: 'Qmailadmin', href: '/cgi-bin/qmailadmin/qmailadmin/', img: '/img/qmailadmin.png', check: '/cgi-bin/qmailadmin/qmailadmin/' },
 ];
 
@@ -11,6 +12,7 @@ const ADMIN = [
     { label: 'haraka',         href: '/haraka/'           },
     { label: 'watch',          href: '/watch',            },
     { label: 'snappy adm',     href: '/snappymail/?admin', check: '/snappymail/' },
+    { label: 'tachyon adm',    href: '/tachyon/?admin',    check: '/tachyon/'    },
     { label: 'dmarc',          href: '/dmarc'             },
     { label: 'munin',          href: '/munin/'            },
     { label: 'nagios',         href: '/nagios'            },
