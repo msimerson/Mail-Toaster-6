@@ -100,13 +100,95 @@ EOF
   assert_line "#smtps     inet  n       -       n       -       -       smtpd"
 }
 
-@test "configure_tls_certs creates tls dirs on a new install" {
+tls_setup() {
   export TOASTER_MAIL_DOMAIN="example.com"
-  cp() { touch "$2"; }
+  HOST_SSL="$BATS_TEST_TMPDIR/host_ssl"
+  mkdir -p "$HOST_SSL/certs" "$HOST_SSL/private"
+  echo host-crt > "$HOST_SSL/certs/server.crt"
+  echo host-key > "$HOST_SSL/private/server.key"
+  install() {
+    local _args=() _a
+    for _a in "$@"; do
+      case "$_a" in
+        /etc/ssl/*) _args+=("$HOST_SSL${_a#/etc/ssl}") ;;
+        *) _args+=("$_a") ;;
+      esac
+    done
+    command install "${_args[@]}"
+  }
+  SSLDIR="$ZFS_DATA_MNT/postfix/etc/tls"
+  CRT="$SSLDIR/certs/example.com.pem"
+  KEY="$SSLDIR/private/example.com.pem"
+}
+
+file_mode() { stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"; }
+
+@test "configure_tls_certs installs the host pair on a new install" {
+  tls_setup
+  ( set -e; configure_tls_certs )
+
+  assert_equal "$(cat "$CRT")" host-crt
+  assert_equal "$(cat "$KEY")" host-key
+  assert_equal "$(file_mode "$SSLDIR/certs")" 755
+  assert_equal "$(file_mode "$SSLDIR/private")" 700
+  assert_equal "$(file_mode "$CRT")" 644
+  assert_equal "$(file_mode "$KEY")" 600
+}
+
+@test "configure_tls_certs leaves an installed pair alone" {
+  tls_setup
+  mkdir -p "$SSLDIR/certs" "$SSLDIR/private"
+  echo le-crt > "$CRT"
+  echo le-key > "$KEY"
 
   ( set -e; configure_tls_certs )
 
-  local _ssldir="$ZFS_DATA_MNT/postfix/etc/tls"
-  assert [ -f "$_ssldir/certs/example.com.pem" ]
-  assert [ -f "$_ssldir/private/example.com.pem" ]
+  assert_equal "$(cat "$CRT")" le-crt
+  assert_equal "$(cat "$KEY")" le-key
+}
+
+@test "configure_tls_certs replaces a cert that has no key" {
+  tls_setup
+  mkdir -p "$SSLDIR/certs"
+  echo stray-crt > "$CRT"
+
+  ( set -e; configure_tls_certs )
+
+  assert_equal "$(cat "$CRT")" host-crt
+  assert_equal "$(cat "$KEY")" host-key
+  assert_equal "$(cat "$CRT.orphan")" stray-crt
+}
+
+@test "configure_tls_certs replaces a key that has no cert" {
+  tls_setup
+  mkdir -p "$SSLDIR/private"
+  echo stray-key > "$KEY"
+
+  ( set -e; configure_tls_certs )
+
+  assert_equal "$(cat "$CRT")" host-crt
+  assert_equal "$(cat "$KEY")" host-key
+  assert_equal "$(cat "$KEY.orphan")" stray-key
+}
+
+@test "configure_tls_certs tightens a pre-existing private dir" {
+  tls_setup
+  mkdir -p -m 0755 "$SSLDIR/private"
+
+  ( set -e; configure_tls_certs )
+
+  assert_equal "$(file_mode "$SSLDIR/private")" 700
+}
+
+@test "configure_tls_certs renames a legacy ssl dir" {
+  tls_setup
+  mkdir -p "$ZFS_DATA_MNT/postfix/etc/ssl/certs" "$ZFS_DATA_MNT/postfix/etc/ssl/private"
+  echo old-crt > "$ZFS_DATA_MNT/postfix/etc/ssl/certs/example.com.pem"
+  echo old-key > "$ZFS_DATA_MNT/postfix/etc/ssl/private/example.com.pem"
+
+  ( set -e; configure_tls_certs )
+
+  assert [ ! -d "$ZFS_DATA_MNT/postfix/etc/ssl" ]
+  assert_equal "$(cat "$CRT")" old-crt
+  assert_equal "$(cat "$KEY")" old-key
 }

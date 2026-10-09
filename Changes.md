@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
-- postfix: create tls/private on new installs, fix tls dir modes
+- postfix: create tls/private on new installs, install certs with install(1), replace unpaired cert/key
 - haraka: allow modern-syslog install script, npm 12 blocks it (#726)
 - tachyon: new provisioner, the successor to snappymail
 

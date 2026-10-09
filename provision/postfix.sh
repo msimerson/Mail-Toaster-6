@@ -84,27 +84,35 @@ EO_TRUSTED_HOSTS
 
 configure_tls_certs()
 {
-	local _ssldir
-	_ssldir="$(get_jail_data postfix)/etc/tls"
-	if [ ! -d "$_ssldir" ] && [ -d "$(get_jail_data postfix)/etc/ssl" ]; then
+	local _etc _ssldir _f
+	_etc="$(get_jail_data postfix)/etc"
+	_ssldir="$_etc/tls"
+	if [ ! -d "$_ssldir" ] && [ -d "$_etc/ssl" ]; then
 		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
-		mv "$(get_jail_data postfix)/etc/ssl" "$_ssldir"
+		mv "$_etc/ssl" "$_ssldir"
 	fi
 
-	# shellcheck disable=SC2174
-	[ -d "$_ssldir/certs" ] || mkdir -p -m 0755 "$_ssldir/certs"
-	# shellcheck disable=SC2174
-	[ -d "$_ssldir/private" ] || mkdir -p -m 0700 "$_ssldir/private"
+	install -d -m 0755 "$_ssldir/certs"
+	install -d -m 0700 "$_ssldir/private"
 
-	local _installed="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	if [ -f "$_installed" ]; then
+	local _crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
+	local _key="$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
+	if [ -f "$_crt" ] && [ -f "$_key" ]; then
 		tell_status "postfix TLS certificates already installed"
 		return
 	fi
 
+	# half a pair is unusable; set it aside and install the host's matched pair
+	for _f in "$_crt" "$_key"; do
+		if [ -f "$_f" ]; then
+			tell_status "preserving unpaired $_f as $_f.orphan"
+			mv "$_f" "$_f.orphan"
+		fi
+	done
+
 	tell_status "installing postfix TLS certificates"
-	cp /etc/ssl/certs/server.crt "$_installed"
-	cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
+	install -m 0644 /etc/ssl/certs/server.crt "$_crt"
+	install -m 0600 /etc/ssl/private/server.key "$_key"
 }
 
 configure_postfix_main_cf()
