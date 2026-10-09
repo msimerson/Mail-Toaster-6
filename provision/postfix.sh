@@ -92,9 +92,9 @@ configure_tls_certs()
 	fi
 
 	# shellcheck disable=SC2174
-	[ -d "$_ssldir/certs" ] || mkdir -p -m 0644 "$_ssldir/certs"
+	[ -d "$_ssldir/certs" ] || mkdir -p -m 0755 "$_ssldir/certs"
 	# shellcheck disable=SC2174
-	[ ! -d "$_ssldir/private" ] || mkdir -p -m 0644 "$_ssldir/private"
+	[ -d "$_ssldir/private" ] || mkdir -p -m 0700 "$_ssldir/private"
 
 	local _installed="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
 	if [ -f "$_installed" ]; then

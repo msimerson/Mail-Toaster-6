@@ -99,3 +99,14 @@ EOF
   assert_line "#submission inet n       -       n       -       -       smtpd"
   assert_line "#smtps     inet  n       -       n       -       -       smtpd"
 }
+
+@test "configure_tls_certs creates tls dirs on a new install" {
+  export TOASTER_MAIL_DOMAIN="example.com"
+  cp() { touch "$2"; }
+
+  ( set -e; configure_tls_certs )
+
+  local _ssldir="$ZFS_DATA_MNT/postfix/etc/tls"
+  assert [ -f "$_ssldir/certs/example.com.pem" ]
+  assert [ -f "$_ssldir/private/example.com.pem" ]
+}
