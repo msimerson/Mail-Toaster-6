@@ -100,95 +100,97 @@ EOF
   assert_line "#smtps     inet  n       -       n       -       -       smtpd"
 }
 
-tls_setup() {
+@test "configure_tls_certs installs the pair when TOASTER_MSA=postfix" {
+  export TOASTER_MSA="postfix"
+  install_jail_tls_pair() { echo "PAIR:$1"; }
+
+  run configure_tls_certs
+  assert_output "PAIR:postfix"
+}
+
+@test "configure_tls_certs installs the pair when main.cf names a cert" {
+  export TOASTER_MSA="dovecot"
+  echo "smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem" \
+    > "$ZFS_DATA_MNT/postfix/etc/main.cf"
+  install_jail_tls_pair() { echo "PAIR:$1"; }
+
+  run configure_tls_certs
+  assert_output "PAIR:postfix"
+}
+
+@test "configure_tls_certs skips the pair when postfix serves no TLS" {
+  export TOASTER_MSA="dovecot"
+  install_jail_tls_pair() { echo "PAIR:$1"; }
+
+  run configure_tls_certs
+  assert_output ""
+}
+
+main_cf_setup() {
+  export TOASTER_HOSTNAME="mail.example.com"
   export TOASTER_MAIL_DOMAIN="example.com"
-  HOST_SSL="$BATS_TEST_TMPDIR/host_ssl"
-  mkdir -p "$HOST_SSL/certs" "$HOST_SSL/private"
-  echo host-crt > "$HOST_SSL/certs/server.crt"
-  echo host-key > "$HOST_SSL/private/server.key"
-  install() {
-    local _args=() _a
-    for _a in "$@"; do
-      case "$_a" in
-        /etc/ssl/*) _args+=("$HOST_SSL${_a#/etc/ssl}") ;;
-        *) _args+=("$_a") ;;
-      esac
-    done
-    command install "${_args[@]}"
-  }
-  SSLDIR="$ZFS_DATA_MNT/postfix/etc/tls"
-  CRT="$SSLDIR/certs/example.com.pem"
-  KEY="$SSLDIR/private/example.com.pem"
+  export TOASTER_MTA="haraka"
+  export TOASTER_MSA="postfix"
+  MAIN_CF="$ZFS_DATA_MNT/postfix/etc/main.cf"
+  stage_exec() { echo "EXEC:$*"; }
 }
 
-file_mode() { stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"; }
+@test "configure_postfix_main_cf names TLS files for TOASTER_HOSTNAME on a new install" {
+  main_cf_setup
 
-@test "configure_tls_certs installs the host pair on a new install" {
-  tls_setup
-  ( set -e; configure_tls_certs )
-
-  assert_equal "$(cat "$CRT")" host-crt
-  assert_equal "$(cat "$KEY")" host-key
-  assert_equal "$(file_mode "$SSLDIR/certs")" 755
-  assert_equal "$(file_mode "$SSLDIR/private")" 700
-  assert_equal "$(file_mode "$CRT")" 644
-  assert_equal "$(file_mode "$KEY")" 600
+  run configure_postfix_main_cf
+  assert_line "EXEC:postconf -e smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem"
+  assert_line "EXEC:postconf -e smtpd_tls_key_file = /data/etc/tls/private/mail.example.com.pem"
+  refute_output --partial "tls/certs/example.com.pem"
 }
 
-@test "configure_tls_certs leaves an installed pair alone" {
-  tls_setup
-  mkdir -p "$SSLDIR/certs" "$SSLDIR/private"
-  echo le-crt > "$CRT"
-  echo le-key > "$KEY"
+@test "configure_postfix_main_cf repoints TLS files named for TOASTER_MAIL_DOMAIN" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+smtpd_tls_cert_file = /data/etc/tls/certs/example.com.pem
+smtpd_tls_key_file = /data/etc/tls/private/example.com.pem
+EOF2
 
-  ( set -e; configure_tls_certs )
-
-  assert_equal "$(cat "$CRT")" le-crt
-  assert_equal "$(cat "$KEY")" le-key
+  run configure_postfix_main_cf
+  assert_line "EXEC:postconf -e smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem"
+  assert_line "EXEC:postconf -e smtpd_tls_key_file = /data/etc/tls/private/mail.example.com.pem"
 }
 
-@test "configure_tls_certs replaces a cert that has no key" {
-  tls_setup
-  mkdir -p "$SSLDIR/certs"
-  echo stray-crt > "$CRT"
+@test "configure_postfix_main_cf repoints legacy /data/etc/ssl" {
+  main_cf_setup
+  echo "smtpd_tls_cert_file = /data/etc/ssl/certs/example.com.pem" > "$MAIN_CF"
 
-  ( set -e; configure_tls_certs )
-
-  assert_equal "$(cat "$CRT")" host-crt
-  assert_equal "$(cat "$KEY")" host-key
-  assert_equal "$(cat "$CRT.orphan")" stray-crt
+  run configure_postfix_main_cf
+  assert_line "EXEC:postconf -e smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem"
 }
 
-@test "configure_tls_certs replaces a key that has no cert" {
-  tls_setup
-  mkdir -p "$SSLDIR/private"
-  echo stray-key > "$KEY"
+@test "configure_postfix_main_cf leaves TOASTER_HOSTNAME TLS files alone" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem
+smtpd_tls_key_file = /data/etc/tls/private/mail.example.com.pem
+EOF2
 
-  ( set -e; configure_tls_certs )
-
-  assert_equal "$(cat "$CRT")" host-crt
-  assert_equal "$(cat "$KEY")" host-key
-  assert_equal "$(cat "$KEY.orphan")" stray-key
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
 }
 
-@test "configure_tls_certs tightens a pre-existing private dir" {
-  tls_setup
-  mkdir -p -m 0755 "$SSLDIR/private"
+@test "configure_postfix_main_cf leaves TLS alone when hostname is the mail domain" {
+  main_cf_setup
+  export TOASTER_HOSTNAME="example.com"
+  echo "smtpd_tls_cert_file = /data/etc/tls/certs/example.com.pem" > "$MAIN_CF"
 
-  ( set -e; configure_tls_certs )
-
-  assert_equal "$(file_mode "$SSLDIR/private")" 700
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
 }
 
-@test "configure_tls_certs renames a legacy ssl dir" {
-  tls_setup
-  mkdir -p "$ZFS_DATA_MNT/postfix/etc/ssl/certs" "$ZFS_DATA_MNT/postfix/etc/ssl/private"
-  echo old-crt > "$ZFS_DATA_MNT/postfix/etc/ssl/certs/example.com.pem"
-  echo old-key > "$ZFS_DATA_MNT/postfix/etc/ssl/private/example.com.pem"
+@test "configure_postfix_main_cf ignores a commented TOASTER_MAIL_DOMAIN cert" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+#smtpd_tls_cert_file = /data/etc/tls/certs/example.com.pem
+smtpd_tls_cert_file = /data/etc/tls/certs/smtp.example.org.pem
+EOF2
 
-  ( set -e; configure_tls_certs )
-
-  assert [ ! -d "$ZFS_DATA_MNT/postfix/etc/ssl" ]
-  assert_equal "$(cat "$CRT")" old-crt
-  assert_equal "$(cat "$KEY")" old-key
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
 }

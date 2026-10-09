@@ -4,6 +4,8 @@ set -e -u
 
 . mail-toaster.sh
 
+mt6-include tls
+
 export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
@@ -84,35 +86,9 @@ EO_TRUSTED_HOSTS
 
 configure_tls_certs()
 {
-	local _etc _ssldir _f
-	_etc="$(get_jail_data postfix)/etc"
-	_ssldir="$_etc/tls"
-	if [ ! -d "$_ssldir" ] && [ -d "$_etc/ssl" ]; then
-		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
-		mv "$_etc/ssl" "$_ssldir"
+	if [ "$TOASTER_MSA" = postfix ] || grep -qs '^smtpd_tls_cert_file' "$(get_jail_data postfix)/etc/main.cf"; then
+		install_jail_tls_pair postfix
 	fi
-
-	install -d -m 0755 "$_ssldir/certs"
-	install -d -m 0700 "$_ssldir/private"
-
-	local _crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	local _key="$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
-	if [ -f "$_crt" ] && [ -f "$_key" ]; then
-		tell_status "postfix TLS certificates already installed"
-		return
-	fi
-
-	# half a pair is unusable; set it aside and install the host's matched pair
-	for _f in "$_crt" "$_key"; do
-		if [ -f "$_f" ]; then
-			tell_status "preserving unpaired $_f as $_f.orphan"
-			mv "$_f" "$_f.orphan"
-		fi
-	done
-
-	tell_status "installing postfix TLS certificates"
-	install -m 0644 /etc/ssl/certs/server.crt "$_crt"
-	install -m 0600 /etc/ssl/private/server.key "$_key"
 }
 
 configure_postfix_main_cf()
@@ -122,10 +98,12 @@ configure_postfix_main_cf()
 	local _ssldir="/data/etc/tls"
 	export MAIL_CONFIG="/data/etc"  # postconf needs this
 
-	if grep -qs "/data/etc/ssl" "$_main_cf"; then
-		tell_status "Upgrading /data/etc/ssl to $_ssldir in main.cf"
-		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem"
-		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_MAIL_DOMAIN.pem"
+	if grep -qs "/data/etc/ssl" "$_main_cf" \
+		|| { [ "$TOASTER_MAIL_DOMAIN" != "$TOASTER_HOSTNAME" ] \
+			&& grep -qsxF "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem" "$_main_cf"; }; then
+		tell_status "pointing main.cf at $_ssldir/*/$TOASTER_HOSTNAME.pem"
+		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_HOSTNAME.pem"
+		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_HOSTNAME.pem"
 	fi
 
 	if [ -f "$_main_cf" ]; then
@@ -143,8 +121,8 @@ configure_postfix_main_cf()
 	fi
 
 	if [ "$TOASTER_MSA" = postfix ]; then
-		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem"
-		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_MAIL_DOMAIN.pem"
+		stage_exec postconf -e "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_HOSTNAME.pem"
+		stage_exec postconf -e "smtpd_tls_key_file = $_ssldir/private/$TOASTER_HOSTNAME.pem"
 	fi
 
 	stage_exec postconf -e 'smtp_tls_security_level = may'
@@ -215,6 +193,7 @@ configure_postfix()
 	fi
 
 	[ -d "$ZFS_DATA_MNT/postfix/etc" ] || stage_exec mkdir /data/etc
+	configure_tls_certs
 	configure_postfix_main_cf
 	configure_postfix_master_cf
 
@@ -227,8 +206,6 @@ configure_postfix()
 		stage_sysrc nrpe_enable=YES
 		stage_sysrc nrpe_configfile="/data/etc/nrpe.cfg"
 	fi
-
-	[ "$TOASTER_MSA" != postfix ] || configure_tls_certs
 
 	configure_opendkim
 
