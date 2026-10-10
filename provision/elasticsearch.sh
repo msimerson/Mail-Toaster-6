@@ -4,12 +4,13 @@ set -e -u
 
 . mail-toaster.sh
 
-export JAIL_START_EXTRA="enforce_statfs=1"
+export JAIL_START_EXTRA="enforce_statfs=1 mount.fdescfs mount.procfs"
 # shellcheck disable=2016
 export JAIL_CONF_EXTRA="
-		enforce_statfs = 1;"
-export JAIL_FSTAB="fdescfs $ZFS_JAIL_MNT/elasticsearch/dev/fd fdescfs rw 0 0
-proc     $ZFS_JAIL_MNT/elasticsearch/proc   procfs  rw 0 0"
+		enforce_statfs = 1;
+		mount.fdescfs;
+		mount.procfs;"
+export JAIL_FSTAB=""
 
 create_data_dirs()
 {

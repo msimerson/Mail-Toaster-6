@@ -129,6 +129,13 @@ dcc          dcc
 EO_FSTAB
 }
 
+# jail(8) mounts mount.fstab before mount.devfs, so /dev is empty when the
+# fstab is read. mount.fdescfs runs after devfs.
+@test "no JAIL_FSTAB mounts under a jail's /dev" {
+  run grep -nE 'ZFS_JAIL_MNT/[^[:space:]]+/dev([/[:space:]]|$)' provision/*.sh
+  assert_output ""
+}
+
 @test "spamassassin builds RELAY_COUNTRY unconditionally" {
   run grep "^	local _SA_OPTS=" provision/spamassassin.sh
   assert_success

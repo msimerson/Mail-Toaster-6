@@ -7,12 +7,12 @@ set -e
 service_config unifi
 export UNIFI_MONGODB_DSN=${UNIFI_MONGODB_DSN:-""}
 
-export JAIL_START_EXTRA=""
-export JAIL_CONF_EXTRA=""
+export JAIL_START_EXTRA="mount.fdescfs mount.procfs"
+export JAIL_CONF_EXTRA="
+		mount.fdescfs;
+		mount.procfs;"
 export JAIL_FSTAB
-JAIL_FSTAB="fdescfs	$ZFS_JAIL_MNT/unifi/dev/fd	fdescfs	rw	0	0
-$(get_jail_data unifi)/java	$ZFS_JAIL_MNT/unifi/usr/local/share/java	nullfs	rw	0	0
-proc	$ZFS_JAIL_MNT/unifi/proc	procfs	rw	0	0"
+JAIL_FSTAB="$(get_jail_data unifi)/java	$ZFS_JAIL_MNT/unifi/usr/local/share/java	nullfs	rw	0	0"
 
 mt6-include network
 
