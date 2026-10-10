@@ -345,35 +345,18 @@ configure_tls_certs()
 			"$_sslconf"
 	fi
 
+	install_jail_tls_pair dovecot
+
 	local _localconf
 	_localconf="$(get_jail_data dovecot)/etc/local.conf"
-	if grep -qs dovecot.pem "$_localconf"; then
+	if grep -qs '^ssl_cert = </data/etc/tls/certs/dovecot\.pem' "$_localconf" \
+		|| { [ "$TOASTER_MAIL_DOMAIN" != "$TOASTER_HOSTNAME" ] \
+			&& grep -qsxF "ssl_cert = </data/etc/tls/certs/$TOASTER_MAIL_DOMAIN.pem" "$_localconf"; }; then
+		tell_status "pointing local.conf at $TOASTER_HOSTNAME.pem"
 		sed_inplace \
-			-e "/^ssl_cert/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
-			-e "/^ssl_key/ s/dovecot/${TOASTER_MAIL_DOMAIN}/" \
+			-e "s,^ssl_cert = .*,ssl_cert = </data/etc/tls/certs/$TOASTER_HOSTNAME.pem," \
+			-e "s,^ssl_key = .*,ssl_key = </data/etc/tls/private/$TOASTER_HOSTNAME.pem," \
 			"$_localconf"
-	fi
-
-	local _ssldir
-	_ssldir="$(get_jail_data dovecot)/etc/tls"
-	if [ ! -d "$_ssldir" ] && [ -d "$(get_jail_data dovecot)/etc/ssl" ]; then
-		tell_status "Renaming /data/etc/ssl to /data/etc/tls"
-		mv "$(get_jail_data dovecot)/etc/ssl" "$_ssldir"
-	fi
-	if [ ! -d "$_ssldir/certs" ]; then
-		# shellcheck disable=SC2174
-		mkdir -m 644 -p "$_ssldir/certs"
-	fi
-
-	if [ ! -d "$_ssldir/private" ]; then
-		mkdir -m 0644 "$_ssldir/private"
-	fi
-
-	local _installed_crt="$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-	if [ ! -f "$_installed_crt" ]; then
-		tell_status "installing dovecot TLS certificates"
-		cp /etc/ssl/certs/server.crt "$_ssldir/certs/${TOASTER_MAIL_DOMAIN}.pem"
-		cp /etc/ssl/private/server.key "$_ssldir/private/${TOASTER_MAIL_DOMAIN}.pem"
 	fi
 }
 

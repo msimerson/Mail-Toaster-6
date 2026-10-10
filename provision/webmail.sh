@@ -373,6 +373,7 @@ EO_NGINX_ACME
 install_webmail()
 {
 	stage_setup_tls
+	install_jail_tls_pair webmail
 	install_nginx
 	configure_nginx_server
 }

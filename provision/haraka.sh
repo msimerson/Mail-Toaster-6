@@ -287,30 +287,14 @@ Phishing=false
 configure_haraka_tls() {
 	haraka_enable_plugin tls
 
+	if [ ! -f "$HOST_TLS_KEY" ] || [ ! -f "$HOST_TLS_CRT" ]; then
+		return
+	fi
+
 	if [ -d "$HARAKA_CONF/tls" ]; then
-		local _installed="$HARAKA_CONF/tls/${TOASTER_HOSTNAME}.pem"
+		install_tls_pem "$HARAKA_CONF/tls/${TOASTER_HOSTNAME}.pem"
 	else
-		local _installed="$HARAKA_CONF/tls_cert.pem"
-	fi
-
-	if [ -f "$_installed" ]; then
-		return
-	fi
-
-	if [ ! -f /etc/ssl/private/server.key ]; then
-		return
-	fi
-	if [ ! -f /etc/ssl/certs/server.crt ]; then
-		return
-	fi
-
-	tell_status "installing TLS certificate"
-	if [ -d "$HARAKA_CONF/tls" ]; then
-		cat /etc/ssl/private/server.key > "$_installed"
-		cat /etc/ssl/certs/server.crt >> "$_installed"
-	else
-		cp /etc/ssl/certs/server.crt "$_installed"
-		cp /etc/ssl/private/server.key "$HARAKA_CONF/tls_key.pem"
+		install_tls_pair "$HARAKA_CONF/tls_cert.pem" "$HARAKA_CONF/tls_key.pem"
 	fi
 }
 

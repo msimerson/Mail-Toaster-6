@@ -74,7 +74,7 @@ mt6-include()
 
 mt6_init()
 {
-	for _i in util config zfs jail network; do
+	for _i in util config zfs jail network tls; do
 		mt6-include "$_i"
 	done
 
@@ -642,25 +642,10 @@ EO_BASE_REPO
 
 stage_setup_tls()
 {
-	# static TLS certificates (installed at deploy)
-	if [ ! -f "$STAGE_MNT/etc/ssl/certs/${TOASTER_HOSTNAME}.pem" ]; then
-		tell_status "installing TLS certificate"
-		cp /etc/ssl/certs/server.crt "$STAGE_MNT/etc/ssl/certs/${TOASTER_HOSTNAME}.pem"
-		cp /etc/ssl/private/server.key "$STAGE_MNT/etc/ssl/private/${TOASTER_HOSTNAME}.pem"
-	fi
-
-	# dynamic TLS certs, kept up-to-date by acme.sh or certbot
-	if [ ! -f "$STAGE_MNT/data/etc/tls/certs" ]; then
-		# shellcheck disable=SC2174
-		mkdir -m 0644 -p "$STAGE_MNT/data/etc/tls/certs"
-		cp /etc/ssl/certs/server.crt "$STAGE_MNT/data/etc/tls/certs/${TOASTER_HOSTNAME}.pem"
-	fi
-
-	if [ ! -f "$STAGE_MNT/data/etc/tls/private" ]; then
-		# shellcheck disable=SC2174
-		mkdir -m 0640 -p "$STAGE_MNT/data/etc/tls/private"
-		cp /etc/ssl/private/server.key "$STAGE_MNT/data/etc/tls/private/${TOASTER_HOSTNAME}.pem"
-	fi
+	install -d -m 0755 "$STAGE_MNT/etc/ssl/certs"
+	install -d -m 0700 "$STAGE_MNT/etc/ssl/private"
+	install_tls_pair "$STAGE_MNT/etc/ssl/certs/${TOASTER_HOSTNAME}.pem" \
+		"$STAGE_MNT/etc/ssl/private/${TOASTER_HOSTNAME}.pem"
 }
 
 stage_enable_newsyslog()

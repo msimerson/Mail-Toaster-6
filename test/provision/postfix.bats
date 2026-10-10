@@ -99,3 +99,109 @@ EOF
   assert_line "#submission inet n       -       n       -       -       smtpd"
   assert_line "#smtps     inet  n       -       n       -       -       smtpd"
 }
+
+@test "configure_tls_certs installs the pair when TOASTER_MSA=postfix" {
+  export TOASTER_MSA="postfix"
+  install_jail_tls_pair() { echo "PAIR:$1"; }
+
+  run configure_tls_certs
+  assert_output "PAIR:postfix"
+}
+
+@test "configure_tls_certs installs the pair when main.cf names a cert" {
+  export TOASTER_MSA="dovecot"
+  echo "smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem" \
+    > "$ZFS_DATA_MNT/postfix/etc/main.cf"
+  install_jail_tls_pair() { echo "PAIR:$1"; }
+
+  run configure_tls_certs
+  assert_output "PAIR:postfix"
+}
+
+@test "configure_tls_certs skips the pair when postfix serves no TLS" {
+  export TOASTER_MSA="dovecot"
+  install_jail_tls_pair() { echo "PAIR:$1"; }
+
+  run configure_tls_certs
+  assert_output ""
+}
+
+main_cf_setup() {
+  export TOASTER_HOSTNAME="mail.example.com"
+  export TOASTER_MAIL_DOMAIN="example.com"
+  export TOASTER_MTA="haraka"
+  export TOASTER_MSA="postfix"
+  MAIN_CF="$ZFS_DATA_MNT/postfix/etc/main.cf"
+  stage_exec() { echo "EXEC:$*"; }
+}
+
+@test "configure_postfix_main_cf names TLS files for TOASTER_HOSTNAME on a new install" {
+  main_cf_setup
+
+  run configure_postfix_main_cf
+  assert_line "EXEC:postconf -e smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem"
+  assert_line "EXEC:postconf -e smtpd_tls_key_file = /data/etc/tls/private/mail.example.com.pem"
+  refute_output --partial "tls/certs/example.com.pem"
+}
+
+@test "configure_postfix_main_cf repoints TLS files named for TOASTER_MAIL_DOMAIN" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+smtpd_tls_cert_file = /data/etc/tls/certs/example.com.pem
+smtpd_tls_key_file = /data/etc/tls/private/example.com.pem
+EOF2
+
+  run configure_postfix_main_cf
+  assert_line "EXEC:postconf -e smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem"
+  assert_line "EXEC:postconf -e smtpd_tls_key_file = /data/etc/tls/private/mail.example.com.pem"
+}
+
+@test "configure_postfix_main_cf repoints legacy /data/etc/ssl" {
+  main_cf_setup
+  echo "smtpd_tls_cert_file = /data/etc/ssl/certs/example.com.pem" > "$MAIN_CF"
+
+  run configure_postfix_main_cf
+  assert_line "EXEC:postconf -e smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem"
+}
+
+@test "configure_postfix_main_cf leaves TOASTER_HOSTNAME TLS files alone" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+smtpd_tls_cert_file = /data/etc/tls/certs/mail.example.com.pem
+smtpd_tls_key_file = /data/etc/tls/private/mail.example.com.pem
+EOF2
+
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
+}
+
+@test "configure_postfix_main_cf leaves TLS alone when hostname is the mail domain" {
+  main_cf_setup
+  export TOASTER_HOSTNAME="example.com"
+  echo "smtpd_tls_cert_file = /data/etc/tls/certs/example.com.pem" > "$MAIN_CF"
+
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
+}
+
+@test "configure_postfix_main_cf ignores a commented TOASTER_MAIL_DOMAIN cert" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+#smtpd_tls_cert_file = /data/etc/tls/certs/example.com.pem
+smtpd_tls_cert_file = /data/etc/tls/certs/smtp.example.org.pem
+EOF2
+
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
+}
+
+@test "configure_postfix_main_cf ignores a commented legacy /data/etc/ssl cert" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+#smtpd_tls_cert_file = /data/etc/ssl/certs/example.com.pem
+smtpd_tls_cert_file = /data/etc/tls/certs/smtp.example.org.pem
+EOF2
+
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
+}

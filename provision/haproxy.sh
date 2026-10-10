@@ -328,83 +328,6 @@ backend www_webmail
 EO_HAPROXY_STAGE_CONF
 }
 
-install_ocsp_stapler()
-{
-	if [ -f "$1" ]; then return; fi
-
-	store_exec "$1" <<'EO_OCSP'
-#!/bin/sh -e
-
-# http://www.jinnko.org/2015/03/ocsp-stapling-with-haproxy.html
-
-# Get an OSCP response from the certificates OCSP issuer for use
-# with HAProxy, then reload HAProxy if there have been updates.
-
-OPENSSL=/usr/bin/openssl
-
-# Path to certificates
-PEMSDIR=/data/etc/tls.d
-
-# Path to log output to
-LOGDIR=/var/log/haproxy
-
-# Create the log path if it doesn't already exist
-[ -d "$LOGDIR" ] || mkdir "$LOGDIR"
-UPDATED=0
-
-cd "$PEMSDIR"
-for pem in *.pem; do
-    echo "= $(date)" >> "$LOGDIR/${pem}.log"
-
-    # Get the OCSP URL from the certificate
-    ocsp_url=$($OPENSSL x509 -noout -ocsp_uri -in "$pem")
-
-    # Extract the hostname from the OCSP URL
-    ocsp_host=$(echo "$ocsp_url" | cut -d/ -f3)
-
-    # Only process the certificate if we have a .issuer file
-    if [ -r "${pem}.issuer" ]; then
-
-        # Request the OCSP response from the issuer and store it
-        $OPENSSL ocsp \
-            -issuer "${pem}.issuer" \
-            -cert "${pem}" \
-            -url "${ocsp_url}" \
-            -header "Host=${ocsp_host}" \
-            -respout "${pem}.ocsp" || echo -n ""
-
-        UPDATED=$(( $UPDATED + 1 ))
-    fi
-done
-
-if [ $UPDATED -gt 0 ]; then
-    echo "= $(date) - Updated $UPDATED OCSP responses" >> "$LOGDIR/${pem}.log"
-    service haproxy reload > "$LOGDIR/service-reload.log" 2>&1
-else
-    echo "= $(date) - No updates" >> "$LOGDIR/${pem}.log"
-fi
-
-EO_OCSP
-}
-
-configure_haproxy_tls()
-{
-	local _tls_dir
-	_tls_dir="$(get_jail_data haproxy)/etc/tls.d"
-	if [ ! -d "$_tls_dir" ]; then
-		tell_status "creating $_tls_dir"
-		mkdir -p "$_tls_dir"
-	fi
-
-	if [ ! -f "$_tls_dir/$TOASTER_HOSTNAME.pem" ]; then
-		tell_status "concatenating TLS key and crt to PEM"
-		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$_tls_dir/$TOASTER_HOSTNAME.pem"
-	fi
-
-	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"
-}
-
 configure_haproxy()
 {
 	if [ ! -d "$(get_jail_data haproxy)/etc" ]; then
@@ -431,7 +354,10 @@ EO_PF_RDR
 pass in quick proto tcp from any to <haproxy> port { 80 443 }
 EO_PF_FILTER
 
-	configure_haproxy_tls
+	install_tls_pem "$(get_jail_data haproxy)/etc/tls.d/$TOASTER_HOSTNAME.pem"
+
+	# haproxy staples any <crt>.ocsp beside a cert; Let's Encrypt has no OCSP responder
+	rm -f "$(get_jail_data haproxy)"/etc/tls.d/*.ocsp
 }
 
 start_haproxy()
