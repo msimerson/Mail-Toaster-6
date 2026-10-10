@@ -194,3 +194,14 @@ EOF2
   run configure_postfix_main_cf
   refute_output --partial "EXEC:postconf"
 }
+
+@test "configure_postfix_main_cf ignores a commented legacy /data/etc/ssl cert" {
+  main_cf_setup
+  cat > "$MAIN_CF" <<'EOF2'
+#smtpd_tls_cert_file = /data/etc/ssl/certs/example.com.pem
+smtpd_tls_cert_file = /data/etc/tls/certs/smtp.example.org.pem
+EOF2
+
+  run configure_postfix_main_cf
+  refute_output --partial "EXEC:postconf"
+}

@@ -96,7 +96,7 @@ configure_postfix_main_cf()
 	local _ssldir="/data/etc/tls"
 	export MAIL_CONFIG="/data/etc"  # postconf needs this
 
-	if grep -qs "/data/etc/ssl" "$_main_cf" \
+	if grep -qs '^smtpd_tls_cert_file *= */data/etc/ssl/' "$_main_cf" \
 		|| { [ "$TOASTER_MAIL_DOMAIN" != "$TOASTER_HOSTNAME" ] \
 			&& grep -qsxF "smtpd_tls_cert_file = $_ssldir/certs/$TOASTER_MAIL_DOMAIN.pem" "$_main_cf"; }; then
 		tell_status "pointing main.cf at $_ssldir/*/$TOASTER_HOSTNAME.pem"
