@@ -12,6 +12,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
+mt6-include tls
+
 HARAKA_CONF="$(get_jail_data haraka)/config"
 
 install_haraka()

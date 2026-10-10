@@ -9,6 +9,7 @@ export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
 mt6-include nginx
+mt6-include tls
 
 configure_nginx_server_port_80()
 {
