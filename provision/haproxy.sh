@@ -389,18 +389,7 @@ EO_OCSP
 
 configure_haproxy_tls()
 {
-	local _tls_dir
-	_tls_dir="$(get_jail_data haproxy)/etc/tls.d"
-	if [ ! -d "$_tls_dir" ]; then
-		tell_status "creating $_tls_dir"
-		mkdir -p "$_tls_dir"
-	fi
-
-	if [ ! -f "$_tls_dir/$TOASTER_HOSTNAME.pem" ]; then
-		tell_status "concatenating TLS key and crt to PEM"
-		cat /etc/ssl/private/server.key /etc/ssl/certs/server.crt \
-			> "$_tls_dir/$TOASTER_HOSTNAME.pem"
-	fi
+	install_tls_pem "$(get_jail_data haproxy)/etc/tls.d/$TOASTER_HOSTNAME.pem"
 
 	install_ocsp_stapler "$STAGE_MNT/usr/local/etc/periodic/daily/501.ocsp-staple.sh"
 }

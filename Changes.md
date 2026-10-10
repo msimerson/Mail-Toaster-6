@@ -5,8 +5,8 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
-- postfix, dovecot: name TLS cert files for TOASTER_HOSTNAME
-- postfix, dovecot: install TLS cert/key as a pair, private dir 0700
+- tls: shared cert installer, private keys no longer world-readable
+- postfix, dovecot: TLS certs named for TOASTER_HOSTNAME
 - haraka: allow modern-syslog install script, npm 12 blocks it (#726)
 - tachyon: new provisioner, the successor to snappymail
 

@@ -180,3 +180,64 @@ setup() {
   run cat "$HARAKA_CONF/http.ini"
   assert_output --partial "listen=0.0.0.0:80"
 }
+
+tls_setup() {
+  load '../../include/tls.sh'
+  export TOASTER_HOSTNAME="mail.example.com"
+  HOST_TLS_CRT="$BATS_TEST_TMPDIR/server.crt"
+  HOST_TLS_KEY="$BATS_TEST_TMPDIR/server.key"
+  echo host-crt > "$HOST_TLS_CRT"
+  echo host-key > "$HOST_TLS_KEY"
+  haraka_enable_plugin() { :; }
+}
+
+@test "configure_haraka_tls writes one PEM when config/tls exists" {
+  tls_setup
+  mkdir -p "$HARAKA_CONF/tls"
+
+  ( set -e; configure_haraka_tls )
+
+  assert_equal "$(cat "$HARAKA_CONF/tls/mail.example.com.pem")" "$(printf 'host-key\nhost-crt')"
+  assert [ ! -e "$HARAKA_CONF/tls_key.pem" ]
+}
+
+@test "configure_haraka_tls writes tls_cert.pem and tls_key.pem without config/tls" {
+  tls_setup
+
+  ( set -e; configure_haraka_tls )
+
+  assert_equal "$(cat "$HARAKA_CONF/tls_cert.pem")" host-crt
+  assert_equal "$(cat "$HARAKA_CONF/tls_key.pem")" host-key
+  assert_equal "$(_file_mode "$HARAKA_CONF/tls_key.pem")" 600
+}
+
+@test "configure_haraka_tls replaces a tls_cert.pem that has no key" {
+  tls_setup
+  echo le-crt > "$HARAKA_CONF/tls_cert.pem"
+
+  ( set -e; configure_haraka_tls )
+
+  assert_equal "$(cat "$HARAKA_CONF/tls_key.pem")" host-key
+  assert_equal "$(cat "$HARAKA_CONF/tls_cert.pem")" host-crt
+  assert_equal "$(cat "$HARAKA_CONF/tls_cert.pem.orphan")" le-crt
+}
+
+@test "configure_haraka_tls leaves an installed pair alone" {
+  tls_setup
+  echo le-crt > "$HARAKA_CONF/tls_cert.pem"
+  echo le-key > "$HARAKA_CONF/tls_key.pem"
+
+  ( set -e; configure_haraka_tls )
+
+  assert_equal "$(cat "$HARAKA_CONF/tls_cert.pem")" le-crt
+  assert_equal "$(cat "$HARAKA_CONF/tls_key.pem")" le-key
+}
+
+@test "configure_haraka_tls skips when the host has no cert" {
+  tls_setup
+  rm "$HOST_TLS_KEY"
+
+  ( set -e; configure_haraka_tls )
+
+  assert [ ! -e "$HARAKA_CONF/tls_cert.pem" ]
+}

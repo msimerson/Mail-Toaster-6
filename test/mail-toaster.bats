@@ -10,6 +10,7 @@ setup() {
   load ../include/zfs.sh
   load ../include/jail.sh
   load ../include/network.sh
+  load ../include/tls.sh
   # Initialize defaults that mt6_init would have set
   mt6_defaults
 }
@@ -899,4 +900,19 @@ setup_minimal_hosts() {
   run awk '$2 == "pkg" { print $1 }' "$STAGE_MNT/etc/hosts"
   assert_line --index 0 "$(get_jail_ip6 bsd_cache)"
   assert_line --index 1 "$(get_jail_ip4 bsd_cache)"
+}
+
+@test "stage_setup_tls installs the host pair in the staged /etc/ssl" {
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  export TOASTER_HOSTNAME="mail.example.com"
+  HOST_TLS_CRT="$BATS_TEST_TMPDIR/server.crt"
+  HOST_TLS_KEY="$BATS_TEST_TMPDIR/server.key"
+  echo host-crt > "$HOST_TLS_CRT"
+  echo host-key > "$HOST_TLS_KEY"
+
+  ( set -e; stage_setup_tls )
+
+  assert_equal "$(cat "$STAGE_MNT/etc/ssl/certs/mail.example.com.pem")" host-crt
+  assert_equal "$(cat "$STAGE_MNT/etc/ssl/private/mail.example.com.pem")" host-key
+  assert_equal "$(_file_mode "$STAGE_MNT/etc/ssl/private")" 700
 }

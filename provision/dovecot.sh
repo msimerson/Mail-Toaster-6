@@ -11,7 +11,6 @@ JAIL_FSTAB="$(get_jail_data vpopmail)/home $ZFS_JAIL_MNT/dovecot/usr/local/vpopm
 
 mt6-include vpopmail
 mt6-include mua
-mt6-include tls
 
 allow_sysvipc_stage()
 {
