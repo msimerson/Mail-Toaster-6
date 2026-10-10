@@ -248,3 +248,12 @@ rspamd    rspamd_enable=YES
 dovecot   dovecot_enable=YES
 EO_ENABLE
 }
+
+@test "provision scripts that call include/tls.sh helpers include it" {
+  local _f _missing=""
+  for _f in provision/*.sh; do
+    grep -qE '\b(install_jail_tls_pair|install_tls_pair|install_tls_pem)\b' "$_f" || continue
+    grep -q '^mt6-include tls$' "$_f" || _missing="$_missing $_f"
+  done
+  assert_equal "$_missing" ""
+}

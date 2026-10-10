@@ -8,6 +8,8 @@ export JAIL_START_EXTRA=""
 export JAIL_CONF_EXTRA=""
 export JAIL_FSTAB=""
 
+mt6-include tls
+
 install_haproxy()
 {
 	case "$TLS_LIBRARY" in
