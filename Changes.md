@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
+- haproxy: remove OCSP stapling, Let's Encrypt ended OCSP
 - tls: shared cert installer, private keys no longer world-readable
 - postfix, dovecot: TLS certs named for TOASTER_HOSTNAME
 - haraka: allow modern-syslog install script, npm 12 blocks it (#726)
