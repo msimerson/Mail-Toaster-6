@@ -40,7 +40,7 @@ setup() {
   sysrc()             { echo "$JAIL_LIST"; }
   freebsd-version()   { echo "14.3-RELEASE-p2"; }
   jail_is_running()   { case " $RUNNING " in *" $1 "*) return 0 ;; esac; return 1; }
-  jls()               { [ "$3" = "ip4.addr" ] && get_jail_ip4 "$2"; }
+  jls()               { jail_is_running "$2" && get_jail_ip4 "$2"; }
   port_is_listening() { case " $LISTENING " in *" $1 "*) return 0 ;; esac; return 1; }
   pfctl()             { echo "Status: $PF_STATUS for 3 days 01:02:03"; }
   zfs()               { for _d in $DATASETS; do echo "$ZFS_JAIL_VOL/$_d"; done; }
@@ -60,10 +60,20 @@ install_cert() {
 @test "mt6_status - a healthy toaster is OK" {
   run mt6_status
   assert_success
-  assert_output --partial "haraka   172.16.15.5  up     25       -"
-  assert_output --partial "dovecot  172.16.15.6  up     993 995  -"
+  assert_line "haraka   172.16.15.5  up     25         -"
+  assert_line "dovecot  172.16.15.6  up     993 995    -"
   assert_output --partial "pf enabled"
   assert_output --partial "MT6 OK - 2 jails"
+}
+
+@test "mt6_status - each row prints before the next jail is checked" {
+  port_is_listening() { echo "checking $2:$1"; }
+  run mt6_status
+  assert_success
+  assert_line --index 1 --partial "JAIL"
+  assert_line --index 2 "checking haraka:25"
+  assert_line --index 3 --partial "haraka   172.16.15.5"
+  assert_line --index 4 "checking dovecot:993"
 }
 
 @test "mt6_status - a jail that is not running is critical" {
@@ -206,7 +216,7 @@ install_cert() {
   install_cert 3 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status
   assert_failure 2
-  assert_line "dovecot  172.16.15.6  up     993 995  <7d"
+  assert_line "dovecot  172.16.15.6  up     993 995    <7d"
   assert_output --partial "CRITICAL: dovecot TLS certificate <7d"
 }
 
@@ -214,7 +224,7 @@ install_cert() {
   RUNNING="haraka"
   install_cert 365 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status dovecot
-  assert_line "dovecot  -   DOWN   -      ok"
+  assert_line "dovecot  -   DOWN   -          ok"
 }
 
 @test "status_tls_expiry - thresholds" {

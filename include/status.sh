@@ -62,7 +62,7 @@ status_enabled_jails()
 
 status_jail_ip4()
 {
-	jls -j "$1" ip4.addr 2>/dev/null
+	jls -j "$1" ip4.addr 2>/dev/null || true
 }
 
 # where each provisioner installs TOASTER_HOSTNAME's certificate
@@ -213,29 +213,32 @@ status_jail()
 		fi
 	fi
 
-	_status_rows="${_status_rows}$_jail	$_ip	$_state	${_ports# }	$_tls
-"
+	status_row "$_jail" "$_ip" "$_state" "${_ports# }" "$_tls"
 }
 
-# tab-separated rows in, columns as wide as their widest cell out
-status_table()
+# sized before the slow checks run, so each row prints as soon as it is known
+status_column_widths()
 {
-	printf "%s" "$1" | awk -F '\t' '
-		{
-			for (i = 1; i <= NF; i++) {
-				cell[NR, i] = ($i == "") ? "-" : $i
-				if (length(cell[NR, i]) > width[i]) width[i] = length(cell[NR, i])
-			}
-			if (NF > cols) cols = NF
-			rows = NR
-		}
-		END {
-			for (r = 1; r <= rows; r++) {
-				line = ""
-				for (i = 1; i < cols; i++) line = line sprintf("%-" (width[i] + 2) "s", cell[r, i])
-				print line cell[r, cols]
-			}
-		}'
+	_status_w_jail=4
+	_status_w_ip=2
+	_status_w_ports=5
+
+	local _jail _cell
+	for _jail in "$@"; do
+		[ ${#_jail} -le "$_status_w_jail" ] || _status_w_jail=${#_jail}
+
+		_cell=$(status_jail_ip4 "$(safe_jailname "$_jail")")
+		[ ${#_cell} -le "$_status_w_ip" ] || _status_w_ip=${#_cell}
+
+		_cell=$(status_jail_ports "$_jail" | sed 's/[0-9][0-9]*/&!/g')
+		[ ${#_cell} -le "$_status_w_ports" ] || _status_w_ports=${#_cell}
+	done
+}
+
+status_row()
+{
+	printf "%-${_status_w_jail}s  %-${_status_w_ip}s  %-5s  %-${_status_w_ports}s  %s\n" \
+		"$1" "${2:--}" "$3" "${4:--}" "$5"
 }
 
 mt6_status()
@@ -249,8 +252,6 @@ mt6_status()
 	_status_warnings=0
 	_status_criticals=0
 	_status_notes=""
-	_status_rows="JAIL	IP	STATE	PORTS	TLS
-"
 
 	local _jails="$*"
 	if [ -z "$_jails" ]; then _jails=$(status_enabled_jails); fi
@@ -263,12 +264,15 @@ mt6_status()
 	status_host
 	echo
 
+	# shellcheck disable=SC2086
+	status_column_widths $_jails
+	status_row JAIL IP STATE PORTS TLS
+
 	local _jail _count=0
 	for _jail in $_jails; do
 		status_jail "$_jail"
 		_count=$((_count + 1))
 	done
-	status_table "$_status_rows"
 
 	status_datasets
 
