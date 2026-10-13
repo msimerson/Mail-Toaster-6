@@ -574,3 +574,33 @@ age_days() {
   assert_success
   assert_output "sigs ok"
 }
+
+# --- inbound mail ports follow TOASTER_MTA and TOASTER_MSA ---
+
+@test "status_jail_ports - the MTA and MSA jails expect the ports pf sends them" {
+  TOASTER_MTA="haraka" TOASTER_MSA="haraka" run status_jail_ports haraka
+  assert_output "25 465 587"
+
+  TOASTER_MTA="postfix" TOASTER_MSA="dovecot" run status_jail_ports dovecot
+  assert_output "993 995 465 587"
+
+  TOASTER_MTA="postfix" TOASTER_MSA="dovecot" run status_jail_ports haraka
+  assert_output "25"
+}
+
+@test "mt6_status - a closed submission port on the MSA jail is critical" {
+  export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
+  LISTENING="haraka:25 haraka:465 dovecot:993 dovecot:995"
+  run mt6_status
+  assert_failure 2
+  assert_output --partial "CRITICAL: haraka is not listening on port 587"
+}
+
+@test "mt6_status - ports beyond the expected ones are shown after them" {
+  export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
+  LISTENING="haraka:25 haraka:465 haraka:587 haraka:80 haraka:514 dovecot:993 dovecot:995"
+  run mt6_status
+  assert_success
+  assert_line "haraka   172.16.15.5  up     25 465 587 (80)     -        starttls ok"
+  assert_line "dovecot  172.16.15.6  up     993 995             -        imaps ok"
+}

@@ -14,8 +14,26 @@ STATUS_WARN=1
 STATUS_CRIT=2
 STATUS_UNKNOWN=3
 
-# keep in sync with the ports each provision/<jail>.sh test_<jail>() checks
 status_jail_ports()
+{
+	local _ports; _ports=$(status_service_ports "$1")
+
+	# where pf redirects inbound mail, see configure_mta_pf_rdr
+	if [ "$1" = "$TOASTER_MTA" ]; then _ports="$_ports 25"; fi
+	if [ "$1" = "$TOASTER_MSA" ]; then _ports="$_ports 465 587"; fi
+
+	local _port _unique=""
+	for _port in $_ports; do
+		case " $_unique " in
+			*" $_port "*) ;;
+			*) _unique="$_unique $_port" ;;
+		esac
+	done
+	echo "${_unique# }"
+}
+
+# keep in sync with the ports each provision/<jail>.sh test_<jail>() checks
+status_service_ports()
 {
 	case "$1" in
 		bsd_cache|git|nginx|nictool|roundcube|snappymail|sqwebmail|tachyon)
@@ -97,14 +115,20 @@ status_port_listening()
 	return 1
 }
 
+# $1 jail's name in jls, $2 ports to leave out
 status_observed_ports()
 {
-	local _l _ports=""
+	local _l _port _ports=""
 	for _l in $_status_listeners; do
 		case "$_l" in
-			# every jail's syslogd binds 514 to forward its logs, even with -s
-			"$1":514) ;;
-			"$1":*) _ports="$_ports ${_l#*:}" ;;
+			"$1":*) _port="${_l#*:}" ;;
+			*) continue ;;
+		esac
+
+		# every jail's syslogd binds 514 to forward its logs, even with -s
+		case " 514 $2 " in
+			*" $_port "*) ;;
+			*) _ports="$_ports $_port" ;;
 		esac
 	done
 
@@ -314,9 +338,6 @@ status_jail()
 		_ip=$(status_jail_ip4 "$_safe")
 
 		local _expected; _expected=$(status_jail_ports "$_jail")
-		if [ -z "$_expected" ]; then
-			_ports=$(status_observed_ports "$_safe")
-		fi
 
 		local _port
 		for _port in $_expected; do
@@ -328,6 +349,10 @@ status_jail()
 				status_note $STATUS_CRIT "$_jail is not listening on port $_port"
 			fi
 		done
+
+		local _extra; _extra=$(status_observed_ports "$_safe" "$_expected")
+		_ports="${_ports# }"
+		if [ -n "$_extra" ]; then _ports="${_ports:+$_ports }$_extra"; fi
 
 		if [ "$_closed" = 0 ]; then
 			_sev=0
@@ -349,7 +374,7 @@ status_jail()
 		fi
 	fi
 
-	status_row "$_jail" "$_ip" "$_state" "${_ports# }" "$_tls" "$_probe"
+	status_row "$_jail" "$_ip" "$_state" "$_ports" "$_tls" "$_probe"
 }
 
 # sized before the slow checks run, so each row prints as soon as it is known
@@ -359,15 +384,17 @@ status_column_widths()
 	_status_w_ip=2
 	_status_w_ports=5
 
-	local _jail _cell
+	local _jail _cell _expected
 	for _jail in "$@"; do
 		[ ${#_jail} -le "$_status_w_jail" ] || _status_w_jail=${#_jail}
 
 		_cell=$(status_jail_ip4 "$(safe_jailname "$_jail")")
 		[ ${#_cell} -le "$_status_w_ip" ] || _status_w_ip=${#_cell}
 
-		_cell=$(status_jail_ports "$_jail" | sed 's/[0-9][0-9]*/&!/g')
-		[ -n "$_cell" ] || _cell=$(status_observed_ports "$(safe_jailname "$_jail")")
+		_expected=$(status_jail_ports "$_jail")
+		_cell="$(echo "$_expected" | sed 's/[0-9][0-9]*/&!/g') $(status_observed_ports "$(safe_jailname "$_jail")" "$_expected")"
+		_cell="${_cell# }"
+		_cell="${_cell% }"
 		[ ${#_cell} -le "$_status_w_ports" ] || _status_w_ports=${#_cell}
 	done
 }
