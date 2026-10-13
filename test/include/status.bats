@@ -84,7 +84,7 @@ setup() {
   probe_fails() {
     local _j
     for _j in $PROBE_FAIL; do
-      case "$*" in *"$(get_jail_ip4 "$_j"):"*|*"$(get_jail_ip4 "$_j")/"*|"$_j "*|*" $(get_jail_ip4 "$_j")") return 0 ;; esac
+      case "$*" in *"$(get_jail_ip4 "$_j"):"*|*"$(get_jail_ip4 "$_j")/"*|"$_j "*|*" $(get_jail_ip4 "$_j")"|*" $(get_jail_ip4 "$_j") "*) return 0 ;; esac
     done
     return 1
   }
@@ -115,6 +115,18 @@ setup() {
   }
   # get_jail_ip4 falls back to `host <name>`; answering that through
   # probe_fails would call get_jail_ip4 again and fork without end
+  # like FreeBSD's nc, silent when the connection is refused
+  nc() {
+    cat > "$BATS_TEST_TMPDIR/nc.stdin"
+    if probe_fails "$@"; then return 1; fi
+    local _port; eval "_port=\${$#}"
+    case "$_port" in
+      1025)  printf 'A\nA\nX-DCC-dcc1-Metrics: dcc1 1102; Body=0 Fuz1=0 Fuz2=0\n' ;;
+      27017) printf "$MONGODB_REPLY" ;;
+    esac
+  }
+  # an OP_MSG reply holding {ok: 1.0}
+  MONGODB_REPLY='\046\000\000\000\001\000\000\000\001\000\000\000\335\007\000\000\000\000\000\000\000\021\000\000\000\001ok\000\000\000\000\000\000\000\360\077\000'
   host() {
     case "$1" in
       -W) ! probe_fails "$@" ;;
@@ -127,7 +139,17 @@ setup() {
     if probe_fails "$@"; then echo "connect:errno=61"; return 1; fi
     echo "CONNECTION ESTABLISHED"
   }
-  zfs()               { for _d in $DATASETS; do echo "$ZFS_JAIL_VOL/$_d"; done; }
+  zfs() {
+    local _ds; eval "_ds=\${$#}"
+    if [ "$_ds" = "$ZFS_JAIL_VOL" ]; then
+      for _d in $DATASETS; do echo "$ZFS_JAIL_VOL/$_d"; done
+      return
+    fi
+    case " $DATASETS " in
+      *" ${_ds#"$ZFS_JAIL_VOL"/} "*) echo "$_ds" ;;
+      *) echo "cannot open '$_ds': dataset does not exist" >&2; return 1 ;;
+    esac
+  }
   zpool() {
     case "$*" in
       *health*)   echo "$ZPOOL_HEALTH" ;;
@@ -205,7 +227,6 @@ install_cert() {
   assert_success
   assert_line "haraka  ✅"
   refute_output --partial "dovecot"
-  assert_output --partial "MT6 OK - 1 jails"
 }
 
 @test "mt6_status - a named jail outside jail_list is still checked" {
@@ -214,7 +235,7 @@ install_cert() {
   run mt6_status mysql
   assert_success
   assert_line "mysql  ✅"
-  assert_line "  ports  3306"
+  assert_line "  ports     3306"
 }
 
 @test "mt6_status - a port open on the host does not count for a jail" {
@@ -350,13 +371,6 @@ EO_NARROW
   assert_output --partial "INFO: rollback for jails not in jail_list: snappymail"
 }
 
-@test "mt6_status - .last datasets are judged against jail_list, not the jails named" {
-  DATASETS="haraka.last dovecot.last"
-  run mt6_status haraka
-  assert_success
-  refute_output --partial "not in jail_list"
-}
-
 @test "mt6_status - an expiring jail certificate is reported" {
   install_cert 3 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status
@@ -369,9 +383,9 @@ EO_NARROW
   RUNNING="haraka"
   install_cert 365 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status dovecot
-  assert_line "  state  DOWN"
-  assert_line --regexp '^  tls    ok, expires .* GMT$'
-  assert_line "  cert   $ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+  assert_line "  state     DOWN"
+  assert_line --regexp '^  tls       ok, expires .* GMT$'
+  assert_line "  cert      $ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
 }
 
 @test "status_tls_expiry - thresholds" {
@@ -507,6 +521,8 @@ EO_NARROW
   export TOASTER_MAIL_DOMAIN="example.net"
   mkdir -p "$ZFS_DATA_MNT/clamav/db"
   touch "$ZFS_DATA_MNT/clamav/db/daily.cld"
+  mkdir -p "$ZFS_DATA_MNT/geoip/db"
+  touch "$ZFS_DATA_MNT/geoip/db/GeoLite2-Country.mmdb"
 
   run status_probe dns dns 172.16.15.3;                assert_success; assert_output "resolve ok"
   run status_probe dovecot dovecot 172.16.15.6;        assert_success; assert_output "imaps ok"
@@ -518,6 +534,9 @@ EO_NARROW
   run status_probe spamassassin spamassassin 172.16.15.6; assert_success; assert_output "ping ok"
   run status_probe vpopmail vpopmail 172.16.15.8;      assert_success; assert_output "postmaster ok"
   run status_probe clamav clamav 172.16.15.5;          assert_success; assert_output "sigs ok"
+  run status_probe dcc dcc 172.16.15.48;               assert_success; assert_output "query ok"
+  run status_probe geoip geoip 172.16.15.17;           assert_success; assert_output "db ok"
+  run status_probe mongodb mongodb 172.16.15.45;       assert_success; assert_output "ping ok"
   run status_probe elasticsearch elasticsearch 172.16.15.27; assert_success; assert_output "health green"
   run status_probe mail_dmarc mail_dmarc 172.16.15.53; assert_success; assert_output "http ok"
   run status_probe nictool nictool 172.16.15.28;       assert_success; assert_output "http ok"
@@ -527,7 +546,7 @@ EO_NARROW
 }
 
 @test "status_probe - each service failing" {
-  local _all="dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav elasticsearch mail_dmarc nictool roundcube tachyon webmail"
+  local _all="dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav dcc elasticsearch mail_dmarc mongodb nictool roundcube tachyon webmail"
   export JAIL_ORDERED_LIST="syslog base $_all"
   PROBE_FAIL="$_all"
   local _j
@@ -718,12 +737,20 @@ age_days() {
 
 # --- the all-jails table: one mark per jail ---
 
-@test "mt6_status - a TLS warning is not all good" {
+@test "mt6_status - a warning has its own mark" {
   install_cert 10 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status
   assert_failure 1
   assert_line "haraka   172.16.15.5  up     25         ✅"
-  assert_line "dovecot  172.16.15.6  up     993 995    ❌"
+  assert_line "dovecot  172.16.15.6  up     993 995    ⚠️"
+}
+
+@test "mt6_status - a jail with a warning and a critical is critical" {
+  install_cert 10 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+  LISTENING="haraka:25 dovecot:993"
+  run mt6_status
+  assert_failure 2
+  assert_line "dovecot  172.16.15.6  up     993 995!   ❌"
 }
 
 # --- status <jail>: each jail in detail ---
@@ -733,14 +760,32 @@ age_days() {
   run mt6_status haraka
   assert_success
   assert_line "haraka  ✅"
-  assert_line "  state  up, jid 1"
-  assert_line "  ipv4   172.16.15.5"
-  assert_line "  ipv6   fd7a:e5cd:1fc1:403d:dc7c:0005"
-  assert_line "  ports  25 (80)"
-  assert_line "  tls    -"
-  assert_line "  cert   -"
-  assert_line "  probe  starttls ok"
+  assert_line "  state     up, jid 1"
+  assert_line "  ipv4      172.16.15.5"
+  assert_line "  ipv6      fd7a:e5cd:1fc1:403d:dc7c:0005"
+  assert_line "  ports     25 (80)"
+  assert_line "  tls       -"
+  assert_line "  cert      -"
+  assert_line "  probe     starttls ok"
+  assert_line "  rollback  no"
   refute_line --partial "JAIL "
+}
+
+@test "mt6_status <jail> - rollback, in place of the toaster's notes and summary" {
+  DATASETS="haraka haraka.last dovecot dovecot.last stage"
+  run mt6_status haraka
+  assert_success
+  assert_line "  rollback  yes"
+  refute_output --partial "INFO:"
+  refute_output --partial "stage exists"
+  refute_output --partial "MT6 "
+}
+
+@test "mt6_status <jail> - a warning has its own mark" {
+  install_cert 10 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+  run mt6_status dovecot
+  assert_failure 1
+  assert_line "dovecot  ⚠️"
 }
 
 @test "mt6_status <jail> - a failed probe gives its reason" {
@@ -748,7 +793,7 @@ age_days() {
   run mt6_status haraka
   assert_failure 2
   assert_line "haraka  ❌"
-  assert_line "  probe  starttls FAIL: connect:errno=61"
+  assert_line "  probe     starttls FAIL: connect:errno=61"
 }
 
 @test "mt6_status <jail> - a certificate shows its expiry and path" {
@@ -756,22 +801,90 @@ age_days() {
   run mt6_status dovecot
   assert_failure 2
   assert_line "dovecot  ❌"
-  assert_line --regexp '^  tls    <7d, expires .* GMT$'
-  assert_line "  cert   $ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+  assert_line --regexp '^  tls       <7d, expires .* GMT$'
+  assert_line "  cert      $ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
 }
 
 @test "mt6_status <jail> - a closed port is marked and skips the probe" {
   LISTENING="dovecot:993"
   run mt6_status dovecot
   assert_failure 2
-  assert_line "  ports  993 995!"
-  assert_line "  probe  -"
+  assert_line "  ports     993 995!"
+  assert_line "  probe     -"
 }
 
 @test "mt6_status <jail> - several jails, one block each" {
   run mt6_status haraka dovecot
   assert_success
   assert_line --index 1 "haraka  ✅"
-  assert_line --index 9 "dovecot  ✅"
-  assert_output --partial "MT6 OK - 2 jails"
+  assert_line --index 10 "dovecot  ✅"
+}
+
+@test "status_probe_geoip - database age" {
+  local _db="$ZFS_DATA_MNT/geoip/db"
+  mkdir -p "$_db"
+
+  run status_probe geoip geoip 172.16.15.17
+  assert_failure 2
+  assert_output "no db"
+
+  touch "$_db/GeoLite2-Country.mmdb"
+  age_days 20 "$_db/GeoLite2-Country.mmdb"
+  run status_probe geoip geoip 172.16.15.17
+  assert_failure 1
+  assert_output "db >14d"
+
+  age_days 40 "$_db/GeoLite2-Country.mmdb"
+  run status_probe geoip geoip 172.16.15.17
+  assert_failure 2
+  assert_output "db >30d"
+}
+
+@test "status_probe_dcc - queries dccifd without reporting the message" {
+  run status_probe_dcc 172.16.15.48
+  assert_success
+  assert_output "query ok"
+  assert_equal "$(head -1 "$BATS_TEST_TMPDIR/nc.stdin")" "header query"
+}
+
+@test "status_probe_dcc - a reply without an X-DCC header fails" {
+  nc() { cat > /dev/null; echo "T"; }
+  run status_probe_dcc 172.16.15.48
+  assert_failure 2
+  assert_line --index 0 "query FAIL"
+  assert_line --index 1 "T"
+}
+
+@test "status_probe_dcc - no reply" {
+  nc() { cat > /dev/null; return 1; }
+  run status_probe_dcc 172.16.15.48
+  assert_failure 2
+  assert_line --index 1 "no reply from 172.16.15.48:1025"
+}
+
+# message length at byte 0, BSON document length at byte 21
+@test "status_probe_mongodb - the ping is a well formed OP_MSG" {
+  run status_probe_mongodb 172.16.15.45
+  assert_success
+  assert_output "ping ok"
+
+  local _f="$BATS_TEST_TMPDIR/nc.stdin"
+  assert_equal "$(od -An -v -tu4 -j 0 -N 4 "$_f" | tr -d ' ')" "$(wc -c < "$_f" | tr -d ' ')"
+  assert_equal "$(od -An -v -tu4 -j 21 -N 4 "$_f" | tr -d ' ')" "$(($(wc -c < "$_f") - 21))"
+  assert_equal "$(od -An -v -tu4 -j 12 -N 4 "$_f" | tr -d ' ')" "2013"
+}
+
+@test "status_probe_mongodb - a reply with ok 0 fails" {
+  MONGODB_REPLY='\046\000\000\000\001\000\000\000\001\000\000\000\335\007\000\000\000\000\000\000\000\021\000\000\000\001ok\000\000\000\000\000\000\000\000\000\000'
+  run status_probe_mongodb 172.16.15.45
+  assert_failure 2
+  assert_line --index 0 "ping FAIL"
+  assert_line --index 1 "no ok:1 in the reply"
+}
+
+@test "status_probe_mongodb - no reply" {
+  nc() { cat > /dev/null; return 1; }
+  run status_probe_mongodb 172.16.15.45
+  assert_failure 2
+  assert_line --index 1 "no reply from 172.16.15.45:27017"
 }

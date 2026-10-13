@@ -6,6 +6,8 @@ export STATUS_ZPOOL_WARN_PCT=${STATUS_ZPOOL_WARN_PCT:-80}
 export STATUS_ZPOOL_CRIT_PCT=${STATUS_ZPOOL_CRIT_PCT:-90}
 export STATUS_CLAMAV_WARN_DAYS=${STATUS_CLAMAV_WARN_DAYS:-3}
 export STATUS_CLAMAV_CRIT_DAYS=${STATUS_CLAMAV_CRIT_DAYS:-7}
+export STATUS_GEOIP_WARN_DAYS=${STATUS_GEOIP_WARN_DAYS:-14}
+export STATUS_GEOIP_CRIT_DAYS=${STATUS_GEOIP_CRIT_DAYS:-30}
 export STATUS_PROBE_TIMEOUT=${STATUS_PROBE_TIMEOUT:-10}
 
 # Nagios plugin exit codes
@@ -15,6 +17,7 @@ STATUS_CRIT=2
 STATUS_UNKNOWN=3
 
 STATUS_MARK_OK="✅"
+STATUS_MARK_WARN="⚠️"
 STATUS_MARK_FAIL="❌"
 
 status_jail_ports()
@@ -255,6 +258,24 @@ status_probe_elasticsearch()
 	return $STATUS_CRIT
 }
 
+# $1 label, $2 directory, $3 file name pattern, $4 warn days, $5 crit days
+status_probe_age()
+{
+	if [ -z "$(find "$2" -name "$3" 2>/dev/null)" ]; then
+		echo "no $1"; return $STATUS_CRIT
+	fi
+
+	if [ -n "$(find "$2" -name "$3" -mtime -"$4" 2>/dev/null)" ]; then
+		echo "$1 ok"; return $STATUS_OK
+	fi
+
+	if [ -n "$(find "$2" -name "$3" -mtime -"$5" 2>/dev/null)" ]; then
+		echo "$1 >${4}d"; return $STATUS_WARN
+	fi
+
+	echo "$1 >${5}d"; return $STATUS_CRIT
+}
+
 status_probe_clamav()
 {
 	local _ping
@@ -262,20 +283,59 @@ status_probe_clamav()
 		echo "$_ping"; return $STATUS_CRIT
 	fi
 
-	local _db; _db="$(get_jail_data "$1")/db"
-	if [ -z "$(find "$_db" -name 'daily.c[lv]d' 2>/dev/null)" ]; then
-		echo "no sigs"; return $STATUS_CRIT
+	status_probe_age sigs "$(get_jail_data "$1")/db" 'daily.c[lv]d' \
+		"$STATUS_CLAMAV_WARN_DAYS" "$STATUS_CLAMAV_CRIT_DAYS"
+}
+
+# dccifd(8): a line of options, client IP, HELO, sender, then recipients ended
+# by a blank line, then the message. "query" leaves the message out of DCC's
+# counts. dccifd answers once its input ends, hence nc -N.
+status_probe_dcc()
+{
+	local _reply
+	_reply=$(printf 'header query\n\n\n\n\nSubject: mt6 status\n\nprobe\n' \
+		| nc -N -w "$STATUS_PROBE_TIMEOUT" "$1" 1025 2>&1) || true
+
+	if echo "$_reply" | grep -q '^X-DCC-'; then
+		echo "query ok"; return $STATUS_OK
 	fi
 
-	if [ -n "$(find "$_db" -name 'daily.c[lv]d' -mtime -"$STATUS_CLAMAV_WARN_DAYS" 2>/dev/null)" ]; then
-		echo "sigs ok"; return $STATUS_OK
+	echo "query FAIL"
+	if [ -z "$_reply" ]; then
+		echo "no reply from $1:1025"
+	else
+		echo "$_reply" | grep . | tail -1
 	fi
+	return $STATUS_CRIT
+}
 
-	if [ -n "$(find "$_db" -name 'daily.c[lv]d' -mtime -"$STATUS_CLAMAV_CRIT_DAYS" 2>/dev/null)" ]; then
-		echo "sigs >${STATUS_CLAMAV_WARN_DAYS}d"; return $STATUS_WARN
+# FreeBSD's mongodb packages ship no shell, so speak the wire protocol: an
+# OP_MSG (opcode 2013) carrying the BSON document {ping: 1, $db: "admin"}
+status_mongodb_ping_msg()
+{
+	printf '\063\000\000\000\001\000\000\000\000\000\000\000\335\007\000\000'
+	printf '\000\000\000\000\000'
+	printf '\036\000\000\000\020ping\000\001\000\000\000\002$db\000\006\000\000\000admin\000\000'
+}
+
+status_probe_mongodb()
+{
+	local _reply
+	_reply=$(status_mongodb_ping_msg | nc -N -w "$STATUS_PROBE_TIMEOUT" "$1" 27017 2>/dev/null \
+		| od -An -v -tx1 | tr -d ' \n')
+
+	case "$_reply" in
+		# BSON element: type double, name "ok", value 1.0
+		*016f6b00000000000000f03f*) echo "ping ok"; return $STATUS_OK ;;
+	esac
+
+	echo "ping FAIL"
+	if [ -z "$_reply" ]; then
+		echo "no reply from $1:27017"
+	else
+		echo "no ok:1 in the reply"
 	fi
-
-	echo "sigs >${STATUS_CLAMAV_CRIT_DAYS}d"; return $STATUS_CRIT
+	return $STATUS_CRIT
 }
 
 # $1 jail, $2 its name in jls, $3 its first IPv4
@@ -283,12 +343,16 @@ status_probe()
 {
 	case "$1" in
 		clamav)       status_probe_clamav "$2" ;;
+		dcc)          status_probe_dcc "$3" ;;
 		dns)          status_probe_cmd resolve "" host -W 3 "$TOASTER_HOSTNAME" "$3" ;;
 		dovecot)      status_probe_tls imaps -connect "$3:993" ;;
 		elasticsearch) status_probe_elasticsearch "$3" ;;
+		geoip)        status_probe_age db "$(get_jail_data "$2")/db" GeoLite2-Country.mmdb \
+		                  "$STATUS_GEOIP_WARN_DAYS" "$STATUS_GEOIP_CRIT_DAYS" ;;
 		haproxy)      status_probe_tls https -connect "$3:443" ;;
 		haraka)       status_probe_tls starttls -starttls smtp -connect "$3:25" ;;
 		mail_dmarc)   status_probe_http http DMARC "http://$3:8080/" ;;
+		mongodb)      status_probe_mongodb "$3" ;;
 		mysql)        status_probe_cmd ping "" jexec "$2" /usr/local/bin/mysqladmin ping ;;
 		nictool)      status_probe_http http NicTool "http://$3/" ;;
 		redis)        status_probe_cmd ping PONG jexec "$2" /usr/local/bin/redis-cli ping ;;
@@ -392,7 +456,7 @@ status_jail()
 	local _jail="$1" _format="$2"
 	local _safe; _safe=$(safe_jailname "$_jail")
 	local _ip="" _state="DOWN" _ports="" _tls="" _probe="" _why="" _closed=0 _sev
-	local _problems_before=$((_status_warnings + _status_criticals))
+	local _crit_before="$_status_criticals" _warn_before="$_status_warnings"
 
 	if jail_is_running "$_safe"; then
 		_state="up"
@@ -436,8 +500,10 @@ status_jail()
 	fi
 
 	local _mark="$STATUS_MARK_OK"
-	if [ $((_status_warnings + _status_criticals)) -gt "$_problems_before" ]; then
+	if [ "$_status_criticals" -gt "$_crit_before" ]; then
 		_mark="$STATUS_MARK_FAIL"
+	elif [ "$_status_warnings" -gt "$_warn_before" ]; then
+		_mark="$STATUS_MARK_WARN"
 	fi
 
 	if [ "$_format" = row ]; then
@@ -454,6 +520,9 @@ status_jail()
 	local _enddate=""
 	if [ -n "$_cert" ]; then _enddate=$(status_tls_enddate "$_cert"); fi
 
+	local _rollback=no
+	if zfs list -H -o name "$ZFS_JAIL_VOL/$_jail.last" >/dev/null 2>&1; then _rollback=yes; fi
+
 	echo "$_jail  $_mark"
 	status_detail state "$_state"
 	status_detail ipv4 "$_ip"
@@ -462,11 +531,12 @@ status_jail()
 	status_detail tls "$_tls${_enddate:+, expires $_enddate}"
 	status_detail cert "$_cert"
 	status_detail probe "$_probe${_why:+: $_why}"
+	status_detail rollback "$_rollback"
 }
 
 status_detail()
 {
-	printf "  %-5s  %s\n" "$1" "${2:--}"
+	printf "  %-8s  %s\n" "$1" "${2:--}"
 }
 
 # sized before the slow checks run, so each row prints as soon as it is known
@@ -537,12 +607,14 @@ mt6_status()
 		_count=$((_count + 1))
 	done
 
-	status_datasets
+	if [ "$_format" = row ]; then status_datasets; fi
 
 	if [ -n "$_status_notes" ]; then
 		echo
 		printf "%s" "$_status_notes"
 	fi
+
+	if [ "$_format" = detail ]; then return "$_status_worst"; fi
 
 	echo
 	case "$_status_worst" in
