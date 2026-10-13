@@ -60,8 +60,8 @@ install_cert() {
 @test "mt6_status - a healthy toaster is OK" {
   run mt6_status
   assert_success
-  assert_output --partial "haraka         172.16.15.5     up    25"
-  assert_output --partial "dovecot        172.16.15.6     up    993 995"
+  assert_output --partial "haraka   172.16.15.5  up     25       -"
+  assert_output --partial "dovecot  172.16.15.6  up     993 995  -"
   assert_output --partial "pf enabled"
   assert_output --partial "MT6 OK - 2 jails"
 }
@@ -70,7 +70,7 @@ install_cert() {
   RUNNING="haraka"
   run mt6_status
   assert_failure 2
-  assert_output --partial "dovecot        -               DOWN"
+  assert_output --partial "dovecot  -            DOWN   -"
   assert_output --partial "CRITICAL: dovecot is not running"
   assert_output --partial "MT6 CRITICAL - 1 critical, 0 warning"
 }
@@ -83,18 +83,26 @@ install_cert() {
   assert_output --partial "CRITICAL: dovecot is not listening on port 995"
 }
 
-@test "mt6_status - a jail on the wrong IP is a warning" {
-  jls() { echo "172.16.15.99"; }
-  run mt6_status haraka
-  assert_failure 1
-  assert_output --partial "WARNING: haraka has IP 172.16.15.99, expected 172.16.15.5"
-  assert_output --partial "MT6 WARNING - 1 warning"
+@test "mt6_status - an IP the admin chose is not a warning" {
+  host() { echo "should not be called"; }
+  jls() { echo "172.16.16.8,66.128.51.173"; }
+  JAIL_LIST="wordpress vhost0"
+  RUNNING="wordpress vhost0"
+  run mt6_status
+  assert_success
+  assert_output --partial "wordpress  172.16.16.8,66.128.51.173  up"
+  refute_output --partial "should not be called"
 }
 
-@test "mt6_status - a jail with several addresses has the expected one among them" {
-  jls() { echo "172.16.15.5,10.0.0.5"; }
-  run mt6_status haraka
+@test "mt6_status - columns widen to fit long jail names" {
+  JAIL_LIST="ns3.cadillac.net haraka"
+  RUNNING="ns3_cadillac_net haraka"
+  jls() { echo "172.16.16.3"; }
+  run mt6_status
   assert_success
+  assert_line "JAIL              IP           STATE  PORTS  TLS"
+  assert_line "ns3.cadillac.net  172.16.16.3  up     -      -"
+  assert_line "haraka            172.16.16.3  up     25     -"
 }
 
 @test "mt6_status - named jails limit the report" {
@@ -110,7 +118,7 @@ install_cert() {
   LISTENING="3306"
   run mt6_status mysql
   assert_success
-  assert_output --partial "mysql          172.16.15.4     up    3306"
+  assert_output --partial "mysql  172.16.15.4  up     3306"
 }
 
 @test "mt6_status - needs root" {
@@ -174,13 +182,31 @@ install_cert() {
   run mt6_status
   assert_success
   assert_output --partial "INFO: rollback available: haraka.last dovecot.last"
+  refute_output --partial "not in jail_list"
+}
+
+@test "mt6_status - a .last for a jail no longer in jail_list is named apart" {
+  DATASETS="haraka haraka.last snappymail.last ns3.cadillac.net.last"
+  JAIL_LIST="haraka dovecot ns3.cadillac.net"
+  RUNNING="haraka dovecot ns3_cadillac_net"
+  run mt6_status
+  assert_success
+  assert_output --partial "INFO: rollback available: haraka.last ns3.cadillac.net.last"
+  assert_output --partial "INFO: rollback for jails not in jail_list: snappymail.last"
+}
+
+@test "mt6_status - .last datasets are judged against jail_list, not the jails named" {
+  DATASETS="haraka.last dovecot.last"
+  run mt6_status haraka
+  assert_success
+  refute_output --partial "not in jail_list"
 }
 
 @test "mt6_status - an expiring jail certificate is reported" {
   install_cert 3 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status
   assert_failure 2
-  assert_output --partial "993 995                  <7d"
+  assert_line "dovecot  172.16.15.6  up     993 995  <7d"
   assert_output --partial "CRITICAL: dovecot TLS certificate <7d"
 }
 
@@ -188,7 +214,7 @@ install_cert() {
   RUNNING="haraka"
   install_cert 365 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status dovecot
-  assert_output --partial "DOWN                           ok"
+  assert_line "dovecot  -   DOWN   -      ok"
 }
 
 @test "status_tls_expiry - thresholds" {

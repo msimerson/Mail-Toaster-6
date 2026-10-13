@@ -62,7 +62,7 @@ status_enabled_jails()
 
 status_jail_ip4()
 {
-	jls -j "$1" ip4.addr 2>/dev/null | tr ',' ' '
+	jls -j "$1" ip4.addr 2>/dev/null
 }
 
 # where each provisioner installs TOASTER_HOSTNAME's certificate
@@ -155,18 +155,29 @@ status_host()
 
 status_datasets()
 {
-	local _ds _rollback=""
+	local _enabled; _enabled=$(status_enabled_jails)
+	local _ds _name _rollback="" _orphans=""
 
 	for _ds in $(zfs list -H -o name -d 1 "$ZFS_JAIL_VOL" 2>/dev/null); do
-		case "$_ds" in
-			*/stage) status_note $STATUS_WARN "stage exists, a provision failed or is running" ;;
-			*.ready) status_note $STATUS_WARN "${_ds##*/} exists, its promotion failed" ;;
-			*.last)  _rollback="$_rollback ${_ds##*/}" ;;
+		_name="${_ds##*/}"
+		case "$_name" in
+			stage)   status_note $STATUS_WARN "stage exists, a provision failed or is running" ;;
+			*.ready) status_note $STATUS_WARN "$_name exists, its promotion failed" ;;
+			*.last)
+				case " $_enabled " in
+					*" ${_name%.last} "*) _rollback="$_rollback $_name" ;;
+					*)                    _orphans="$_orphans $_name" ;;
+				esac
+				;;
 		esac
 	done
 
 	if [ -n "$_rollback" ]; then
 		status_note $STATUS_OK "rollback available:$_rollback"
+	fi
+
+	if [ -n "$_orphans" ]; then
+		status_note $STATUS_OK "rollback for jails not in jail_list:$_orphans"
 	fi
 }
 
@@ -179,12 +190,6 @@ status_jail()
 	if jail_is_running "$_safe"; then
 		_state="up"
 		_ip=$(status_jail_ip4 "$_safe")
-
-		local _want; _want=$(get_jail_ip4 "$_jail" 2>/dev/null) || _want=""
-		case " $_ip " in
-			*" $_want "*) ;;
-			*) [ -z "$_want" ] || status_note $STATUS_WARN "$_jail has IP $_ip, expected $_want" ;;
-		esac
 
 		local _port
 		for _port in $(status_jail_ports "$_jail"); do
@@ -208,7 +213,29 @@ status_jail()
 		fi
 	fi
 
-	printf "%-14s %-15s %-5s %-24s %s\n" "$_jail" "$_ip" "$_state" "${_ports# }" "$_tls"
+	_status_rows="${_status_rows}$_jail	$_ip	$_state	${_ports# }	$_tls
+"
+}
+
+# tab-separated rows in, columns as wide as their widest cell out
+status_table()
+{
+	printf "%s" "$1" | awk -F '\t' '
+		{
+			for (i = 1; i <= NF; i++) {
+				cell[NR, i] = ($i == "") ? "-" : $i
+				if (length(cell[NR, i]) > width[i]) width[i] = length(cell[NR, i])
+			}
+			if (NF > cols) cols = NF
+			rows = NR
+		}
+		END {
+			for (r = 1; r <= rows; r++) {
+				line = ""
+				for (i = 1; i < cols; i++) line = line sprintf("%-" (width[i] + 2) "s", cell[r, i])
+				print line cell[r, cols]
+			}
+		}'
 }
 
 mt6_status()
@@ -222,6 +249,8 @@ mt6_status()
 	_status_warnings=0
 	_status_criticals=0
 	_status_notes=""
+	_status_rows="JAIL	IP	STATE	PORTS	TLS
+"
 
 	local _jails="$*"
 	if [ -z "$_jails" ]; then _jails=$(status_enabled_jails); fi
@@ -233,13 +262,13 @@ mt6_status()
 
 	status_host
 	echo
-	printf "%-14s %-15s %-5s %-24s %s\n" JAIL IP STATE PORTS TLS
 
 	local _jail _count=0
 	for _jail in $_jails; do
 		status_jail "$_jail"
 		_count=$((_count + 1))
 	done
+	status_table "$_status_rows"
 
 	status_datasets
 
