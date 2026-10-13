@@ -84,7 +84,7 @@ setup() {
     if probe_fails "$@"; then echo "connection refused"; return 1; fi
     case "$2" in
       */redis-cli) echo "PONG" ;;
-      */spamc)     echo "SPAMD/1.5 0 PONG" ;;
+      */spamc)     echo "SPAMD/1.5 0" ;;
     esac
   }
   fetch() {
@@ -210,20 +210,31 @@ install_cert() {
 }
 
 @test "status_load_listeners - reads the port from each address form" {
-  jls() { echo "7 dns"; echo "9 dovecot"; }
-  ps()  { echo "  500 7"; echo "  600 9"; echo "  700 0"; }
+  jls() { echo "7 dns"; echo "9 jasonnoble"; }
+  ps()  { echo "  500 7"; echo "84417 9"; echo "40243 9"; echo "  700 0"; }
   sockstat() {
-    cat <<'EO_SOCKSTAT'
-unbound  unbound    500 3  udp4  172.16.15.3:53        *:*
-unbound  unbound    500 4  tcp46 *:53                  *:*
-root     dovecot    600 20 tcp6  fe80::1%lo0:993       *:*
-root     dovecot    600 21 tcp4  172.16.15.15:995      *:*
-root     sshd       700 3  tcp4  *:22                  *:*
-?        ?          ?   ?  udp4  *:111                 *:*
-EO_SOCKSTAT
+    case " $* " in
+      *" -w "*) cat <<'EO_WIDE'
+unbound    unbound    500   3 udp4  172.16.15.3:53              *:*
+unbound    unbound    500   4 tcp46 *:53                        *:*
+www        httpd      84417 4 tcp6  [2605:ae00:329::11]:80      *:*
+www        httpd      84417 6 tcp6  [2605:ae00:329::11]:443     *:*
+www        httpd      84417 7 tcp4  *:443                       *:*
+root       sshd       40243 6 tcp6  [2605:ae00:329::11]:22      *:*
+root       sshd       700   3 tcp4  *:22                        *:*
+?          ?          ?     ? udp4  *:111                       *:*
+EO_WIDE
+      ;;
+      *) cat <<'EO_NARROW'
+www        httpd      84417  4 tcp6  [2605:ae00:329::11]:8 *:*
+www        httpd      84417  6 tcp6  [2605:ae00:329::11]:4 *:*
+root       sshd       40243  6 tcp6  [2605:ae00:329::11]:2 *:*
+EO_NARROW
+      ;;
+    esac
   }
   status_load_listeners
-  assert_equal "$_status_listeners" "dns:53 dovecot:993 dovecot:995 "
+  assert_equal "$_status_listeners" "dns:53 jasonnoble:22 jasonnoble:443 jasonnoble:80 "
 }
 
 @test "status_load_listeners - no jails running is not an error" {
@@ -425,6 +436,15 @@ EO_SOCKSTAT
   assert_output ""
 }
 
+@test "status_observed_ports - leaves out syslogd's 514" {
+  _status_listeners="geoip:514 vhost0:443 vhost0:514 vhost0:80 "
+  run status_observed_ports vhost0
+  assert_output "(80 443)"
+
+  run status_observed_ports geoip
+  assert_output ""
+}
+
 # --- probes: a short conversation with each service ---
 
 @test "mt6_status - a failed probe is critical" {
@@ -482,7 +502,36 @@ EO_SOCKSTAT
   jexec() { echo "NOAUTH Authentication required"; }
   run status_probe redis redis 172.16.15.16
   assert_failure 2
-  assert_output "ping FAIL"
+  assert_line --index 0 "ping FAIL"
+  assert_line --index 1 "NOAUTH Authentication required"
+}
+
+@test "status_probe - spamd's reply with or without PONG" {
+  jexec() { echo "SPAMD/1.5 0 PONG"; }
+  run status_probe spamassassin spamassassin 172.16.15.6
+  assert_output "ping ok"
+
+  jexec() { echo "SPAMD/1.5 76"; return 76; }
+  run status_probe spamassassin spamassassin 172.16.15.6
+  assert_failure 2
+}
+
+@test "mt6_status - a failed probe says why in its note, not its column" {
+  jexec() { printf 'spamc: connect to spamd on 127.0.0.1 failed\nConnection refused\n'; return 69; }
+  JAIL_LIST="spamassassin"
+  RUNNING="spamassassin"
+  LISTENING="spamassassin:783"
+  run mt6_status
+  assert_failure 2
+  assert_line --partial "up     783    -        ping FAIL"
+  assert_output --partial "CRITICAL: spamassassin ping FAIL: Connection refused"
+}
+
+@test "status_probe - a probe that hangs is cut off" {
+  timeout() { return 124; }
+  run status_probe mysql mysql 172.16.15.4
+  assert_failure 2
+  assert_line --index 1 "no reply within 10s"
 }
 
 @test "status_probe - a jail with no probe says nothing" {

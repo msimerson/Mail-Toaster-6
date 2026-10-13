@@ -69,7 +69,8 @@ status_jail_ip4()
 }
 
 # sockstat walks every socket on the host whatever its filters (~0.5s a call),
-# so take one snapshot and attribute each socket to a jail by its owning PID
+# so take one snapshot and attribute each socket to a jail by its owning PID.
+# Without -w, sockstat truncates IPv6 addresses, and their ports, to 21 chars.
 status_load_listeners()
 {
 	_status_listeners=$(
@@ -78,7 +79,7 @@ status_load_listeners()
 			echo "--"
 			ps -ax -o pid= -o jid=
 			echo "--"
-			sockstat -l -q -4 -6
+			sockstat -w -l -q -4 -6
 		} 2>/dev/null | awk '
 			$1 == "--"   { section++; next }
 			section == 0 { name[$1] = $2; next }
@@ -101,6 +102,8 @@ status_observed_ports()
 	local _l _ports=""
 	for _l in $_status_listeners; do
 		case "$_l" in
+			# every jail's syslogd binds 514 to forward its logs, even with -s
+			"$1":514) ;;
 			"$1":*) _ports="$_ports ${_l#*:}" ;;
 		esac
 	done
@@ -151,38 +154,43 @@ status_tls_expiry()
 	echo "ok"
 }
 
-# $1 label, then s_client args. The reply is never read: with stdin closed,
-# s_client hangs up right after the handshake.
+# $1 label, $2 text the reply must contain ("" for any), then the command.
+# A failure prints a second line, the reason.
+status_probe_cmd()
+{
+	local _label="$1" _expect="$2"; shift 2
+	local _out _rc=0
+
+	_out=$(timeout "$STATUS_PROBE_TIMEOUT" "$@" </dev/null 2>&1) || _rc=$?
+
+	if [ "$_rc" = 0 ] && echo "$_out" | grep -q "$_expect"; then
+		echo "$_label ok"; return $STATUS_OK
+	fi
+
+	echo "$_label FAIL"
+	if [ "$_rc" = 124 ]; then
+		echo "no reply within ${STATUS_PROBE_TIMEOUT}s"
+	else
+		echo "$_out" | grep . | tail -1
+	fi
+	return $STATUS_CRIT
+}
+
+# with stdin closed, s_client hangs up right after the handshake, so the
+# service's greeting is never read
 status_probe_tls()
 {
 	local _label="$1"; shift
-
-	if timeout "$STATUS_PROBE_TIMEOUT" openssl s_client -brief -servername "$TOASTER_HOSTNAME" "$@" </dev/null 2>&1 \
-		| grep -q '^CONNECTION ESTABLISHED'
-	then
-		echo "$_label ok"; return $STATUS_OK
-	fi
-	echo "$_label FAIL"; return $STATUS_CRIT
-}
-
-# $1 jail, $2 label, $3 text the reply must contain ("" for any), then the command
-status_probe_jexec()
-{
-	local _jail="$1" _label="$2" _expect="$3"; shift 3
-	local _out
-
-	if _out=$(timeout "$STATUS_PROBE_TIMEOUT" jexec "$_jail" "$@" 2>&1) \
-		&& echo "$_out" | grep -q "$_expect"
-	then
-		echo "$_label ok"; return $STATUS_OK
-	fi
-	echo "$_label FAIL"; return $STATUS_CRIT
+	status_probe_cmd "$_label" '^CONNECTION ESTABLISHED' \
+		openssl s_client -brief -servername "$TOASTER_HOSTNAME" "$@"
 }
 
 status_probe_clamav()
 {
-	status_probe_jexec "$1" ping "" /usr/local/bin/clamdscan --ping 1 >/dev/null \
-		|| { echo "ping FAIL"; return $STATUS_CRIT; }
+	local _ping
+	if ! _ping=$(status_probe_cmd ping "" jexec "$1" /usr/local/bin/clamdscan --ping 1); then
+		echo "$_ping"; return $STATUS_CRIT
+	fi
 
 	local _db; _db="$(get_jail_data "$1")/db"
 	if [ -z "$(find "$_db" -name 'daily.c[lv]d' 2>/dev/null)" ]; then
@@ -200,37 +208,22 @@ status_probe_clamav()
 	echo "sigs >${STATUS_CLAMAV_CRIT_DAYS}d"; return $STATUS_CRIT
 }
 
-status_probe_rspamd()
-{
-	if timeout "$STATUS_PROBE_TIMEOUT" fetch -T 5 -qo - "http://$1:11334/ping" 2>/dev/null | grep -q pong; then
-		echo "ping ok"; return $STATUS_OK
-	fi
-	echo "ping FAIL"; return $STATUS_CRIT
-}
-
-status_probe_dns()
-{
-	if timeout "$STATUS_PROBE_TIMEOUT" host -W 3 "$TOASTER_HOSTNAME" "$1" >/dev/null 2>&1; then
-		echo "resolve ok"; return $STATUS_OK
-	fi
-	echo "resolve FAIL"; return $STATUS_CRIT
-}
-
 # $1 jail, $2 its name in jls, $3 its first IPv4
 status_probe()
 {
 	case "$1" in
 		clamav)       status_probe_clamav "$2" ;;
-		dns)          status_probe_dns "$3" ;;
+		dns)          status_probe_cmd resolve "" host -W 3 "$TOASTER_HOSTNAME" "$3" ;;
 		dovecot)      status_probe_tls imaps -connect "$3:993" ;;
 		haproxy)      status_probe_tls https -connect "$3:443" ;;
 		haraka)       status_probe_tls starttls -starttls smtp -connect "$3:25" ;;
-		mysql)        status_probe_jexec "$2" ping "" /usr/local/bin/mysqladmin ping ;;
-		redis)        status_probe_jexec "$2" ping PONG /usr/local/bin/redis-cli ping ;;
-		rspamd)       status_probe_rspamd "$3" ;;
-		spamassassin) status_probe_jexec "$2" ping PONG /usr/local/bin/spamc -K ;;
-		vpopmail)     status_probe_jexec "$2" postmaster "" \
-		                  /usr/local/vpopmail/bin/vuserinfo -n "postmaster@$TOASTER_MAIL_DOMAIN" ;;
+		mysql)        status_probe_cmd ping "" jexec "$2" /usr/local/bin/mysqladmin ping ;;
+		redis)        status_probe_cmd ping PONG jexec "$2" /usr/local/bin/redis-cli ping ;;
+		rspamd)       status_probe_cmd ping pong fetch -T 5 -qo - "http://$3:11334/ping" ;;
+		# SPAMD/<protocol> <exit code>, some versions append PONG
+		spamassassin) status_probe_cmd ping '^SPAMD/[0-9.]* 0' jexec "$2" /usr/local/bin/spamc -K ;;
+		vpopmail)     status_probe_cmd postmaster "" \
+		                  jexec "$2" /usr/local/vpopmail/bin/vuserinfo -n "postmaster@$TOASTER_MAIL_DOMAIN" ;;
 	esac
 }
 
@@ -339,7 +332,9 @@ status_jail()
 		if [ "$_closed" = 0 ]; then
 			_sev=0
 			_probe=$(status_probe "$_jail" "$_safe" "${_ip%%,*}") || _sev=$?
-			if [ "$_sev" -gt 0 ]; then status_note "$_sev" "$_jail $_probe"; fi
+			local _why; _why=$(echo "$_probe" | sed -n 2p)
+			_probe=$(echo "$_probe" | sed -n 1p)
+			if [ "$_sev" -gt 0 ]; then status_note "$_sev" "$_jail $_probe${_why:+: $_why}"; fi
 		fi
 	else
 		status_note $STATUS_CRIT "$_jail is not running"
