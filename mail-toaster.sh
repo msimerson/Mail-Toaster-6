@@ -707,7 +707,7 @@ install_sentry()
 
 provision_mt6()
 {
-	for _j in host base dns mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube snappymail mailtest; do
+	for _j in host base dns mysql redis clamav dcc geoip vpopmail rspamd spamassassin dovecot haraka haproxy webmail roundcube tachyon mailtest; do
 		fetch_and_exec "$_j" || break
 	done
 }
@@ -748,7 +748,7 @@ provision()
 
 	case "$1" in
 		host) fetch_and_exec "$1"; return;;
-		web)  for _j in haproxy webmail roundcube snappymail; do fetch_and_exec "$_j"; done
+		web)  for _j in haproxy webmail roundcube tachyon; do fetch_and_exec "$_j"; done
 			return;;
 		mt6)  provision_mt6; return;;
 	esac
@@ -763,6 +763,12 @@ provision()
 	fi
 
 	fetch_and_exec "$1"
+}
+
+status()
+{
+	mt6-include status
+	mt6_status "$@"
 }
 
 unprovision_last()

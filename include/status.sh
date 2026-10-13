@@ -1,0 +1,259 @@
+#!/bin/sh
+
+export STATUS_TLS_WARN_DAYS=${STATUS_TLS_WARN_DAYS:-14}
+export STATUS_TLS_CRIT_DAYS=${STATUS_TLS_CRIT_DAYS:-7}
+export STATUS_ZPOOL_WARN_PCT=${STATUS_ZPOOL_WARN_PCT:-80}
+export STATUS_ZPOOL_CRIT_PCT=${STATUS_ZPOOL_CRIT_PCT:-90}
+
+# Nagios plugin exit codes
+STATUS_OK=0
+STATUS_WARN=1
+STATUS_CRIT=2
+STATUS_UNKNOWN=3
+
+# keep in sync with the ports each provision/<jail>.sh test_<jail>() checks
+status_jail_ports()
+{
+	case "$1" in
+		bsd_cache|git|nginx|nictool|roundcube|snappymail|sqwebmail|tachyon)
+			echo "80" ;;
+		clamav)         echo "3310" ;;
+		dcc)            echo "1025" ;;
+		dhcp)           echo "68" ;;
+		dns|knot|nsd|tinydns) echo "53" ;;
+		dovecot)        echo "993 995" ;;
+		elasticsearch)  echo "9200 5601" ;;
+		ghost)          echo "2368" ;;
+		haproxy)        echo "443" ;;
+		haraka|postfix) echo "25" ;;
+		home-assistant) echo "8123" ;;
+		influxdb)       echo "8086" ;;
+		jekyll)         echo "4000" ;;
+		mail_dmarc)     echo "8080" ;;
+		mailman)        echo "25 8001" ;;
+		memcached)      echo "11211" ;;
+		minecraft)      echo "25565" ;;
+		mongodb)        echo "27017" ;;
+		mysql)          echo "3306" ;;
+		prometheus)     echo "9090 9094" ;;
+		redis)          echo "6379" ;;
+		rspamd)         echo "11334" ;;
+		spamassassin)   echo "783" ;;
+		stalwart)       echo "993" ;;
+		vpopmail)       echo "25 80 89 8998" ;;
+		webmail)
+			if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+				echo "80 443"
+			else
+				echo "80"
+			fi
+			;;
+		wildduck)       echo "24 25 587 993 995 2525 3000 8080 8082" ;;
+		zonemta)        echo "2525 8082" ;;
+	esac
+}
+
+status_enabled_jails()
+{
+	# jail_list has no default in /etc/defaults/rc.conf, so sysrc can't
+	# mistake a base system value for one the admin set
+	sysrc -n jail_list 2>/dev/null || true
+}
+
+status_jail_ip4()
+{
+	jls -j "$1" ip4.addr 2>/dev/null | tr ',' ' '
+}
+
+# where each provisioner installs TOASTER_HOSTNAME's certificate
+status_jail_cert()
+{
+	local _data; _data=$(get_jail_data "$1")
+	local _f
+
+	for _f in \
+		"$_data/etc/tls/certs/$TOASTER_HOSTNAME.pem" \
+		"$_data/etc/tls.d/$TOASTER_HOSTNAME.pem" \
+		"$_data/config/tls/$TOASTER_HOSTNAME.pem" \
+		"$_data/config/tls_cert.pem"
+	do
+		if [ -f "$_f" ]; then
+			echo "$_f"
+			return
+		fi
+	done
+}
+
+status_tls_expiry()
+{
+	if ! openssl x509 -in "$1" -noout >/dev/null 2>&1; then
+		echo "invalid"; return $STATUS_CRIT
+	fi
+
+	if ! openssl x509 -in "$1" -noout -checkend 0 >/dev/null 2>&1; then
+		echo "expired"; return $STATUS_CRIT
+	fi
+
+	if ! openssl x509 -in "$1" -noout -checkend $((STATUS_TLS_CRIT_DAYS * 86400)) >/dev/null 2>&1; then
+		echo "<${STATUS_TLS_CRIT_DAYS}d"; return $STATUS_CRIT
+	fi
+
+	if ! openssl x509 -in "$1" -noout -checkend $((STATUS_TLS_WARN_DAYS * 86400)) >/dev/null 2>&1; then
+		echo "<${STATUS_TLS_WARN_DAYS}d"; return $STATUS_WARN
+	fi
+
+	echo "ok"
+}
+
+status_note()
+{
+	local _label
+	case "$1" in
+		"$STATUS_OK")   _label="INFO" ;;
+		"$STATUS_WARN") _label="WARNING" ;;
+		"$STATUS_CRIT") _label="CRITICAL" ;;
+		*)              _label="UNKNOWN" ;;
+	esac
+
+	case "$1" in
+		"$STATUS_WARN") _status_warnings=$((_status_warnings + 1)) ;;
+		"$STATUS_CRIT") _status_criticals=$((_status_criticals + 1)) ;;
+	esac
+
+	if [ "$1" -gt "$_status_worst" ]; then _status_worst="$1"; fi
+
+	_status_notes="${_status_notes}$_label: $2
+"
+}
+
+status_host()
+{
+	local _pool="${ZFS_VOL%%/*}"
+	local _health; _health=$(zpool list -H -o health "$_pool" 2>/dev/null) || _health=""
+	local _cap; _cap=$(zpool list -H -o capacity "$_pool" 2>/dev/null) || _cap=""
+	_cap="${_cap%\%}"
+
+	if [ -z "$_health" ]; then
+		_health="missing"; _cap="?"
+		status_note $STATUS_CRIT "zpool $_pool not found"
+	elif [ "$_health" != "ONLINE" ]; then
+		status_note $STATUS_CRIT "zpool $_pool is $_health"
+	elif [ "$_cap" -ge "$STATUS_ZPOOL_CRIT_PCT" ]; then
+		status_note $STATUS_CRIT "zpool $_pool is ${_cap}% full"
+	elif [ "$_cap" -ge "$STATUS_ZPOOL_WARN_PCT" ]; then
+		status_note $STATUS_WARN "zpool $_pool is ${_cap}% full"
+	fi
+
+	local _pf="enabled"
+	if ! pfctl -s info 2>/dev/null | grep -q '^Status: Enabled'; then
+		_pf="DISABLED"
+		status_note $STATUS_CRIT "pf is not enabled, jails have no NAT or port redirects"
+	fi
+
+	echo "$TOASTER_HOSTNAME  FreeBSD $(freebsd-version -u 2>/dev/null)  mt6 $(mt6_version)  zpool $_pool $_health ${_cap}%  pf $_pf"
+}
+
+status_datasets()
+{
+	local _ds _rollback=""
+
+	for _ds in $(zfs list -H -o name -d 1 "$ZFS_JAIL_VOL" 2>/dev/null); do
+		case "$_ds" in
+			*/stage) status_note $STATUS_WARN "stage exists, a provision failed or is running" ;;
+			*.ready) status_note $STATUS_WARN "${_ds##*/} exists, its promotion failed" ;;
+			*.last)  _rollback="$_rollback ${_ds##*/}" ;;
+		esac
+	done
+
+	if [ -n "$_rollback" ]; then
+		status_note $STATUS_OK "rollback available:$_rollback"
+	fi
+}
+
+status_jail()
+{
+	local _jail="$1"
+	local _safe; _safe=$(safe_jailname "$_jail")
+	local _ip="-" _state="DOWN" _ports="" _tls="-"
+
+	if jail_is_running "$_safe"; then
+		_state="up"
+		_ip=$(status_jail_ip4 "$_safe")
+
+		local _want; _want=$(get_jail_ip4 "$_jail" 2>/dev/null) || _want=""
+		case " $_ip " in
+			*" $_want "*) ;;
+			*) [ -z "$_want" ] || status_note $STATUS_WARN "$_jail has IP $_ip, expected $_want" ;;
+		esac
+
+		local _port
+		for _port in $(status_jail_ports "$_jail"); do
+			if port_is_listening "$_port" "$_safe"; then
+				_ports="$_ports $_port"
+			else
+				_ports="$_ports $_port!"
+				status_note $STATUS_CRIT "$_jail is not listening on port $_port"
+			fi
+		done
+	else
+		status_note $STATUS_CRIT "$_jail is not running"
+	fi
+
+	local _cert; _cert=$(status_jail_cert "$_jail")
+	if [ -n "$_cert" ]; then
+		local _sev=0
+		_tls=$(status_tls_expiry "$_cert") || _sev=$?
+		if [ "$_sev" -gt 0 ]; then
+			status_note "$_sev" "$_jail TLS certificate $_tls: $_cert"
+		fi
+	fi
+
+	printf "%-14s %-15s %-5s %-24s %s\n" "$_jail" "$_ip" "$_state" "${_ports# }" "$_tls"
+}
+
+mt6_status()
+{
+	if [ "$(id -u)" != "0" ]; then
+		echo "status: run as root"
+		return $STATUS_UNKNOWN
+	fi
+
+	_status_worst=$STATUS_OK
+	_status_warnings=0
+	_status_criticals=0
+	_status_notes=""
+
+	local _jails="$*"
+	if [ -z "$_jails" ]; then _jails=$(status_enabled_jails); fi
+
+	if [ -z "$_jails" ]; then
+		echo "UNKNOWN: no jails in jail_list"
+		return $STATUS_UNKNOWN
+	fi
+
+	status_host
+	echo
+	printf "%-14s %-15s %-5s %-24s %s\n" JAIL IP STATE PORTS TLS
+
+	local _jail _count=0
+	for _jail in $_jails; do
+		status_jail "$_jail"
+		_count=$((_count + 1))
+	done
+
+	status_datasets
+
+	if [ -n "$_status_notes" ]; then
+		echo
+		printf "%s" "$_status_notes"
+	fi
+
+	echo
+	case "$_status_worst" in
+		"$STATUS_OK")   echo "MT6 OK - $_count jails" ;;
+		"$STATUS_WARN") echo "MT6 WARNING - $_status_warnings warning" ;;
+		*)              echo "MT6 CRITICAL - $_status_criticals critical, $_status_warnings warning" ;;
+	esac
+
+	return "$_status_worst"
+}
