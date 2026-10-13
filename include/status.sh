@@ -14,6 +14,9 @@ STATUS_WARN=1
 STATUS_CRIT=2
 STATUS_UNKNOWN=3
 
+STATUS_MARK_OK="✅"
+STATUS_MARK_FAIL="❌"
+
 status_jail_ports()
 {
 	local _ports; _ports=$(status_service_ports "$1")
@@ -176,6 +179,11 @@ status_tls_expiry()
 	fi
 
 	echo "ok"
+}
+
+status_tls_enddate()
+{
+	openssl x509 -in "$1" -noout -enddate 2>/dev/null | sed 's/^notAfter=//'
 }
 
 # $1 label, $2 text the reply must contain ("" for any), then the command.
@@ -352,7 +360,7 @@ status_host()
 status_datasets()
 {
 	local _enabled; _enabled=$(status_enabled_jails)
-	local _ds _name _rollback="" _orphans=""
+	local _ds _name _jail _rollback="" _orphans=""
 
 	for _ds in $(zfs list -H -o name -d 1 "$ZFS_JAIL_VOL" 2>/dev/null); do
 		_name="${_ds##*/}"
@@ -360,9 +368,10 @@ status_datasets()
 			stage)   status_note $STATUS_WARN "stage exists, a provision failed or is running" ;;
 			*.ready) status_note $STATUS_WARN "$_name exists, its promotion failed" ;;
 			*.last)
+				_jail="${_name%.last}"
 				case " $_enabled " in
-					*" ${_name%.last} "*) _rollback="$_rollback $_name" ;;
-					*)                    _orphans="$_orphans $_name" ;;
+					*" $_jail "*) _rollback="$_rollback $_jail" ;;
+					*)            _orphans="$_orphans $_jail" ;;
 				esac
 				;;
 		esac
@@ -377,11 +386,13 @@ status_datasets()
 	fi
 }
 
+# $1 jail, $2 "row" for the all-jails table, "detail" for the jail in full
 status_jail()
 {
-	local _jail="$1"
+	local _jail="$1" _format="$2"
 	local _safe; _safe=$(safe_jailname "$_jail")
-	local _ip="" _state="DOWN" _ports="" _tls="" _probe="" _closed=0 _sev
+	local _ip="" _state="DOWN" _ports="" _tls="" _probe="" _why="" _closed=0 _sev
+	local _problems_before=$((_status_warnings + _status_criticals))
 
 	if jail_is_running "$_safe"; then
 		_state="up"
@@ -407,7 +418,7 @@ status_jail()
 		if [ "$_closed" = 0 ]; then
 			_sev=0
 			_probe=$(status_probe "$_jail" "$_safe" "${_ip%%,*}") || _sev=$?
-			local _why; _why=$(echo "$_probe" | sed -n 2p)
+			_why=$(echo "$_probe" | sed -n 2p)
 			_probe=$(echo "$_probe" | sed -n 1p)
 			if [ "$_sev" -gt 0 ]; then status_note "$_sev" "$_jail $_probe${_why:+: $_why}"; fi
 		fi
@@ -424,7 +435,38 @@ status_jail()
 		fi
 	fi
 
-	status_row "$_jail" "$_ip" "$_state" "$_ports" "$_tls" "$_probe"
+	local _mark="$STATUS_MARK_OK"
+	if [ $((_status_warnings + _status_criticals)) -gt "$_problems_before" ]; then
+		_mark="$STATUS_MARK_FAIL"
+	fi
+
+	if [ "$_format" = row ]; then
+		status_row "$_jail" "$_ip" "$_state" "$_ports" "$_mark"
+		return
+	fi
+
+	local _ip6=""
+	if [ "$_state" = up ]; then
+		_state="up, jid $(jls -j "$_safe" jid 2>/dev/null)"
+		_ip6=$(jls -j "$_safe" ip6.addr 2>/dev/null) || _ip6=""
+	fi
+
+	local _enddate=""
+	if [ -n "$_cert" ]; then _enddate=$(status_tls_enddate "$_cert"); fi
+
+	echo "$_jail  $_mark"
+	status_detail state "$_state"
+	status_detail ipv4 "$_ip"
+	status_detail ipv6 "$_ip6"
+	status_detail ports "$_ports"
+	status_detail tls "$_tls${_enddate:+, expires $_enddate}"
+	status_detail cert "$_cert"
+	status_detail probe "$_probe${_why:+: $_why}"
+}
+
+status_detail()
+{
+	printf "  %-5s  %s\n" "$1" "${2:--}"
 }
 
 # sized before the slow checks run, so each row prints as soon as it is known
@@ -451,8 +493,8 @@ status_column_widths()
 
 status_row()
 {
-	printf "%-${_status_w_jail}s  %-${_status_w_ip}s  %-5s  %-${_status_w_ports}s  %-7s  %s\n" \
-		"$1" "${2:--}" "$3" "${4:--}" "${5:--}" "${6:--}"
+	printf "%-${_status_w_jail}s  %-${_status_w_ip}s  %-5s  %-${_status_w_ports}s  %s\n" \
+		"$1" "${2:--}" "$3" "${4:--}" "$5"
 }
 
 mt6_status()
@@ -467,8 +509,11 @@ mt6_status()
 	_status_criticals=0
 	_status_notes=""
 
-	local _jails="$*"
-	if [ -z "$_jails" ]; then _jails=$(status_enabled_jails); fi
+	local _jails="$*" _format=detail
+	if [ -z "$_jails" ]; then
+		_jails=$(status_enabled_jails)
+		_format=row
+	fi
 
 	if [ -z "$_jails" ]; then
 		echo "UNKNOWN: no jails in jail_list"
@@ -476,16 +521,19 @@ mt6_status()
 	fi
 
 	status_host
-	echo
-
 	status_load_listeners
-	# shellcheck disable=SC2086
-	status_column_widths $_jails
-	status_row JAIL IP STATE PORTS TLS PROBE
+
+	if [ "$_format" = row ]; then
+		echo
+		# shellcheck disable=SC2086
+		status_column_widths $_jails
+		status_row JAIL IP STATE PORTS HEALTH
+	fi
 
 	local _jail _count=0
 	for _jail in $_jails; do
-		status_jail "$_jail"
+		if [ "$_format" = detail ]; then echo; fi
+		status_jail "$_jail" "$_format"
 		_count=$((_count + 1))
 	done
 

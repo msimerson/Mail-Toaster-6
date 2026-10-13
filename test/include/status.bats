@@ -16,6 +16,7 @@ setup() {
 
   export JAIL_NET_PREFIX="172.16.15"
   export JAIL_NET_START=1
+  export JAIL_NET6="fd7a:e5cd:1fc1:403d:dc7c"
   export JAIL_ORDERED_LIST="syslog base dns mysql haraka dovecot"
   export ZFS_VOL="zroot"
   export ZFS_JAIL_VOL="zroot/jails"
@@ -49,7 +50,15 @@ setup() {
       jid) local _n=0 _j
            for _j in $RUNNING; do _n=$((_n + 1)); echo "$_n $_j"; done ;;
       -j)  jail_is_running "$2" || return 1
-           if [ -n "$JAIL_IP" ]; then echo "$JAIL_IP"; else get_jail_ip4 "$2"; fi ;;
+           case "$3" in
+             jid) local _n=0 _j
+                  for _j in $RUNNING; do
+                    _n=$((_n + 1))
+                    case "$_j" in "$2") echo "$_n" ;; esac
+                  done ;;
+             ip6.addr) get_jail_ip6 "$2" ;;
+             *) if [ -n "$JAIL_IP" ]; then echo "$JAIL_IP"; else get_jail_ip4 "$2"; fi ;;
+           esac ;;
     esac
   }
   ps() {
@@ -135,8 +144,9 @@ install_cert() {
 @test "mt6_status - a healthy toaster is OK" {
   run mt6_status
   assert_success
-  assert_line "haraka   172.16.15.5  up     25         -        starttls ok"
-  assert_line "dovecot  172.16.15.6  up     993 995    -        imaps ok"
+  assert_line "JAIL     IP           STATE  PORTS      HEALTH"
+  assert_line "haraka   172.16.15.5  up     25         ✅"
+  assert_line "dovecot  172.16.15.6  up     993 995    ✅"
   assert_output --partial "pf enabled"
   assert_output --partial "MT6 OK - 2 jails"
 }
@@ -155,7 +165,7 @@ install_cert() {
   RUNNING="haraka"
   run mt6_status
   assert_failure 2
-  assert_output --partial "dovecot  -            DOWN   -"
+  assert_line "dovecot  -            DOWN   -          ❌"
   assert_output --partial "CRITICAL: dovecot is not running"
   assert_output --partial "MT6 CRITICAL - 1 critical, 0 warning"
 }
@@ -185,15 +195,15 @@ install_cert() {
   JAIL_IP="172.16.16.3"
   run mt6_status
   assert_success
-  assert_line "JAIL              IP           STATE  PORTS  TLS      PROBE"
-  assert_line "ns3.cadillac.net  172.16.16.3  up     -      -        -"
-  assert_line "haraka            172.16.16.3  up     25     -        starttls ok"
+  assert_line "JAIL              IP           STATE  PORTS  HEALTH"
+  assert_line "ns3.cadillac.net  172.16.16.3  up     -      ✅"
+  assert_line "haraka            172.16.16.3  up     25     ✅"
 }
 
 @test "mt6_status - named jails limit the report" {
   run mt6_status haraka
   assert_success
-  assert_output --partial "haraka "
+  assert_line "haraka  ✅"
   refute_output --partial "dovecot"
   assert_output --partial "MT6 OK - 1 jails"
 }
@@ -203,7 +213,8 @@ install_cert() {
   LISTENING="mysql:3306"
   run mt6_status mysql
   assert_success
-  assert_output --partial "mysql  172.16.15.4  up     3306"
+  assert_line "mysql  ✅"
+  assert_line "  ports  3306"
 }
 
 @test "mt6_status - a port open on the host does not count for a jail" {
@@ -325,7 +336,7 @@ EO_NARROW
   DATASETS="haraka haraka.last dovecot dovecot.last"
   run mt6_status
   assert_success
-  assert_output --partial "INFO: rollback available: haraka.last dovecot.last"
+  assert_output --partial "INFO: rollback available: haraka dovecot"
   refute_output --partial "not in jail_list"
 }
 
@@ -335,8 +346,8 @@ EO_NARROW
   RUNNING="haraka dovecot ns3_cadillac_net"
   run mt6_status
   assert_success
-  assert_output --partial "INFO: rollback available: haraka.last ns3.cadillac.net.last"
-  assert_output --partial "INFO: rollback for jails not in jail_list: snappymail.last"
+  assert_output --partial "INFO: rollback available: haraka ns3.cadillac.net"
+  assert_output --partial "INFO: rollback for jails not in jail_list: snappymail"
 }
 
 @test "mt6_status - .last datasets are judged against jail_list, not the jails named" {
@@ -350,7 +361,7 @@ EO_NARROW
   install_cert 3 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status
   assert_failure 2
-  assert_line "dovecot  172.16.15.6  up     993 995    <7d      imaps ok"
+  assert_line "dovecot  172.16.15.6  up     993 995    ❌"
   assert_output --partial "CRITICAL: dovecot TLS certificate <7d"
 }
 
@@ -358,7 +369,9 @@ EO_NARROW
   RUNNING="haraka"
   install_cert 365 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status dovecot
-  assert_line "dovecot  -   DOWN   -          ok       -"
+  assert_line "  state  DOWN"
+  assert_line --regexp '^  tls    ok, expires .* GMT$'
+  assert_line "  cert   $ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
 }
 
 @test "status_tls_expiry - thresholds" {
@@ -434,7 +447,7 @@ EO_NARROW
   LISTENING="haraka:25 vhost0:443 vhost0:80 vhost0:22"
   run mt6_status
   assert_success
-  assert_line "vhost0  -            up     (22 80 443)  -        -"
+  assert_line "vhost0  -            up     (22 80 443)  ✅"
   refute_output --partial "vhost0 is not listening"
 }
 
@@ -443,8 +456,8 @@ EO_NARROW
   RUNNING="haraka vhost0"
   LISTENING="haraka:25 vhost0:21 vhost0:22 vhost0:25 vhost0:80 vhost0:443 vhost0:8080"
   run mt6_status
-  assert_line "JAIL    IP           STATE  PORTS                   TLS      PROBE"
-  assert_line "haraka  172.16.15.5  up     25                      -        starttls ok"
+  assert_line "JAIL    IP           STATE  PORTS                   HEALTH"
+  assert_line "haraka  172.16.15.5  up     25                      ✅"
 }
 
 @test "status_observed_ports - only the named jail, in numeric order" {
@@ -471,14 +484,14 @@ EO_NARROW
   PROBE_FAIL="haraka"
   run mt6_status
   assert_failure 2
-  assert_line --partial "haraka   172.16.15.5  up     25         -        starttls FAIL"
+  assert_line "haraka   172.16.15.5  up     25         ❌"
   assert_output --partial "CRITICAL: haraka starttls FAIL"
 }
 
 @test "mt6_status - no probe once a port is known closed" {
   LISTENING="haraka:25 dovecot:993"
   run mt6_status
-  assert_line "dovecot  172.16.15.6  up     993 995!   -        -"
+  assert_line "dovecot  172.16.15.6  up     993 995!   ❌"
   run grep -c "15.6:993" "$BATS_TEST_TMPDIR/s_client.calls"
   assert_output "0"
 }
@@ -550,7 +563,7 @@ EO_NARROW
   LISTENING="spamassassin:783"
   run mt6_status
   assert_failure 2
-  assert_line --partial "up     783    -        ping FAIL"
+  assert_line --partial "up     783    ❌"
   assert_output --partial "CRITICAL: spamassassin ping FAIL: Connection refused"
 }
 
@@ -628,8 +641,8 @@ age_days() {
   LISTENING="haraka:25 haraka:465 haraka:587 haraka:80 haraka:514 dovecot:993 dovecot:995"
   run mt6_status
   assert_success
-  assert_line "haraka   172.16.15.5  up     25 465 587 (80)     -        starttls ok"
-  assert_line "dovecot  172.16.15.6  up     993 995             -        imaps ok"
+  assert_line "haraka   172.16.15.5  up     25 465 587 (80)     ✅"
+  assert_line "dovecot  172.16.15.6  up     993 995             ✅"
 }
 
 @test "status_probe - a web page without its app's marker fails" {
@@ -701,4 +714,64 @@ age_days() {
   assert_failure 2
   assert_line --index 0 "health FAIL"
   assert_line --index 1 "fetch: https://$_ip:9200/_cluster/health: Connection refused"
+}
+
+# --- the all-jails table: one mark per jail ---
+
+@test "mt6_status - a TLS warning is not all good" {
+  install_cert 10 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+  run mt6_status
+  assert_failure 1
+  assert_line "haraka   172.16.15.5  up     25         ✅"
+  assert_line "dovecot  172.16.15.6  up     993 995    ❌"
+}
+
+# --- status <jail>: each jail in detail ---
+
+@test "mt6_status <jail> - a healthy jail in detail" {
+  LISTENING="haraka:25 haraka:80 dovecot:993 dovecot:995"
+  run mt6_status haraka
+  assert_success
+  assert_line "haraka  ✅"
+  assert_line "  state  up, jid 1"
+  assert_line "  ipv4   172.16.15.5"
+  assert_line "  ipv6   fd7a:e5cd:1fc1:403d:dc7c:0005"
+  assert_line "  ports  25 (80)"
+  assert_line "  tls    -"
+  assert_line "  cert   -"
+  assert_line "  probe  starttls ok"
+  refute_line --partial "JAIL "
+}
+
+@test "mt6_status <jail> - a failed probe gives its reason" {
+  PROBE_FAIL="haraka"
+  run mt6_status haraka
+  assert_failure 2
+  assert_line "haraka  ❌"
+  assert_line "  probe  starttls FAIL: connect:errno=61"
+}
+
+@test "mt6_status <jail> - a certificate shows its expiry and path" {
+  install_cert 3 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+  run mt6_status dovecot
+  assert_failure 2
+  assert_line "dovecot  ❌"
+  assert_line --regexp '^  tls    <7d, expires .* GMT$'
+  assert_line "  cert   $ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
+}
+
+@test "mt6_status <jail> - a closed port is marked and skips the probe" {
+  LISTENING="dovecot:993"
+  run mt6_status dovecot
+  assert_failure 2
+  assert_line "  ports  993 995!"
+  assert_line "  probe  -"
+}
+
+@test "mt6_status <jail> - several jails, one block each" {
+  run mt6_status haraka dovecot
+  assert_success
+  assert_line --index 1 "haraka  ✅"
+  assert_line --index 9 "dovecot  ✅"
+  assert_output --partial "MT6 OK - 2 jails"
 }
