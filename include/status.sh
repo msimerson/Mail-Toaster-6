@@ -4,6 +4,9 @@ export STATUS_TLS_WARN_DAYS=${STATUS_TLS_WARN_DAYS:-14}
 export STATUS_TLS_CRIT_DAYS=${STATUS_TLS_CRIT_DAYS:-7}
 export STATUS_ZPOOL_WARN_PCT=${STATUS_ZPOOL_WARN_PCT:-80}
 export STATUS_ZPOOL_CRIT_PCT=${STATUS_ZPOOL_CRIT_PCT:-90}
+export STATUS_CLAMAV_WARN_DAYS=${STATUS_CLAMAV_WARN_DAYS:-3}
+export STATUS_CLAMAV_CRIT_DAYS=${STATUS_CLAMAV_CRIT_DAYS:-7}
+export STATUS_PROBE_TIMEOUT=${STATUS_PROBE_TIMEOUT:-10}
 
 # Nagios plugin exit codes
 STATUS_OK=0
@@ -93,6 +96,21 @@ status_port_listening()
 	return 1
 }
 
+status_observed_ports()
+{
+	local _l _ports=""
+	for _l in $_status_listeners; do
+		case "$_l" in
+			"$1":*) _ports="$_ports ${_l#*:}" ;;
+		esac
+	done
+
+	if [ -n "$_ports" ]; then
+		# shellcheck disable=SC2086
+		echo "($(printf '%s\n' $_ports | sort -n | paste -s -d ' ' -))"
+	fi
+}
+
 # where each provisioner installs TOASTER_HOSTNAME's certificate
 status_jail_cert()
 {
@@ -131,6 +149,89 @@ status_tls_expiry()
 	fi
 
 	echo "ok"
+}
+
+# $1 label, then s_client args. The reply is never read: with stdin closed,
+# s_client hangs up right after the handshake.
+status_probe_tls()
+{
+	local _label="$1"; shift
+
+	if timeout "$STATUS_PROBE_TIMEOUT" openssl s_client -brief -servername "$TOASTER_HOSTNAME" "$@" </dev/null 2>&1 \
+		| grep -q '^CONNECTION ESTABLISHED'
+	then
+		echo "$_label ok"; return $STATUS_OK
+	fi
+	echo "$_label FAIL"; return $STATUS_CRIT
+}
+
+# $1 jail, $2 label, $3 text the reply must contain ("" for any), then the command
+status_probe_jexec()
+{
+	local _jail="$1" _label="$2" _expect="$3"; shift 3
+	local _out
+
+	if _out=$(timeout "$STATUS_PROBE_TIMEOUT" jexec "$_jail" "$@" 2>&1) \
+		&& echo "$_out" | grep -q "$_expect"
+	then
+		echo "$_label ok"; return $STATUS_OK
+	fi
+	echo "$_label FAIL"; return $STATUS_CRIT
+}
+
+status_probe_clamav()
+{
+	status_probe_jexec "$1" ping "" /usr/local/bin/clamdscan --ping 1 >/dev/null \
+		|| { echo "ping FAIL"; return $STATUS_CRIT; }
+
+	local _db; _db="$(get_jail_data "$1")/db"
+	if [ -z "$(find "$_db" -name 'daily.c[lv]d' 2>/dev/null)" ]; then
+		echo "no sigs"; return $STATUS_CRIT
+	fi
+
+	if [ -n "$(find "$_db" -name 'daily.c[lv]d' -mtime -"$STATUS_CLAMAV_WARN_DAYS" 2>/dev/null)" ]; then
+		echo "sigs ok"; return $STATUS_OK
+	fi
+
+	if [ -n "$(find "$_db" -name 'daily.c[lv]d' -mtime -"$STATUS_CLAMAV_CRIT_DAYS" 2>/dev/null)" ]; then
+		echo "sigs >${STATUS_CLAMAV_WARN_DAYS}d"; return $STATUS_WARN
+	fi
+
+	echo "sigs >${STATUS_CLAMAV_CRIT_DAYS}d"; return $STATUS_CRIT
+}
+
+status_probe_rspamd()
+{
+	if timeout "$STATUS_PROBE_TIMEOUT" fetch -T 5 -qo - "http://$1:11334/ping" 2>/dev/null | grep -q pong; then
+		echo "ping ok"; return $STATUS_OK
+	fi
+	echo "ping FAIL"; return $STATUS_CRIT
+}
+
+status_probe_dns()
+{
+	if timeout "$STATUS_PROBE_TIMEOUT" host -W 3 "$TOASTER_HOSTNAME" "$1" >/dev/null 2>&1; then
+		echo "resolve ok"; return $STATUS_OK
+	fi
+	echo "resolve FAIL"; return $STATUS_CRIT
+}
+
+# $1 jail, $2 its name in jls, $3 its first IPv4
+status_probe()
+{
+	case "$1" in
+		clamav)       status_probe_clamav "$2" ;;
+		dns)          status_probe_dns "$3" ;;
+		dovecot)      status_probe_tls imaps -connect "$3:993" ;;
+		haproxy)      status_probe_tls https -connect "$3:443" ;;
+		haraka)       status_probe_tls starttls -starttls smtp -connect "$3:25" ;;
+		mysql)        status_probe_jexec "$2" ping "" /usr/local/bin/mysqladmin ping ;;
+		redis)        status_probe_jexec "$2" ping PONG /usr/local/bin/redis-cli ping ;;
+		rspamd)       status_probe_rspamd "$3" ;;
+		spamassassin) status_probe_jexec "$2" ping PONG /usr/local/bin/spamc -K ;;
+		vpopmail)     status_probe_jexec "$2" postmaster "" \
+		                  /usr/local/vpopmail/bin/vuserinfo -n "postmaster@$TOASTER_MAIL_DOMAIN" ;;
+	esac
 }
 
 status_note()
@@ -213,35 +314,47 @@ status_jail()
 {
 	local _jail="$1"
 	local _safe; _safe=$(safe_jailname "$_jail")
-	local _ip="-" _state="DOWN" _ports="" _tls="-"
+	local _ip="" _state="DOWN" _ports="" _tls="" _probe="" _closed=0 _sev
 
 	if jail_is_running "$_safe"; then
 		_state="up"
 		_ip=$(status_jail_ip4 "$_safe")
 
+		local _expected; _expected=$(status_jail_ports "$_jail")
+		if [ -z "$_expected" ]; then
+			_ports=$(status_observed_ports "$_safe")
+		fi
+
 		local _port
-		for _port in $(status_jail_ports "$_jail"); do
+		for _port in $_expected; do
 			if status_port_listening "$_safe" "$_port"; then
 				_ports="$_ports $_port"
 			else
 				_ports="$_ports $_port!"
+				_closed=1
 				status_note $STATUS_CRIT "$_jail is not listening on port $_port"
 			fi
 		done
+
+		if [ "$_closed" = 0 ]; then
+			_sev=0
+			_probe=$(status_probe "$_jail" "$_safe" "${_ip%%,*}") || _sev=$?
+			if [ "$_sev" -gt 0 ]; then status_note "$_sev" "$_jail $_probe"; fi
+		fi
 	else
 		status_note $STATUS_CRIT "$_jail is not running"
 	fi
 
 	local _cert; _cert=$(status_jail_cert "$_jail")
 	if [ -n "$_cert" ]; then
-		local _sev=0
+		_sev=0
 		_tls=$(status_tls_expiry "$_cert") || _sev=$?
 		if [ "$_sev" -gt 0 ]; then
 			status_note "$_sev" "$_jail TLS certificate $_tls: $_cert"
 		fi
 	fi
 
-	status_row "$_jail" "$_ip" "$_state" "${_ports# }" "$_tls"
+	status_row "$_jail" "$_ip" "$_state" "${_ports# }" "$_tls" "$_probe"
 }
 
 # sized before the slow checks run, so each row prints as soon as it is known
@@ -259,14 +372,15 @@ status_column_widths()
 		[ ${#_cell} -le "$_status_w_ip" ] || _status_w_ip=${#_cell}
 
 		_cell=$(status_jail_ports "$_jail" | sed 's/[0-9][0-9]*/&!/g')
+		[ -n "$_cell" ] || _cell=$(status_observed_ports "$(safe_jailname "$_jail")")
 		[ ${#_cell} -le "$_status_w_ports" ] || _status_w_ports=${#_cell}
 	done
 }
 
 status_row()
 {
-	printf "%-${_status_w_jail}s  %-${_status_w_ip}s  %-5s  %-${_status_w_ports}s  %s\n" \
-		"$1" "${2:--}" "$3" "${4:--}" "$5"
+	printf "%-${_status_w_jail}s  %-${_status_w_ip}s  %-5s  %-${_status_w_ports}s  %-7s  %s\n" \
+		"$1" "${2:--}" "$3" "${4:--}" "${5:--}" "${6:--}"
 }
 
 mt6_status()
@@ -292,10 +406,10 @@ mt6_status()
 	status_host
 	echo
 
+	status_load_listeners
 	# shellcheck disable=SC2086
 	status_column_widths $_jails
-	status_load_listeners
-	status_row JAIL IP STATE PORTS TLS
+	status_row JAIL IP STATE PORTS TLS PROBE
 
 	local _jail _count=0
 	for _jail in $_jails; do

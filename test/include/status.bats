@@ -32,6 +32,7 @@ setup() {
   RUNNING="haraka dovecot"
   LISTENING="haraka:25 dovecot:993 dovecot:995"
   JAIL_IP=""
+  PROBE_FAIL=""
   DATASETS=""
   ZPOOL_HEALTH="ONLINE"
   ZPOOL_CAP="41%"
@@ -69,6 +70,34 @@ setup() {
     done
   }
   pfctl()             { echo "Status: $PF_STATUS for 3 days 01:02:03"; }
+
+  # each probe answers as a healthy service would, unless its jail is in PROBE_FAIL
+  probe_fails() {
+    local _j
+    for _j in $PROBE_FAIL; do
+      case "$*" in *"$(get_jail_ip4 "$_j"):"*|"$_j "*|*" $(get_jail_ip4 "$_j")") return 0 ;; esac
+    done
+    return 1
+  }
+  timeout() { shift; "$@"; }
+  jexec() {
+    if probe_fails "$@"; then echo "connection refused"; return 1; fi
+    case "$2" in
+      */redis-cli) echo "PONG" ;;
+      */spamc)     echo "SPAMD/1.5 0 PONG" ;;
+    esac
+  }
+  fetch() {
+    if probe_fails "$@"; then return 1; fi
+    echo "{\"pong\"}"
+  }
+  host() { ! probe_fails "$@"; }
+  openssl() {
+    if [ "$1" != "s_client" ]; then command openssl "$@"; return; fi
+    echo "s_client $*" >> "$BATS_TEST_TMPDIR/s_client.calls"
+    if probe_fails "$@"; then echo "connect:errno=61"; return 1; fi
+    echo "CONNECTION ESTABLISHED"
+  }
   zfs()               { for _d in $DATASETS; do echo "$ZFS_JAIL_VOL/$_d"; done; }
   zpool() {
     case "$*" in
@@ -86,8 +115,8 @@ install_cert() {
 @test "mt6_status - a healthy toaster is OK" {
   run mt6_status
   assert_success
-  assert_line "haraka   172.16.15.5  up     25         -"
-  assert_line "dovecot  172.16.15.6  up     993 995    -"
+  assert_line "haraka   172.16.15.5  up     25         -        starttls ok"
+  assert_line "dovecot  172.16.15.6  up     993 995    -        imaps ok"
   assert_output --partial "pf enabled"
   assert_output --partial "MT6 OK - 2 jails"
 }
@@ -136,9 +165,9 @@ install_cert() {
   JAIL_IP="172.16.16.3"
   run mt6_status
   assert_success
-  assert_line "JAIL              IP           STATE  PORTS  TLS"
-  assert_line "ns3.cadillac.net  172.16.16.3  up     -      -"
-  assert_line "haraka            172.16.16.3  up     25     -"
+  assert_line "JAIL              IP           STATE  PORTS  TLS      PROBE"
+  assert_line "ns3.cadillac.net  172.16.16.3  up     -      -        -"
+  assert_line "haraka            172.16.16.3  up     25     -        starttls ok"
 }
 
 @test "mt6_status - named jails limit the report" {
@@ -290,7 +319,7 @@ EO_SOCKSTAT
   install_cert 3 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status
   assert_failure 2
-  assert_line "dovecot  172.16.15.6  up     993 995    <7d"
+  assert_line "dovecot  172.16.15.6  up     993 995    <7d      imaps ok"
   assert_output --partial "CRITICAL: dovecot TLS certificate <7d"
 }
 
@@ -298,7 +327,7 @@ EO_SOCKSTAT
   RUNNING="haraka"
   install_cert 365 "$ZFS_DATA_MNT/dovecot/etc/tls/certs/$TOASTER_HOSTNAME.pem"
   run mt6_status dovecot
-  assert_line "dovecot  -   DOWN   -          ok"
+  assert_line "dovecot  -   DOWN   -          ok       -"
 }
 
 @test "status_tls_expiry - thresholds" {
@@ -364,4 +393,135 @@ EO_SOCKSTAT
     done
   done
   [ -z "$_missing" ] || fail "status_jail_ports lacks:$_missing"
+}
+
+# --- ports seen on jails status has no expectations for ---
+
+@test "mt6_status - a jail without expected ports shows what it listens on" {
+  JAIL_LIST="haraka vhost0"
+  RUNNING="haraka vhost0"
+  LISTENING="haraka:25 vhost0:443 vhost0:80 vhost0:22"
+  run mt6_status
+  assert_success
+  assert_line "vhost0  -            up     (22 80 443)  -        -"
+  refute_output --partial "vhost0 is not listening"
+}
+
+@test "mt6_status - observed ports widen the column" {
+  JAIL_LIST="haraka vhost0"
+  RUNNING="haraka vhost0"
+  LISTENING="haraka:25 vhost0:21 vhost0:22 vhost0:25 vhost0:80 vhost0:443 vhost0:8080"
+  run mt6_status
+  assert_line "JAIL    IP           STATE  PORTS                   TLS      PROBE"
+  assert_line "haraka  172.16.15.5  up     25                      -        starttls ok"
+}
+
+@test "status_observed_ports - only the named jail, in numeric order" {
+  _status_listeners="dovecot:993 vhost0:443 vhost0:80 vhost0:8080 vhost:25 "
+  run status_observed_ports vhost0
+  assert_output "(80 443 8080)"
+
+  run status_observed_ports nothing
+  assert_output ""
+}
+
+# --- probes: a short conversation with each service ---
+
+@test "mt6_status - a failed probe is critical" {
+  PROBE_FAIL="haraka"
+  run mt6_status
+  assert_failure 2
+  assert_line --partial "haraka   172.16.15.5  up     25         -        starttls FAIL"
+  assert_output --partial "CRITICAL: haraka starttls FAIL"
+}
+
+@test "mt6_status - no probe once a port is known closed" {
+  LISTENING="haraka:25 dovecot:993"
+  run mt6_status
+  assert_line "dovecot  172.16.15.6  up     993 995!   -        -"
+  run grep -c "15.6:993" "$BATS_TEST_TMPDIR/s_client.calls"
+  assert_output "0"
+}
+
+@test "mt6_status - no probe for a stopped jail" {
+  RUNNING="haraka"
+  run mt6_status
+  run grep -c "15.6" "$BATS_TEST_TMPDIR/s_client.calls"
+  assert_output "0"
+}
+
+@test "status_probe - each service answers" {
+  export TOASTER_MAIL_DOMAIN="example.net"
+  mkdir -p "$ZFS_DATA_MNT/clamav/db"
+  touch "$ZFS_DATA_MNT/clamav/db/daily.cld"
+
+  run status_probe dns dns 172.16.15.3;                assert_success; assert_output "resolve ok"
+  run status_probe dovecot dovecot 172.16.15.6;        assert_success; assert_output "imaps ok"
+  run status_probe haproxy haproxy 172.16.15.12;       assert_success; assert_output "https ok"
+  run status_probe haraka haraka 172.16.15.5;          assert_success; assert_output "starttls ok"
+  run status_probe mysql mysql 172.16.15.4;            assert_success; assert_output "ping ok"
+  run status_probe redis redis 172.16.15.16;           assert_success; assert_output "ping ok"
+  run status_probe rspamd rspamd 172.16.15.13;         assert_success; assert_output "ping ok"
+  run status_probe spamassassin spamassassin 172.16.15.6; assert_success; assert_output "ping ok"
+  run status_probe vpopmail vpopmail 172.16.15.8;      assert_success; assert_output "postmaster ok"
+  run status_probe clamav clamav 172.16.15.5;          assert_success; assert_output "sigs ok"
+}
+
+@test "status_probe - each service failing" {
+  export JAIL_ORDERED_LIST="$JAIL_ORDERED_LIST clamav redis rspamd spamassassin vpopmail haproxy"
+  PROBE_FAIL="dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav"
+  local _j
+  for _j in dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav; do
+    run status_probe "$_j" "$_j" "$(get_jail_ip4 "$_j")"
+    assert_failure 2
+    assert_output --partial "FAIL"
+  done
+}
+
+@test "status_probe - a reply without the expected text fails" {
+  jexec() { echo "NOAUTH Authentication required"; }
+  run status_probe redis redis 172.16.15.16
+  assert_failure 2
+  assert_output "ping FAIL"
+}
+
+@test "status_probe - a jail with no probe says nothing" {
+  run status_probe vhost0 vhost0 172.16.16.14
+  assert_success
+  assert_output ""
+}
+
+@test "status_probe - the TLS probes never wait on stdin" {
+  openssl() { [ "$1" = s_client ] && cat > /dev/null && echo "CONNECTION ESTABLISHED"; }
+  run status_probe dovecot dovecot 172.16.15.6
+  assert_output "imaps ok"
+}
+
+age_days() {
+  perl -e '$t = time - $ARGV[0] * 86400; utime $t, $t, $ARGV[1]' "$1" "$2"
+}
+
+@test "status_probe_clamav - signature age" {
+  local _db="$ZFS_DATA_MNT/clamav/db"
+  mkdir -p "$_db"
+
+  run status_probe_clamav clamav
+  assert_failure 2
+  assert_output "no sigs"
+
+  touch "$_db/daily.cvd"
+  age_days 5 "$_db/daily.cvd"
+  run status_probe_clamav clamav
+  assert_failure 1
+  assert_output "sigs >3d"
+
+  age_days 10 "$_db/daily.cvd"
+  run status_probe_clamav clamav
+  assert_failure 2
+  assert_output "sigs >7d"
+
+  touch "$_db/daily.cld"
+  run status_probe_clamav clamav
+  assert_success
+  assert_output "sigs ok"
 }

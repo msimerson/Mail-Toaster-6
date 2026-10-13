@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
-- mt: status reports each enabled jail's state, IP, ports, and TLS expiry
+- mt: status reports each enabled jail's state, IP, ports, TLS expiry, and service health
 - elasticsearch, unifi: mount fdescfs and procfs via jail params
 - haproxy: remove OCSP stapling, Let's Encrypt ended OCSP
 - tls: shared cert installer, private keys no longer world-readable
