@@ -75,7 +75,7 @@ setup() {
   probe_fails() {
     local _j
     for _j in $PROBE_FAIL; do
-      case "$*" in *"$(get_jail_ip4 "$_j"):"*|"$_j "*|*" $(get_jail_ip4 "$_j")") return 0 ;; esac
+      case "$*" in *"$(get_jail_ip4 "$_j"):"*|*"$(get_jail_ip4 "$_j")/"*|"$_j "*|*" $(get_jail_ip4 "$_j")") return 0 ;; esac
     done
     return 1
   }
@@ -87,9 +87,18 @@ setup() {
       */spamc)     echo "SPAMD/1.5 0" ;;
     esac
   }
+  ES_HEALTH="green"
   fetch() {
-    if probe_fails "$@"; then return 1; fi
-    echo "{\"pong\"}"
+    if probe_fails "$@"; then echo "fetch: $5: Connection refused"; return 1; fi
+    case "$5" in
+      *:11334/ping)       echo '{"pong"}' ;;
+      *:9200/_cluster/health)
+        echo "{\"cluster_name\":\"elasticsearch\",\"status\":\"$ES_HEALTH\",\"timed_out\":false}" ;;
+      */tachyon/)         echo '<script src="/tachyon/v/2.38.2/static/js/app.js"></script>' ;;
+      */roundcube/)       echo 'var rcmail = new rcube_webmail();' ;;
+      *:8080/)            echo '<title>Mail::DMARC</title>' ;;
+      *)                  echo '<html><title>NicTool</title></html>' ;;
+    esac
   }
   host() { ! probe_fails "$@"; }
   openssl() {
@@ -485,13 +494,20 @@ EO_NARROW
   run status_probe spamassassin spamassassin 172.16.15.6; assert_success; assert_output "ping ok"
   run status_probe vpopmail vpopmail 172.16.15.8;      assert_success; assert_output "postmaster ok"
   run status_probe clamav clamav 172.16.15.5;          assert_success; assert_output "sigs ok"
+  run status_probe elasticsearch elasticsearch 172.16.15.27; assert_success; assert_output "health green"
+  run status_probe mail_dmarc mail_dmarc 172.16.15.53; assert_success; assert_output "http ok"
+  run status_probe nictool nictool 172.16.15.28;       assert_success; assert_output "http ok"
+  run status_probe roundcube roundcube 172.16.15.33;   assert_success; assert_output "http ok"
+  run status_probe tachyon tachyon 172.16.15.71;       assert_success; assert_output "http ok"
+  run status_probe webmail webmail 172.16.15.10;       assert_success; assert_output "http ok"
 }
 
 @test "status_probe - each service failing" {
-  export JAIL_ORDERED_LIST="$JAIL_ORDERED_LIST clamav redis rspamd spamassassin vpopmail haproxy"
-  PROBE_FAIL="dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav"
+  local _all="dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav elasticsearch mail_dmarc nictool roundcube tachyon webmail"
+  export JAIL_ORDERED_LIST="syslog base $_all"
+  PROBE_FAIL="$_all"
   local _j
-  for _j in dns dovecot haproxy haraka mysql redis rspamd spamassassin vpopmail clamav; do
+  for _j in $_all; do
     run status_probe "$_j" "$_j" "$(get_jail_ip4 "$_j")"
     assert_failure 2
     assert_output --partial "FAIL"
@@ -603,4 +619,48 @@ age_days() {
   assert_success
   assert_line "haraka   172.16.15.5  up     25 465 587 (80)     -        starttls ok"
   assert_line "dovecot  172.16.15.6  up     993 995             -        imaps ok"
+}
+
+@test "status_probe - a web page without its app's marker fails" {
+  fetch() { echo '<html>It works!</html>'; }
+  run status_probe roundcube roundcube 172.16.15.33
+  assert_failure 2
+  assert_line --index 0 "http FAIL"
+}
+
+@test "status_probe - an HTTP error says what fetch said" {
+  fetch() { echo "fetch: http://172.16.15.71/tachyon/: Not Found"; return 1; }
+  run status_probe tachyon tachyon 172.16.15.71
+  assert_failure 2
+  assert_line --index 1 "fetch: http://172.16.15.71/tachyon/: Not Found"
+}
+
+@test "status_probe - webmail behind nginx is probed over TLS" {
+  TOASTER_WEBMAIL_PROXY="nginx" run status_probe webmail webmail 172.16.15.10
+  assert_output "https ok"
+  run grep -c "172.16.15.10:443" "$BATS_TEST_TMPDIR/s_client.calls"
+  assert_output "1"
+}
+
+@test "status_probe_elasticsearch - cluster health" {
+  ES_HEALTH="yellow"
+  run status_probe_elasticsearch 172.16.15.27
+  assert_success
+  assert_output "health yellow"
+
+  ES_HEALTH="red"
+  run status_probe_elasticsearch 172.16.15.27
+  assert_failure 2
+  assert_output "health red"
+
+  fetch() { echo '{"error":"unexpected"}'; }
+  run status_probe_elasticsearch 172.16.15.27
+  assert_failure 2
+  assert_line --index 0 "health FAIL"
+  assert_line --index 1 '{"error":"unexpected"}'
+
+  timeout() { return 124; }
+  run status_probe_elasticsearch 172.16.15.27
+  assert_failure 2
+  assert_line --index 1 "no reply within 10s"
 }

@@ -209,6 +209,33 @@ status_probe_tls()
 		openssl s_client -brief -servername "$TOASTER_HOSTNAME" "$@"
 }
 
+status_probe_http()
+{
+	local _label="$1" _expect="$2" _url="$3"
+	status_probe_cmd "$_label" "$_expect" fetch -T 5 -qo - "$_url"
+}
+
+status_probe_elasticsearch()
+{
+	local _out _rc=0
+	_out=$(timeout "$STATUS_PROBE_TIMEOUT" fetch -T 5 -qo - "http://$1:9200/_cluster/health" </dev/null 2>&1) || _rc=$?
+
+	case "$(echo "$_out" | sed -n 's/.*"status" *: *"\([a-z]*\)".*/\1/p')" in
+		# a single node has nowhere to place replicas, so yellow is its healthy
+		green)  echo "health green"; return $STATUS_OK ;;
+		yellow) echo "health yellow"; return $STATUS_OK ;;
+		red)    echo "health red"; return $STATUS_CRIT ;;
+	esac
+
+	echo "health FAIL"
+	if [ "$_rc" = 124 ]; then
+		echo "no reply within ${STATUS_PROBE_TIMEOUT}s"
+	else
+		echo "$_out" | grep . | tail -1
+	fi
+	return $STATUS_CRIT
+}
+
 status_probe_clamav()
 {
 	local _ping
@@ -239,15 +266,27 @@ status_probe()
 		clamav)       status_probe_clamav "$2" ;;
 		dns)          status_probe_cmd resolve "" host -W 3 "$TOASTER_HOSTNAME" "$3" ;;
 		dovecot)      status_probe_tls imaps -connect "$3:993" ;;
+		elasticsearch) status_probe_elasticsearch "$3" ;;
 		haproxy)      status_probe_tls https -connect "$3:443" ;;
 		haraka)       status_probe_tls starttls -starttls smtp -connect "$3:25" ;;
+		mail_dmarc)   status_probe_http http DMARC "http://$3:8080/" ;;
 		mysql)        status_probe_cmd ping "" jexec "$2" /usr/local/bin/mysqladmin ping ;;
+		nictool)      status_probe_http http NicTool "http://$3/" ;;
 		redis)        status_probe_cmd ping PONG jexec "$2" /usr/local/bin/redis-cli ping ;;
-		rspamd)       status_probe_cmd ping pong fetch -T 5 -qo - "http://$3:11334/ping" ;;
+		roundcube)    status_probe_http http rcube_webmail "http://$3/roundcube/" ;;
+		rspamd)       status_probe_http ping pong "http://$3:11334/ping" ;;
 		# SPAMD/<protocol> <exit code>, some versions append PONG
 		spamassassin) status_probe_cmd ping '^SPAMD/[0-9.]* 0' jexec "$2" /usr/local/bin/spamc -K ;;
+		tachyon)      status_probe_http http 'tachyon/v/' "http://$3/tachyon/" ;;
 		vpopmail)     status_probe_cmd postmaster "" \
 		                  jexec "$2" /usr/local/vpopmail/bin/vuserinfo -n "postmaster@$TOASTER_MAIL_DOMAIN" ;;
+		webmail)
+			if [ "$TOASTER_WEBMAIL_PROXY" = "nginx" ]; then
+				status_probe_tls https -connect "$3:443"
+			else
+				status_probe_http http "" "http://$3/"
+			fi
+			;;
 	esac
 }
 
@@ -392,7 +431,7 @@ status_column_widths()
 		[ ${#_cell} -le "$_status_w_ip" ] || _status_w_ip=${#_cell}
 
 		_expected=$(status_jail_ports "$_jail")
-		_cell="$(echo "$_expected" | sed 's/[0-9][0-9]*/&!/g') $(status_observed_ports "$(safe_jailname "$_jail")" "$_expected")"
+		_cell="$(status_jail_ports "$_jail" | sed 's/[0-9][0-9]*/&!/g') $(status_observed_ports "$(safe_jailname "$_jail")" "$_expected")"
 		_cell="${_cell# }"
 		_cell="${_cell% }"
 		[ ${#_cell} -le "$_status_w_ports" ] || _status_w_ports=${#_cell}
