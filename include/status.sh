@@ -65,6 +65,34 @@ status_jail_ip4()
 	jls -j "$1" ip4.addr 2>/dev/null || true
 }
 
+# sockstat walks every socket on the host whatever its filters (~0.5s a call),
+# so take one snapshot and attribute each socket to a jail by its owning PID
+status_load_listeners()
+{
+	_status_listeners=$(
+		{
+			jls jid name
+			echo "--"
+			ps -ax -o pid= -o jid=
+			echo "--"
+			sockstat -l -q -4 -6
+		} 2>/dev/null | awk '
+			$1 == "--"   { section++; next }
+			section == 0 { name[$1] = $2; next }
+			section == 1 { if ($2 in name) jail[$1] = name[$2]; next }
+			$3 in jail   { n = split($6, addr, ":"); print jail[$3] ":" addr[n] }
+		' | sort -u | tr '\n' ' '
+	)
+}
+
+status_port_listening()
+{
+	case " $_status_listeners " in
+		*" $1:$2 "*) return 0 ;;
+	esac
+	return 1
+}
+
 # where each provisioner installs TOASTER_HOSTNAME's certificate
 status_jail_cert()
 {
@@ -193,7 +221,7 @@ status_jail()
 
 		local _port
 		for _port in $(status_jail_ports "$_jail"); do
-			if port_is_listening "$_port" "$_safe"; then
+			if status_port_listening "$_safe" "$_port"; then
 				_ports="$_ports $_port"
 			else
 				_ports="$_ports $_port!"
@@ -266,6 +294,7 @@ mt6_status()
 
 	# shellcheck disable=SC2086
 	status_column_widths $_jails
+	status_load_listeners
 	status_row JAIL IP STATE PORTS TLS
 
 	local _jail _count=0

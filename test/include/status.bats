@@ -30,7 +30,8 @@ setup() {
   CERTS="$BATS_FILE_TMPDIR/certs"
   JAIL_LIST="haraka dovecot"
   RUNNING="haraka dovecot"
-  LISTENING="25 993 995"
+  LISTENING="haraka:25 dovecot:993 dovecot:995"
+  JAIL_IP=""
   DATASETS=""
   ZPOOL_HEALTH="ONLINE"
   ZPOOL_CAP="41%"
@@ -40,8 +41,33 @@ setup() {
   sysrc()             { echo "$JAIL_LIST"; }
   freebsd-version()   { echo "14.3-RELEASE-p2"; }
   jail_is_running()   { case " $RUNNING " in *" $1 "*) return 0 ;; esac; return 1; }
-  jls()               { jail_is_running "$2" && get_jail_ip4 "$2"; }
-  port_is_listening() { case " $LISTENING " in *" $1 "*) return 0 ;; esac; return 1; }
+
+  # jail N in RUNNING has jid N and its daemon runs as pid 1000+N
+  jls() {
+    case "$1" in
+      jid) local _n=0 _j
+           for _j in $RUNNING; do _n=$((_n + 1)); echo "$_n $_j"; done ;;
+      -j)  jail_is_running "$2" || return 1
+           if [ -n "$JAIL_IP" ]; then echo "$JAIL_IP"; else get_jail_ip4 "$2"; fi ;;
+    esac
+  }
+  ps() {
+    echo "    1    0"
+    local _n=0 _j
+    for _j in $RUNNING; do _n=$((_n + 1)); echo " $((1000 + _n)) $_n"; done
+  }
+  sockstat() {
+    echo "root     sendmail   1 4  tcp4  127.0.0.1:25          *:*"
+    local _n=0 _j _l
+    for _j in $RUNNING; do
+      _n=$((_n + 1))
+      for _l in $LISTENING; do
+        if [ "${_l%%:*}" = "$_j" ]; then
+          echo "root     daemon     $((1000 + _n)) 5  tcp46 *:${_l#*:}                  *:*"
+        fi
+      done
+    done
+  }
   pfctl()             { echo "Status: $PF_STATUS for 3 days 01:02:03"; }
   zfs()               { for _d in $DATASETS; do echo "$ZFS_JAIL_VOL/$_d"; done; }
   zpool() {
@@ -67,7 +93,7 @@ install_cert() {
 }
 
 @test "mt6_status - each row prints before the next jail is checked" {
-  port_is_listening() { echo "checking $2:$1"; }
+  status_port_listening() { echo "checking $1:$2"; }
   run mt6_status
   assert_success
   assert_line --index 1 --partial "JAIL"
@@ -86,7 +112,7 @@ install_cert() {
 }
 
 @test "mt6_status - a port nobody listens on is critical" {
-  LISTENING="25 993"
+  LISTENING="haraka:25 dovecot:993"
   run mt6_status
   assert_failure 2
   assert_output --partial "993 995!"
@@ -95,7 +121,7 @@ install_cert() {
 
 @test "mt6_status - an IP the admin chose is not a warning" {
   host() { echo "should not be called"; }
-  jls() { echo "172.16.16.8,66.128.51.173"; }
+  JAIL_IP="172.16.16.8,66.128.51.173"
   JAIL_LIST="wordpress vhost0"
   RUNNING="wordpress vhost0"
   run mt6_status
@@ -107,7 +133,7 @@ install_cert() {
 @test "mt6_status - columns widen to fit long jail names" {
   JAIL_LIST="ns3.cadillac.net haraka"
   RUNNING="ns3_cadillac_net haraka"
-  jls() { echo "172.16.16.3"; }
+  JAIL_IP="172.16.16.3"
   run mt6_status
   assert_success
   assert_line "JAIL              IP           STATE  PORTS  TLS"
@@ -125,10 +151,58 @@ install_cert() {
 
 @test "mt6_status - a named jail outside jail_list is still checked" {
   RUNNING="haraka dovecot mysql"
-  LISTENING="3306"
+  LISTENING="mysql:3306"
   run mt6_status mysql
   assert_success
   assert_output --partial "mysql  172.16.15.4  up     3306"
+}
+
+@test "mt6_status - a port open on the host does not count for a jail" {
+  LISTENING="dovecot:993 dovecot:995"
+  run mt6_status haraka
+  assert_failure 2
+  assert_output --partial "CRITICAL: haraka is not listening on port 25"
+}
+
+@test "mt6_status - a port open in another jail does not count" {
+  LISTENING="dovecot:25 dovecot:993 dovecot:995"
+  run mt6_status haraka
+  assert_failure 2
+  assert_output --partial "CRITICAL: haraka is not listening on port 25"
+}
+
+@test "mt6_status - sockstat runs once, however many jails" {
+  JAIL_LIST="haraka dovecot mysql dns"
+  RUNNING="haraka dovecot mysql dns"
+  eval "_real_$(declare -f sockstat)"
+  sockstat() { echo x >> "$BATS_TEST_TMPDIR/sockstat.calls"; _real_sockstat; }
+  run mt6_status
+  assert_equal "$(wc -l < "$BATS_TEST_TMPDIR/sockstat.calls" | tr -d ' ')" 1
+}
+
+@test "status_load_listeners - reads the port from each address form" {
+  jls() { echo "7 dns"; echo "9 dovecot"; }
+  ps()  { echo "  500 7"; echo "  600 9"; echo "  700 0"; }
+  sockstat() {
+    cat <<'EO_SOCKSTAT'
+unbound  unbound    500 3  udp4  172.16.15.3:53        *:*
+unbound  unbound    500 4  tcp46 *:53                  *:*
+root     dovecot    600 20 tcp6  fe80::1%lo0:993       *:*
+root     dovecot    600 21 tcp4  172.16.15.15:995      *:*
+root     sshd       700 3  tcp4  *:22                  *:*
+?        ?          ?   ?  udp4  *:111                 *:*
+EO_SOCKSTAT
+  }
+  status_load_listeners
+  assert_equal "$_status_listeners" "dns:53 dovecot:993 dovecot:995 "
+}
+
+@test "status_load_listeners - no jails running is not an error" {
+  jls() { return 1; }
+  ps() { echo "  700 0"; }
+  sockstat() { echo "root sshd 700 3 tcp4 *:22 *:*"; }
+  status_load_listeners
+  assert_equal "$_status_listeners" ""
 }
 
 @test "mt6_status - needs root" {
