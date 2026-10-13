@@ -121,7 +121,7 @@ setup() {
     if probe_fails "$@"; then return 1; fi
     local _port; eval "_port=\${$#}"
     case "$_port" in
-      1025)  printf 'A\nA\nX-DCC-dcc1-Metrics: dcc1 1102; Body=0 Fuz1=0 Fuz2=0\n' ;;
+      1025)  printf 'A\n\n' ;;
       27017) printf "$MONGODB_REPLY" ;;
     esac
   }
@@ -844,10 +844,20 @@ age_days() {
   run status_probe_dcc 172.16.15.48
   assert_success
   assert_output "query ok"
-  assert_equal "$(head -1 "$BATS_TEST_TMPDIR/nc.stdin")" "header query"
+  assert_equal "$(head -1 "$BATS_TEST_TMPDIR/nc.stdin")" "query"
 }
 
-@test "status_probe_dcc - a reply without an X-DCC header fails" {
+@test "status_probe_dcc - each verdict passes" {
+  local _v
+  for _v in A R S G; do
+    nc() { cat > /dev/null; printf '%s\n\n' "$_v"; }
+    run status_probe_dcc 172.16.15.48
+    assert_success
+    assert_output "query ok"
+  done
+}
+
+@test "status_probe_dcc - a temporary failure fails" {
   nc() { cat > /dev/null; echo "T"; }
   run status_probe_dcc 172.16.15.48
   assert_failure 2

@@ -289,16 +289,17 @@ status_probe_clamav()
 
 # dccifd(8): a line of options, client IP, HELO, sender, then recipients ended
 # by a blank line, then the message. "query" leaves the message out of DCC's
-# counts. dccifd answers once its input ends, hence nc -N.
+# counts. dccifd answers once its input ends, hence nc -N. Its first line is
+# the verdict: Accept, Reject, Some, Greylist, or T for a temporary failure.
 status_probe_dcc()
 {
 	local _reply
-	_reply=$(printf 'header query\n\n\n\n\nSubject: mt6 status\n\nprobe\n' \
+	_reply=$(printf 'query\n\n\n\n\nSubject: mt6 status\n\nprobe\n' \
 		| nc -N -w "$STATUS_PROBE_TIMEOUT" "$1" 1025 2>&1) || true
 
-	if echo "$_reply" | grep -q '^X-DCC-'; then
-		echo "query ok"; return $STATUS_OK
-	fi
+	case "$(echo "$_reply" | head -1)" in
+		A|R|S|G) echo "query ok"; return $STATUS_OK ;;
+	esac
 
 	echo "query FAIL"
 	if [ -z "$_reply" ]; then
