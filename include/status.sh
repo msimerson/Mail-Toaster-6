@@ -215,17 +215,28 @@ status_probe_http()
 	status_probe_cmd "$_label" "$_expect" fetch -T 5 -qo - "$_url"
 }
 
+# Elasticsearch 8 turns on security by default: TLS on 9200, and a 401 for
+# anyone without credentials. That 401 still proves the node is answering.
 status_probe_elasticsearch()
 {
-	local _out _rc=0
-	_out=$(timeout "$STATUS_PROBE_TIMEOUT" fetch -T 5 -qo - "http://$1:9200/_cluster/health" </dev/null 2>&1) || _rc=$?
+	local _scheme _out _rc
+	for _scheme in http https; do
+		_rc=0
+		_out=$(timeout "$STATUS_PROBE_TIMEOUT" fetch -T 5 --no-verify-peer --no-verify-hostname \
+			-qo - "$_scheme://$1:9200/_cluster/health" </dev/null 2>&1) || _rc=$?
 
-	case "$(echo "$_out" | sed -n 's/.*"status" *: *"\([a-z]*\)".*/\1/p')" in
-		# a single node has nowhere to place replicas, so yellow is its healthy
-		green)  echo "health green"; return $STATUS_OK ;;
-		yellow) echo "health yellow"; return $STATUS_OK ;;
-		red)    echo "health red"; return $STATUS_CRIT ;;
-	esac
+		case "$(echo "$_out" | sed -n 's/.*"status" *: *"\([a-z]*\)".*/\1/p')" in
+			# a single node has nowhere to place replicas, so yellow is its healthy
+			green)  echo "health green"; return $STATUS_OK ;;
+			yellow) echo "health yellow"; return $STATUS_OK ;;
+			red)    echo "health red"; return $STATUS_CRIT ;;
+		esac
+
+		if echo "$_out" | grep -q 'Unauthorized\|Authentication required'; then
+			echo "$_scheme ok"; return $STATUS_OK
+		fi
+		if [ "$_rc" = 124 ]; then break; fi
+	done
 
 	echo "health FAIL"
 	if [ "$_rc" = 124 ]; then
@@ -273,7 +284,7 @@ status_probe()
 		mysql)        status_probe_cmd ping "" jexec "$2" /usr/local/bin/mysqladmin ping ;;
 		nictool)      status_probe_http http NicTool "http://$3/" ;;
 		redis)        status_probe_cmd ping PONG jexec "$2" /usr/local/bin/redis-cli ping ;;
-		roundcube)    status_probe_http http rcube_webmail "http://$3/roundcube/" ;;
+		roundcube)    status_probe_http http rcube_webmail "http://$3/" ;;
 		rspamd)       status_probe_http ping pong "http://$3:11334/ping" ;;
 		# SPAMD/<protocol> <exit code>, some versions append PONG
 		spamassassin) status_probe_cmd ping '^SPAMD/[0-9.]* 0' jexec "$2" /usr/local/bin/spamc -K ;;

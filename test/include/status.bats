@@ -88,19 +88,30 @@ setup() {
     esac
   }
   ES_HEALTH="green"
+  ES_SCHEME="http"
   fetch() {
-    if probe_fails "$@"; then echo "fetch: $5: Connection refused"; return 1; fi
-    case "$5" in
-      *:11334/ping)       echo '{"pong"}' ;;
-      *:9200/_cluster/health)
+    local _url; eval "_url=\${$#}"
+    if probe_fails "$@"; then echo "fetch: $_url: Connection refused"; return 1; fi
+    case "$_url" in
+      *:9200/*)
+        case "$_url" in "$ES_SCHEME"://*) ;; *) echo "fetch: $_url: No error: 0"; return 1 ;; esac
+        if [ "$ES_HEALTH" = 401 ]; then echo "fetch: $_url: Unauthorized"; return 1; fi
         echo "{\"cluster_name\":\"elasticsearch\",\"status\":\"$ES_HEALTH\",\"timed_out\":false}" ;;
+      *:11334/ping)       echo '{"pong"}' ;;
       */tachyon/)         echo '<script src="/tachyon/v/2.38.2/static/js/app.js"></script>' ;;
-      */roundcube/)       echo 'var rcmail = new rcube_webmail();' ;;
+      *//172.16.15.33/)   echo 'var rcmail = new rcube_webmail();' ;;
       *:8080/)            echo '<title>Mail::DMARC</title>' ;;
       *)                  echo '<html><title>NicTool</title></html>' ;;
     esac
   }
-  host() { ! probe_fails "$@"; }
+  # get_jail_ip4 falls back to `host <name>`; answering that through
+  # probe_fails would call get_jail_ip4 again and fork without end
+  host() {
+    case "$1" in
+      -W) ! probe_fails "$@" ;;
+      *)  echo "Host $1 not found: 3(NXDOMAIN)"; return 1 ;;
+    esac
+  }
   openssl() {
     if [ "$1" != "s_client" ]; then command openssl "$@"; return; fi
     echo "s_client $*" >> "$BATS_TEST_TMPDIR/s_client.calls"
@@ -663,4 +674,31 @@ age_days() {
   run status_probe_elasticsearch 172.16.15.27
   assert_failure 2
   assert_line --index 1 "no reply within 10s"
+}
+
+@test "status_probe_elasticsearch - TLS and security, as Elasticsearch 8 defaults" {
+  ES_SCHEME="https" ES_HEALTH="yellow"
+  run status_probe_elasticsearch 172.16.15.27
+  assert_success
+  assert_output "health yellow"
+
+  ES_HEALTH="401"
+  run status_probe_elasticsearch 172.16.15.27
+  assert_success
+  assert_output "https ok"
+
+  ES_SCHEME="http"
+  run status_probe_elasticsearch 172.16.15.27
+  assert_success
+  assert_output "http ok"
+}
+
+@test "status_probe_elasticsearch - a node down on both schemes says why" {
+  export JAIL_ORDERED_LIST="$JAIL_ORDERED_LIST elasticsearch"
+  local _ip; _ip=$(get_jail_ip4 elasticsearch)
+  PROBE_FAIL="elasticsearch"
+  run status_probe_elasticsearch "$_ip"
+  assert_failure 2
+  assert_line --index 0 "health FAIL"
+  assert_line --index 1 "fetch: https://$_ip:9200/_cluster/health: Connection refused"
 }
