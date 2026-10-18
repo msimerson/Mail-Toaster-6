@@ -335,6 +335,12 @@ assure_jail_nic()
 	fi
 }
 
+audit_base()
+{
+	pkg -j stage audit -F || [ "${TOASTER_PKG_AUDIT:-1}" = 0 ]
+	rm -f "$BASE_MNT/var/db/pkg/vuln.xml"
+}
+
 assure_jail_nic
 zfs_snapshot_exists "$BASE_SNAP" && exit 0
 stop_jail stage
@@ -344,6 +350,7 @@ freebsd_update
 configure_base
 start_staged_jail base "$BASE_MNT"
 install_base
+audit_base
 stop_jail stage
 if [ -e "$BASE_MNT/dev/null" ]; then umount "$BASE_MNT/dev"; fi
 rm -rf "$BASE_MNT/var/cache/pkg"/*
