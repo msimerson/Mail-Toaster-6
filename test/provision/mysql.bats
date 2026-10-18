@@ -13,6 +13,10 @@
 #   - ZFS_DATA_MNT/mysql/db/{private,public}_key.pem  (dummy — skips openssl calls)
 #   - CWD set to BATS_FILE_TMPDIR             (write_pass_to_conf appends to
 #                                              $MT6_CONF safely)
+#   - ZFS_JAIL_MNT/mysql/data/db/mysql        (must NOT exist, or start_mysql()
+#                                              will try to unmount it)
+
+
 
 setup_file() {
   local _stage="$BATS_FILE_TMPDIR/stage"
@@ -26,6 +30,7 @@ setup_file() {
   export MT6_TEST_ENV=1
   export STAGE_MNT="$_stage"
   export ZFS_DATA_MNT="$_data"
+  export ZFS_JAIL_MNT="$BATS_FILE_TMPDIR/jails"
   export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   # Pre-create files needed by the execution block.
