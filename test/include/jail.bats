@@ -633,6 +633,32 @@ mta_rdr_setup() {
   assert_output --partial "port { 25 }"
 }
 
+@test "configure_mta_pf_rdr - an edited rdr.conf survives a rebuild" {
+  mta_rdr_setup
+  export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
+  configure_mta_pf_rdr haraka
+  local _rdr="$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
+  echo "rdr inet proto tcp from any to <haraka> port { 25 } -> 172.16.15.9" > "$_rdr"
+
+  configure_mta_pf_rdr haraka
+
+  run cat "$_rdr"
+  assert_output "rdr inet proto tcp from any to <haraka> port { 25 } -> 172.16.15.9"
+}
+
+@test "configure_mta_pf_rdr - an unedited rdr.conf follows a port change" {
+  mta_rdr_setup
+  export TOASTER_MTA="haraka" TOASTER_MSA="haraka"
+  configure_mta_pf_rdr haraka
+
+  export TOASTER_MSA="postfix"
+  configure_mta_pf_rdr haraka
+
+  run cat "$(get_jail_host_etc haraka)/pf.conf.d/rdr.conf"
+  assert_output --partial "port { 25 }"
+  refute_output --partial "465"
+}
+
 @test "configure_mta_pf_rdr - a jail owning no ports gets no rdr.conf" {
   mta_rdr_setup
   export TOASTER_MTA="postfix" TOASTER_MSA="postfix"

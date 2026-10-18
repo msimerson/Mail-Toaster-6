@@ -5,6 +5,8 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
+- mta: preserve an edited pf.conf.d/rdr.conf on rebuild
+- pf.conf.d: keep the old copy when a rule in it was not adopted
 - elasticsearch, unifi: mount fdescfs and procfs via jail params
 - haproxy: remove OCSP stapling, Let's Encrypt ended OCSP
 - tls: shared cert installer, private keys no longer world-readable

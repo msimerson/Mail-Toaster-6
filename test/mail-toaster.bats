@@ -572,10 +572,57 @@ host_etc_setup() {
 
 @test "retire_jail_host_etc - removes the old fstab and pf.conf.d" {
   host_etc_setup
+  adopt_jail_host_etc dovecot
   retire_jail_host_etc dovecot
 
   [ ! -e "$OLD/fstab" ]
   [ ! -e "$OLD/fstab.stage" ]
+  [ ! -e "$OLD/pf.conf.d" ]
+}
+
+@test "retire_jail_host_etc - keeps pf.conf.d when an edited rule was not carried over" {
+  host_etc_setup
+  tell_status() { echo "$1"; }
+  echo "generated rule" > "$OLD/pf.conf.d/rdr.conf.mt6"
+  adopt_jail_host_etc dovecot
+  echo "generated rule" > "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+
+  run retire_jail_host_etc dovecot
+  assert_success
+  assert_output --partial "keeping $OLD/pf.conf.d"
+  assert_output --partial "rdr.conf"
+  run cat "$OLD/pf.conf.d/rdr.conf"
+  assert_output "rdr rule"
+  [ ! -e "$OLD/fstab" ]
+}
+
+@test "retire_jail_host_etc - keeps pf.conf.d holding a file that was never adopted" {
+  host_etc_setup
+  tell_status() { echo "$1"; }
+  adopt_jail_host_etc dovecot
+  echo "hand made" > "$OLD/pf.conf.d/notes.txt"
+
+  run retire_jail_host_etc dovecot
+  assert_output --partial "notes.txt"
+  [ -f "$OLD/pf.conf.d/notes.txt" ]
+}
+
+@test "retire_jail_host_etc - an unedited rule may be regenerated before retiring" {
+  host_etc_setup
+  echo "rdr rule" > "$OLD/pf.conf.d/rdr.conf.mt6"
+  adopt_jail_host_etc dovecot
+  echo "regenerated rule" > "$(get_jail_host_etc dovecot)/pf.conf.d/rdr.conf"
+
+  retire_jail_host_etc dovecot
+  [ ! -e "$OLD/pf.conf.d" ]
+}
+
+@test "retire_jail_host_etc - a symlink does not hold pf.conf.d back" {
+  host_etc_setup
+  adopt_jail_host_etc dovecot
+  ln -s /nonexistent "$OLD/pf.conf.d/filter.conf"
+
+  retire_jail_host_etc dovecot
   [ ! -e "$OLD/pf.conf.d" ]
 }
 

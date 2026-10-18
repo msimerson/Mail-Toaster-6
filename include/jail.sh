@@ -115,7 +115,7 @@ configure_mta_pf_rdr()
 		_rdr6="rdr inet6 proto tcp from any to <ext_ip6> port { $_ports } -> $(get_jail_ip6 "$_jail")"
 	fi
 
-	store_config "$_pf_etc/rdr.conf" "overwrite" <<EO_PF_RDR
+	store_config "$_pf_etc/rdr.conf" "update" <<EO_PF_RDR
 rdr inet  proto tcp from any to <ext_ip4> port { $_ports } -> $(get_jail_ip4 "$_jail")
 $_rdr6
 EO_PF_RDR

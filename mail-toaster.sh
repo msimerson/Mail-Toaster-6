@@ -358,10 +358,33 @@ retire_jail_host_etc()
 		fi
 	done
 
-	if [ -d "$_old/pf.conf.d" ]; then
-		tell_status "$_old/pf.conf.d has moved to $(get_jail_host_etc "$1")/pf.conf.d"
-		rm -rf "$_old/pf.conf.d"
+	if [ ! -d "$_old/pf.conf.d" ]; then return 0; fi
+
+	local _new; _new="$(get_jail_host_etc "$1")/pf.conf.d"
+	local _unadopted; _unadopted=$(list_unadopted_pf_files "$_old/pf.conf.d" "$_new")
+	if [ -n "$_unadopted" ]; then
+		tell_status "WARNING: keeping $_old/pf.conf.d, these differ from $_new:"
+		echo "$_unadopted" | while read -r _f; do echo "    $_f"; done
+		echo "  merge any custom rules into $_new, then remove $_old/pf.conf.d"
+		echo
+		return 0
 	fi
+
+	tell_status "$_old/pf.conf.d has moved to $_new"
+	rm -rf "$_old/pf.conf.d"
+}
+
+# A file matching its .mt6 shadow was generated, so a regenerated copy loses nothing
+list_unadopted_pf_files()
+{
+	local _f _name
+	for _f in "$1"/*; do
+		if [ -L "$_f" ] || [ ! -f "$_f" ]; then continue; fi
+		_name="${_f##*/}"
+		case "$_name" in *.mt6|pfrule.sh) continue ;; esac
+		if cmp -s "$_f" "$2/$_name" || cmp -s "$_f" "$_f.mt6"; then continue; fi
+		echo "$_name"
+	done
 }
 
 start_staged_jail()
