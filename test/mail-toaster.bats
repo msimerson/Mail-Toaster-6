@@ -963,3 +963,12 @@ setup_minimal_hosts() {
   assert_equal "$(cat "$STAGE_MNT/etc/ssl/private/mail.example.com.pem")" host-key
   assert_equal "$(_file_mode "$STAGE_MNT/etc/ssl/private")" 700
 }
+
+@test "stage_enable_newsyslog respects NEWSYSLOG_COMPRESSION_METHOD" {
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  export NEWSYSLOG_COMPRESSION_METHOD="none"
+
+  stage_enable_newsyslog
+
+  assert_equal "$(head -1 "$STAGE_MNT/etc/newsyslog.conf")" "<compress> none"
+}
