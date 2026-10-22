@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      KCOV_VERSION: 43
     steps:
       - name: Install Build Dependencies
         run: |
@@ -33,11 +35,10 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /usr/local/bin/kcov
-          key: ${{ runner.os }}-${{ steps.os.outputs.release }}-kcov-v42
+          key: ${{ runner.os }}-${{ steps.os.outputs.release }}-kcov-v${{ env.KCOV_VERSION }}
       - name: Install kcov from source
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
-          KCOV_VERSION=42
           wget https://github.com/SimonKagstrom/kcov/archive/v$KCOV_VERSION.tar.gz
           tar xzf v$KCOV_VERSION.tar.gz && cd kcov-$KCOV_VERSION
           mkdir build && cd build
