@@ -1,4 +1,4 @@
-name: CI Tests
+name: Coverage
 
 on:
   pull_request:
@@ -25,12 +25,15 @@ jobs:
             libiberty-dev \
             zlib1g-dev \
             libelf-dev
+      - name: Identify OS release
+        id: os
+        run: . /etc/os-release && echo "release=$ID-$VERSION_ID" >> "$GITHUB_OUTPUT"
       - name: Cache kcov
         id: cache-kcov
         uses: actions/cache@v5
         with:
           path: /usr/local/bin/kcov
-          key: ${{ runner.os }}-kcov-v42
+          key: ${{ runner.os }}-${{ steps.os.outputs.release }}-kcov-v42
       - name: Install kcov from source
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
