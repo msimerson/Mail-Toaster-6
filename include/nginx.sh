@@ -43,10 +43,10 @@ install_nginx_newsyslog()
 	tell_status "enabling nginx log file rotation"
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf" <<EO_NG_NSL
 # rotate nightly (default)
-/var/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+/data/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 
 # rotate when file size reaches 20M
-#/var/log/nginx/*.log		root:wheel	644	 7     20480	 *   BCGX  /var/run/nginx.pid 30
+#/data/log/nginx/*.log		root:wheel	644	 7     20480	 *   BCGX  /var/run/nginx.pid 30
 EO_NG_NSL
 
 }
@@ -122,12 +122,22 @@ configure_nginx()
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
+	[ -d "$(get_jail_data "$1")/log/nginx" ] || mkdir -p "$(get_jail_data "$1")/log/nginx"
+
+	local _extra=""
+	[ "$TOASTER_NGINX_LOG_FORMAT" != main ] || _extra="
+	log_format  main  '\$remote_addr - \$remote_user [\$time_local] \"\$request\" '
+			  '\$status \$body_bytes_sent \"\$http_referer\" '
+			  '\"\$http_user_agent\" \"\$http_x_forwarded_for\"';"
+
 	store_config "$_etcdir/nginx.conf" "update" <<EO_NGINX_CONF
 # load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
 load_module /usr/local/libexec/nginx/ngx_mail_module.so;
 load_module /usr/local/libexec/nginx/ngx_stream_module.so;
 
 worker_processes  1;
+
+error_log /data/log/nginx/error.log;
 
 events {
 	worker_connections  256;
@@ -136,6 +146,9 @@ events {
 http {
 	include       /usr/local/etc/nginx/mime.types;
 	default_type  application/octet-stream;
+
+	$_extra
+	access_log /data/log/nginx/access.log $TOASTER_NGINX_LOG_FORMAT;
 
 	sendfile        on;
 	gzip on;
