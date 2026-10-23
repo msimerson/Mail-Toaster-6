@@ -664,6 +664,7 @@ promote_setup() {
   enable_jail()           { :; }
   proclaim_success()      { :; }
   add_jail_conf()          { echo "add_jail_conf" >> "$CALLS"; }
+  zfs()                    { echo "zfs $*" >> "$CALLS"; }
   retire_jail_host_etc()   { echo "retire" >> "$CALLS"; }
   service()                { echo "start" >> "$CALLS"; return "${SERVICE_RC:-0}"; }
 }
@@ -687,6 +688,18 @@ promote_setup() {
 
   run cat "$CALLS"
   refute_output --partial "retire"
+}
+
+@test "promote_staged_jail - creates a snapshot if ZFS_SNAPSHOT_PROVISIONED=1" {
+  promote_setup
+  export ZFS_JAIL_VOL="fakezroot/jails"
+  export ZFS_SNAPSHOT_PROVISIONED="1"
+  promote_staged_jail dovecot
+
+  run cat "$CALLS"
+  assert_line --index 0 "add_jail_conf"
+  assert_line --index 1 "zfs snapshot $ZFS_JAIL_VOL/dovecot@provisioned"
+  assert_line --index 2 "start"
 }
 
 
@@ -890,6 +903,32 @@ setup_minimal_hosts() {
   assert_output --partial "$(get_jail_ip4 dns) dns"
   assert_output --partial "127.0.0.1"
 }
+
+@test "create_staged_fs - creates a data volume snapshot if ZFS_SNAPSHOT_DATA=1" {
+  setup_minimal_hosts
+  export ZFS_JAIL_VOL="zroot/jails" ZFS_DATA_VOL="zroot/data" BASE_SNAP="zroot/jails/base@p0"
+  cleanup_staged_fs()           { :; }
+  zfs()                         { echo "zfs $*"; }
+  zfs_filesystem_exists()       { :; }
+  stage_sysrc()                 { :; }
+  assure_ip6_addr_is_declared() { :; }
+  stage_resolv_conf()           { :; }
+  zfs_create_fs()               { :; }
+  adopt_jail_host_etc()         { :; }
+  install_fstab()               { :; }
+  install_pfrule()              { :; }
+
+  CALLS="$BATS_TEST_TMPDIR/calls"
+  : > "$CALLS"
+  export ZFS_SNAPSHOT_DATA=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT"
+  create_staged_fs myjail > "$CALLS"
+
+  run cat "$CALLS"
+  assert_output --partial "zfs snapshot $ZFS_DATA_VOL/myjail@before-"
+}
+
 
 @test "install_minimal_hosts - a jail with IPv6 gets those addresses too" {
   setup_minimal_hosts

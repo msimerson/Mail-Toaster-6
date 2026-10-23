@@ -263,6 +263,10 @@ create_staged_fs()
 	cleanup_staged_fs
 
 	tell_status "stage jail filesystem setup"
+
+	PROVISION_TIMESTAMP="$(date -uIminutes)"
+	PROVISION_TIMESTAMP="${PROVISION_TIMESTAMP%+*}"
+
 	echo "zfs clone $BASE_SNAP $ZFS_JAIL_VOL/stage"
 	zfs clone "$BASE_SNAP" "$ZFS_JAIL_VOL/stage" || exit 1
 
@@ -287,7 +291,15 @@ create_staged_fs()
 		fi
 	done
 
-	zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	# snapshot existing data volume before provisioning
+	if zfs_filesystem_exists "$ZFS_DATA_VOL/$1"; then
+		[ "${ZFS_SNAPSHOT_DATA:-0}" = 0 ] ||
+			[ "$(zfs list -Hpo written "$ZFS_DATA_VOL/$1")" = 0 ] ||
+				zfs snapshot "$ZFS_DATA_VOL/$1@before-$PROVISION_TIMESTAMP"
+	else
+		zfs_create_fs "$ZFS_DATA_VOL/$1" "$ZFS_DATA_MNT/$1"
+	fi
+
 	adopt_jail_host_etc "$1"
 	install_fstab "$1"
 	install_pfrule "$1"
@@ -486,6 +498,8 @@ promote_staged_jail()
 	rename_ready_to_active "$1"
 	add_jail_conf "$1"
 	#add_automount "$1"
+	[ "$ZFS_SNAPSHOT_PROVISIONED" = 0 ] ||
+		zfs snapshot "$ZFS_JAIL_VOL/$1@provisioned"
 
 	tell_status "service jail start $1"
 	service jail start "$1" || exit 1
@@ -793,6 +807,7 @@ unprovision_last()
 	for _j in $JAIL_ORDERED_LIST; do
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$_j.last"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$_j.last"
+			zfs destroy "$ZFS_JAIL_VOL/$_j.last@provisioned" || true
 			zfs destroy "$ZFS_JAIL_VOL/$_j.last"
 		fi
 	done
@@ -803,6 +818,7 @@ unprovision_filesystem()
 	for suffix in ready last; do
 		if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1.$suffix"; then
 			tell_status "destroying $ZFS_JAIL_VOL/$1.$suffix"
+			zfs destroy "$ZFS_JAIL_VOL/$1.$suffix@provisioned" || true
 			zfs destroy "$ZFS_JAIL_VOL/$1.$suffix" || return 1
 		fi
 	done
@@ -819,6 +835,7 @@ unprovision_filesystem()
 
 	if zfs_filesystem_exists "$ZFS_JAIL_VOL/$1"; then
 		tell_status "destroying $ZFS_JAIL_VOL/$1"
+		zfs destroy "$ZFS_JAIL_VOL/$1@provisioned" || return 1
 		zfs destroy "$ZFS_JAIL_VOL/$1" || return 1
 	fi
 }
