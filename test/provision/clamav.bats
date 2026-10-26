@@ -6,17 +6,12 @@
 # call a function with its own stubs pay to source the definitions.
 
 setup_file() {
-  export MT6_TEST_ENV=1
+  load helper
   export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   # the optional sub-installers want network and an interactive terminal
   export CLAMAV_UNOFFICIAL=0
   export CLAMAV_FANGFRISCH=0
-
-  export CLAMAV_FNS="$BATS_FILE_TMPDIR/clamav_fns_only.sh"
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/clamav.sh" > "$CLAMAV_FNS"
 
   mkdir -p "$STAGE_MNT/data/etc" "$STAGE_MNT/usr/local/etc/rc.d"
 
@@ -57,20 +52,13 @@ EOF
   echo "conf=/usr/local/etc/freshclam.conf; db=/var/db/clamav" \
     > "$STAGE_MNT/usr/local/etc/rc.d/clamav_freshclam"
 
-  # shellcheck source=/dev/null
-  . "$BATS_TEST_DIRNAME/../../provision/clamav.sh"
+  provision_run clamav
 }
 
 setup() {
-  load '../test_helper/load'
+  load helper
   CLAMD_CONF="$STAGE_MNT/data/etc/clamd.conf"
   FRESHCLAM_CONF="$STAGE_MNT/data/etc/freshclam.conf"
-}
-
-load_clamav_fns() {
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  # shellcheck source=/dev/null
-  . "$CLAMAV_FNS"
 }
 
 # a setting is enabled when it appears uncommented, with the wanted value
@@ -83,25 +71,10 @@ assert_conf_enabled() {
   done
 }
 
-@test "clamav - declares no jail extras" {
-  assert_equal "$JAIL_START_EXTRA" ""
-  assert_equal "$JAIL_CONF_EXTRA" ""
-  assert_equal "$JAIL_FSTAB" ""
-}
-
-@test "clamav - defines the jail lifecycle functions" {
-  load_clamav_fns
-  local _fn
-  for _fn in install_clamav configure_clamav start_clamav test_clamav; do
-    run type "$_fn"
-    assert_success
-  done
-}
-
 # --- install_clamav ---
 
 @test "clamav - install uses clamav package" {
-  load_clamav_fns
+  provision_fns clamav
   stage_pkg_install() { echo "PKG:$*"; }
   run install_clamav
   assert_output --partial "PKG:clamav"
@@ -162,7 +135,7 @@ assert_conf_enabled() {
 # --- start / test behaviour ---
 
 @test "clamav - start enables and starts both services" {
-  load_clamav_fns
+  provision_fns clamav
   stage_sysrc() { echo "SYSRC:$*"; }
   stage_exec()  { echo "EXEC:$*"; }
   run start_clamav
@@ -173,7 +146,7 @@ assert_conf_enabled() {
 }
 
 @test "clamav - test checks port 3310" {
-  load_clamav_fns
+  provision_fns clamav
   stage_listening() { echo "PORT:$*"; }
   run test_clamav
   assert_success

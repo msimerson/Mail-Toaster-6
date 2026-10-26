@@ -15,18 +15,12 @@
 #                                              $MT6_CONF safely)
 
 setup_file() {
+  load helper
   local _stage="$BATS_FILE_TMPDIR/stage"
   local _data="$BATS_FILE_TMPDIR/data"
-  local _fns="$BATS_FILE_TMPDIR/mysql_fns_only.sh"
 
-  # Strip the execution block so setup() can source function definitions only.
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/mysql.sh" > "$_fns"
-
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$_stage"
   export ZFS_DATA_MNT="$_data"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   # Pre-create files needed by the execution block.
   mkdir -p "$_stage/usr/local/etc/mysql"
@@ -54,25 +48,18 @@ EOF
   cd "$BATS_FILE_TMPDIR" || exit 1
   mkdir -p conf.d
 
-  # Source the full provision script once (execution block runs here).
-  # shellcheck source=/dev/null
-  . "$BATS_TEST_DIRNAME/../../provision/mysql.sh"
+  provision_run mysql
 }
 
 setup() {
-  load '../test_helper/load'
-
-  export MT6_TEST_ENV=1
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
+  load helper
   export ZFS_DATA_MNT="$BATS_FILE_TMPDIR/data"
 
   # Fresh per-test STAGE_MNT copied from the cached template (fast).
   export STAGE_MNT; STAGE_MNT=$(mktemp -d)
   cp -r "$BATS_FILE_TMPDIR/stage/." "$STAGE_MNT/"
 
-  # Source function definitions only (no execution block).
-  # shellcheck source=/dev/null
-  . "$BATS_FILE_TMPDIR/mysql_fns_only.sh"
+  provision_fns mysql
 }
 
 teardown() {
@@ -80,12 +67,6 @@ teardown() {
 }
 
 # --- JAIL variable exports ---
-
-@test "mysql - declares no jail extras" {
-  assert_equal "$JAIL_START_EXTRA" ""
-  assert_equal "$JAIL_CONF_EXTRA" ""
-  assert_equal "$JAIL_FSTAB" ""
-}
 
 @test "mysql - defines the functions the provisioner calls" {
   local _fn

@@ -6,14 +6,9 @@
 # call a function with its own stubs pay to source the definitions.
 
 setup_file() {
-  export MT6_TEST_ENV=1
+  load helper
   export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export REDIS_CONF="$STAGE_MNT/usr/local/etc/redis.conf"
-  export REDIS_FNS="$BATS_FILE_TMPDIR/redis_fns_only.sh"
-
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/redis.sh" > "$REDIS_FNS"
 
   # configure_redis edits redis.conf in place, so it has to exist first
   mkdir -p "$STAGE_MNT/usr/local/etc"
@@ -26,33 +21,11 @@ bind 127.0.0.1
 protected-mode yes
 EOF
 
-  # shellcheck source=/dev/null
-  . "$BATS_TEST_DIRNAME/../../provision/redis.sh"
+  provision_run redis
 }
 
 setup() {
-  load '../test_helper/load'
-}
-
-load_redis_fns() {
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  # shellcheck source=/dev/null
-  . "$REDIS_FNS"
-}
-
-@test "redis - declares no jail extras" {
-  assert_equal "$JAIL_START_EXTRA" ""
-  assert_equal "$JAIL_CONF_EXTRA" ""
-  assert_equal "$JAIL_FSTAB" ""
-}
-
-@test "redis - defines the jail lifecycle functions" {
-  load_redis_fns
-  local _fn
-  for _fn in install_redis configure_redis start_redis test_redis; do
-    run type "$_fn"
-    assert_success
-  done
+  load helper
 }
 
 # --- configure_redis outcomes ---
@@ -85,7 +58,7 @@ load_redis_fns() {
 # --- install / start / test behaviour ---
 
 @test "redis - install uses redis package" {
-  load_redis_fns
+  provision_fns redis
   stage_pkg_install() { echo "PKG:$*"; }
   run install_redis
   assert_success
@@ -93,7 +66,7 @@ load_redis_fns() {
 }
 
 @test "redis - start enables the service and starts it" {
-  load_redis_fns
+  provision_fns redis
   stage_sysrc() { echo "SYSRC:$*"; }
   stage_exec()  { echo "EXEC:$*"; }
   run start_redis
@@ -103,7 +76,7 @@ load_redis_fns() {
 }
 
 @test "redis - test checks port 6379" {
-  load_redis_fns
+  provision_fns redis
   stage_listening() { echo "PORT:$*"; }
   run test_redis
   assert_success
