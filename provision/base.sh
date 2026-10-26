@@ -337,7 +337,8 @@ assure_jail_nic()
 
 audit_base()
 {
-	pkg -j stage audit -F || [ "${TOASTER_PKG_AUDIT:-1}" = 0 ]
+	tell_status "auditing base packages"
+	stage_exec pkg audit -F || true
 	rm -f "$BASE_MNT/var/db/pkg/vuln.xml"
 }
 
