@@ -7,13 +7,14 @@ export MT6_TEST_ENV=1
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:-"172.16.15"}
 export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:-"syslog base dns mysql clamav spamassassin foundationdb vpopmail haraka webmail munin haproxy rspamd stalwart dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman git tachyon"}
 export ZFS_VOL=${ZFS_VOL:-"zroot"}
-export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:-"/jails"}
-export ZFS_DATA_MNT=${ZFS_DATA_MNT:-"/data"}
+_stub_root="${BATS_FILE_TMPDIR:-/nonexistent}"
+export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:-"$_stub_root/jails"}
+export ZFS_DATA_MNT=${ZFS_DATA_MNT:-"$_stub_root/data"}
 export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 export STAGE_MNT=${STAGE_MNT:-"$ZFS_JAIL_MNT/stage"}
 export SAFE_NAME=${SAFE_NAME:-"stage"}
-export BASE_MNT=${BASE_MNT:-"/jails/base"}
+export BASE_MNT=${BASE_MNT:-"$ZFS_JAIL_MNT/base"}
 export BASE_SNAP=${BASE_SNAP:-"zroot/jails/base@p0"}
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:-"mail.example.com"}
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:-"example.com"}
@@ -65,6 +66,7 @@ rename_staged_to_ready()   { :; }
 rename_active_to_last()    { :; }
 rename_ready_to_active()   { :; }
 stage_unmount()            { :; }
+unmount_data()             { :; }
 stage_clear_caches()       { :; }
 
 # Jail lifecycle
@@ -115,7 +117,7 @@ get_jail_ip6() {
   echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
 }
 get_jail_data()            { echo "${ZFS_DATA_MNT}/$1"; }
-export MT6_ETC=${MT6_ETC:-"/etc/mail-toaster"}
+export MT6_ETC=${MT6_ETC:-"$_stub_root/etc/mail-toaster"}
 get_jail_host_etc()        { echo "${MT6_ETC}/$1"; }
 get_pfrule_path()          { echo "${MT6_ETC}/pfrule.sh"; }
 safe_jailname()            { echo "$1" | tr '.-' '__'; }
