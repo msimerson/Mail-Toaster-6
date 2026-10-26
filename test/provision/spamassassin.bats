@@ -6,11 +6,10 @@
 # that call a function with its own stubs pay to source the definitions.
 
 setup_file() {
-  export MT6_TEST_ENV=1
+  load helper
   # configure_spamassassin derives target filenames from *.sample with
   # `cut -f1-2 -d.`, so no parent directory may contain a dot
   export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   export ZFS_DATA_MNT="$STAGE_MNT/data"
   export ZFS_JAIL_MNT="$STAGE_MNT/jails"
@@ -19,10 +18,6 @@ setup_file() {
 
   # the MySQL sub-install wants a live DB
   export TOASTER_MYSQL=0
-
-  export SA_SCRIPT="$BATS_TEST_DIRNAME/../../provision/spamassassin.sh"
-  export SA_FNS="$BATS_FILE_TMPDIR/spamassassin_fns_only.sh"
-  awk '/^base_snapshot_exists/{exit} {print}' "$SA_SCRIPT" > "$SA_FNS"
 
   mkdir -p "$STAGE_MNT/etc/razor" "$STAGE_MNT/usr/local/etc/mail" \
     "$STAGE_MNT/usr/local/etc/newsyslog.conf.d" "$ZFS_DATA_MNT/spamassassin/etc" \
@@ -33,19 +28,12 @@ setup_file() {
 
   touch "$ZFS_DATA_MNT/spamassassin/etc/local.cf.sample"
 
-  # shellcheck source=/dev/null
-  . "$SA_SCRIPT"
+  provision_run spamassassin
 }
 
 setup() {
-  load '../test_helper/load'
+  load helper
   SA_ETC="$ZFS_DATA_MNT/spamassassin/etc"
-}
-
-load_sa_fns() {
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  # shellcheck source=/dev/null
-  . "$SA_FNS"
 }
 
 # --- JAIL variable exports ---
@@ -60,18 +48,8 @@ load_sa_fns() {
 @test "spamassassin - JAIL_FSTAB empty when geoip dataset absent" {
   zfs_filesystem_exists() { return 1; }
   JAIL_FSTAB="preset"
-  eval "$(sed -n '/^export JAIL_FSTAB=""$/,/^fi$/p' "$SA_SCRIPT")"
+  eval "$(sed -n '/^export JAIL_FSTAB=""$/,/^fi$/p' "$PROVISION_DIR/spamassassin.sh")"
   assert_equal "$JAIL_FSTAB" ""
-}
-
-@test "spamassassin - defines the jail lifecycle functions" {
-  load_sa_fns
-  local _fn
-  for _fn in install_spamassassin configure_spamassassin start_spamassassin \
-             test_spamassassin; do
-    run type "$_fn"
-    assert_success
-  done
 }
 
 # --- install filesystem outcomes ---
@@ -114,7 +92,7 @@ load_sa_fns() {
 }
 
 @test "spamassassin - configure_geoip removes RelayCountry when geoip absent" {
-  load_sa_fns
+  provision_fns spamassassin
   # configure_spamassassin leaves _sa_etc set for it; work on a private copy so
   # the file the previous test reads survives
   _sa_etc="$BATS_TEST_TMPDIR/etc"
@@ -129,7 +107,7 @@ load_sa_fns() {
 # --- install / start / test behaviour ---
 
 @test "spamassassin - install uses p5-Mail-SPF package" {
-  load_sa_fns
+  provision_fns spamassassin
   stage_pkg_install() { echo "PKG:$*"; }
   stage_exec()        { :; }
   run install_spamassassin
@@ -137,7 +115,7 @@ load_sa_fns() {
 }
 
 @test "spamassassin - start enables spamd and starts sa-spamd" {
-  load_sa_fns
+  provision_fns spamassassin
   stage_sysrc() { echo "SYSRC:$*"; }
   stage_exec()  { echo "EXEC:$*"; }
   run start_spamassassin
@@ -147,7 +125,7 @@ load_sa_fns() {
 }
 
 @test "spamassassin - test checks the perl process and port 783" {
-  load_sa_fns
+  provision_fns spamassassin
   stage_test_running() { echo "RUNNING:$*"; }
   stage_listening()    { echo "PORT:$*"; }
   run test_spamassassin

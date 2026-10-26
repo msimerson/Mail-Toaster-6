@@ -1,25 +1,16 @@
 #!/usr/bin/env bats
 # Functional tests for provision/tachyon.sh
 
-setup_file() {
-  export TACHYON_FNS="$BATS_FILE_TMPDIR/tachyon_fns_only.sh"
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/tachyon.sh" > "$TACHYON_FNS"
-}
-
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
   unset TACHYON_VERSION
 
   mkdir -p "$STAGE_MNT/tmp" "$ZFS_DATA_MNT/tachyon"
 
-  # shellcheck source=/dev/null
-  . "$TACHYON_FNS"
+  provision_fns tachyon
 }
 
 make_release_tarball() {
@@ -29,12 +20,6 @@ make_release_tarball() {
   echo "<?php" > "$_src/tachyon/v/9.9.9/include.php"
   echo "deny" > "$_src/data/.htaccess"
   tar -cz -C "$_src" -f "$BATS_TEST_TMPDIR/tachyon.tar.gz" .
-}
-
-@test "tachyon - declares no jail extras" {
-  assert_equal "$JAIL_START_EXTRA" ""
-  assert_equal "$JAIL_CONF_EXTRA" ""
-  assert_equal "$JAIL_FSTAB" ""
 }
 
 @test "tachyon_release_url defaults to the latest release" {
@@ -61,7 +46,7 @@ make_release_tarball() {
 }
 
 @test "install_tachyon aborts when the download fails" {
-  run bash -c ". '$TACHYON_FNS'; fetch() { return 1; }; install_tachyon; echo unreachable"
+  run bash -c ". '$BATS_FILE_TMPDIR/tachyon_fns_only.sh'; fetch() { return 1; }; install_tachyon; echo unreachable"
 
   assert_failure
   refute_output --partial "unreachable"

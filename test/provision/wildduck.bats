@@ -1,25 +1,16 @@
 #!/usr/bin/env bats
 # Functional tests for provision/wildduck.sh
 
-setup_file() {
-  export WD_FNS="$BATS_FILE_TMPDIR/wildduck_fns_only.sh"
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/wildduck.sh" > "$WD_FNS"
-}
-
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export MT6_ETC="$BATS_TEST_TMPDIR/etc"
   export PUBLIC_NIC="em0"
 
   RDR_CONF="$MT6_ETC/wildduck/pf.conf.d/rdr.conf"
   NAT_CONF="$MT6_ETC/wildduck/pf.conf.d/nat.conf"
 
-  # shellcheck source=/dev/null
-  . "$WD_FNS"
+  provision_fns wildduck
 }
 
 # each get_public_ip* resolves its own family's default route into PUBLIC_NIC

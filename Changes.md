@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
+- test: shared provision test helper, per-script invariants checked once in provision.bats, ~20% faster
 - ci: key kcov cache on OS release, kcov 43
 - mta: preserve an edited pf.conf.d/rdr.conf on rebuild
 - pf.conf.d: keep the old copy when a rule in it was not adopted

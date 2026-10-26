@@ -1,18 +1,10 @@
 #!/usr/bin/env bats
 # Functional tests for provision/roundcube.sh
 
-setup_file() {
-  export ROUNDCUBE_FNS="$BATS_FILE_TMPDIR/roundcube_fns_only.sh"
-  sed '/^tell_settings ROUNDCUBE$/,$d' \
-    "$BATS_TEST_DIRNAME/../../provision/roundcube.sh" > "$ROUNDCUBE_FNS"
-}
-
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   export ZFS_DATA_MNT="$STAGE_MNT/data"
   export ZFS_JAIL_MNT="$STAGE_MNT/jails"
@@ -22,8 +14,7 @@ setup() {
   NGINX_CONF="$ZFS_DATA_MNT/roundcube/etc/nginx/server.d/roundcube.conf"
   mkdir -p "$(dirname "$NGINX_CONF")"
 
-  # shellcheck source=/dev/null
-  . "$ROUNDCUBE_FNS"
+  provision_fns roundcube "tell_settings ROUNDCUBE"
 }
 
 @test "migrate_roundcube_nginx_conf retires a pre-1.7 server block" {

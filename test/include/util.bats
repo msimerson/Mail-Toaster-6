@@ -379,6 +379,12 @@ setup() {
   [ "${#output}" -eq 16 ]
 }
 
+@test "get_random_pass - strong mode length" {
+  run get_random_pass 16 strong
+  assert_success
+  [ "${#output}" -eq 16 ]
+}
+
 @test "reverse_list - three items" {
   run reverse_list one two three
   assert_output "three two one "

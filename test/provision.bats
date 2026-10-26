@@ -58,6 +58,38 @@ _none_exempt() { return 1; }
   _scripts_lacking "^start_" _no_start_required
 }
 
+# a misspelled call in an execution block fails only when it provisions
+@test "every lifecycle function an execution block calls is defined" {
+  run awk '
+    FNR == 1 { own = (FILENAME ~ /^provision\//) }
+    /^[a-z_][a-z0-9_]*\(\)/ {
+      sub(/\(\).*/, "")
+      defined[(own ? FILENAME : "shared") " " $0] = 1
+      next
+    }
+    own && /^(install|configure|start|test)_[a-z0-9_]+$/ { called[FILENAME " " $0] = 1 }
+    END {
+      for (c in called) {
+        split(c, p, " ")
+        if (!(c in defined) && !(("shared " p[2]) in defined)) print "UNDEFINED " c
+      }
+    }' mail-toaster.sh include/*.sh provision/*.sh
+  assert_output ""
+}
+
+@test "jails that need no extras declare them empty" {
+  run grep -c '^export JAIL_\(START_EXTRA\|CONF_EXTRA\|FSTAB\)=""$' \
+    provision/clamav.sh provision/haproxy.sh provision/memcached.sh \
+    provision/mysql.sh provision/redis.sh provision/statsd.sh provision/tachyon.sh
+  assert_output "provision/clamav.sh:3
+provision/haproxy.sh:3
+provision/memcached.sh:3
+provision/mysql.sh:3
+provision/redis.sh:3
+provision/statsd.sh:3
+provision/tachyon.sh:3"
+}
+
 @test "all provision scripts source mail-toaster.sh" {
   _scripts_lacking "mail-toaster.sh" _none_exempt
 }

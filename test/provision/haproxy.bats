@@ -7,20 +7,12 @@
 # - setup() runs per-test (fast): sources only the function definitions.
 
 setup_file() {
-  local _fns="$BATS_FILE_TMPDIR/haproxy_fns_only.sh"
-
-  # Strip execution block so setup() can source function definitions only.
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/haproxy.sh" > "$_fns"
-
-  export MT6_TEST_ENV=1
+  load helper
   export TOASTER_HOSTNAME="mail.example.com"
   export JAIL_NET_PREFIX="172.16.15"
   export JAIL_ORDERED_LIST="vpopmail haproxy webmail dns roundcube snappymail haraka rspamd"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
-  # shellcheck source=/dev/null
-  . "$_fns"
+  provision_fns haproxy
 
   # Override store_config (stubbed as no-op) so haproxy.conf is written to disk.
   store_config() { cat - > "$1"; }
@@ -49,8 +41,7 @@ conf()       { echo "$BATS_FILE_TMPDIR/$1/data/haproxy/etc/haproxy.conf"; }
 stage_conf() { echo "$BATS_FILE_TMPDIR/$1/stage/usr/local/etc/haproxy.conf"; }
 
 setup() {
-  load '../test_helper/load'
-
+  load helper
   HAPROXY_CONF="$(conf both)"
 }
 
@@ -77,12 +68,6 @@ assert_haproxy_accepts() {
 }
 
 # --- JAIL variable exports ---
-
-@test "haproxy - declares no jail extras" {
-  assert_equal "$JAIL_START_EXTRA" ""
-  assert_equal "$JAIL_CONF_EXTRA" ""
-  assert_equal "$JAIL_FSTAB" ""
-}
 
 # --- frontend binds ---
 #
