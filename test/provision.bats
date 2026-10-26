@@ -94,6 +94,22 @@ provision/tachyon.sh:3"
   _scripts_lacking "mail-toaster.sh" _none_exempt
 }
 
+# run on a live toaster, a test would otherwise read the real jails and data
+@test "the provision stub keeps its default paths off the host" {
+  run env -u ZFS_JAIL_MNT -u ZFS_DATA_MNT -u STAGE_MNT -u BASE_MNT -u MT6_ETC \
+    bash -c '. test/provision/stubs/mail-toaster.sh
+      printf "%s\n" "$ZFS_JAIL_MNT" "$ZFS_DATA_MNT" "$STAGE_MNT" "$BASE_MNT" "$MT6_ETC"'
+  assert_success
+  assert_equal "${#lines[@]}" 5
+  local _path
+  for _path in "${lines[@]}"; do
+    case "$_path" in
+      "$BATS_FILE_TMPDIR"/*) ;;
+      *) fail "$_path is outside $BATS_FILE_TMPDIR" ;;
+    esac
+  done
+}
+
 # ---------------------------------------------------------------------------
 # Jail capability assertions: scripts needing special jail permissions
 # ---------------------------------------------------------------------------

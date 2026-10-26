@@ -181,6 +181,47 @@ EOF
   assert_output --partial "EXEC:service mysql-server start"
 }
 
+# two mysqlds cannot share a datadir, so the stage lets go of the live one
+@test "mysql - start unmounts the live data before mysqld starts" {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  mkdir -p "$ZFS_JAIL_MNT/mysql/data/db/mysql"
+  unmount_data() { echo "UNMOUNT:$*"; }
+  stage_exec()   { echo "EXEC:$*"; }
+  configure_mysql_root_password() { :; }
+  configure_mysql_keys() { :; }
+
+  run start_mysql
+  assert_success
+  assert_line --index 0 "UNMOUNT:mysql"
+  assert_line --index 1 "EXEC:service mysql-server start"
+}
+
+@test "mysql - start without a live mysql jail leaves the data mounted" {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  unmount_data() { echo "UNMOUNT:$*"; }
+  stage_exec()   { echo "EXEC:$*"; }
+  configure_mysql_root_password() { :; }
+  configure_mysql_keys() { :; }
+
+  run start_mysql
+  assert_success
+  refute_output --partial "UNMOUNT"
+}
+
+# mysql.sh runs under set -e, where a missing stub ends provisioning
+@test "mysql - start survives set -e on a host running a mysql jail" {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  mkdir -p "$ZFS_JAIL_MNT/mysql/data/db/mysql"
+  stage_exec() { echo "EXEC:$*"; }
+  configure_mysql_root_password() { :; }
+  configure_mysql_keys() { :; }
+  start_under_errexit() { ( set -e; start_mysql ); }
+
+  run start_under_errexit
+  assert_success
+  assert_output --partial "EXEC:service mysql-server start"
+}
+
 # --- test_mysql behavior ---
 
 @test "mysql - test checks port 3306" {
