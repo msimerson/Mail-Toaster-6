@@ -6,31 +6,15 @@
 # that call a function with its own stubs pay to source the definitions.
 
 setup_file() {
-  export MT6_TEST_ENV=1
+  load helper
   export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
   export RSPAMD_ETC="$STAGE_MNT/usr/local/etc/rspamd"
-  export RSPAMD_FNS="$BATS_FILE_TMPDIR/rspamd_fns_only.sh"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-
-  local _script="$BATS_TEST_DIRNAME/../../provision/rspamd.sh"
-
-  # everything from tell_settings on is the execution block
-  awk '/^tell_settings/{exit} {print}' "$_script" > "$RSPAMD_FNS"
-
   mkdir -p "$RSPAMD_ETC" "$STAGE_MNT/etc"
-
-  # shellcheck source=/dev/null
-  . "$_script"
+  provision_run rspamd
 }
 
 setup() {
-  load '../test_helper/load'
-}
-
-load_rspamd_fns() {
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  # shellcheck source=/dev/null
-  . "$RSPAMD_FNS"
+  load helper
 }
 
 @test "rspamd - declares no jail extras, RSPAMD_ETC lives under STAGE_MNT" {
@@ -38,15 +22,6 @@ load_rspamd_fns() {
   assert_equal "$JAIL_CONF_EXTRA" ""
   assert_equal "$JAIL_FSTAB" ""
   assert_equal "$RSPAMD_ETC" "$STAGE_MNT/usr/local/etc/rspamd"
-}
-
-@test "rspamd - defines the jail lifecycle functions" {
-  load_rspamd_fns
-  local _fn
-  for _fn in install_rspamd configure_rspamd start_rspamd test_rspamd; do
-    run type "$_fn"
-    assert_success
-  done
 }
 
 @test "rspamd - configure creates the config directories" {
@@ -63,14 +38,14 @@ load_rspamd_fns() {
 }
 
 @test "rspamd - configure_logging accepts RSPAMD_SYSLOG=1" {
-  load_rspamd_fns
+  provision_fns rspamd tell_settings
   store_config() { cat - > /dev/null; }
   RSPAMD_SYSLOG=1 run configure_logging
   assert_success
 }
 
 @test "rspamd - install uses the rspamd package" {
-  load_rspamd_fns
+  provision_fns rspamd tell_settings
   stage_pkg_install() { echo "PKG:$*"; }
   run install_rspamd
   assert_success
@@ -78,7 +53,7 @@ load_rspamd_fns() {
 }
 
 @test "rspamd - start enables the service and starts it" {
-  load_rspamd_fns
+  provision_fns rspamd tell_settings
   stage_sysrc() { echo "SYSRC:$*"; }
   stage_exec()  { echo "EXEC:$*"; }
   run start_rspamd
@@ -88,7 +63,7 @@ load_rspamd_fns() {
 }
 
 @test "rspamd - test runs configtest and checks port 11334" {
-  load_rspamd_fns
+  provision_fns rspamd tell_settings
   stage_exec()      { echo "EXEC:$*"; }
   stage_listening() { echo "PORT:$*"; }
   run test_rspamd

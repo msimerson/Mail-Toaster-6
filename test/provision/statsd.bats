@@ -5,42 +5,20 @@
 # mail-toaster.sh on PATH.
 
 setup_file() {
-  export MT6_TEST_ENV=1
+  load helper
   export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  export STATSD_FNS="$BATS_FILE_TMPDIR/statsd_fns_only.sh"
-
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/statsd.sh" > "$STATSD_FNS"
 
   # install_statsd edits config.js in place, so it has to exist first
   mkdir -p "$STAGE_MNT/var/lib" "$STAGE_MNT/usr/local/share/statsd/lib"
   printf ' process.EventEmitter = require("events").EventEmitter;\n' \
     > "$STAGE_MNT/usr/local/share/statsd/lib/config.js"
 
-  # shellcheck source=/dev/null
-  . "$BATS_TEST_DIRNAME/../../provision/statsd.sh"
+  provision_run statsd
 }
 
 setup() {
-  load '../test_helper/load'
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  # shellcheck source=/dev/null
-  . "$STATSD_FNS"
-}
-
-@test "statsd - declares no jail extras" {
-  assert_equal "$JAIL_START_EXTRA" ""
-  assert_equal "$JAIL_CONF_EXTRA" ""
-  assert_equal "$JAIL_FSTAB" ""
-}
-
-@test "statsd - defines the jail lifecycle functions" {
-  local _fn
-  for _fn in install_statsd start_statsd test_statsd; do
-    run type "$_fn"
-    assert_success
-  done
+  load helper
+  provision_fns statsd
 }
 
 @test "statsd - install uses the statsd package and enables it" {

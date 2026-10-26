@@ -4,24 +4,15 @@
 # store_unifi_mongodb_dsn mints a credential and writes it to conf.d/, so every
 # test runs with MT6_CONF_DIR pointed at a tmpdir.
 
-setup_file() {
-  export UNIFI_FNS="$BATS_FILE_TMPDIR/unifi_fns_only.sh"
-  awk '/^store_unifi_mongodb_dsn$/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/unifi.sh" > "$UNIFI_FNS"
-}
-
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
   export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
   export MT6_CONF_DIR="$BATS_TEST_TMPDIR/conf.d"
 
-  # shellcheck source=/dev/null
-  . "$UNIFI_FNS"
+  provision_fns unifi store_unifi_mongodb_dsn
 }
 
 @test "unifi - defines store_unifi_mongodb_dsn" {

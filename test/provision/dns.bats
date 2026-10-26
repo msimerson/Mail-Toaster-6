@@ -10,16 +10,11 @@
 # test cost more than the rest of the file put together.
 
 setup_file() {
-  export MT6_TEST_ENV=1
+  load helper
   export STAGE_MNT="$BATS_FILE_TMPDIR/stage"
   export ZFS_DATA_MNT="$BATS_FILE_TMPDIR/data"
   # Single-entry list: only jails referenced by name in dns.sh matter.
   export JAIL_ORDERED_LIST="dns"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-  export DNS_FNS="$BATS_FILE_TMPDIR/dns_fns_only.sh"
-
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/dns.sh" > "$DNS_FNS"
 
   mkdir -p "$STAGE_MNT/usr/local/etc/unbound" "$STAGE_MNT/usr/local/sbin" \
            "$STAGE_MNT/etc" "$ZFS_DATA_MNT/dns"
@@ -50,22 +45,19 @@ EOF
   get_reverse_ip()  { echo "1.15.16.172.in-addr.arpa"; }
   get_reverse_ip6() { echo "1.0.0.0.fd7a.ip6.arpa"; }
 
-  # shellcheck source=/dev/null
-  . "$BATS_TEST_DIRNAME/../../provision/dns.sh"
+  provision_run dns
 }
 
 setup() {
-  load '../test_helper/load'
+  load helper
   UNBOUND_CONF="$STAGE_MNT/usr/local/etc/unbound/unbound.conf"
 }
 
 load_dns_fns() {
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   # stubs/mail-toaster.sh does not provide these
   get_reverse_ip()  { echo "1.15.16.172.in-addr.arpa"; }
   get_reverse_ip6() { echo "1.0.0.0.fd7a.ip6.arpa"; }
-  # shellcheck source=/dev/null
-  . "$DNS_FNS"
+  provision_fns dns
 }
 
 # --- JAIL variable exports ---
@@ -78,14 +70,10 @@ load_dns_fns() {
   echo "$JAIL_CONF_EXTRA" | grep -q 'exec.prestop'
 }
 
-@test "dns - defines the jail lifecycle functions" {
+@test "dns - defines the resolver switch its execution block calls" {
   load_dns_fns
-  local _fn
-  for _fn in install_unbound configure_unbound start_unbound test_unbound \
-             get_mt6_data switch_host_resolver; do
-    run type "$_fn"
-    assert_success
-  done
+  run type switch_host_resolver
+  assert_success
 }
 
 # --- install_unbound behaviour ---

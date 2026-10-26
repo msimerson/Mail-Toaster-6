@@ -2,20 +2,11 @@
 # Functional tests for provision/haraka.sh
 #
 # Every test edits the config tree, so each gets its own $BATS_TEST_TMPDIR.
-# setup_file strips the execution block once; setup only sources the result.
-
-setup_file() {
-  export HARAKA_FNS="$BATS_FILE_TMPDIR/haraka_fns_only.sh"
-  sed '/^preinstall_checks$/,$d' \
-    "$BATS_TEST_DIRNAME/../../provision/haraka.sh" > "$HARAKA_FNS"
-}
 
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   export ZFS_DATA_MNT="$STAGE_MNT/data"
   export ZFS_JAIL_MNT="$STAGE_MNT/jails"
@@ -28,8 +19,7 @@ setup() {
   mkdir -p "$HARAKA_CONF"
   printf '# syslog\n' > "$HARAKA_CONF/plugins"
 
-  # shellcheck source=/dev/null
-  . "$HARAKA_FNS"
+  provision_fns haraka preinstall_checks
 }
 
 @test "configure_haraka_syslog keeps the maillog on the data volume" {
