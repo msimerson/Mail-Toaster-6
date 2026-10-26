@@ -7,8 +7,6 @@ export MT6_TEST_ENV=1
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:-"172.16.15"}
 export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:-"syslog base dns mysql clamav spamassassin foundationdb vpopmail haraka webmail munin haproxy rspamd stalwart dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman git tachyon"}
 export ZFS_VOL=${ZFS_VOL:-"zroot"}
-# Run on a live toaster, a test defaulting to /jails or /data would read the
-# real jails and their data, and take branches the fixtures never set up.
 _stub_root="${BATS_FILE_TMPDIR:-/nonexistent}"
 export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:-"$_stub_root/jails"}
 export ZFS_DATA_MNT=${ZFS_DATA_MNT:-"$_stub_root/data"}
