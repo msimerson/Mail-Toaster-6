@@ -65,6 +65,7 @@ install_nginx_vpopmail()
 {
 	tell_status "installing nginx and fcgiwrap"
 	stage_pkg_install nginx fcgiwrap
+	install_nginx_newsyslog
 
 	configure_nginx vpopmail
 

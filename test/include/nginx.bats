@@ -6,6 +6,7 @@ setup() {
   # the real store_config: "update" is what carries a changed template onto a
   # rebuild, and a copy of it here would not prove that
   load '../../include/util.sh'
+  export TOASTER_NGINX_LOG_FORMAT=combined
 }
 
 mt6-include() { :; }
@@ -319,4 +320,79 @@ get_jail_data() { echo "$ZFS_DATA_MNT/$1"; }
   refute_output --partial "#listen"
 
   rm -rf "$tmpdir"
+}
+
+# --- where nginx logs ---
+
+_configure_logs() {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR"
+  stage_sysrc() { :; }
+  get_jail_ip4() { echo "172.16.15.1"; }
+  get_jail_ip6() { echo "::1"; }
+}
+
+@test "configure_nginx - logs to the jail's /data/log" {
+  _configure_logs
+  run configure_nginx myjail
+  assert_success
+
+  run grep -E "^[[:space:]]*(error|access)_log " "$ZFS_DATA_MNT/myjail/etc/nginx/nginx.conf"
+  assert_line --index 0 "error_log /data/log/error_log;"
+  assert_line --index 1 --regexp "access_log /data/log/access_log combined;$"
+  [ -d "$ZFS_DATA_MNT/myjail/log" ]
+}
+
+@test "configure_nginx - the combined format needs no definition" {
+  _configure_logs
+  configure_nginx myjail
+  run grep log_format "$ZFS_DATA_MNT/myjail/etc/nginx/nginx.conf"
+  assert_failure
+}
+
+@test "configure_nginx - the main format is defined before it is used" {
+  _configure_logs
+  export TOASTER_NGINX_LOG_FORMAT=main
+  configure_nginx myjail
+
+  local _conf="$ZFS_DATA_MNT/myjail/etc/nginx/nginx.conf"
+  run grep -E "log_format +main|access_log " "$_conf"
+  assert_line --index 0 --partial "log_format  main"
+  assert_line --index 1 --partial "access_log /data/log/access_log main;"
+  run grep -F '"$http_x_forwarded_for"' "$_conf"
+  assert_success
+}
+
+# nginx rejects a format nothing defines, and test_nginx would only report it
+# once the jail is built
+@test "configure_nginx - refuses a log format it does not define" {
+  _configure_logs
+  export TOASTER_NGINX_LOG_FORMAT=json
+  run configure_nginx myjail
+  assert_failure
+  [ ! -f "$ZFS_DATA_MNT/myjail/etc/nginx/nginx.conf" ]
+}
+
+# a glob would also rotate other logs in /data/log, and signal nginx for them
+@test "install_nginx_newsyslog - rotates the logs nginx.conf writes, and only those" {
+  _configure_logs
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  stage_enable_newsyslog() { :; }
+  configure_nginx myjail
+  install_nginx_newsyslog
+
+  run awk '/^[[:space:]]*(error|access)_log / { sub(/;$/, "", $2); print $2 }' \
+    "$ZFS_DATA_MNT/myjail/etc/nginx/nginx.conf"
+  local _written; _written=$(echo "$output" | sort)
+  run awk '$1 ~ /^\/data\// { print $1 }' "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf"
+  assert_equal "$(echo "$output" | sort)" "$_written"
+}
+
+# store_config "update" keeps an edited nginx.conf, which logs where it always did
+@test "install_nginx_newsyslog - rotates the logs of an nginx.conf the admin edited" {
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  stage_enable_newsyslog() { :; }
+  install_nginx_newsyslog
+
+  run grep -E '^/var/log/nginx/\*\.log[[:space:]]' "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf"
+  assert_success
 }

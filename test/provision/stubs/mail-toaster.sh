@@ -197,6 +197,7 @@ mysql_error_warning()      { :; }
 
 # PHP include stubs
 install_php()              { :; }
+install_php_newsyslog()    { :; }
 configure_php()            { :; }
 configure_php_ini()        { :; }
 configure_php_fpm()        { :; }
@@ -206,6 +207,7 @@ php_quote()                { echo "$1"; }
 
 # Nginx include stubs
 install_nginx()            { :; }
+install_nginx_newsyslog()  { :; }
 configure_nginx()          { :; }
 configure_nginx_server_d() { :; }
 start_nginx()              { :; }

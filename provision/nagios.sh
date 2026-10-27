@@ -14,6 +14,7 @@ install_nagios()
 {
 	tell_status "installing nagios"
 	stage_pkg_install nagios4 nrpe || exit
+	install_php_newsyslog
 
 	tell_status "installing web services"
 	install_nginx
