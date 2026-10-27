@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
+- NEWSYSLOG_COMPRESSION_METHOD picks log compression on Fbsd 15+ (#735)
 - test: provision stub defaults stay off the live toaster dirs
 - test: shared provision test helper, ~20% faster
 - mta: preserve an edited pf.conf.d/rdr.conf on rebuild
