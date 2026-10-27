@@ -681,6 +681,15 @@ stage_enable_newsyslog()
 	sed_inplace \
 		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"
+
+	# <compress> arrived in FreeBSD 15 and applies only to the entries parsed
+	# after it. Legacy is the default, and 15.0 mishandles an explicit
+	# "<compress> legacy", so that value is never written.
+	if [ "$NEWSYSLOG_COMPRESSION_METHOD" != legacy ] \
+		&& [ "$(freebsd_major "$STAGE_MNT")" -gt 14 ]; then
+		sed_inplace '1i\
+<compress> '"$NEWSYSLOG_COMPRESSION_METHOD" "$STAGE_MNT/etc/newsyslog.conf"
+	fi
 }
 
 unmount_data()
