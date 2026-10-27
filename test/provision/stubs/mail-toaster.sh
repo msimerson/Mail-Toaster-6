@@ -197,6 +197,7 @@ mysql_error_warning()      { :; }
 
 # PHP include stubs
 install_php()              { :; }
+install_php_newsyslog()    { :; }
 configure_php()            { :; }
 configure_php_ini()        { :; }
 configure_php_fpm()        { :; }
