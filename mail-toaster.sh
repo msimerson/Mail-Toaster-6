@@ -682,10 +682,12 @@ stage_enable_newsyslog()
 		-e '/^#0.*newsyslog/ s/^#0/0/' \
 		"$STAGE_MNT/etc/crontab"
 
-	# The <compress> directive has appeared in FreeBSD 15 and should precede
-	# all log file definitions
-	if [ "$(freebsd_major "$STAGE_MNT")" -gt 14 ]; then
-		[ "$NEWSYSLOG_COMPRESSION_METHOD" = legacy ] || sed_inplace '1i\
+	# <compress> arrived in FreeBSD 15 and applies only to the entries parsed
+	# after it. Legacy is the default, and 15.0 mishandles an explicit
+	# "<compress> legacy", so that value is never written.
+	if [ "$NEWSYSLOG_COMPRESSION_METHOD" != legacy ] \
+		&& [ "$(freebsd_major "$STAGE_MNT")" -gt 14 ]; then
+		sed_inplace '1i\
 <compress> '"$NEWSYSLOG_COMPRESSION_METHOD" "$STAGE_MNT/etc/newsyslog.conf"
 	fi
 }

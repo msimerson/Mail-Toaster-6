@@ -851,16 +851,47 @@ setup_unprovision_tree() {
   assert_equal "$(_file_mode "$STAGE_MNT/etc/ssl/private")" 700
 }
 
-@test "stage_enable_newsyslog respects NEWSYSLOG_COMPRESSION_METHOD" {
+setup_newsyslog_stage() {
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   mkdir -p "$STAGE_MNT/etc" "$STAGE_MNT/usr/local/etc"
   touch "$STAGE_MNT/etc/crontab"
-  echo "#" > "$STAGE_MNT/etc/newsyslog.conf"  # sed fails to process empty files
+  printf '# configuration file for newsyslog\n/var/log/all.log\t600  7  *  @T00  J\n' \
+    > "$STAGE_MNT/etc/newsyslog.conf"
+  cp "$STAGE_MNT/etc/newsyslog.conf" "$BATS_TEST_TMPDIR/newsyslog.conf.orig"
   sysrc() { :; }
-  freebsd_major() { echo 15; }
+}
 
+# newsyslog applies <compress> only to the entries parsed after it
+@test "stage_enable_newsyslog - the compression method precedes every log entry" {
+  setup_newsyslog_stage
+  freebsd_major() { echo 15; }
   export NEWSYSLOG_COMPRESSION_METHOD="none"
+
   stage_enable_newsyslog
 
-  assert_equal "$(head -1 "$STAGE_MNT/etc/newsyslog.conf")" "<compress> none"
+  run cat "$STAGE_MNT/etc/newsyslog.conf"
+  assert_line --index 0 "<compress> none"
+  assert_line --index 1 "# configuration file for newsyslog"
+}
+
+@test "stage_enable_newsyslog - legacy leaves newsyslog.conf as base shipped it" {
+  setup_newsyslog_stage
+  freebsd_major() { touch "$BATS_TEST_TMPDIR/version_checked"; echo 15; }
+  export NEWSYSLOG_COMPRESSION_METHOD="legacy"
+
+  stage_enable_newsyslog
+
+  cmp "$BATS_TEST_TMPDIR/newsyslog.conf.orig" "$STAGE_MNT/etc/newsyslog.conf"
+  # the default skips the chroot into the stage to read its version
+  [ ! -e "$BATS_TEST_TMPDIR/version_checked" ]
+}
+
+@test "stage_enable_newsyslog - FreeBSD 14 has no <compress> to set" {
+  setup_newsyslog_stage
+  freebsd_major() { echo 14; }
+  export NEWSYSLOG_COMPRESSION_METHOD="none"
+
+  stage_enable_newsyslog
+
+  cmp "$BATS_TEST_TMPDIR/newsyslog.conf.orig" "$STAGE_MNT/etc/newsyslog.conf"
 }
