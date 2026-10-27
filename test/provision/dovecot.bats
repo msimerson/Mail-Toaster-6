@@ -1,18 +1,10 @@
 #!/usr/bin/env bats
 # Functional tests for provision/dovecot.sh
 
-setup_file() {
-  export DOVECOT_FNS="$BATS_FILE_TMPDIR/dovecot_fns_only.sh"
-  sed '/^base_snapshot_exists/,$d' \
-    "$BATS_TEST_DIRNAME/../../provision/dovecot.sh" > "$DOVECOT_FNS"
-}
-
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export ZFS_DATA_MNT="$STAGE_MNT/data"
   export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
   export TOASTER_HOSTNAME="mail.example.com"
@@ -21,8 +13,7 @@ setup() {
   LOCAL_CONF="$ZFS_DATA_MNT/dovecot/etc/local.conf"
   mkdir -p "$(dirname "$LOCAL_CONF")"
 
-  # shellcheck source=/dev/null
-  . "$DOVECOT_FNS"
+  provision_fns dovecot
 
   # the pair must exist before local.conf names it
   install_jail_tls_pair() { cp "$LOCAL_CONF" "$BATS_TEST_TMPDIR/at_install"; }

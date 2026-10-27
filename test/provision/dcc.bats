@@ -4,22 +4,12 @@
 # dcc speaks IPv6 only when the port was built with the IPV6 option and cdcc
 # was not told to turn it off, so both decisions have to follow the jail.
 
-setup_file() {
-  export DCC_FNS="$BATS_FILE_TMPDIR/dcc_fns_only.sh"
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/dcc.sh" > "$DCC_FNS"
-}
-
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load helper
 
-  export MT6_TEST_ENV=1
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export STAGE_MNT; STAGE_MNT=$(mktemp -d)
 
-  # shellcheck source=/dev/null
-  . "$DCC_FNS"
+  provision_fns dcc
 
   # the stubs are no-ops; report the arguments so the tests can assert on them
   stage_make_conf() { echo "make_conf: $*"; }

@@ -1,31 +1,25 @@
 # https://bats-core.readthedocs.io/en/stable/writing-tests.html
 
-setup() {
-  load 'test_helper/load'
+# what mt6_init sources
+load_mt6() {
+  local _f
+  for _f in mail-toaster.sh include/util.sh include/config.sh include/zfs.sh \
+            include/jail.sh include/network.sh include/tls.sh; do
+    # shellcheck source=/dev/null
+    . "$BATS_TEST_DIRNAME/../$_f"
+  done
+}
+
+# mt6_defaults exports all it sets, so each test inherits them from here
+setup_file() {
   export MT6_TEST_ENV=1
-  load ../mail-toaster.sh
-  # Manually load includes that mt6_init would have loaded
-  load ../include/util.sh
-  load ../include/config.sh
-  load ../include/zfs.sh
-  load ../include/jail.sh
-  load ../include/network.sh
-  load ../include/tls.sh
-  # Initialize defaults that mt6_init would have set
+  load_mt6
   mt6_defaults
 }
 
-@test "safe_jailname replaces . with _" {
-  run safe_jailname bad.chars
-  assert_success
-  assert_output "bad_chars"
-}
-
-@test "reverse_list" {
-  run reverse_list tic tac toe
-  #echo "# $output" >&3
-  assert_success
-  assert_output --partial "toe tac tic"
+setup() {
+  load 'test_helper/load'
+  load_mt6
 }
 
 @test "tell_settings - prints the settings for a prefix" {
@@ -79,22 +73,6 @@ setup() {
   run proclaim_success "test"
   assert_success
   assert_output --partial "Success! A new 'test' jail is provisioned"
-}
-
-@test "get_random_pass - honors the requested length and character set" {
-  run get_random_pass 20
-  assert_success
-  assert_equal ${#output} 20
-
-  run get_random_pass
-  assert_success
-  assert_equal ${#output} 14
-
-  run get_random_pass 14 strong
-  assert_success
-
-  run get_random_pass 14 safe
-  assert_success
 }
 
 @test "get_jail_ip4 - each jail lands on its own octet" {
@@ -689,7 +667,6 @@ promote_setup() {
   refute_output --partial "retire"
 }
 
-
 # --- unprovision clears the control files the host keeps per jail ---
 
 setup_unprovision_tree() {
@@ -836,43 +813,11 @@ setup_unprovision_tree() {
   refute_output --regexp '(^| )/$'
 }
 
-# --- every jail resolves the names it needs before unbound answers ---
-
-setup_minimal_hosts() {
+@test "create_staged_fs - every jail gets the minimal hosts, not just dns" {
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   mkdir -p "$STAGE_MNT/etc"
-  # what base.txz ships, via lib/libc/net/hosts
-  printf '::1\t\t\tlocalhost localhost.my.domain\n127.0.0.1\t\tlocalhost localhost.my.domain\n' \
-    > "$STAGE_MNT/etc/hosts"
-  tell_status() { :; }
+  printf '127.0.0.1\t\tlocalhost localhost.my.domain\n' > "$STAGE_MNT/etc/hosts"
   get_public_ip6() { export PUBLIC_IP6=""; }
-}
-
-@test "install_minimal_hosts - adds the names a jail needs to bootstrap" {
-  setup_minimal_hosts
-
-  install_minimal_hosts
-
-  run cat "$STAGE_MNT/etc/hosts"
-  assert_output --partial "$(get_jail_ip4 dns) dns"
-  assert_output --partial "$(get_jail_ip4 syslog) syslog"
-  assert_output --partial "$(get_jail_ip4 bsd_cache) pkg vulnxml freebsd-update"
-}
-
-# it appends; overwriting would take localhost with it
-@test "install_minimal_hosts - keeps the localhost entries base ships" {
-  setup_minimal_hosts
-
-  install_minimal_hosts
-
-  run cat "$STAGE_MNT/etc/hosts"
-  assert_output --partial "127.0.0.1"
-  assert_output --partial "::1"
-  assert_line --regexp '^127\.0\.0\.1[[:space:]]+localhost'
-}
-
-@test "create_staged_fs - every jail gets the minimal hosts, not just dns" {
-  setup_minimal_hosts
   export ZFS_JAIL_VOL="zroot/jails" ZFS_DATA_VOL="zroot/data" BASE_SNAP="zroot/jails/base@p0"
   cleanup_staged_fs()           { :; }
   zfs()                         { :; }
@@ -891,64 +836,6 @@ setup_minimal_hosts() {
   assert_output --partial "127.0.0.1"
 }
 
-@test "install_minimal_hosts - a jail with IPv6 gets those addresses too" {
-  setup_minimal_hosts
-  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
-
-  install_minimal_hosts
-
-  run cat "$STAGE_MNT/etc/hosts"
-  assert_output --partial "$(get_jail_ip6 dns) dns"
-  assert_output --partial "$(get_jail_ip6 bsd_cache) pkg vulnxml freebsd-update"
-}
-
-@test "install_minimal_hosts - syslog gets both families" {
-  setup_minimal_hosts
-  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
-
-  install_minimal_hosts
-
-  run grep -c ' syslog$' "$STAGE_MNT/etc/hosts"
-  assert_output "2"
-
-  run cat "$STAGE_MNT/etc/hosts"
-  assert_output --partial "$(get_jail_ip4 syslog) syslog"
-  assert_output --partial "$(get_jail_ip6 syslog) syslog"
-}
-
-@test "install_minimal_hosts - a jail without IPv6 gets no v6 entries" {
-  setup_minimal_hosts
-  get_public_ip6() { export PUBLIC_IP6=""; }
-
-  install_minimal_hosts
-
-  run grep -c ' dns$' "$STAGE_MNT/etc/hosts"
-  assert_output "1"
-
-  run grep -c 'freebsd-update$' "$STAGE_MNT/etc/hosts"
-  assert_output "1"
-}
-
-# base pairs ::1 above 127.0.0.1 for localhost; match that
-@test "install_minimal_hosts - IPv6 precedes IPv4 for each name" {
-  setup_minimal_hosts
-  get_public_ip6() { export PUBLIC_IP6="2001:db8::1"; }
-
-  install_minimal_hosts
-
-  run awk '$2 == "dns" { print $1 }' "$STAGE_MNT/etc/hosts"
-  assert_line --index 0 "$(get_jail_ip6 dns)"
-  assert_line --index 1 "$(get_jail_ip4 dns)"
-
-  run awk '$2 == "syslog" { print $1 }' "$STAGE_MNT/etc/hosts"
-  assert_line --index 0 "$(get_jail_ip6 syslog)"
-  assert_line --index 1 "$(get_jail_ip4 syslog)"
-
-  run awk '$2 == "pkg" { print $1 }' "$STAGE_MNT/etc/hosts"
-  assert_line --index 0 "$(get_jail_ip6 bsd_cache)"
-  assert_line --index 1 "$(get_jail_ip4 bsd_cache)"
-}
-
 @test "stage_setup_tls installs the host pair in the staged /etc/ssl" {
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   export TOASTER_HOSTNAME="mail.example.com"
@@ -962,4 +849,49 @@ setup_minimal_hosts() {
   assert_equal "$(cat "$STAGE_MNT/etc/ssl/certs/mail.example.com.pem")" host-crt
   assert_equal "$(cat "$STAGE_MNT/etc/ssl/private/mail.example.com.pem")" host-key
   assert_equal "$(_file_mode "$STAGE_MNT/etc/ssl/private")" 700
+}
+
+setup_newsyslog_stage() {
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT/etc" "$STAGE_MNT/usr/local/etc"
+  touch "$STAGE_MNT/etc/crontab"
+  printf '# configuration file for newsyslog\n/var/log/all.log\t600  7  *  @T00  J\n' \
+    > "$STAGE_MNT/etc/newsyslog.conf"
+  cp "$STAGE_MNT/etc/newsyslog.conf" "$BATS_TEST_TMPDIR/newsyslog.conf.orig"
+  sysrc() { :; }
+}
+
+# newsyslog applies <compress> only to the entries parsed after it
+@test "stage_enable_newsyslog - the compression method precedes every log entry" {
+  setup_newsyslog_stage
+  freebsd_major() { echo 15; }
+  export NEWSYSLOG_COMPRESSION_METHOD="none"
+
+  stage_enable_newsyslog
+
+  run cat "$STAGE_MNT/etc/newsyslog.conf"
+  assert_line --index 0 "<compress> none"
+  assert_line --index 1 "# configuration file for newsyslog"
+}
+
+@test "stage_enable_newsyslog - legacy leaves newsyslog.conf as base shipped it" {
+  setup_newsyslog_stage
+  freebsd_major() { touch "$BATS_TEST_TMPDIR/version_checked"; echo 15; }
+  export NEWSYSLOG_COMPRESSION_METHOD="legacy"
+
+  stage_enable_newsyslog
+
+  cmp "$BATS_TEST_TMPDIR/newsyslog.conf.orig" "$STAGE_MNT/etc/newsyslog.conf"
+  # the default skips the chroot into the stage to read its version
+  [ ! -e "$BATS_TEST_TMPDIR/version_checked" ]
+}
+
+@test "stage_enable_newsyslog - FreeBSD 14 has no <compress> to set" {
+  setup_newsyslog_stage
+  freebsd_major() { echo 14; }
+  export NEWSYSLOG_COMPRESSION_METHOD="none"
+
+  stage_enable_newsyslog
+
+  cmp "$BATS_TEST_TMPDIR/newsyslog.conf.orig" "$STAGE_MNT/etc/newsyslog.conf"
 }

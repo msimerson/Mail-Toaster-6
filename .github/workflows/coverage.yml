@@ -14,19 +14,6 @@ jobs:
     env:
       KCOV_VERSION: 43
     steps:
-      - name: Install Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            g++ \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libdw-dev \
-            binutils-dev \
-            libiberty-dev \
-            zlib1g-dev \
-            libelf-dev
       - name: Identify OS release
         id: os
         run: . /etc/os-release && echo "release=$ID-$VERSION_ID" >> "$GITHUB_OUTPUT"
@@ -36,6 +23,22 @@ jobs:
         with:
           path: /usr/local/bin/kcov
           key: ${{ runner.os }}-${{ steps.os.outputs.release }}-kcov-v${{ env.KCOV_VERSION }}
+      # Only the build needs these. The libraries kcov loads at runtime ship
+      # with the runner image, and the Azure apt mirror can stall for minutes.
+      - name: Install Build Dependencies
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            g++ \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libdw-dev \
+            binutils-dev \
+            libiberty-dev \
+            zlib1g-dev \
+            libelf-dev
       - name: Install kcov from source
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
@@ -46,6 +49,9 @@ jobs:
           make -j$(nproc)
           sudo make install
           cd ../../
+      # the dynamic loader names any shared library the cached binary lacks
+      - name: Verify kcov runs
+        run: kcov --version
       - uses: actions/checkout@v6
       - name: Run kcov
         run: sh ./test/coverage.sh

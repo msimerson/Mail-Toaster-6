@@ -4,18 +4,9 @@
 # configure_pf_conf writes /etc/pf.conf, so setup extracts the function
 # definitions and each test calls it with store_config caught in $BATS_TEST_TMPDIR.
 
-setup_file() {
-  export HOST_FNS="$BATS_FILE_TMPDIR/host_fns_only.sh"
-  sed '/^update_host$/,$d' \
-    "$BATS_TEST_DIRNAME/../../provision/host.sh" > "$HOST_FNS"
-}
-
 setup() {
-  load '../test_helper/bats-support/load'
-  load '../test_helper/bats-assert/load'
+  load helper
 
-  export MT6_TEST_ENV=1
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
   export PUBLIC_NIC="vtnet0"
   export JAIL_NET_PREFIX="172.16.15"
   export JAIL_NET_MASK="/19"
@@ -23,8 +14,7 @@ setup() {
 
   PF_CONF="$BATS_TEST_TMPDIR/pf.conf"
 
-  # shellcheck source=/dev/null
-  . "$HOST_FNS"
+  provision_fns host update_host
 
   # configure_pf_conf names /etc/pf.conf; catch it before it reaches the host
   store_config() { cat - > "$PF_CONF"; }

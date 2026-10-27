@@ -7,13 +7,14 @@ export MT6_TEST_ENV=1
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:-"172.16.15"}
 export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:-"syslog base dns mysql clamav spamassassin foundationdb vpopmail haraka webmail munin haproxy rspamd stalwart dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman git tachyon"}
 export ZFS_VOL=${ZFS_VOL:-"zroot"}
-export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:-"/jails"}
-export ZFS_DATA_MNT=${ZFS_DATA_MNT:-"/data"}
+_stub_root="${BATS_FILE_TMPDIR:-/nonexistent}"
+export ZFS_JAIL_MNT=${ZFS_JAIL_MNT:-"$_stub_root/jails"}
+export ZFS_DATA_MNT=${ZFS_DATA_MNT:-"$_stub_root/data"}
 export ZFS_JAIL_VOL="${ZFS_VOL}${ZFS_JAIL_MNT}"
 export ZFS_DATA_VOL="${ZFS_VOL}${ZFS_DATA_MNT}"
 export STAGE_MNT=${STAGE_MNT:-"$ZFS_JAIL_MNT/stage"}
 export SAFE_NAME=${SAFE_NAME:-"stage"}
-export BASE_MNT=${BASE_MNT:-"/jails/base"}
+export BASE_MNT=${BASE_MNT:-"$ZFS_JAIL_MNT/base"}
 export BASE_SNAP=${BASE_SNAP:-"zroot/jails/base@p0"}
 export TOASTER_HOSTNAME=${TOASTER_HOSTNAME:-"mail.example.com"}
 export TOASTER_MAIL_DOMAIN=${TOASTER_MAIL_DOMAIN:-"example.com"}
@@ -65,6 +66,7 @@ rename_staged_to_ready()   { :; }
 rename_active_to_last()    { :; }
 rename_ready_to_active()   { :; }
 stage_unmount()            { :; }
+unmount_data()             { :; }
 stage_clear_caches()       { :; }
 
 # Jail lifecycle
@@ -76,23 +78,33 @@ seed_pkg_audit()           { :; }
 
 # Jail helpers
 jail_is_running()          { return 1; }
-# mirrors include/jail.sh, less the host(1) fallback for an unlisted jail
-get_jail_ip4() {
-  local _start=${JAIL_NET_START:-1} _octet
+# Numbers the jails as include/jail.sh does, less the host(1) fallback for an
+# unlisted jail. Bats traps DEBUG on every command, so the per-jail loop
+# include/jail.sh runs would cost ~20ms a lookup; counting the names ahead of
+# the jail costs the same few commands wherever it sits in the list.
+_jail_octet() {
+  local _jail="$1" _start=${JAIL_NET_START:-1}
 
-  case "$1" in
-    syslog) echo "$JAIL_NET_PREFIX.$_start";         return ;;
-    base*)  echo "$JAIL_NET_PREFIX.$((_start + 1))"; return ;;
-    stage)  echo "$JAIL_NET_PREFIX.254";             return ;;
+  case "$_jail" in
+    syslog) _octet="$_start";           return ;;
+    base*)  _octet="$((_start + 1))";   return ;;
+    stage)  _octet=254;                 return ;;
   esac
 
-  _octet="$_start"
-  for _j in $JAIL_ORDERED_LIST; do
-    if [ "$1" = "$_j" ]; then echo "$JAIL_NET_PREFIX.$_octet"; return; fi
-    _octet=$((_octet + 1))
-  done
+  # shellcheck disable=SC2086
+  set -- $JAIL_ORDERED_LIST
+  local _list=" $* "
+  case "$_list" in *" $_jail "*) ;; *) return 2 ;; esac
 
-  return 2
+  # shellcheck disable=SC2086
+  set -- ${_list%% "$_jail" *}
+  _octet="$((_start + $#))"
+}
+
+get_jail_ip4() {
+  local _octet
+  _jail_octet "$1" || return
+  echo "$JAIL_NET_PREFIX.$_octet"
 }
 
 get_jail_ip() {
@@ -100,24 +112,12 @@ get_jail_ip() {
 }
 
 get_jail_ip6() {
-  local _start=${JAIL_NET_START:-1} _octet
-
-  case "$1" in
-    syslog) echo "$JAIL_NET6:$(dec_to_hex "$_start")";       return ;;
-    base*)  echo "$JAIL_NET6:$(dec_to_hex $((_start + 1)))"; return ;;
-    stage)  echo "$JAIL_NET6:$(dec_to_hex 254)";             return ;;
-  esac
-
-  _octet="$_start"
-  for _j in $JAIL_ORDERED_LIST; do
-    if [ "$1" = "$_j" ]; then echo "$JAIL_NET6:$(dec_to_hex "$_octet")"; return; fi
-    _octet=$((_octet + 1))
-  done
-
-  return 2
+  local _octet
+  _jail_octet "$1" || return
+  echo "$JAIL_NET6:$(dec_to_hex "$_octet")"
 }
 get_jail_data()            { echo "${ZFS_DATA_MNT}/$1"; }
-export MT6_ETC=${MT6_ETC:-"/etc/mail-toaster"}
+export MT6_ETC=${MT6_ETC:-"$_stub_root/etc/mail-toaster"}
 get_jail_host_etc()        { echo "${MT6_ETC}/$1"; }
 get_pfrule_path()          { echo "${MT6_ETC}/pfrule.sh"; }
 safe_jailname()            { echo "$1" | tr '.-' '__'; }

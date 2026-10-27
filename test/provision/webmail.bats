@@ -7,15 +7,10 @@
 # - setup() runs per-test (fast): sources only the function definitions.
 
 setup_file() {
+  load helper
   local _data="$BATS_FILE_TMPDIR/data"
   local _stage="$BATS_FILE_TMPDIR/stage"
-  local _fns="$BATS_FILE_TMPDIR/webmail_fns_only.sh"
 
-  # Strip execution block so setup() can source function definitions only.
-  awk '/^base_snapshot_exists/{exit} {print}' \
-    "$BATS_TEST_DIRNAME/../../provision/webmail.sh" > "$_fns"
-
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$_stage"
   export ZFS_DATA_MNT="$_data"
   export TOASTER_HOSTNAME="mail.example.com"
@@ -23,25 +18,18 @@ setup_file() {
   export TOASTER_NGINX_ACME=""
   export JAIL_NET_PREFIX="172.16.15"
   export JAIL_ORDERED_LIST="vpopmail haproxy webmail dns roundcube snappymail haraka rspamd"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   mkdir -p "$_data/webmail/etc/nginx" "$_stage"
 
-  # shellcheck source=/dev/null
-  . "$_fns"
+  provision_fns webmail
   configure_nginx_server
 }
 
 setup() {
-  load '../test_helper/load'
-
-  export MT6_TEST_ENV=1
+  load helper
   export ZFS_DATA_MNT="$BATS_FILE_TMPDIR/data"
   export WEBMAIL_CONF="$ZFS_DATA_MNT/webmail/etc/nginx/webmail.conf"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
-
-  # shellcheck source=/dev/null
-  . "$BATS_FILE_TMPDIR/webmail_fns_only.sh"
+  provision_fns webmail
 }
 
 # --- JAIL variable exports ---

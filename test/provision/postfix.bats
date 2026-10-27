@@ -1,18 +1,10 @@
 #!/usr/bin/env bats
 # Functional tests for provision/postfix.sh
 
-setup_file() {
-  export POSTFIX_FNS="$BATS_FILE_TMPDIR/postfix_fns_only.sh"
-  sed '/^base_snapshot_exists/,$d' \
-    "$BATS_TEST_DIRNAME/../../provision/postfix.sh" > "$POSTFIX_FNS"
-}
-
 setup() {
-  load '../test_helper/load'
+  load helper
 
-  export MT6_TEST_ENV=1
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
-  export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
 
   export ZFS_DATA_MNT="$STAGE_MNT/data"
 
@@ -42,8 +34,7 @@ smtp      inet  n       -       n       -       -       smtpd
 pickup    unix  n       -       n       60      1       pickup
 EOF
 
-  # shellcheck source=/dev/null
-  . "$POSTFIX_FNS"
+  provision_fns postfix
 }
 
 @test "enable_postfix_submission uncomments the submission and smtps blocks" {
