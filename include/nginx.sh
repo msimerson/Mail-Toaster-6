@@ -43,10 +43,15 @@ install_nginx_newsyslog()
 	tell_status "enabling nginx log file rotation"
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/nginx.conf" <<EO_NG_NSL
 # rotate nightly (default)
-/data/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+/data/log/access_log		root:wheel	644	 7     *   @T00   BCX  /var/run/nginx.pid 30
+/data/log/error_log		root:wheel	644	 7     *   @T00   BCX  /var/run/nginx.pid 30
 
 # rotate when file size reaches 20M
-#/data/log/nginx/*.log		root:wheel	644	 7     20480	 *   BCGX  /var/run/nginx.pid 30
+#/data/log/access_log		root:wheel	644	 7     20480	 *   BCX  /var/run/nginx.pid 30
+#/data/log/error_log		root:wheel	644	 7     20480	 *   BCX  /var/run/nginx.pid 30
+
+# an nginx.conf edited before logs moved to /data/log still writes here
+/var/log/nginx/*.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 EO_NG_NSL
 
 }
@@ -116,19 +121,25 @@ configure_nginx()
 		exit 1
 	fi
 
+	local _log_format=""
+	case "$TOASTER_NGINX_LOG_FORMAT" in
+		combined) ;;
+		main) _log_format="log_format  main  '\$remote_addr - \$remote_user [\$time_local] \"\$request\" '
+			  '\$status \$body_bytes_sent \"\$http_referer\" '
+			  '\"\$http_user_agent\" \"\$http_x_forwarded_for\"';" ;;
+		*)
+			tell_status "TOASTER_NGINX_LOG_FORMAT must be combined or main"
+			exit 1
+			;;
+	esac
+
 	local _etcdir
 	_etcdir="$(get_jail_data "$1")/etc/nginx"
 	if [ ! -d "$_etcdir" ]; then mkdir -p "$_etcdir" || exit 1; fi
 
 	stage_sysrc nginx_flags='-c /data/etc/nginx/nginx.conf'
 
-	[ -d "$(get_jail_data "$1")/log/nginx" ] || mkdir -p "$(get_jail_data "$1")/log/nginx"
-
-	local _extra=""
-	[ "$TOASTER_NGINX_LOG_FORMAT" != main ] || _extra="
-	log_format  main  '\$remote_addr - \$remote_user [\$time_local] \"\$request\" '
-			  '\$status \$body_bytes_sent \"\$http_referer\" '
-			  '\"\$http_user_agent\" \"\$http_x_forwarded_for\"';"
+	mkdir -p "$(get_jail_data "$1")/log"
 
 	store_config "$_etcdir/nginx.conf" "update" <<EO_NGINX_CONF
 # load_module /usr/local/libexec/nginx/ngx_http_acme_module.so;
@@ -137,7 +148,7 @@ load_module /usr/local/libexec/nginx/ngx_stream_module.so;
 
 worker_processes  1;
 
-error_log /data/log/nginx/error.log;
+error_log /data/log/error_log;
 
 events {
 	worker_connections  256;
@@ -147,8 +158,8 @@ http {
 	include       /usr/local/etc/nginx/mime.types;
 	default_type  application/octet-stream;
 
-	$_extra
-	access_log /data/log/nginx/access.log $TOASTER_NGINX_LOG_FORMAT;
+	$_log_format
+	access_log /data/log/access_log $TOASTER_NGINX_LOG_FORMAT;
 
 	sendfile        on;
 	gzip on;

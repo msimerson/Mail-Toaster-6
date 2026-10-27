@@ -5,9 +5,12 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-10
 
+- nginx: log to /data/log, TOASTER_NGINX_LOG_FORMAT (#736)
+- php-fpm: log to /data/log (#736)
 - NEWSYSLOG_COMPRESSION_METHOD picks log compression on Fbsd 15+ (#735)
 - test: provision stub defaults stay off the live toaster dirs
 - test: shared provision test helper, ~20% faster
+- ci: key kcov cache on OS release, kcov 43
 - mta: preserve an edited pf.conf.d/rdr.conf on rebuild
 - pf.conf.d: keep the old copy when a rule in it was not adopted
 - elasticsearch, unifi: mount fdescfs and procfs via jail params

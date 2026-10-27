@@ -206,6 +206,7 @@ php_quote()                { echo "$1"; }
 
 # Nginx include stubs
 install_nginx()            { :; }
+install_nginx_newsyslog()  { :; }
 configure_nginx()          { :; }
 configure_nginx_server_d() { :; }
 start_nginx()              { :; }
