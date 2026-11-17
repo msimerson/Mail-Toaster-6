@@ -40,7 +40,7 @@ db_url = sqlite:///${_db}
 
 local_directory = /data/db
 max_size = 5MB
-on_update_exec = clamdscan --config-file=/data/etc/clamd.conf --reload
+on_update_exec = clamdscan --reload
 on_update_timeout = 42
 
 [sanesecurity]
