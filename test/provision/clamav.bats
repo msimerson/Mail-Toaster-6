@@ -152,3 +152,41 @@ assert_conf_enabled() {
   assert_success
   assert_output --partial "PORT:3310"
 }
+
+# --- optional signature installers ---
+
+@test "clamav - unofficial installs gsed and writes signatures to /data/db" {
+  provision_fns clamav
+  export CLAMAV_UNOFFICIAL=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-7.2.5"
+  mkdir -p "$_dist/config/os" "$STAGE_MNT/usr/local/bin"
+  echo 'clam_dbs="/var/db/clamav"' > "$_dist/config/os/os.freebsd.conf"
+  echo '#user_configuration_complete="yes"' > "$_dist/config/user.conf"
+  echo '#!/bin/bash' > "$_dist/clamav-unofficial-sigs.sh"
+  fetch() { :; }
+  tar() { :; }
+  stage_pkg_install() { echo "PKG:$*"; }
+
+  run install_clamav_unofficial
+  assert_success
+  assert_output --regexp "PKG:.* gsed"
+  run grep '^clam_dbs=' "$STAGE_MNT/etc/clamav-unofficial-sigs/os.conf"
+  assert_output 'clam_dbs="/data/db"'
+}
+
+@test "clamav - fangfrisch installs sqlite3 for the default python, into /data/db" {
+  provision_fns clamav
+  export CLAMAV_FANGFRISCH=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  stage_exec() { [ "$1" = "python3" ] && echo "py311"; return 0; }
+  stage_pkg_install() { echo "PKG:$*"; }
+  store_config() { mkdir -p "$(dirname "$1")"; cat - > "$1"; }
+
+  run install_clamav_fangfrisch
+  assert_success
+  assert_output --partial "PKG:py311-sqlite3"
+  refute_output --partial "py39"
+  run grep '^local_directory' "$STAGE_MNT/usr/local/fangfrisch/fangfrisch.conf"
+  assert_output "local_directory = /data/db"
+}

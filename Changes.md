@@ -3,6 +3,12 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-11
+
+- clamav: unofficial sigs install gsed, which the script requires on FreeBSD
+- clamav: unofficial sigs and fangfrisch write to /data/db, where clamd loads them
+- clamav: fangfrisch installs py-sqlite3 for the default python, py39 is gone
+
 ## 2026-10
 
 - nginx: log to /data/log, TOASTER_NGINX_LOG_FORMAT (#736)
