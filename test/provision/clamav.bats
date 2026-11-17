@@ -179,13 +179,15 @@ assert_conf_enabled() {
   provision_fns clamav
   export CLAMAV_FANGFRISCH=1
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
-  stage_exec() { [ "$1" = "python3" ] && echo "py311"; return 0; }
+  # the real stage_exec echoes its command, which must not reach pkg
+  stage_exec() { echo "jexec stage $*"; }
+  jexec() { [ "$2" = "python3" ] && echo "py311"; return 0; }
   stage_pkg_install() { echo "PKG:$*"; }
   store_config() { mkdir -p "$(dirname "$1")"; cat - > "$1"; }
 
   run install_clamav_fangfrisch
   assert_success
-  assert_output --partial "PKG:py311-sqlite3"
+  assert_line "PKG:py311-sqlite3"
   refute_output --partial "py39"
   run grep '^local_directory' "$STAGE_MNT/usr/local/fangfrisch/fangfrisch.conf"
   assert_output "local_directory = /data/db"

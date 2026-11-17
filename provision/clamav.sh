@@ -19,7 +19,8 @@ install_clamav_fangfrisch()
 	stage_pkg_install python sqlite3 sudo
 	# the sqlite3 module is a separate package, named for the default python
 	local _py
-	_py=$(stage_exec python3 -c 'import sys; print("py%d%d" % sys.version_info[:2])')
+	# jexec, not stage_exec, which also echoes the command it runs
+	_py=$(jexec "$SAFE_NAME" python3 -c 'import sys; print("py%d%d" % sys.version_info[:2])')
 	stage_pkg_install "$_py-sqlite3"
 	_fdir="/usr/local/fangfrisch"
 	stage_exec mkdir "$_fdir"
