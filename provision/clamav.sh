@@ -26,37 +26,55 @@ install_clamav_fangfrisch()
 	stage_exec mkdir "$_fdir"
 	stage_exec bash -c 'cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch'
 	stage_exec chown -R clamav:clamav $_fdir
-	store_config "${STAGE_MNT}${_fdir}/fangfrisch.conf" <<EO_FANG_CONF
+
+	# the config and its db live in /data, so the keys an operator adds
+	# and the download history survive a reprovision
+	local _conf="/data/etc/fangfrisch.conf"
+	local _db="/data/db/fangfrisch.sqlite"
+	store_config "${STAGE_MNT}${_conf}" <<EO_FANG_CONF
 [DEFAULT]
-db_url = sqlite:////usr/local/fangfrisch/db.sqlite
+db_url = sqlite:///${_db}
 
 # The following settings are optional. Other sections inherit
 # values from DEFAULT and may also overwrite values.
 
 local_directory = /data/db
 max_size = 5MB
-on_update_exec = clamdscan --reload
+on_update_exec = clamdscan --config-file=/data/etc/clamd.conf --reload
 on_update_timeout = 42
-
-[malwarepatrol]
-enabled = yes
-# Replace with your personal Malwarepatrol receipt
-receipt = YOUR-RECEIPT-NUMBER
 
 [sanesecurity]
 enabled = yes
+# junk.ndb is larger than 5MB
+max_size = 10MB
+
+# The providers below need an account. Add yours and set enabled = yes.
+
+[malwarepatrol]
+enabled = no
+# receipt = YOUR-RECEIPT-NUMBER
 
 [securiteinfo]
-enabled = yes
-# Replace with your personal SecuriteInfo customer ID
-customer_id = abcdef123456
+enabled = no
+# customer_id = YOUR-CUSTOMER-ID
 
 [urlhaus]
-enabled = yes
+enabled = no
 max_size = 2MB
+# auth_key = YOUR-ABUSE-CH-AUTH-KEY
 EO_FANG_CONF
-	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf initdb
-	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf refresh
+
+	local _ff="sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_conf"
+	# initdb exits non-zero when the db already has its tables
+	if [ ! -f "${STAGE_MNT}${_db}" ]; then
+		stage_exec $_ff initdb
+	fi
+	stage_exec $_ff refresh
+
+	# refresh skips a provider until its interval has passed
+	tee -a "$STAGE_MNT/etc/crontab" <<EO_FANG_CRON
+*/10	*	*	*	*	clamav	$_fdir/venv/bin/fangfrisch --conf $_conf refresh
+EO_FANG_CRON
 }
 
 install_clamav_unofficial()

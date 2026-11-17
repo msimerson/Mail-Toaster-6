@@ -8,6 +8,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
 - clamav: unofficial sigs and fangfrisch write to /data/db, where clamd loads them
 - clamav: fangfrisch installs py-sqlite3 for the default python, py39 is gone
+- clamav: fangfrisch config and db in /data, refreshed by cron, only keyless providers on
 
 ## 2026-10
 
