@@ -94,7 +94,7 @@ install_clamav_unofficial()
 
 	tell_status "installing config files"
 	mkdir -p "$_conf"
-	cp -r "$_dist/config/" "$_conf/"
+	cp -R "$_dist/config/." "$_conf/"
 	cp "$_conf/os/os.freebsd.conf" "$_conf/os.conf"
 	# clamd and freshclam use /data/db, put the signatures where clamd loads them
 	sed_inplace -e '/^clam_dbs=/ s|=.*|="/data/db"|' "$_conf/os.conf"
