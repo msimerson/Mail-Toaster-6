@@ -32,6 +32,16 @@ install_mysql()
 	stage_pkg_install mysql84-server
 }
 
+db_client()
+{
+	# MariaDB 11+ warns when its client is run by the mysql name
+	if [ "$TOASTER_MARIADB" = "1" ]; then
+		echo mariadb
+	else
+		echo mysql
+	fi
+}
+
 install_mariadb()
 {
 	tell_status "installing mariadb"
@@ -99,9 +109,9 @@ configure_mysql_root_password()
 		export TOASTER_MYSQL_PASS
 	fi
 
-	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS" \
+	echo 'SHOW DATABASES' | stage_exec "$(db_client)" --password="$TOASTER_MYSQL_PASS" \
 		|| echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '$TOASTER_MYSQL_PASS';" \
-			| stage_exec mysql -u root
+			| stage_exec "$(db_client)" -u root
 
 	write_pass_to_conf
 }
@@ -229,7 +239,7 @@ test_mysql()
 {
 	tell_status "testing mysql"
 	stage_listening 3306 2
-	echo 'SHOW DATABASES' | stage_exec mysql --password="$TOASTER_MYSQL_PASS"
+	echo 'SHOW DATABASES' | stage_exec "$(db_client)" --password="$TOASTER_MYSQL_PASS"
 	echo "it worked"
 }
 

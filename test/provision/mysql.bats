@@ -74,7 +74,7 @@ teardown() {
              start_mysql test_mysql write_pass_to_conf configure_mysql_keys \
              configure_mysql_root_password migrate_mysql_dbs \
              check_mysql_native_passwords migrate_extra_cnf \
-             upgrade_mariadb_tables check_mariadb_upgrade; do
+             upgrade_mariadb_tables check_mariadb_upgrade db_client; do
     run type "$_fn"
     assert_success
   done
@@ -283,6 +283,25 @@ EOF
   run test_mysql
   assert_success
   assert_output --partial "PORT:3306"
+}
+
+# MariaDB 11+ warns when its client runs by the mysql name
+@test "mysql - test uses the mariadb client when TOASTER_MARIADB=1" {
+  export TOASTER_MARIADB="1"
+  stage_listening() { :; }
+  stage_exec() { echo "EXEC:$*"; }
+  run test_mysql
+  assert_success
+  assert_output --partial "EXEC:mariadb --password="
+}
+
+@test "mysql - test uses the mysql client for MySQL" {
+  export TOASTER_MARIADB="0"
+  stage_listening() { :; }
+  stage_exec() { echo "EXEC:$*"; }
+  run test_mysql
+  assert_success
+  assert_output --partial "EXEC:mysql --password="
 }
 
 # --- write_pass_to_conf behavior ---
