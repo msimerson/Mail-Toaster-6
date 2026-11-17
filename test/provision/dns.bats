@@ -95,7 +95,8 @@ load_dns_fns() {
   assert_output --partial '"stage'
   assert_output --partial 'A '
   assert_output --partial 'v=spf1'
-  assert_output --partial 'ip4:'
+  assert_output --partial "ip4:${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} "
+  refute_output --partial '//'
 }
 
 # a hostname inside the mail domain is already covered by the domain's MX
