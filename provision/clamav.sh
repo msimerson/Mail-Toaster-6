@@ -28,10 +28,11 @@ install_clamav_fangfrisch()
 	stage_exec chown -R clamav:clamav $_fdir
 
 	# the config and its db live in /data, so the keys an operator adds
-	# and the download history survive a reprovision
+	# and the download history survive a reprovision. An unedited config
+	# picks up template changes.
 	local _conf="/data/etc/fangfrisch.conf"
 	local _db="/data/db/fangfrisch.sqlite"
-	store_config "${STAGE_MNT}${_conf}" <<EO_FANG_CONF
+	store_config "${STAGE_MNT}${_conf}" update <<EO_FANG_CONF
 [DEFAULT]
 db_url = sqlite:///${_db}
 
