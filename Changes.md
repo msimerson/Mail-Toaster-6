@@ -3,6 +3,11 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-11
+
+- mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
+- mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
+
 ## 2026-10
 
 - nginx: log to /data/log, TOASTER_NGINX_LOG_FORMAT (#736)

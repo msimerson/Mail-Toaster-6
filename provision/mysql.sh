@@ -35,7 +35,7 @@ install_mysql()
 install_mariadb()
 {
 	tell_status "installing mariadb"
-	stage_pkg_install mariadb1011-server
+	stage_pkg_install mariadb123-server
 }
 
 write_pass_to_conf()
@@ -126,6 +126,30 @@ configure_mysql_ram()
 	fi
 }
 
+migrate_extra_cnf()
+{
+	# An edited extra.cnf is preserved, so strip settings that newer servers
+	# refuse. MariaDB 10.6+ rejects the 'none' and 'innodb' checksums and
+	# 11.0 deprecated innodb_file_per_table, which defaults to ON.
+	local _my_cnf="$1"
+	[ -f "$_my_cnf" ] || return 0
+
+	local _tmp="$_my_cnf.tmp"
+	awk '
+		{ l = tolower($0) }
+		l ~ /^[[:space:]]*innodb_checksum_algorithm[[:space:]]*=[[:space:]]*(strict_)?(none|innodb)[[:space:]]*(#.*)?$/ { next }
+		l ~ /^[[:space:]]*innodb_file_per_table[[:space:]]*=[[:space:]]*(1|on)[[:space:]]*(#.*)?$/ { next }
+		{ print }
+	' "$_my_cnf" > "$_tmp"
+
+	if ! cmp -s "$_my_cnf" "$_tmp"; then
+		tell_status "removing obsolete innodb settings from $_my_cnf"
+		# cat, not mv, so the file keeps its owner and mode
+		cat "$_tmp" > "$_my_cnf"
+	fi
+	rm -f "$_tmp"
+}
+
 configure_mysql()
 {
 	tell_status "configuring mysql"
@@ -151,19 +175,22 @@ configure_mysql()
 	local _dbdir
 	_dbdir="$(get_jail_data mysql)/db"
 
+	# innodb_file_per_table and innodb_checksum_algorithm are left at their
+	# defaults (ON, and full_crc32 on MariaDB / crc32 on MySQL). CRC32 is
+	# hardware accelerated and the non-strict default still reads pages
+	# written while the checksum was 'none'.
 	local _my_cnf="$STAGE_MNT/data/etc/extra.cnf"
-	store_config "$_my_cnf" <<EO_MY_CNF
+	store_config "$_my_cnf" update <<EO_MY_CNF
 [mysqld]
 datadir                         = /data/db
 innodb_data_home_dir            = /data/db
 innodb_log_group_home_dir       = /data/db
 
 innodb_doublewrite = off
-innodb_file_per_table = 1
-innodb_checksum_algorithm = none
 innodb_flush_neighbors = 0
 EO_MY_CNF
 
+	migrate_extra_cnf "$_my_cnf"
 	configure_mysql_ram "$_my_cnf"
 
 	store_config "$STAGE_MNT/usr/local/etc/newsyslog.conf.d/mysql.conf" <<EO_ERR
@@ -184,7 +211,18 @@ start_mysql()
 
 	stage_exec service mysql-server start
 	configure_mysql_root_password
+	upgrade_mariadb_tables
 	configure_mysql_keys
+}
+
+upgrade_mariadb_tables()
+{
+	# MariaDB does not upgrade the system tables of an older datadir on
+	# its own. mariadb-upgrade is a no-op when they are already current.
+	[ "$TOASTER_MARIADB" = "1" ] || return 0
+
+	tell_status "upgrading mariadb system tables"
+	stage_exec mariadb-upgrade --password="$TOASTER_MYSQL_PASS"
 }
 
 test_mysql()
@@ -293,9 +331,61 @@ $_alters
 	exit 1
 }
 
+installed_db_server()
+{
+	# eg: mariadb1011-server-10.11.10 or mysql84-server-8.4.0
+	pkg -j mysql info 2>/dev/null | cut -f1 -d' ' \
+		| grep -E '^(mariadb|mysql)[0-9]+-server-' | head -n1
+}
+
+check_mariadb_upgrade()
+{
+	# The staged jail starts the new server on the live datadir. Halt
+	# before an engine switch, which needs a dump and restore, and
+	# snapshot the data FS before a MariaDB upgrade, which rewrites the
+	# data files and cannot be undone except by a zfs rollback.
+	jail_is_running mysql || return 0
+
+	local _pkg
+	_pkg=$(installed_db_server)
+	[ -n "$_pkg" ] || return 0
+
+	local _running=mysql _wanted=mysql
+	case "$_pkg" in mariadb*) _running=mariadb ;; esac
+	[ "$TOASTER_MARIADB" = "1" ] && _wanted=mariadb
+
+	if [ "$_running" != "$_wanted" ]; then
+		echo "
+	HALT: the mysql jail runs $_pkg but this provision installs $_wanted
+	(TOASTER_MARIADB=${TOASTER_MARIADB:-0}). MySQL and MariaDB cannot share a
+	datadir. Dump the databases, switch, and restore them into the new jail,
+	or set TOASTER_MARIADB to match the running server.
+	"
+		exit 1
+	fi
+
+	[ "$_running" = "mariadb" ] || return 0
+
+	local _ver
+	_ver=$(echo "$_pkg" | cut -d- -f3)
+	if ! echo "$_ver" | awk -F. '{ exit !($1 < 12 || ($1 == 12 && $2 < 3)) }'; then
+		return 0
+	fi
+
+	local _snap
+	_snap="$ZFS_DATA_VOL/mysql@mariadb-$_ver-$(date +%Y%m%d%H%M%S)"
+	tell_status "upgrading MariaDB $_ver to 12.3, snapshotting data to $_snap"
+	zfs snapshot "$_snap"
+	echo "
+	To roll back: stop the mysql jail, zfs rollback $_snap,
+	and swap $ZFS_JAIL_VOL/mysql.last back in as $ZFS_JAIL_VOL/mysql.
+	"
+}
+
 base_snapshot_exists || exit 1
 migrate_mysql_dbs
 check_mysql_native_passwords
+check_mariadb_upgrade
 create_staged_fs mysql
 start_staged_jail mysql
 install_db_server
