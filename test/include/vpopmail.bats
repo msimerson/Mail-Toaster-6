@@ -73,6 +73,41 @@ stage_make_conf() { :; }
   assert_output --partial "mail_vpopmail_UNSET= CDB"
 }
 
+# Uses/mysql.mk misses a MariaDB client and builds against MySQL instead
+@test "install_vpopmail_port - mariadb names the mysql version for the port" {
+  export TOASTER_MYSQL="1"
+  export TOASTER_MARIADB="1"
+  stage_make_conf() { echo "make_conf $1 $2"; }
+  grep() {
+    if [[ "$*" == *"/usr/ports/mail/vpopmail/Makefile" ]]; then return 0; fi
+    return 1;
+  }
+  tee() { :; }
+  stage_pkg_install() { :; }
+  stage_exec() { :; }
+
+  run install_vpopmail_port
+  assert_success
+  assert_output --partial "DEFAULT_VERSIONS+=mysql=12.3m"
+}
+
+@test "install_vpopmail_port - mysql keeps the ports default version" {
+  export TOASTER_MYSQL="1"
+  export TOASTER_MARIADB="0"
+  stage_make_conf() { echo "make_conf $1 $2"; }
+  grep() {
+    if [[ "$*" == *"/usr/ports/mail/vpopmail/Makefile" ]]; then return 0; fi
+    return 1;
+  }
+  tee() { :; }
+  stage_pkg_install() { :; }
+  stage_exec() { :; }
+
+  run install_vpopmail_port
+  assert_success
+  refute_output --partial "DEFAULT_VERSIONS"
+}
+
 @test "install_qmail - basic" {
   export TOASTER_HOSTNAME="mail.example.com"
 
