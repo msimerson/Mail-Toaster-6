@@ -95,7 +95,8 @@ load_dns_fns() {
   assert_output --partial '"stage'
   assert_output --partial 'A '
   assert_output --partial 'v=spf1'
-  assert_output --partial 'ip4:'
+  assert_output --partial 'ip4:172.16.15.0/19 '
+  refute_output --partial '//'
 }
 
 # a hostname inside the mail domain is already covered by the domain's MX
@@ -276,7 +277,7 @@ setup_access_conf() {
   run cat "$ACCESS_CONF"
   assert_output --partial "access-control: 0.0.0.0/0 refuse"
   assert_output --partial "access-control: 127.0.0.0/8 allow"
-  assert_output --partial "access-control: ${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} allow"
+  assert_output --partial "access-control: 172.16.15.0/19 allow"
 }
 
 @test "dns - install_access_conf finds its own PUBLIC_IP4" {
