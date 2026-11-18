@@ -21,7 +21,7 @@ install_unbound()
 
 get_mt6_data()
 {
-	local _spf_ips="ip4:${JAIL_NET_PREFIX}.0/${JAIL_NET_MASK} ip6:$JAIL_NET6::/112"
+	local _spf_ips="ip4:${JAIL_NET_PREFIX}.0${JAIL_NET_MASK} ip6:$JAIL_NET6::/112"
 
 	if has_public_ip4; then _spf_ips="$_spf_ips ip4:$PUBLIC_IP4"; fi
 	if has_public_ip6; then _spf_ips="$_spf_ips ip6:$PUBLIC_IP6"; fi
