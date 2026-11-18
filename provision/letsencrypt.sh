@@ -13,8 +13,18 @@ install_letsencrypt()
 	tell_status "installing ACME.sh & Let's Encrypt"
 	pkg install -y curl socat acme.sh
 
-	if [ ! -d "/root/.acme.sh" ]; then
-		mkdir "/root/.acme.sh"
+	local _acme_home="${ACME_HOME:-/root/.acme.sh}"
+	local _acme_examples="${ACME_EXAMPLES:-/usr/local/share/examples/acme.sh}"
+
+	if [ ! -d "$_acme_home" ]; then
+		mkdir "$_acme_home"
+	fi
+
+	# the pkg ships the DNS API hooks as examples, acme.sh looks in its home
+	if [ -d "$_acme_examples/dnsapi" ] \
+		&& [ ! -e "$_acme_home/dnsapi" ] && [ ! -L "$_acme_home/dnsapi" ]; then
+		tell_status "linking acme.sh DNS API hooks"
+		ln -s "$_acme_examples/dnsapi" "$_acme_home/dnsapi"
 	fi
 }
 
