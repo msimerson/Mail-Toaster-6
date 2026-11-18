@@ -154,7 +154,8 @@ migrate_extra_cnf()
 
 	# a host-side temp file, not one in the mysql-writable data/etc
 	local _tmp
-	_tmp=$(mktemp -t extra.cnf) || return 1
+	# (a full template, GNU mktemp rejects the bare prefix BSD's -t takes)
+	_tmp=$(mktemp "${TMPDIR:-/tmp}/extra.cnf.XXXXXX") || return 1
 
 	# option files allow hyphens in names and quotes around values, so
 	# normalize both in the comparison only, the kept lines are untouched
