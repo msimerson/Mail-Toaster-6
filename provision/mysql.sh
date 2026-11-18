@@ -217,6 +217,19 @@ configure_mysql()
 	# hardware accelerated and the non-strict default still reads pages
 	# written while the checksum was 'none'.
 	local _my_cnf="$STAGE_MNT/data/etc/extra.cnf"
+
+	# data/etc belongs to the mysql user and store_config writes as root, so
+	# a link there, for the config or its shadow, would redirect that write
+	local _link
+	for _link in "$_my_cnf" "$_my_cnf.mt6"; do
+		if [ -L "$_link" ]; then
+			echo "
+	HALT: $_link is a symlink. Remove it and provision again.
+	"
+			exit 1
+		fi
+	done
+
 	store_config "$_my_cnf" update <<EO_MY_CNF
 [mysqld]
 datadir                         = /data/db
@@ -235,15 +248,39 @@ EO_MY_CNF
 EO_ERR
 }
 
+detach_live_data()
+{
+	# Two servers cannot share a datadir, and the stage must not open the live
+	# one: the old server may still run, and a MariaDB upgrade is snapshotted
+	# first. The live mount holds the option file configure_mysql just wrote
+	# (and migrated), so the stage's own, empty, datadir gets a copy.
+	tell_status "detaching the live mysql data FS from the stage"
+
+	local _cnf
+	_cnf=$(mktemp "${TMPDIR:-/tmp}/extra.cnf.XXXXXX") || exit 1
+	cp "$STAGE_MNT/data/etc/extra.cnf" "$_cnf" || exit 1
+
+	unmount_data mysql
+
+	local _d
+	for _d in etc db; do
+		mkdir -p "$STAGE_MNT/data/$_d"
+		chown 88:88 "$STAGE_MNT/data/$_d"
+	done
+
+	cat "$_cnf" > "$STAGE_MNT/data/etc/extra.cnf"
+	chown 88:88 "$STAGE_MNT/data/etc/extra.cnf"
+	rm -f "$_cnf"
+}
+
 start_mysql()
 {
 	tell_status "starting mysql"
 
-	if [ -d "$ZFS_JAIL_MNT/mysql/data/db/mysql" ]; then
-		# mysql jail exists, unmount the data dir as two mysql's
-		# cannot access the data concurrently
-		tell_status "unmounting live mysql data FS"
-		unmount_data mysql
+	# Keyed on the data, not on the mysql jail's mount: a stopped jail has
+	# its data unmounted, but the stage still mounts it.
+	if [ -d "$(get_jail_data mysql)/db/mysql" ]; then
+		detach_live_data
 	fi
 
 	stage_exec service mysql-server start
@@ -251,27 +288,31 @@ start_mysql()
 	configure_mysql_keys
 }
 
-upgrade_mariadb_tables()
+wait_for_stage_mariadb()
 {
-	# MariaDB does not upgrade the system tables of an older datadir on
-	# its own. mariadb-upgrade is a no-op when they are already current.
-	# The staged jail runs on its own empty datadir (the live data is
-	# unmounted from it), so this runs in the promoted jail, on the live data.
-	[ "$TOASTER_MARIADB" = "1" ] || return 0
-
-	tell_status "upgrading mariadb system tables"
-
 	local _try=0
-	until jexec mysql mariadb-admin --password="$TOASTER_MYSQL_PASS" ping >/dev/null 2>&1; do
+	until jexec "$SAFE_NAME" mariadb-admin --password="$TOASTER_MYSQL_PASS" ping >/dev/null 2>&1; do
 		_try=$((_try + 1))
 		if [ "$_try" -gt 30 ]; then
-			echo "mariadb did not start in the mysql jail"
+			echo "mariadb did not start in the staged jail"
 			exit 1
 		fi
 		sleep 2
 	done
+}
 
-	jexec mysql mariadb-upgrade --password="$TOASTER_MYSQL_PASS" || exit 1
+upgrade_mariadb_tables()
+{
+	# MariaDB does not upgrade the system tables of an older datadir on
+	# its own. mariadb-upgrade is a no-op when they are already current.
+	# Runs in the stage on the live data, with the live data mounted there.
+	[ "$TOASTER_MARIADB" = "1" ] || return 0
+
+	tell_status "upgrading mariadb system tables"
+	stage_exec service mysql-server start
+	wait_for_stage_mariadb
+	stage_exec mariadb-upgrade --password="$TOASTER_MYSQL_PASS" || exit 1
+	stage_exec service mysql-server stop
 }
 
 test_mysql()
@@ -447,24 +488,55 @@ check_mariadb_upgrade()
 	MARIADB_UPGRADE_FROM="$_ver"
 }
 
-snapshot_mariadb_data()
+upgrade_mariadb_data()
 {
 	[ -n "$MARIADB_UPGRADE_FROM" ] || return 0
 
-	# Snapshot at cutover, not at the start of provisioning: the old server
-	# takes writes until now, and a clean stop leaves the datadir consistent.
+	# At cutover, not at the start of provisioning: the old server takes
+	# writes until it stops. stop_jail hides a failed stop, so check.
+	stage_exec service mysql-server stop
 	stop_jail mysql
+	if jail_is_running mysql; then
+		halt_mysql_upgrade "the mysql jail did not stop. A snapshot of a datadir that is
+	still taking writes is not a rollback point, so nothing was changed."
+	fi
 
 	MARIADB_SNAPSHOT="$ZFS_DATA_VOL/mysql@mariadb-$MARIADB_UPGRADE_FROM-$(date +%Y%m%d%H%M%S)"
 	tell_status "upgrading MariaDB $MARIADB_UPGRADE_FROM to 12.3, snapshotting data to $MARIADB_SNAPSHOT"
-	zfs snapshot "$MARIADB_SNAPSHOT"
+	if ! zfs snapshot "$MARIADB_SNAPSHOT"; then
+		MARIADB_SNAPSHOT=""
+		tell_status "snapshot failed, starting the mysql jail again"
+		service jail start mysql || true
+		halt_mysql_upgrade "could not snapshot the mysql data, so it was not upgraded."
+	fi
 
+	# to tell, if it fails, whether promotion got as far as renaming the jail
+	MARIADB_OLD_JAIL_GUID=$(zfs get -H -o value guid "$ZFS_JAIL_VOL/mysql" 2>/dev/null) \
+		|| MARIADB_OLD_JAIL_GUID=""
 	trap '[ $? = 0 ] || mariadb_rollback_help' EXIT
+
+	# The old server is stopped and the stage is not reachable by clients, so
+	# the upgrade can fail without having lost a single write.
+	mount -t nullfs "$(get_jail_data mysql)" "$STAGE_MNT/data" || exit 1
+	upgrade_mariadb_tables
+	unmount_data mysql
 }
 
 mariadb_rollback_help()
 {
 	[ -n "$MARIADB_SNAPSHOT" ] || return 0
+
+	local _last_guid=""
+	_last_guid=$(zfs get -H -o value guid "$ZFS_JAIL_VOL/mysql.last" 2>/dev/null) || _last_guid=""
+
+	local _jail_steps="	$ZFS_JAIL_VOL/mysql is still the old jail, nothing to swap."
+	if [ -n "$MARIADB_OLD_JAIL_GUID" ] && [ "$_last_guid" = "$MARIADB_OLD_JAIL_GUID" ]; then
+		_jail_steps="	The old jail was renamed to $ZFS_JAIL_VOL/mysql.last. Swap it back:
+
+		zfs rename $ZFS_JAIL_VOL/mysql $ZFS_JAIL_VOL/mysql.failed
+		zfs rename $ZFS_JAIL_VOL/mysql.last $ZFS_JAIL_VOL/mysql"
+	fi
+
 	echo "
 	The upgrade failed. The data was snapshotted as $MARIADB_SNAPSHOT.
 
@@ -473,9 +545,9 @@ mariadb_rollback_help()
 		jail -r stage; service jail stop mysql
 		zfs rollback $MARIADB_SNAPSHOT
 
-	If the output above reached 'promoting jail mysql', the old jail is now
-	$ZFS_JAIL_VOL/mysql.last: swap it back in as $ZFS_JAIL_VOL/mysql.
-	Otherwise mysql is still the old jail. Then: service jail start mysql
+$_jail_steps
+
+	Then start it: service jail start mysql
 	"
 }
 
@@ -489,6 +561,5 @@ install_db_server
 configure_mysql
 start_mysql
 test_mysql
-snapshot_mariadb_data
+upgrade_mariadb_data
 promote_staged_jail mysql
-upgrade_mariadb_tables
