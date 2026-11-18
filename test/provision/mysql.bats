@@ -717,8 +717,7 @@ _upgrade_stubs() {
 @test "mysql - upgrade_mariadb_data prints rollback steps when the upgrade fails" {
   _upgrade_stubs
   upgrade_mariadb_tables() { return 1; }
-  fail_under_errexit() { ( set -e; upgrade_mariadb_data ); }
-  run fail_under_errexit
+  run upgrade_mariadb_data
   assert_failure
   assert_output --partial "The upgrade failed"
   assert_output --regexp "zfs rollback .*/mysql@mariadb-10\.11\.10-[0-9]+"
@@ -727,8 +726,7 @@ _upgrade_stubs() {
 @test "mysql - upgrade_mariadb_data prints rollback steps when the mount fails" {
   _upgrade_stubs
   mount() { return 1; }
-  fail_under_errexit() { ( set -e; upgrade_mariadb_data ); }
-  run fail_under_errexit
+  run upgrade_mariadb_data
   assert_failure
   assert_output --partial "The upgrade failed"
 }

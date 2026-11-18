@@ -518,7 +518,7 @@ upgrade_mariadb_data()
 	# The old server is stopped and the stage is not reachable by clients, so
 	# the upgrade can fail without having lost a single write.
 	mount -t nullfs "$(get_jail_data mysql)" "$STAGE_MNT/data" || exit 1
-	upgrade_mariadb_tables
+	upgrade_mariadb_tables || exit 1
 	unmount_data mysql
 }
 
