@@ -88,7 +88,7 @@ stage_make_conf() { :; }
 
   run install_vpopmail_port
   assert_success
-  assert_output --partial "DEFAULT_VERSIONS+=mysql=12.3m"
+  assert_output --partial "make_conf DEFAULT_VERSIONS+=mysql=12.3m DEFAULT_VERSIONS+=mysql=12.3m"
 }
 
 @test "install_vpopmail_port - mysql keeps the ports default version" {

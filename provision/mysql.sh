@@ -140,16 +140,42 @@ migrate_extra_cnf()
 {
 	# An edited extra.cnf is preserved, so strip settings that newer servers
 	# refuse. MariaDB 10.6+ rejects the 'none' and 'innodb' checksums and
-	# 11.0 deprecated innodb_file_per_table, which defaults to ON.
+	# 11.0 deprecated innodb_file_per_table, which defaults to ON. MySQL 8.4
+	# accepts both, so an operator's MySQL settings are left alone.
 	local _my_cnf="$1"
+	[ "$TOASTER_MARIADB" = "1" ] || return 0
 	[ -f "$_my_cnf" ] || return 0
 
-	local _tmp="$_my_cnf.tmp"
+	# data/etc is owned by the mysql user, who could have made this a link
+	if [ -L "$_my_cnf" ]; then
+		tell_status "WARNING: not migrating symlink $_my_cnf"
+		return 0
+	fi
+
+	# a host-side temp file, not one in the mysql-writable data/etc
+	local _tmp
+	_tmp=$(mktemp -t extra.cnf) || return 1
+
+	# option files allow hyphens in names and quotes around values, so
+	# normalize both in the comparison only, the kept lines are untouched
 	awk '
-		{ l = tolower($0) }
-		l ~ /^[[:space:]]*innodb_checksum_algorithm[[:space:]]*=[[:space:]]*(strict_)?(none|innodb)[[:space:]]*(#.*)?$/ { next }
-		l ~ /^[[:space:]]*innodb_file_per_table[[:space:]]*=[[:space:]]*(1|on)[[:space:]]*(#.*)?$/ { next }
-		{ print }
+		{
+			l = tolower($0)
+			if (l ~ /^[[:space:]]*[a-z0-9_-]+[[:space:]]*=/) {
+				name = l
+				sub(/[[:space:]]*=.*/, "", name)
+				sub(/^[[:space:]]*/, "", name)
+				gsub(/-/, "_", name)
+				val = l
+				sub(/^[^=]*=[[:space:]]*/, "", val)
+				sub(/[[:space:]]*[#;].*$/, "", val)
+				sub(/[[:space:]]+$/, "", val)
+				gsub(/["\047]/, "", val)
+				if (name == "innodb_checksum_algorithm" && val ~ /^(strict_)?(none|innodb)$/) next
+				if (name == "innodb_file_per_table" && val ~ /^(1|on)$/) next
+			}
+			print
+		}
 	' "$_my_cnf" > "$_tmp"
 
 	if ! cmp -s "$_my_cnf" "$_tmp"; then
@@ -221,7 +247,6 @@ start_mysql()
 
 	stage_exec service mysql-server start
 	configure_mysql_root_password
-	upgrade_mariadb_tables
 	configure_mysql_keys
 }
 
@@ -229,10 +254,23 @@ upgrade_mariadb_tables()
 {
 	# MariaDB does not upgrade the system tables of an older datadir on
 	# its own. mariadb-upgrade is a no-op when they are already current.
+	# The staged jail runs on its own empty datadir (the live data is
+	# unmounted from it), so this runs in the promoted jail, on the live data.
 	[ "$TOASTER_MARIADB" = "1" ] || return 0
 
 	tell_status "upgrading mariadb system tables"
-	stage_exec mariadb-upgrade --password="$TOASTER_MYSQL_PASS"
+
+	local _try=0
+	until jexec mysql mariadb-admin --password="$TOASTER_MYSQL_PASS" ping >/dev/null 2>&1; do
+		_try=$((_try + 1))
+		if [ "$_try" -gt 30 ]; then
+			echo "mariadb did not start in the mysql jail"
+			exit 1
+		fi
+		sleep 2
+	done
+
+	jexec mysql mariadb-upgrade --password="$TOASTER_MYSQL_PASS" || exit 1
 }
 
 test_mysql()
@@ -344,51 +382,99 @@ $_alters
 installed_db_server()
 {
 	# eg: mariadb1011-server-10.11.10 or mysql84-server-8.4.0
-	pkg -j mysql info 2>/dev/null | cut -f1 -d' ' \
+	# Read from the jail's root, so a stopped jail is inspected too.
+	pkg -r "$ZFS_JAIL_MNT/mysql" info 2>/dev/null | cut -f1 -d' ' \
 		| grep -E '^(mariadb|mysql)[0-9]+-server-' | head -n1
+}
+
+halt_mysql_upgrade()
+{
+	echo "
+	HALT: $*
+	"
+	exit 1
 }
 
 check_mariadb_upgrade()
 {
-	# The staged jail starts the new server on the live datadir. Halt
-	# before an engine switch, which needs a dump and restore, and
-	# snapshot the data FS before a MariaDB upgrade, which rewrites the
-	# data files and cannot be undone except by a zfs rollback.
-	jail_is_running mysql || return 0
+	# The staged jail starts the new server on a fresh datadir, and the
+	# promoted jail then starts on the live one. Halt before an engine
+	# switch, which needs a dump and restore, or a downgrade. Note a MariaDB
+	# upgrade, which rewrites the data files and cannot be undone except by
+	# a zfs rollback, so snapshot_mariadb_data can snapshot it at cutover.
+	MARIADB_UPGRADE_FROM=""
+
+	# no data, nothing to protect. Running or not, existing data is.
+	[ -d "$(get_jail_data mysql)/db/mysql" ] || return 0
 
 	local _pkg
 	_pkg=$(installed_db_server)
-	[ -n "$_pkg" ] || return 0
+	if [ -z "$_pkg" ]; then
+		halt_mysql_upgrade "$(get_jail_data mysql)/db has data but the engine and
+	version of the mysql jail could not be determined from its package database.
+	Inspect it with: pkg -r $ZFS_JAIL_MNT/mysql info | grep -E 'mariadb|mysql'"
+	fi
 
 	local _running=mysql _wanted=mysql
 	case "$_pkg" in mariadb*) _running=mariadb ;; esac
 	[ "$TOASTER_MARIADB" = "1" ] && _wanted=mariadb
 
 	if [ "$_running" != "$_wanted" ]; then
-		echo "
-	HALT: the mysql jail runs $_pkg but this provision installs $_wanted
+		halt_mysql_upgrade "the mysql jail runs $_pkg but this provision installs $_wanted
 	(TOASTER_MARIADB=${TOASTER_MARIADB:-0}). MySQL and MariaDB cannot share a
 	datadir. Dump the databases, switch, and restore them into the new jail,
-	or set TOASTER_MARIADB to match the running server.
-	"
-		exit 1
+	or set TOASTER_MARIADB to match the running server."
 	fi
 
 	[ "$_running" = "mariadb" ] || return 0
 
 	local _ver
 	_ver=$(echo "$_pkg" | cut -d- -f3)
-	if ! echo "$_ver" | awk -F. '{ exit !($1 < 12 || ($1 == 12 && $2 < 3)) }'; then
-		return 0
-	fi
+	echo "$_ver" | grep -qE '^[0-9]+\.[0-9]+' \
+		|| halt_mysql_upgrade "cannot parse the version of $_pkg"
 
-	local _snap
-	_snap="$ZFS_DATA_VOL/mysql@mariadb-$_ver-$(date +%Y%m%d%H%M%S)"
-	tell_status "upgrading MariaDB $_ver to 12.3, snapshotting data to $_snap"
-	zfs snapshot "$_snap"
+	case "$(echo "$_ver" | awk -F. '{
+		if ($1 < 12 || ($1 == 12 && $2 < 3)) print "older"
+		else if ($1 == 12 && $2 == 3) print "current"
+		else print "newer" }')" in
+		current) return 0 ;;
+		newer) halt_mysql_upgrade "the mysql jail runs $_pkg, newer than the 12.3 this
+	provision installs. MariaDB cannot be downgraded in place. Update this
+	provision, or restore the datadir from a backup taken before the upgrade." ;;
+	esac
+
+	MARIADB_UPGRADE_FROM="$_ver"
+}
+
+snapshot_mariadb_data()
+{
+	[ -n "$MARIADB_UPGRADE_FROM" ] || return 0
+
+	# Snapshot at cutover, not at the start of provisioning: the old server
+	# takes writes until now, and a clean stop leaves the datadir consistent.
+	stop_jail mysql
+
+	MARIADB_SNAPSHOT="$ZFS_DATA_VOL/mysql@mariadb-$MARIADB_UPGRADE_FROM-$(date +%Y%m%d%H%M%S)"
+	tell_status "upgrading MariaDB $MARIADB_UPGRADE_FROM to 12.3, snapshotting data to $MARIADB_SNAPSHOT"
+	zfs snapshot "$MARIADB_SNAPSHOT"
+
+	trap '[ $? = 0 ] || mariadb_rollback_help' EXIT
+}
+
+mariadb_rollback_help()
+{
+	[ -n "$MARIADB_SNAPSHOT" ] || return 0
 	echo "
-	To roll back: stop the mysql jail, zfs rollback $_snap,
-	and swap $ZFS_JAIL_VOL/mysql.last back in as $ZFS_JAIL_VOL/mysql.
+	The upgrade failed. The data was snapshotted as $MARIADB_SNAPSHOT.
+
+	Stop the staged and the mysql jails, and roll the data back:
+
+		jail -r stage; service jail stop mysql
+		zfs rollback $MARIADB_SNAPSHOT
+
+	If the output above reached 'promoting jail mysql', the old jail is now
+	$ZFS_JAIL_VOL/mysql.last: swap it back in as $ZFS_JAIL_VOL/mysql.
+	Otherwise mysql is still the old jail. Then: service jail start mysql
 	"
 }
 
@@ -402,4 +488,6 @@ install_db_server
 configure_mysql
 start_mysql
 test_mysql
+snapshot_mariadb_data
 promote_staged_jail mysql
+upgrade_mariadb_tables

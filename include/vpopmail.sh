@@ -76,7 +76,7 @@ install_vpopmail_port()
 			# Uses/mysql.mk detects an installed client by bin/mysql only, a
 			# MariaDB client has bin/mariadb, so the port falls back to the
 			# default MySQL and wants its libmysqlclient. Name the version.
-			stage_make_conf DEFAULT_VERSIONS+=mysql 'DEFAULT_VERSIONS+=mysql=12.3m'
+			stage_make_conf 'DEFAULT_VERSIONS+=mysql=12.3m' 'DEFAULT_VERSIONS+=mysql=12.3m'
 		fi
 	fi
 

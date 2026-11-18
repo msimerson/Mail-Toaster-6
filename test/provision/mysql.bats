@@ -74,7 +74,8 @@ teardown() {
              start_mysql test_mysql write_pass_to_conf configure_mysql_keys \
              configure_mysql_root_password migrate_mysql_dbs \
              check_mysql_native_passwords migrate_extra_cnf \
-             upgrade_mariadb_tables check_mariadb_upgrade db_client; do
+             upgrade_mariadb_tables check_mariadb_upgrade db_client \
+             snapshot_mariadb_data mariadb_rollback_help; do
     run type "$_fn"
     assert_success
   done
@@ -122,6 +123,7 @@ EOF
 
 # an edited extra.cnf is preserved, so the settings MariaDB 12 refuses go
 @test "mysql - migrate_extra_cnf strips obsolete innodb settings" {
+  export TOASTER_MARIADB="1"
   local _cnf="$BATS_TEST_TMPDIR/extra.cnf"
   cat > "$_cnf" <<'EOF'
 [mysqld]
@@ -138,16 +140,72 @@ EOF
   assert_output --partial "innodb_flush_neighbors = 0"
 }
 
+@test "mysql - migrate_extra_cnf strips hyphenated and quoted settings" {
+  export TOASTER_MARIADB="1"
+  local _cnf="$BATS_TEST_TMPDIR/extra.cnf"
+  cat > "$_cnf" <<'EOF'
+[mysqld]
+innodb-checksum-algorithm = "none"
+  Innodb-File-Per-Table='ON'  # the default
+innodb_checksum_algorithm = 'strict_innodb'
+innodb-flush-neighbors = 0
+EOF
+  migrate_extra_cnf "$_cnf"
+  run cat "$_cnf"
+  refute_output --partial "checksum"
+  refute_output --partial "file-per-table"
+  refute_output --partial "File-Per-Table"
+  assert_output --partial "innodb-flush-neighbors = 0"
+}
+
 @test "mysql - migrate_extra_cnf keeps settings an operator chose" {
+  export TOASTER_MARIADB="1"
   local _cnf="$BATS_TEST_TMPDIR/extra.cnf"
   cat > "$_cnf" <<'EOF'
 [mysqld]
 innodb_file_per_table = OFF
 innodb_checksum_algorithm = strict_full_crc32
+innodb-checksum-algorithm = "crc32"
 EOF
   cp "$_cnf" "$_cnf.orig"
   migrate_extra_cnf "$_cnf"
   cmp "$_cnf" "$_cnf.orig"
+}
+
+# MySQL 8.4 accepts these, an operator's strict_none must survive
+@test "mysql - migrate_extra_cnf leaves a MySQL config alone" {
+  export TOASTER_MARIADB="0"
+  local _cnf="$BATS_TEST_TMPDIR/extra.cnf"
+  cat > "$_cnf" <<'EOF'
+[mysqld]
+innodb_file_per_table = 1
+innodb_checksum_algorithm = strict_none
+EOF
+  cp "$_cnf" "$_cnf.orig"
+  migrate_extra_cnf "$_cnf"
+  cmp "$_cnf" "$_cnf.orig"
+}
+
+# the mysql user owns data/etc, a link there must not redirect a root write
+@test "mysql - migrate_extra_cnf does not write through a symlink" {
+  export TOASTER_MARIADB="1"
+  local _target="$BATS_TEST_TMPDIR/host-file"
+  printf 'innodb_checksum_algorithm = none\n' > "$_target"
+  ln -s "$_target" "$BATS_TEST_TMPDIR/extra.cnf"
+  run migrate_extra_cnf "$BATS_TEST_TMPDIR/extra.cnf"
+  assert_success
+  run cat "$_target"
+  assert_output "innodb_checksum_algorithm = none"
+}
+
+@test "mysql - migrate_extra_cnf keeps its temp file out of the cnf dir" {
+  export TOASTER_MARIADB="1"
+  local _dir="$BATS_TEST_TMPDIR/etc"
+  mkdir -p "$_dir"
+  printf 'innodb_checksum_algorithm = none\n' > "$_dir/extra.cnf"
+  migrate_extra_cnf "$_dir/extra.cnf"
+  run ls "$_dir"
+  assert_output "extra.cnf"
 }
 
 @test "mysql - configure writes newsyslog rotation config" {
@@ -255,24 +313,56 @@ EOF
   assert_output --partial "EXEC:service mysql-server start"
 }
 
-@test "mysql - start runs mariadb-upgrade when TOASTER_MARIADB=1" {
+# the staged jail has an empty datadir, so the upgrade belongs after promotion
+@test "mysql - start does not run mariadb-upgrade in the stage" {
   export TOASTER_MARIADB="1"
   stage_exec() { echo "EXEC:$*"; }
   configure_mysql_root_password() { :; }
   configure_mysql_keys() { :; }
   run start_mysql
   assert_success
-  assert_output --partial "EXEC:mariadb-upgrade"
+  refute_output --partial "mariadb-upgrade"
 }
 
-@test "mysql - start skips mariadb-upgrade for mysql" {
-  export TOASTER_MARIADB="0"
-  stage_exec() { echo "EXEC:$*"; }
-  configure_mysql_root_password() { :; }
-  configure_mysql_keys() { :; }
-  run start_mysql
+@test "mysql - upgrade_mariadb_tables runs mariadb-upgrade in the mysql jail" {
+  export TOASTER_MARIADB="1"
+  jexec() { echo "JEXEC:$*"; }
+  run upgrade_mariadb_tables
   assert_success
-  refute_output --partial "mariadb-upgrade"
+  assert_output --partial "JEXEC:mysql mariadb-upgrade"
+}
+
+@test "mysql - upgrade_mariadb_tables waits for the server" {
+  export TOASTER_MARIADB="1"
+  export _ping_count="$BATS_TEST_TMPDIR/pings"
+  : > "$_ping_count"
+  sleep() { :; }
+  jexec() {
+    case "$2" in
+      mariadb-admin) echo x >> "$_ping_count"; [ "$(wc -l < "$_ping_count")" -ge 3 ] ;;
+      *) echo "JEXEC:$*" ;;
+    esac
+  }
+  run upgrade_mariadb_tables
+  assert_success
+  assert_output --partial "JEXEC:mysql mariadb-upgrade"
+}
+
+@test "mysql - upgrade_mariadb_tables gives up when the server never starts" {
+  export TOASTER_MARIADB="1"
+  sleep() { :; }
+  jexec() { return 1; }
+  run upgrade_mariadb_tables
+  assert_failure
+  assert_output --partial "did not start"
+}
+
+@test "mysql - upgrade_mariadb_tables skips mysql" {
+  export TOASTER_MARIADB="0"
+  jexec() { echo "JEXEC:$*"; }
+  run upgrade_mariadb_tables
+  assert_success
+  refute_output --partial "JEXEC"
 }
 
 # --- test_mysql behavior ---
@@ -384,46 +474,107 @@ EOF
 
 # --- check_mariadb_upgrade behavior ---
 
-@test "mysql - check_mariadb_upgrade skips when jail is not running" {
+# existing data, whether or not the jail runs, is what needs protecting
+_with_data() {
+  mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql"
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+}
+
+@test "mysql - check_mariadb_upgrade skips a fresh install" {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/empty-data"
+  pkg() { echo "PKG:$*"; }
+  run check_mariadb_upgrade
+  assert_success
+  refute_output --partial "PKG:"
+}
+
+@test "mysql - check_mariadb_upgrade reads the package db of a stopped jail" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
   jail_is_running() { return 1; }
-  zfs() { echo "ZFS:$*"; }
-  run check_mariadb_upgrade
-  assert_success
-  refute_output --partial "ZFS:"
+  pkg() { echo "PKG:$*" >&2; echo "mariadb1011-server-10.11.10"; }
+  check_mariadb_upgrade
+  [ "$MARIADB_UPGRADE_FROM" = "10.11.10" ]
 }
 
-@test "mysql - check_mariadb_upgrade snapshots data before upgrading 10.11" {
+@test "mysql - check_mariadb_upgrade halts on a stopped mysql to mariadb switch" {
   export TOASTER_MARIADB="1"
-  jail_is_running() { return 0; }
-  pkg() { echo "mariadb1011-server-10.11.10     Multithreaded SQL database (server)"; }
-  zfs() { echo "ZFS:$*"; }
-  run check_mariadb_upgrade
-  assert_success
-  assert_output --regexp "ZFS:snapshot .*/mysql@mariadb-10\.11\.10-[0-9]+"
-}
-
-@test "mysql - check_mariadb_upgrade skips the snapshot when already on 12.3" {
-  export TOASTER_MARIADB="1"
-  jail_is_running() { return 0; }
-  pkg() { echo "mariadb123-server-12.3.3"; }
-  zfs() { echo "ZFS:$*"; }
-  run check_mariadb_upgrade
-  assert_success
-  refute_output --partial "ZFS:"
-}
-
-@test "mysql - check_mariadb_upgrade halts on a mysql to mariadb switch" {
-  export TOASTER_MARIADB="1"
-  jail_is_running() { return 0; }
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  jail_is_running() { return 1; }
   pkg() { echo "mysql84-server-8.4.0"; }
   run check_mariadb_upgrade
   assert_failure
   assert_output --partial "HALT"
 }
 
+@test "mysql - check_mariadb_upgrade halts when the engine cannot be determined" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  pkg() { return 1; }
+  run check_mariadb_upgrade
+  assert_failure
+  assert_output --partial "could not be determined"
+}
+
+@test "mysql - check_mariadb_upgrade halts on an empty package query" {
+  export TOASTER_MARIADB="0"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  pkg() { :; }
+  run check_mariadb_upgrade
+  assert_failure
+  assert_output --partial "could not be determined"
+}
+
+@test "mysql - check_mariadb_upgrade flags an upgrade of 10.11" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  pkg() { echo "mariadb1011-server-10.11.10     Multithreaded SQL database (server)"; }
+  zfs() { echo "ZFS:$*"; }
+  run check_mariadb_upgrade
+  assert_success
+  refute_output --partial "ZFS:"
+  check_mariadb_upgrade
+  [ "$MARIADB_UPGRADE_FROM" = "10.11.10" ]
+}
+
+@test "mysql - check_mariadb_upgrade flags nothing when already on 12.3" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  pkg() { echo "mariadb123-server-12.3.3"; }
+  check_mariadb_upgrade
+  [ -z "$MARIADB_UPGRADE_FROM" ]
+}
+
+@test "mysql - check_mariadb_upgrade halts rather than downgrade from 12.4" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  pkg() { echo "mariadb124-server-12.4.1"; }
+  run check_mariadb_upgrade
+  assert_failure
+  assert_output --partial "newer than the 12.3"
+}
+
+@test "mysql - check_mariadb_upgrade halts rather than downgrade from 13.0" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  pkg() { echo "mariadb130-server-13.0.1"; }
+  run check_mariadb_upgrade
+  assert_failure
+  assert_output --partial "newer than the 12.3"
+}
+
 @test "mysql - check_mariadb_upgrade halts on a mariadb to mysql switch" {
   export TOASTER_MARIADB="0"
-  jail_is_running() { return 0; }
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
   pkg() { echo "mariadb1011-server-10.11.10"; }
   run check_mariadb_upgrade
   assert_failure
@@ -432,10 +583,49 @@ EOF
 
 @test "mysql - check_mariadb_upgrade passes a mysql upgrade through" {
   export TOASTER_MARIADB="0"
-  jail_is_running() { return 0; }
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
   pkg() { echo "mysql80-server-8.0.36"; }
+  check_mariadb_upgrade
+  [ -z "$MARIADB_UPGRADE_FROM" ]
+}
+
+# --- snapshot_mariadb_data behavior ---
+
+# the old server takes writes until it stops, so it stops first
+@test "mysql - snapshot_mariadb_data stops the old jail, then snapshots" {
+  export MARIADB_UPGRADE_FROM="10.11.10"
+  stop_jail() { echo "STOP:$*"; }
   zfs() { echo "ZFS:$*"; }
-  run check_mariadb_upgrade
+  run snapshot_mariadb_data
   assert_success
+  assert_line --index 0 --regexp "STOP:mysql"
+  assert_output --regexp "ZFS:snapshot .*/mysql@mariadb-10\.11\.10-[0-9]+"
+}
+
+@test "mysql - snapshot_mariadb_data does nothing without an upgrade" {
+  export MARIADB_UPGRADE_FROM=""
+  stop_jail() { echo "STOP:$*"; }
+  zfs() { echo "ZFS:$*"; }
+  run snapshot_mariadb_data
+  assert_success
+  refute_output --partial "STOP:"
   refute_output --partial "ZFS:"
+}
+
+@test "mysql - mariadb_rollback_help covers both sides of promotion" {
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  run mariadb_rollback_help
+  assert_success
+  assert_output --partial "zfs rollback $MARIADB_SNAPSHOT"
+  assert_output --partial "jail -r stage"
+  assert_output --partial "mysql.last"
+  assert_output --partial "still the old jail"
+}
+
+@test "mysql - mariadb_rollback_help is silent without a snapshot" {
+  export MARIADB_SNAPSHOT=""
+  run mariadb_rollback_help
+  assert_success
+  assert_output ""
 }
