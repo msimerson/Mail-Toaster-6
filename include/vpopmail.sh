@@ -60,6 +60,20 @@ vpopmail_port_fixups() {
                 -e '/domain CHAR(96)/          s/CHAR(96)/VARCHAR (96)/'  \
                 -e '/ip_addr char(18)/         s/char(18)/VARCHAR (39)/'  \
                 $STAGE_MNT/tmp/portbuild/usr/ports/mail/vpopmail/work/vpopmail-5.4.33/vmysql.h
+
+	# bigdir.c decrements an unsigned long. A dir_control row at 0, or none at
+	# all (eg a domain restored by a migration), wraps to 2^64-1 and is written
+	# to an INT column: an "Out of range value" error under a strict sql_mode
+	# (the default of MySQL 5.7+ and MariaDB 10.2+), a silent clamp to
+	# 2147483647 without one. Never take the counter below 0.
+	local _bigdir="$STAGE_MNT/tmp/portbuild/usr/ports/mail/vpopmail/work/vpopmail-5.4.33/bigdir.c"
+	sed_inplace \
+		-e 's/^\([[:space:]]*\)--vdir\.cur_users;/\1if (vdir.cur_users > 0) --vdir.cur_users;/' \
+		"$_bigdir"
+	if ! grep -q 'if (vdir.cur_users > 0) --vdir.cur_users;' "$_bigdir"; then
+		echo "vpopmail bigdir.c dir_control fixup did not apply"
+		exit 1
+	fi
 }
 
 install_vpopmail_port()
