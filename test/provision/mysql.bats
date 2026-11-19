@@ -76,7 +76,8 @@ teardown() {
              check_mysql_native_passwords migrate_extra_cnf \
              upgrade_mariadb_tables check_mariadb_upgrade db_client \
              upgrade_mariadb_data mariadb_rollback_help detach_live_data \
-             wait_for_stage_mariadb; do
+             wait_for_stage_mariadb finish_mariadb_upgrade \
+             mariadb_upgrade_marker; do
     run type "$_fn"
     assert_success
   done
@@ -344,6 +345,24 @@ _live_data() {
   assert_output --partial "innodb_doublewrite = off"
 }
 
+# the option file may hold secrets, a umask of 022 must not open it up
+@test "mysql - start keeps the staged option file private" {
+  _live_data
+  printf '[mysqld]\nplugin_load_add = file_key_management\n' > "$STAGE_MNT/data/etc/extra.cnf"
+  chmod 600 "$STAGE_MNT/data/etc/extra.cnf"
+  unmount_data() { rm -rf "$STAGE_MNT/data"; mkdir "$STAGE_MNT/data"; }
+  stage_exec()   { :; }
+  chown() { :; }
+  configure_mysql_root_password() { :; }
+  configure_mysql_keys() { :; }
+
+  umask 022
+  run start_mysql
+  assert_success
+  run ls -l "$STAGE_MNT/data/etc/extra.cnf"
+  assert_output --regexp '^-rw------- '
+}
+
 @test "mysql - start without live data leaves the data mounted" {
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/empty-data"
   unmount_data() { echo "UNMOUNT:$*"; }
@@ -385,18 +404,45 @@ _live_data() {
 @test "mysql - upgrade_mariadb_tables starts the stage server, upgrades, stops it" {
   export TOASTER_MARIADB="1"
   stage_exec() { echo "EXEC:$*"; }
+  stage_sysrc() { echo "SYSRC:$*"; }
   wait_for_stage_mariadb() { echo "WAIT"; }
   run upgrade_mariadb_tables
   assert_success
-  assert_line --index 0 "EXEC:service mysql-server start"
-  assert_line --index 1 "WAIT"
-  assert_line --index 2 --partial "EXEC:mariadb-upgrade"
-  assert_line --index 3 "EXEC:service mysql-server stop"
+  assert_line --index 1 "EXEC:service mysql-server start"
+  assert_line --index 2 "WAIT"
+  assert_line --index 3 --partial "EXEC:mariadb-upgrade"
+  assert_line --index 4 "EXEC:service mysql-server stop"
+}
+
+# the stage has a jail-network address and the live grants
+@test "mysql - upgrade_mariadb_tables runs a socket-only server without events or replication" {
+  export TOASTER_MARIADB="1"
+  stage_exec() { echo "EXEC:$*"; }
+  stage_sysrc() { echo "SYSRC:$*"; }
+  wait_for_stage_mariadb() { :; }
+  run upgrade_mariadb_tables
+  assert_success
+  assert_line --index 0 --partial "SYSRC:mysql_args="
+  assert_line --index 0 --partial "--skip-networking"
+  assert_line --index 0 --partial "--event-scheduler=DISABLED"
+  assert_line --index 0 --partial "--skip-slave-start"
+}
+
+# the promoted jail keeps the stage's rc.conf
+@test "mysql - upgrade_mariadb_tables removes the restricted args before promotion" {
+  export TOASTER_MARIADB="1"
+  stage_exec() { echo "EXEC:$*"; }
+  stage_sysrc() { echo "SYSRC:$*"; }
+  wait_for_stage_mariadb() { :; }
+  run upgrade_mariadb_tables
+  assert_success
+  assert_line --index 4 "SYSRC:-x mysql_args"
 }
 
 @test "mysql - upgrade_mariadb_tables stops short when mariadb-upgrade fails" {
   export TOASTER_MARIADB="1"
   stage_exec() { case "$1" in mariadb-upgrade) return 1 ;; *) echo "EXEC:$*" ;; esac; }
+  stage_sysrc() { :; }
   wait_for_stage_mariadb() { :; }
   run upgrade_mariadb_tables
   assert_failure
@@ -658,9 +704,12 @@ _upgrade_stubs() {
   export MARIADB_UPGRADE_FROM="10.11.10"
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$ZFS_DATA_MNT/mysql"
   stage_exec()   { echo "EXEC:$*"; }
   stop_jail()    { echo "STOP:$*"; }
   jail_is_running() { return 1; }
+  sysrc()        { echo "SYSRC:$*"; }
+  enable_jail()  { echo "ENABLE:$*"; }
   zfs()          { echo "ZFS:$*"; }
   mount()        { echo "MOUNT:$*"; }
   unmount_data() { echo "UNMOUNT:$*"; }
@@ -681,12 +730,32 @@ _upgrade_stubs() {
   _upgrade_stubs
   run upgrade_mariadb_data
   assert_success
-  assert_line --index 0 "EXEC:service mysql-server stop"
-  assert_line --index 1 "STOP:mysql"
-  assert_line --index 2 --regexp "ZFS:snapshot .*/mysql@mariadb-10\.11\.10-[0-9]+"
-  assert_line --index 3 --regexp "MOUNT:-t nullfs .*/data/mysql .*/stage/data"
-  assert_line --index 4 "TABLES"
-  assert_line --index 5 "UNMOUNT:mysql"
+  assert_line --index 1 "EXEC:service mysql-server stop"
+  assert_line --index 2 "STOP:mysql"
+  assert_line --index 3 --regexp "ZFS:snapshot .*/mysql@mariadb-10\.11\.10-[0-9]+"
+  assert_line --index 4 --regexp "MOUNT:-t nullfs .*/data/mysql .*/stage/data"
+  assert_line --index 5 "TABLES"
+  assert_line --index 6 "UNMOUNT:mysql"
+}
+
+# no trap runs on a reboot or power loss, so the old jail must not be in
+# jail_list while 12.3 rewrites its data
+@test "mysql - upgrade_mariadb_data keeps the old jail from booting first" {
+  _upgrade_stubs
+  run upgrade_mariadb_data
+  assert_success
+  assert_line --index 0 'SYSRC:jail_list-= mysql'
+  refute_output --partial "ENABLE:mysql"
+}
+
+# a marker in the data survives a crash, written after the snapshot so that
+# rolling back to it clears it
+@test "mysql - upgrade_mariadb_data leaves a marker naming the snapshot" {
+  _upgrade_stubs
+  run upgrade_mariadb_data
+  assert_success
+  run cat "$ZFS_DATA_MNT/mysql/.mariadb-upgrade"
+  assert_output --regexp "/mysql@mariadb-10\.11\.10-[0-9]+"
 }
 
 # stop_jail swallows a failed stop
@@ -696,6 +765,7 @@ _upgrade_stubs() {
   run upgrade_mariadb_data
   assert_failure
   assert_output --partial "did not stop"
+  assert_output --partial "ENABLE:mysql"
   refute_output --partial "ZFS:"
   refute_output --partial "TABLES"
 }
@@ -708,9 +778,11 @@ _upgrade_stubs() {
   run upgrade_mariadb_data
   assert_failure
   assert_output --partial "SERVICE:jail start mysql"
+  assert_output --partial "ENABLE:mysql"
   assert_output --partial "could not snapshot"
   refute_output --partial "TABLES"
-  refute_output --partial "To roll back"
+  refute_output --partial "The upgrade failed"
+  assert [ ! -f "$ZFS_DATA_MNT/mysql/.mariadb-upgrade" ]
 }
 
 # the live data was changed by then, so say how to undo it
@@ -731,11 +803,47 @@ _upgrade_stubs() {
   assert_output --partial "The upgrade failed"
 }
 
+# --- finish_mariadb_upgrade behavior ---
+
+@test "mysql - finish_mariadb_upgrade removes the marker" {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$ZFS_DATA_MNT/mysql"
+  echo snap > "$ZFS_DATA_MNT/mysql/.mariadb-upgrade"
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  run finish_mariadb_upgrade
+  assert_success
+  assert [ ! -f "$ZFS_DATA_MNT/mysql/.mariadb-upgrade" ]
+}
+
+# the new server is serving clients, a rollback would discard their writes
+@test "mysql - finish_mariadb_upgrade disarms the rollback trap" {
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$ZFS_DATA_MNT/mysql"
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  mariadb_rollback_help() { echo "ROLLBACK HELP"; }
+  late_failure() {
+    trap '[ $? = 0 ] || mariadb_rollback_help' EXIT
+    finish_mariadb_upgrade
+    exit 1
+  }
+  run late_failure
+  assert_failure
+  refute_output --partial "ROLLBACK HELP"
+}
+
+@test "mysql - finish_mariadb_upgrade does nothing without a snapshot" {
+  export MARIADB_SNAPSHOT=""
+  run finish_mariadb_upgrade
+  assert_success
+  assert_output ""
+}
+
 # --- mariadb_rollback_help behavior ---
 
 @test "mysql - mariadb_rollback_help swaps the jail back once it was renamed" {
   export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
   export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 1; }
   zfs() { case "$*" in *"guid $ZFS_JAIL_VOL/mysql.last") echo 1234 ;; *) return 1 ;; esac; }
   run mariadb_rollback_help
   assert_success
@@ -744,24 +852,73 @@ _upgrade_stubs() {
   assert_output --partial "zfs rename $ZFS_JAIL_VOL/mysql.last $ZFS_JAIL_VOL/mysql"
 }
 
+# a mysql.failed left by an earlier rollback made both renames fail
+@test "mysql - mariadb_rollback_help names the failed dataset uniquely" {
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 1; }
+  zfs() { case "$*" in *"guid $ZFS_JAIL_VOL/mysql.last") echo 1234 ;; *) return 1 ;; esac; }
+  run mariadb_rollback_help
+  assert_success
+  assert_output --regexp "zfs rename $ZFS_JAIL_VOL/mysql $ZFS_JAIL_VOL/mysql\.failed-[0-9]{14}"
+}
+
+# a failed rename must stop the sequence short of starting the wrong server
+@test "mysql - mariadb_rollback_help chains the steps so a failure stops them" {
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 1; }
+  zfs() { case "$*" in *"guid $ZFS_JAIL_VOL/mysql.last") echo 1234 ;; *) return 1 ;; esac; }
+  run mariadb_rollback_help
+  assert_success
+  assert_output --partial "&& zfs rename $ZFS_JAIL_VOL/mysql "
+  assert_output --partial "&& zfs rename $ZFS_JAIL_VOL/mysql.last"
+  assert_output --partial 'sysrc jail_list+=" mysql"'
+  assert_output --partial "&& service jail start mysql"
+}
+
 # mysql.last may be an older provision's jail, never advise swapping that in
 @test "mysql - mariadb_rollback_help leaves the jail alone when mysql.last is older" {
   export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
   export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 1; }
   zfs() { case "$*" in *"guid $ZFS_JAIL_VOL/mysql.last") echo 9999 ;; *) return 1 ;; esac; }
   run mariadb_rollback_help
   assert_success
-  assert_output --partial "still the old jail"
   refute_output --partial "zfs rename"
+  assert_output --partial "zfs rollback $MARIADB_SNAPSHOT"
+  assert_output --partial "&& service jail start mysql"
 }
 
 @test "mysql - mariadb_rollback_help leaves the jail alone without a mysql.last" {
   export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
   export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 1; }
   zfs() { return 1; }
   run mariadb_rollback_help
   assert_success
-  assert_output --partial "still the old jail"
+  refute_output --partial "zfs rename"
+}
+
+# the new server may have taken writes by then
+@test "mysql - mariadb_rollback_help warns when the new jail is already running" {
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 0; }
+  zfs() { case "$*" in *"guid $ZFS_JAIL_VOL/mysql.last") echo 1234 ;; *) return 1 ;; esac; }
+  run mariadb_rollback_help
+  assert_success
+  assert_output --partial "may have accepted writes"
+}
+
+@test "mysql - mariadb_rollback_help does not warn before the new jail ran" {
+  export MARIADB_SNAPSHOT="zroot/data/mysql@mariadb-10.11.10-20260101000000"
+  export MARIADB_OLD_JAIL_GUID="1234"
+  jail_is_running() { return 1; }
+  zfs() { return 1; }
+  run mariadb_rollback_help
+  assert_success
+  refute_output --partial "may have accepted writes"
 }
 
 @test "mysql - mariadb_rollback_help is silent without a snapshot" {
@@ -769,4 +926,18 @@ _upgrade_stubs() {
   run mariadb_rollback_help
   assert_success
   assert_output ""
+}
+
+# --- the marker of an unfinished upgrade ---
+
+@test "mysql - check_mariadb_upgrade halts on the marker of an unfinished upgrade" {
+  export TOASTER_MARIADB="1"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/data"
+  _with_data
+  echo "zroot/data/mysql@mariadb-10.11.10-20260101000000" > "$ZFS_DATA_MNT/mysql/.mariadb-upgrade"
+  pkg() { echo "mariadb1011-server-10.11.10"; }
+  run check_mariadb_upgrade
+  assert_failure
+  assert_output --partial "did not finish"
+  assert_output --partial "mariadb-10.11.10-20260101000000"
 }

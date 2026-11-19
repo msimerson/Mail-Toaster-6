@@ -268,7 +268,8 @@ detach_live_data()
 		chown 88:88 "$STAGE_MNT/data/$_d"
 	done
 
-	cat "$_cnf" > "$STAGE_MNT/data/etc/extra.cnf"
+	# it may hold secrets, and a umask of 022 would make it 0644
+	( umask 077; cat "$_cnf" > "$STAGE_MNT/data/etc/extra.cnf" )
 	chown 88:88 "$STAGE_MNT/data/etc/extra.cnf"
 	rm -f "$_cnf"
 }
@@ -309,10 +310,18 @@ upgrade_mariadb_tables()
 	[ "$TOASTER_MARIADB" = "1" ] || return 0
 
 	tell_status "upgrading mariadb system tables"
+
+	# The stage has a jail-network address and the live user grants, so
+	# clients could write during the upgrade, as could events and a
+	# replica thread. Socket only, no events, no replication.
+	stage_sysrc mysql_args="--skip-networking --event-scheduler=DISABLED --skip-slave-start"
 	stage_exec service mysql-server start
 	wait_for_stage_mariadb
 	stage_exec mariadb-upgrade --password="$TOASTER_MYSQL_PASS" || exit 1
 	stage_exec service mysql-server stop
+
+	# the promoted jail keeps this rc.conf, and must serve clients
+	stage_sysrc -x mysql_args
 }
 
 test_mysql()
@@ -437,6 +446,13 @@ halt_mysql_upgrade()
 	exit 1
 }
 
+mariadb_upgrade_marker()
+{
+	# at the top of the data FS, where the mysql user cannot make a link, and
+	# written after the snapshot, so a rollback to it removes the marker
+	echo "$(get_jail_data mysql)/.mariadb-upgrade"
+}
+
 check_mariadb_upgrade()
 {
 	# The staged jail starts the new server on a fresh datadir, and the
@@ -448,6 +464,16 @@ check_mariadb_upgrade()
 
 	# no data, nothing to protect. Running or not, existing data is.
 	[ -d "$(get_jail_data mysql)/db/mysql" ] || return 0
+
+	local _marker
+	_marker=$(mariadb_upgrade_marker)
+	if [ -f "$_marker" ]; then
+		halt_mysql_upgrade "an earlier MariaDB upgrade of this data did not finish. Its snapshot:
+	$(cat "$_marker")
+	If the new mysql jail is up and healthy, remove $_marker.
+	Otherwise zfs rollback that snapshot, which also removes the marker, and
+	put the old jail back (jail_list included) before provisioning again."
+	fi
 
 	local _pkg
 	_pkg=$(installed_db_server)
@@ -492,11 +518,17 @@ upgrade_mariadb_data()
 {
 	[ -n "$MARIADB_UPGRADE_FROM" ] || return 0
 
+	# A reboot or power loss while 12.3 rewrites the data must not boot the
+	# old jail onto it, and no trap runs then. enable_jail, here on failure
+	# and in promote_staged_jail on success, puts it back.
+	sysrc jail_list-=" mysql"
+
 	# At cutover, not at the start of provisioning: the old server takes
 	# writes until it stops. stop_jail hides a failed stop, so check.
 	stage_exec service mysql-server stop
 	stop_jail mysql
 	if jail_is_running mysql; then
+		enable_jail mysql
 		halt_mysql_upgrade "the mysql jail did not stop. A snapshot of a datadir that is
 	still taking writes is not a rollback point, so nothing was changed."
 	fi
@@ -507,19 +539,32 @@ upgrade_mariadb_data()
 		MARIADB_SNAPSHOT=""
 		tell_status "snapshot failed, starting the mysql jail again"
 		service jail start mysql || true
+		enable_jail mysql
 		halt_mysql_upgrade "could not snapshot the mysql data, so it was not upgraded."
 	fi
 
 	# to tell, if it fails, whether promotion got as far as renaming the jail
 	MARIADB_OLD_JAIL_GUID=$(zfs get -H -o value guid "$ZFS_JAIL_VOL/mysql" 2>/dev/null) \
 		|| MARIADB_OLD_JAIL_GUID=""
+	echo "$MARIADB_SNAPSHOT" > "$(mariadb_upgrade_marker)" || exit 1
 	trap '[ $? = 0 ] || mariadb_rollback_help' EXIT
 
-	# The old server is stopped and the stage is not reachable by clients, so
-	# the upgrade can fail without having lost a single write.
+	# The old server is stopped and the stage serves no clients, so the
+	# upgrade can fail without having lost a single write.
 	mount -t nullfs "$(get_jail_data mysql)" "$STAGE_MNT/data" || exit 1
 	upgrade_mariadb_tables || exit 1
 	unmount_data mysql
+}
+
+finish_mariadb_upgrade()
+{
+	[ -n "$MARIADB_SNAPSHOT" ] || return 0
+
+	# The new server is serving clients. From here a rollback would discard
+	# what they wrote, so a late failure must not print one.
+	trap - EXIT
+	rm -f "$(mariadb_upgrade_marker)"
+	tell_status "MariaDB upgraded. Destroy $MARIADB_SNAPSHOT once satisfied with it."
 }
 
 mariadb_rollback_help()
@@ -529,25 +574,40 @@ mariadb_rollback_help()
 	local _last_guid=""
 	_last_guid=$(zfs get -H -o value guid "$ZFS_JAIL_VOL/mysql.last" 2>/dev/null) || _last_guid=""
 
-	local _jail_steps="	$ZFS_JAIL_VOL/mysql is still the old jail, nothing to swap."
+	local _renamed=""
 	if [ -n "$MARIADB_OLD_JAIL_GUID" ] && [ "$_last_guid" = "$MARIADB_OLD_JAIL_GUID" ]; then
-		_jail_steps="	The old jail was renamed to $ZFS_JAIL_VOL/mysql.last. Swap it back:
-
-		zfs rename $ZFS_JAIL_VOL/mysql $ZFS_JAIL_VOL/mysql.failed
-		zfs rename $ZFS_JAIL_VOL/mysql.last $ZFS_JAIL_VOL/mysql"
+		_renamed=1
 	fi
+
+	if [ -n "$_renamed" ] && jail_is_running mysql; then
+		echo "
+	WARNING: the new mysql jail is running and may have accepted writes since
+	the snapshot. Rolling back discards them. Dump what you need to keep first."
+	fi
+
+	# one chain, so a failed step stops the rest. A failed name is never
+	# reused: mysql.failed from an earlier rollback would make the renames fail.
+	local _steps="zfs rollback $MARIADB_SNAPSHOT"
+	if [ -n "$_renamed" ]; then
+		_steps="$_steps \\
+		&& zfs rename $ZFS_JAIL_VOL/mysql $ZFS_JAIL_VOL/mysql.failed-$(date +%Y%m%d%H%M%S) \\
+		&& zfs rename $ZFS_JAIL_VOL/mysql.last $ZFS_JAIL_VOL/mysql"
+	fi
+	_steps="$_steps \\
+		&& sysrc jail_list+=\" mysql\" \\
+		&& service jail start mysql"
 
 	echo "
 	The upgrade failed. The data was snapshotted as $MARIADB_SNAPSHOT.
 
-	Stop the staged and the mysql jails, and roll the data back:
+	Stop the staged and the mysql jails:
 
 		jail -r stage; service jail stop mysql
-		zfs rollback $MARIADB_SNAPSHOT
 
-$_jail_steps
+	Then roll back, as one chain. If a step fails, stop there and do not run
+	the ones after it:
 
-	Then start it: service jail start mysql
+		$_steps
 	"
 }
 
@@ -563,3 +623,4 @@ start_mysql
 test_mysql
 upgrade_mariadb_data
 promote_staged_jail mysql
+finish_mariadb_upgrade
