@@ -161,12 +161,19 @@ configure_pkg_latest()
 	local _repo_name="FreeBSD-ports"
 	if [ "$(freebsd_major "$1")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
+	local _extra=""
+	if [ -n "$1" ]; then
+		tell_status "disabling $_repo_name-kmods repository inside jail"
+		_extra="
+$_repo_name-kmods: { enabled: no }"
+	fi
+
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
 	store_config "$REPODIR/FreeBSD.conf" "overwrite" <<EO_PKG
 $_repo_name: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
-}
+}$_extra
 EO_PKG
 }
 
@@ -213,12 +220,13 @@ pkg_use_bsd_cache()
 	local _repo_name="FreeBSD-ports"
 	if [ "$(freebsd_major "$_root")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
+	local _extra=""; [ -z "$1" ] || _extra="
+$_repo_name-kmods: { enabled: no }"
+
 	# overwrite: base.sh seeds this file with configure_pkg_latest, so a
 	# preserving write leaves the direct repo enabled and says nothing
 	store_config "$_repo_dir/FreeBSD.conf" "overwrite" <<EO_PKG_CONF
-$_repo_name: {
-	enabled: no
-}
+$_repo_name: { enabled: no }$_extra
 EO_PKG_CONF
 
 	store_config "$_repo_dir/MT6.conf" "overwrite" <<EO_PKG_MT6
