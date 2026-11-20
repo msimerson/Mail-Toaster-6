@@ -108,6 +108,7 @@ rename_active_to_last()
 	local ACTIVE="$ZFS_JAIL_VOL/$1"
 	local LAST="$ACTIVE.last"
 
+	zfs destroy "$LAST@provisioned" || true
 	zfs_destroy_fs "$LAST"
 
 	if ! zfs_filesystem_exists "$ACTIVE"; then return; fi
