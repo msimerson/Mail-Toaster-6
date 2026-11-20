@@ -5,6 +5,8 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
+- mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
+- mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
 - clamav: unofficial sigs and fangfrisch write to /data/db, where clamd loads them
 - clamav: fangfrisch installs py-sqlite3 for the default python, py39 is gone

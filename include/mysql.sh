@@ -12,20 +12,30 @@ mysql_password_set()
 	return 1
 }
 
+mysql_client()
+{
+	# MariaDB 11+ warns when its client is run by the mysql name
+	if [ -x "$ZFS_JAIL_MNT/mysql/usr/local/bin/mariadb" ]; then
+		echo "/usr/local/bin/mariadb"
+	else
+		echo "/usr/local/bin/mysql"
+	fi
+}
+
 mysql_bin()
 {
 	if mysql_password_set; then
-		echo "/usr/local/bin/mysql"
+		mysql_client
 		return
 	fi
 
 	# set in toaster-watcher.conf
 	if [ -n "$TOASTER_MYSQL_PASS" ]; then
-		echo "/usr/local/bin/mysql --password=\"$TOASTER_MYSQL_PASS\""
+		echo "$(mysql_client) --password=\"$TOASTER_MYSQL_PASS\""
 		return
 	fi
 
-	echo "/usr/local/bin/mysql"
+	mysql_client
 }
 
 mysql_query()
