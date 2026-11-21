@@ -177,6 +177,20 @@ $_repo_name: {
 EO_PKG
 }
 
+configure_pkg_extra()
+{
+	local _conf="$1/usr/local/etc/pkg/repos/MT6-extra.conf"
+	if [ -n "${TOASTER_PKG_EXTRA:-}" ]; then
+		tell_status "adding extra pkg repository configuration"
+		store_config "$_conf" "overwrite" <<EO_PKG_EXTRA
+$TOASTER_PKG_EXTRA
+EO_PKG_EXTRA
+	elif [ -f "$_conf" ]; then
+		tell_status "removing extra pkg repository configuration"
+		rm -f "$_conf"
+	fi
+}
+
 preserve_file()
 {
 	local _jail_name=$1

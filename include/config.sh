@@ -41,6 +41,7 @@ mt6_defaults()
 	export TOASTER_MTA=${TOASTER_MTA:-"haraka"}
 	export TOASTER_PKG_AUDIT=${TOASTER_PKG_AUDIT:-"0"}
 	export TOASTER_PKG_BRANCH=${TOASTER_PKG_BRANCH:-"latest"}
+	export TOASTER_PKG_EXTRA=${TOASTER_PKG_EXTRA:-""}
 	export TOASTER_USE_TMPFS=${TOASTER_USE_TMPFS:-"0"}
 	export TOASTER_VPOPMAIL_CLEAR=${TOASTER_VPOPMAIL_CLEAR:-"1"}
 	export TOASTER_VPOPMAIL_EXT=${TOASTER_VPOPMAIL_EXT:-"0"}
@@ -132,6 +133,7 @@ export TOASTER_BASE_MTA=""
 export TOASTER_BASE_PKG_BRANCH=""   # pkgbase: base_release_N (default), base_latest, base_weekly
 export TOASTER_PKG_AUDIT="0"
 export TOASTER_PKG_BRANCH="latest"
+export TOASTER_PKG_EXTRA=""  # to use a custom repo set to 'my-repo-name: { url: "http://my.poudriere.url", priority: 10 }'
 export TOASTER_USE_TMPFS="0"
 export TOASTER_VPOPMAIL_CLEAR="1"
 export TOASTER_VPOPMAIL_EXT="0"
