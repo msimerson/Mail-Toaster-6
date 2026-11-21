@@ -479,3 +479,28 @@ pkg_cache_root() {
   run cat "$_root/etc/freebsd-update.conf"
   assert_output "ServerName freebsd-update"
 }
+
+@test "configure_pkg_extra - updates MT6-extra.conf when TOASTER_PKG_EXTRA is set" {
+  local _root; _root=$(pkg_cache_root)
+  export TOASTER_PKG_EXTRA='my-repo { url: "http://example.com", priority: 10 }'
+
+  echo 'WHATEVER' > "$_root/usr/local/etc/pkg/repos/MT6-extra.conf"
+
+  configure_pkg_extra "$_root"
+
+  run cat "$_root/usr/local/etc/pkg/repos/MT6-extra.conf"
+  assert_output --partial "my-repo"
+  refute_output --partial "WHATEVER"
+}
+
+@test "configure_pkg_extra - clears MT6-extra.conf when TOASTER_PKG_EXTRA is empty" {
+  local _root; _root=$(pkg_cache_root)
+  export TOASTER_PKG_EXTRA=''
+
+  echo 'WHATEVER' > "$_root/usr/local/etc/pkg/repos/MT6-extra.conf"
+
+  configure_pkg_extra "$_root"
+
+  run test -f "$_root/usr/local/etc/pkg/repos/MT6-extra.conf"
+  assert_failure
+}
