@@ -210,7 +210,6 @@ configure_base()
 		update_motd=NO
 
 	configure_pkg_latest "$BASE_MNT"
-	configure_pkg_extra "$BASE_MNT"
 	configure_tls_dirs
 	configure_tls_dhparams
 	disable_cron_jobs
