@@ -177,6 +177,23 @@ $_repo_name: {
 EO_PKG
 }
 
+configure_pkg_extra()
+{
+	# pkg reads repos/*.conf alphabetically and a later file overrides an
+	# earlier one, field by field. "_" sorts after the "." of MT6.conf, so this
+	# file is read last and can disable the repos MT6 writes.
+	local _conf="$1/usr/local/etc/pkg/repos/MT6_extra.conf"
+	if [ -n "${TOASTER_PKG_EXTRA:-}" ]; then
+		tell_status "adding extra pkg repository configuration"
+		store_config "$_conf" "overwrite" <<EO_PKG_EXTRA
+$TOASTER_PKG_EXTRA
+EO_PKG_EXTRA
+	elif [ -f "$_conf" ]; then
+		tell_status "removing extra pkg repository configuration"
+		rm -f "$_conf" "$_conf.mt6"
+	fi
+}
+
 preserve_file()
 {
 	local _jail_name=$1
