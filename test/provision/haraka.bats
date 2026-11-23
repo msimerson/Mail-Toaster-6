@@ -231,3 +231,214 @@ tls_setup() {
 
   assert [ ! -e "$HARAKA_CONF/tls_cert.pem" ]
 }
+
+# --- authenticated mail to a vpopmail alias ---
+#
+# qmail-deliverable leaves queue.next_hop at the Dovecot LMTP URL for an alias
+# too. For an authenticated sender smtp_forward stands aside unless
+# enable_outbound is set, and outbound then follows that next_hop to Dovecot,
+# which answers "550 5.1.1 User doesn't exist".
+
+# the keys that are in the main section, ie before the first [section]
+main_section() {
+  awk '/^\[/ { exit } { print }' "$1"
+}
+
+@test "configure_haraka_smtp_forward enables outbound forwarding on a new install" {
+  configure_haraka_smtp_forward
+
+  run cat "$HARAKA_CONF/smtp_forward.ini"
+  assert_success
+  assert_output --partial "host=172.16.15."
+  assert_output --partial "port=25"
+  assert_output --partial "enable_outbound=true"
+}
+
+# smtp_forward.ini is only written when missing, so a host provisioned before
+# this existed has to get the key too
+@test "configure_haraka_smtp_forward adds enable_outbound to an existing file" {
+  printf 'host=172.16.15.8\nport=25\n' > "$HARAKA_CONF/smtp_forward.ini"
+
+  configure_haraka_smtp_forward
+
+  run main_section "$HARAKA_CONF/smtp_forward.ini"
+  assert_line "enable_outbound=true"
+  assert_line "host=172.16.15.8"
+  assert_line "port=25"
+}
+
+@test "configure_haraka_smtp_forward keeps an operator's enable_outbound" {
+  printf 'host=172.16.15.8\nenable_outbound = false\n' > "$HARAKA_CONF/smtp_forward.ini"
+
+  configure_haraka_smtp_forward
+
+  run cat "$HARAKA_CONF/smtp_forward.ini"
+  assert_output --partial "enable_outbound = false"
+  refute_output --partial "enable_outbound=true"
+}
+
+# a per-domain setting is not the global one
+@test "configure_haraka_smtp_forward sets the main key when only a domain has one" {
+  printf 'host=172.16.15.8\n\n[example.com]\nenable_outbound=false\n' \
+    > "$HARAKA_CONF/smtp_forward.ini"
+
+  configure_haraka_smtp_forward
+
+  run main_section "$HARAKA_CONF/smtp_forward.ini"
+  assert_line "enable_outbound=true"
+  run cat "$HARAKA_CONF/smtp_forward.ini"
+  assert_output --partial "[example.com]"
+  assert_output --partial "enable_outbound=false"
+}
+
+@test "configure_haraka_smtp_forward is idempotent" {
+  configure_haraka_smtp_forward
+  configure_haraka_smtp_forward
+
+  run grep -c '^enable_outbound' "$HARAKA_CONF/smtp_forward.ini"
+  assert_output "1"
+}
+
+# --- a message for an alias and a mailbox ---
+
+@test "configure_haraka_qmail_deliverable keeps the routing and defers a split" {
+  configure_haraka_qmail_deliverable
+
+  run cat "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_success
+  assert_output --partial "check_outbound=true"
+  assert_output --partial "queue=smtp_forward"
+  assert_output --regexp "next_hop=lmtp://172\.16\.15\."
+  assert_output --partial "split=defer"
+}
+
+@test "configure_haraka_qmail_deliverable adds split to an existing file in the main section" {
+  printf 'check_outbound=true\nhost=172.16.15.8\nqueue=smtp_forward\n\n[example.com]\nnext_hop=lmtp://172.16.15.15\n' \
+    > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+
+  run main_section "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_line "split=defer"
+  assert_line "queue=smtp_forward"
+  run cat "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_output --partial "next_hop=lmtp://172.16.15.15"
+}
+
+@test "configure_haraka_qmail_deliverable keeps an operator's split" {
+  printf 'host=172.16.15.8\nsplit=outbound\n' > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+
+  run cat "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_output --partial "split=outbound"
+  refute_output --partial "split=defer"
+}
+
+# --- DKIM signing ---
+
+# the dkim plugin reads dkim.ini, and its shipped default signs nothing
+dkim_setup() {
+  export TOASTER_MAIL_DOMAIN="example.com"
+  local _dkim="$STAGE_MNT/usr/local/lib/node_modules/haraka/node_modules/haraka-plugin-dkim/config"
+  mkdir -p "$_dkim"
+  cat > "$_dkim/dkim.ini" <<'EOF'
+[main]
+
+
+[sign]
+enabled = false
+selector = mail
+domain = example.com
+headers = From, Sender, Subject
+
+[canon]
+; body = relaxed  ; allowed: simple, relaxed; default: simple
+
+
+[verify]
+enabled = true
+EOF
+  # the key generation is not under test
+  mkdir -p "$HARAKA_CONF/dkim/example.com"
+  touch "$HARAKA_CONF/dkim/dkim_key_gen.sh"
+}
+
+@test "configure_haraka_dkim creates dkim.ini with signing enabled" {
+  dkim_setup
+  configure_haraka_dkim
+
+  run awk '/^\[sign\]/ { s = 1; next } /^\[/ { s = 0 } s' "$HARAKA_CONF/dkim.ini"
+  assert_line "enabled = true"
+  refute_output --partial "enabled = false"
+}
+
+@test "configure_haraka_dkim leaves verification and the other settings alone" {
+  dkim_setup
+  configure_haraka_dkim
+
+  run awk '/^\[verify\]/ { s = 1; next } /^\[/ { s = 0 } s' "$HARAKA_CONF/dkim.ini"
+  assert_line "enabled = true"
+  run cat "$HARAKA_CONF/dkim.ini"
+  assert_output --partial "selector = mail"
+  assert_output --partial "headers = From, Sender, Subject"
+}
+
+@test "configure_haraka_dkim keeps a dkim.ini an operator edited" {
+  dkim_setup
+  printf '[sign]\nenabled = false\nselector = jun2026\n' > "$HARAKA_CONF/dkim.ini"
+  cp "$HARAKA_CONF/dkim.ini" "$BATS_TEST_TMPDIR/dkim.ini.orig"
+
+  configure_haraka_dkim
+
+  cmp "$HARAKA_CONF/dkim.ini" "$BATS_TEST_TMPDIR/dkim.ini.orig"
+}
+
+# --- the name Haraka greets with ---
+
+@test "configure_haraka_me writes the hostname when config/me is missing" {
+  export TOASTER_HOSTNAME="mail.example.com"
+  rm -f "$HARAKA_CONF/me"
+
+  configure_haraka_me
+
+  assert_equal "$(cat "$HARAKA_CONF/me")" "mail.example.com"
+}
+
+# haraka -i writes the jail's own name, which sent a new host's EHLO as "haraka"
+@test "configure_haraka_me replaces the jail hostname haraka -i wrote" {
+  export TOASTER_HOSTNAME="mail.example.com"
+  echo haraka > "$HARAKA_CONF/me"
+
+  configure_haraka_me
+
+  assert_equal "$(cat "$HARAKA_CONF/me")" "mail.example.com"
+}
+
+@test "configure_haraka_me replaces an empty or blank config/me" {
+  export TOASTER_HOSTNAME="mail.example.com"
+  printf ' \n' > "$HARAKA_CONF/me"
+
+  configure_haraka_me
+
+  assert_equal "$(cat "$HARAKA_CONF/me")" "mail.example.com"
+}
+
+@test "configure_haraka_me keeps a name an operator chose" {
+  export TOASTER_HOSTNAME="mail.example.com"
+  echo mx1.example.net > "$HARAKA_CONF/me"
+
+  configure_haraka_me
+
+  assert_equal "$(cat "$HARAKA_CONF/me")" "mx1.example.net"
+}
+
+@test "configure_haraka_me is idempotent" {
+  export TOASTER_HOSTNAME="mail.example.com"
+  echo haraka > "$HARAKA_CONF/me"
+
+  configure_haraka_me
+  configure_haraka_me
+
+  assert_equal "$(cat "$HARAKA_CONF/me")" "mail.example.com"
+}

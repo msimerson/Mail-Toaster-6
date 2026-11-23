@@ -134,6 +134,33 @@ EO_SYSLOG
 	touch "$_logdir/maillog"
 }
 
+# Set a key in the main section of an ini (the keys before the first
+# [section]) unless the file already sets it: an existing value, whatever it
+# is, is the operator's choice.
+haraka_ini_default()
+{
+	local _ini="$HARAKA_CONF/$1" _key="$2" _value="$3"
+
+	if awk -v key="$_key" '
+		/^\[/ { exit }
+		$0 ~ "^[[:space:]]*" key "[[:space:]]*=" { found = 1; exit }
+		END { exit !found }
+	' "$_ini" 2>/dev/null; then
+		tell_status "preserving $_key in $1"
+		return 0
+	fi
+
+	tell_status "setting $_key=$_value in $1"
+	local _tmp
+	_tmp=$(mktemp "${TMPDIR:-/tmp}/haraka-ini.XXXXXX") || return 1
+	{
+		echo "$_key=$_value"
+		[ ! -f "$_ini" ] || cat "$_ini"
+	} > "$_tmp"
+	cat "$_tmp" > "$_ini"
+	rm -f "$_tmp"
+}
+
 configure_haraka_smtp_forward()
 {
 	if [ ! -f "$HARAKA_CONF/smtp_forward.ini" ]; then
@@ -142,6 +169,16 @@ configure_haraka_smtp_forward()
 port=25
 " | tee -a "$HARAKA_CONF/smtp_forward.ini"
 	fi
+
+	# Mail from an authenticated (relaying) sender goes to outbound, not to
+	# smtp_forward, unless this is set. Outbound routes by the queue.next_hop
+	# that qmail-deliverable left, the Dovecot LMTP URL it sets for mailboxes,
+	# so a vpopmail alias is handed to Dovecot, which has no such mailbox.
+	# With it, smtp_forward delivers aliases to qmail on the vpopmail jail,
+	# as it does for unauthenticated mail. A mailbox still goes to Dovecot
+	# over LMTP, and mail for other domains stays with outbound, as
+	# qmail-deliverable marks those as wanting outbound.
+	haraka_ini_default smtp_forward.ini enable_outbound true
 }
 
 configure_haraka_vpopmail()
@@ -172,6 +209,13 @@ queue=smtp_forward
 next_hop=lmtp://$(get_jail_ip4 dovecot)" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
+
+	# A message for both an alias and a mailbox has two routes (qmail and
+	# Dovecot). qmail-deliverable then hands it to outbound, which resolves
+	# the domain's MX, which is this host, where the same recipients split
+	# again and go back to outbound. Deferring the second recipient makes
+	# the sender retry it as a message of its own.
+	haraka_ini_default qmail-deliverable.ini split defer
 
 	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
 		tell_status "enabling qmail-deliverable plugin"
@@ -439,6 +483,17 @@ configure_haraka_dkim()
 		echo 'disabled=false' | tee -a "$HARAKA_CONF/dkim_sign.ini"
 	fi
 
+	# dkim_sign.ini above is the old plugin's. The dkim plugin only reads
+	# dkim.ini, whose default has [sign] enabled=false, so without this a
+	# fresh install generates keys below and never signs with them.
+	if [ ! -f "$HARAKA_CONF/dkim.ini" ]; then
+		tell_status "enabling DKIM signing"
+		configure_install_default dkim.ini
+		sed_inplace \
+			-e '/^\[sign\]/,/^\[/ s/^enabled[[:space:]]*=.*/enabled = true/' \
+			"$HARAKA_CONF/dkim.ini"
+	fi
+
 	if [ ! -d "$HARAKA_CONF/dkim" ]; then
 		mkdir -p "$HARAKA_CONF/dkim"
 	fi
@@ -624,6 +679,23 @@ EO_SPF_RELAY
 	fi
 }
 
+configure_haraka_me()
+{
+	# `haraka -i` has already written config/me by now, with the jail's own
+	# hostname, so testing for the file alone left a new host greeting
+	# with "EHLO haraka". That, or nothing, is no name an operator chose.
+	local _me="$HARAKA_CONF/me" _cur=""
+	if [ -f "$_me" ]; then _cur=$(tr -d '[:space:]' < "$_me"); fi
+
+	case "$_cur" in
+		""|haraka) ;;
+		*) return 0 ;;
+	esac
+
+	tell_status "setting the Haraka name (config/me) to $TOASTER_HOSTNAME"
+	echo "$TOASTER_HOSTNAME" > "$_me"
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -635,9 +707,7 @@ configure_haraka()
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
 	fi
 
-	if [ ! -f "$HARAKA_CONF/me" ]; then
-		echo "$TOASTER_HOSTNAME" > "$HARAKA_CONF/me"
-	fi
+	configure_haraka_me
 
 	if [ ! -f "$HARAKA_CONF/rate_limit.ini" ]; then
 		echo "redis_server = $(get_jail_ip4 redis)" > "$HARAKA_CONF/rate_limit.ini"
