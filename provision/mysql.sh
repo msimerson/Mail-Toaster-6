@@ -91,18 +91,46 @@ configure_mysql_keys()
 	fi
 }
 
+# the root password MT6 wrote to the live jail's /root/.my.cnf, if any
+existing_mysql_root_pass()
+{
+	local _jail _cnf
+	for _jail in mysql mysql.last; do
+		_cnf="$ZFS_JAIL_MNT/$_jail/root/.my.cnf"
+		[ -f "$_cnf" ] && [ -r "$_cnf" ] || continue
+
+		# "password = value", with or without spaces, optionally quoted
+		awk -v q="'" '
+			/^[[:space:]]*password[[:space:]]*=/ {
+				v = substr($0, index($0, "=") + 1)
+				gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+				c = substr(v, 1, 1)
+				if (length(v) > 1 && (c == "\"" || c == q) && substr(v, length(v)) == c)
+					v = substr(v, 2, length(v) - 2)
+				print v
+				exit
+			}' "$_cnf"
+		return
+	done
+}
+
 configure_mysql_root_password()
 {
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
 		tell_status "TOASTER_MYSQL_PASS unset in $MT6_CONF"
 
-		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
-		if [ -f "$_my_cnf" ] && [ -r "$_my_cnf" ]; then
-			tell_status "TOASTER_MYSQL_PASS unset in $_my_cnf"
-			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
-		fi
+		TOASTER_MYSQL_PASS=$(existing_mysql_root_pass)
+		[ -z "$TOASTER_MYSQL_PASS" ] || tell_status "using the root password in .my.cnf of the mysql jail"
 
 		if [ -z "$TOASTER_MYSQL_PASS" ]; then
+			# A random password would not match the one in the live data
+			# that the promoted jail will run on.
+			if [ -d "$(get_jail_data mysql)/db/mysql" ]; then
+				echo "ERROR: existing MySQL data, but no root password in"
+				echo "$ZFS_JAIL_MNT/mysql/root/.my.cnf. Set TOASTER_MYSQL_PASS in $MT6_CONF."
+				exit 1
+			fi
+
 			tell_status "generating a random password for MySQL"
 			TOASTER_MYSQL_PASS=$(get_random_pass 15 safe)
 		fi

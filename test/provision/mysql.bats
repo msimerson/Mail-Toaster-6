@@ -77,7 +77,7 @@ teardown() {
              upgrade_mariadb_tables check_mariadb_upgrade db_client \
              upgrade_mariadb_data mariadb_rollback_help detach_live_data \
              wait_for_stage_mariadb finish_mariadb_upgrade \
-             mariadb_upgrade_marker; do
+             mariadb_upgrade_marker existing_mysql_root_pass; do
     run type "$_fn"
     assert_success
   done
@@ -514,6 +514,104 @@ _live_data() {
   run grep "password" "$STAGE_MNT/root/.my.cnf"
   assert_success
   assert_output --partial "supersecret"
+}
+
+# --- configure_mysql_root_password: the existing root password ---
+
+# the live jail, a log of the client calls, and no way to make a new password
+_root_pw_setup() {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/empty-data"
+  export TOASTER_MYSQL_PASS=""
+  export TOASTER_MARIADB="1"
+  mkdir -p "$ZFS_JAIL_MNT/mysql/root"
+  _calls="$BATS_TEST_TMPDIR/calls"; : > "$_calls"
+  # SHOW DATABASES (the call with --password) fails on a stage with no root password yet
+  stage_exec() {
+    cat >/dev/null; echo "EXEC:$*" >> "$_calls"
+    case "$*" in *--password=*) return "${_show_rc:-0}" ;; esac
+  }
+  get_random_pass() { echo "RANDOM-PASS"; }
+  write_pass_to_conf() { :; }
+}
+
+@test "mysql - root password: reads the password MT6 wrote to root/.my.cnf" {
+  _root_pw_setup
+  printf '[client]\nuser = root\npassword = s3cret\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  configure_mysql_root_password
+  [ "$TOASTER_MYSQL_PASS" = "s3cret" ]
+  run grep -c "ALTER\|RANDOM" "$_calls"
+  assert_output "0"
+}
+
+@test "mysql - root password: parses password=value without spaces, quotes and a space" {
+  _root_pw_setup
+  printf '[client]\npassword=nospace\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  run existing_mysql_root_pass
+  assert_output "nospace"
+
+  printf '[client]\npassword = "quoted pw"\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  run existing_mysql_root_pass
+  assert_output "quoted pw"
+
+  printf '# password = old\n[client]\nuser = root\n  password =   x=y  \n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  run existing_mysql_root_pass
+  assert_output "x=y"
+}
+
+@test "mysql - root password: does not look at root/my.cnf" {
+  _root_pw_setup
+  printf '[client]\npassword = wrongfile\n' > "$ZFS_JAIL_MNT/mysql/root/my.cnf"
+  run existing_mysql_root_pass
+  assert_output ""
+}
+
+@test "mysql - root password: falls back to the previous jail's .my.cnf" {
+  _root_pw_setup
+  mkdir -p "$ZFS_JAIL_MNT/mysql.last/root"
+  printf '[client]\npassword = fromlast\n' > "$ZFS_JAIL_MNT/mysql.last/root/.my.cnf"
+  run existing_mysql_root_pass
+  assert_output "fromlast"
+}
+
+@test "mysql - root password: an empty stage gets the existing password, not a random one" {
+  _root_pw_setup
+  mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql"
+  printf '[client]\npassword = s3cret\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _show_rc=1
+  configure_mysql_root_password
+  [ "$TOASTER_MYSQL_PASS" = "s3cret" ]
+  run grep "ALTER" "$_calls"
+  refute_output --partial "RANDOM"
+  run cat "$_calls"
+  assert_output --partial "EXEC:mariadb --password=s3cret"
+}
+
+@test "mysql - root password: existing data and no known password is an error, nothing is changed" {
+  _root_pw_setup
+  mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql"
+  run configure_mysql_root_password
+  assert_failure
+  assert_output --partial "TOASTER_MYSQL_PASS"
+  run cat "$_calls"
+  assert_output ""
+}
+
+@test "mysql - root password: a fresh install generates one and sets it" {
+  _root_pw_setup
+  _show_rc=1
+  configure_mysql_root_password
+  [ "$TOASTER_MYSQL_PASS" = "RANDOM-PASS" ]
+  run cat "$_calls"
+  assert_output --partial "EXEC:mariadb -u root"
+}
+
+@test "mysql - root password: a set TOASTER_MYSQL_PASS is used as is" {
+  _root_pw_setup
+  export TOASTER_MYSQL_PASS="fromconf"
+  printf '[client]\npassword = s3cret\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  configure_mysql_root_password
+  [ "$TOASTER_MYSQL_PASS" = "fromconf" ]
 }
 
 @test "mysql - configure_mysql_ram appends innodb_buffer_pool_size when RAM < 8GB" {
