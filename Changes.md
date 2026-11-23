@@ -12,6 +12,10 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - clamav: fangfrisch installs py-sqlite3 for the default python, py39 is gone
 - clamav: fangfrisch config and db in /data, refreshed by cron, only keyless providers on
 
+## 2026-11
+
+- TOASTER_PKG_EXTRA adds custom pkg repos to host & jails (#745)
+
 ## 2026-10
 
 - nginx: log to /data/log, TOASTER_NGINX_LOG_FORMAT (#736)

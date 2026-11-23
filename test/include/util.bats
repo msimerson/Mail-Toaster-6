@@ -479,3 +479,41 @@ pkg_cache_root() {
   run cat "$_root/etc/freebsd-update.conf"
   assert_output "ServerName freebsd-update"
 }
+
+@test "configure_pkg_extra - updates MT6_extra.conf when TOASTER_PKG_EXTRA is set" {
+  local _root; _root=$(pkg_cache_root)
+  export TOASTER_PKG_EXTRA='my-repo { url: "http://example.com", priority: 10 }'
+
+  echo 'WHATEVER' > "$_root/usr/local/etc/pkg/repos/MT6_extra.conf"
+
+  configure_pkg_extra "$_root"
+
+  run cat "$_root/usr/local/etc/pkg/repos/MT6_extra.conf"
+  assert_output --partial "my-repo"
+  refute_output --partial "WHATEVER"
+}
+
+@test "configure_pkg_extra - clears MT6_extra.conf when TOASTER_PKG_EXTRA is empty" {
+  local _root; _root=$(pkg_cache_root)
+  export TOASTER_PKG_EXTRA=''
+
+  echo 'WHATEVER' > "$_root/usr/local/etc/pkg/repos/MT6_extra.conf"
+  echo 'WHATEVER' > "$_root/usr/local/etc/pkg/repos/MT6_extra.conf.mt6"
+
+  configure_pkg_extra "$_root"
+
+  run ls "$_root/usr/local/etc/pkg/repos"
+  refute_output --partial "MT6_extra"
+}
+
+@test "configure_pkg_extra - pkg reads it after the repo files MT6 writes" {
+  local _root; _root=$(pkg_cache_root)
+  local _repos="$_root/usr/local/etc/pkg/repos"
+  export TOASTER_PKG_EXTRA='MT6: { enabled: no }'
+  touch "$_repos/FreeBSD.conf" "$_repos/FreeBSD-base.conf" "$_repos/MT6.conf"
+
+  configure_pkg_extra "$_root"
+
+  run sh -c "cd '$_repos' && LC_ALL=C ls *.conf | tail -n1"
+  assert_output "MT6_extra.conf"
+}
