@@ -34,7 +34,7 @@ install_php_newsyslog() {
 	tell_status "enabling PHP-FPM log file rotation"
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/php-fpm.conf" <<EO_FPM_NSL
 # rotate the file after it reaches 1M
-/var/log/php-fpm.log 600 7	1024	*	BCX	/var/run/php-fpm.pid 30
+/data/log/php-fpm.log 600 7	1024	*	BCX	/var/run/php-fpm.pid 30
 EO_FPM_NSL
 }
 
@@ -71,10 +71,11 @@ configure_php_ini()
 
 configure_php_fpm() {
 
-	tell_status "enable syslog for PHP-FPM"
+	tell_status "PHP-FPM logs to /data/log"
+	mkdir -p "$STAGE_MNT/data/log"
 	sed_inplace \
 		-e '/^;error_log/ s/^;//' \
-		-e '/^error_log/ s/= .*/= syslog/' \
+		-e '/^error_log/ s|= .*|= /data/log/php-fpm.log|' \
 		"$STAGE_MNT/usr/local/etc/php-fpm.conf"
 
 	if [ "$PHP_LISTEN_MODE" = "tcp" ]; then

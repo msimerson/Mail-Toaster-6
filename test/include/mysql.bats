@@ -153,3 +153,21 @@ jexec() {
   assert_output --partial "MySQL"
   assert_output --partial "sleep 5"
 }
+
+@test "mysql_client - mysql jail with MariaDB uses the mariadb client" {
+  ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  mkdir -p "$ZFS_JAIL_MNT/mysql/usr/local/bin"
+  touch "$ZFS_JAIL_MNT/mysql/usr/local/bin/mariadb"
+  chmod 755 "$ZFS_JAIL_MNT/mysql/usr/local/bin/mariadb"
+
+  run mysql_client
+  assert_output "/usr/local/bin/mariadb"
+}
+
+@test "mysql_client - mysql jail with MySQL uses the mysql client" {
+  ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  mkdir -p "$ZFS_JAIL_MNT/mysql/usr/local/bin"
+
+  run mysql_client
+  assert_output "/usr/local/bin/mysql"
+}

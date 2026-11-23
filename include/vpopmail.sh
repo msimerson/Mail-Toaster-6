@@ -9,7 +9,7 @@ install_vpopmail_deps()
 	if [ "$TOASTER_MYSQL" = "1" ]; then
 		tell_status "adding mysql dependency"
 		if [ "$TOASTER_MARIADB" = "1" ]; then
-			_vpopmail_deps="$_vpopmail_deps mariadb1011-client"
+			_vpopmail_deps="$_vpopmail_deps mariadb123-client"
 		else
 			_vpopmail_deps="$_vpopmail_deps mysql84-client"
 		fi
@@ -71,6 +71,13 @@ install_vpopmail_port()
 		tell_status "adding mysql dependency"
 		VPOPMAIL_OPTIONS_SET="$VPOPMAIL_OPTIONS_SET MYSQL VALIAS"
 		VPOPMAIL_OPTIONS_UNSET="$VPOPMAIL_OPTIONS_UNSET CDB"
+
+		if [ "$TOASTER_MARIADB" = "1" ]; then
+			# Uses/mysql.mk detects an installed client by bin/mysql only, a
+			# MariaDB client has bin/mariadb, so the port falls back to the
+			# default MySQL and wants its libmysqlclient. Name the version.
+			stage_make_conf 'DEFAULT_VERSIONS+=mysql=12.3m' 'DEFAULT_VERSIONS+=mysql=12.3m'
+		fi
 	fi
 
 	if [ "$TOASTER_VPOPMAIL_EXT" = "1" ]; then

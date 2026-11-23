@@ -161,13 +161,37 @@ configure_pkg_latest()
 	local _repo_name="FreeBSD-ports"
 	if [ "$(freebsd_major "$1")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
+	local _extra=""
+	if [ -n "$1" ]; then
+		tell_status "disabling $_repo_name-kmods repository inside jail"
+		_extra="
+$_repo_name-kmods: { enabled: no }"
+	fi
+
 	tell_status "switching pkg from quarterly to latest"
 	mkdir -p "$REPODIR"
 	store_config "$REPODIR/FreeBSD.conf" "overwrite" <<EO_PKG
 $_repo_name: {
   url: "pkg+http://$_pkg_host/\${ABI}/$TOASTER_PKG_BRANCH"
-}
+}$_extra
 EO_PKG
+}
+
+configure_pkg_extra()
+{
+	# pkg reads repos/*.conf alphabetically and a later file overrides an
+	# earlier one, field by field. "_" sorts after the "." of MT6.conf, so this
+	# file is read last and can disable the repos MT6 writes.
+	local _conf="$1/usr/local/etc/pkg/repos/MT6_extra.conf"
+	if [ -n "${TOASTER_PKG_EXTRA:-}" ]; then
+		tell_status "adding extra pkg repository configuration"
+		store_config "$_conf" "overwrite" <<EO_PKG_EXTRA
+$TOASTER_PKG_EXTRA
+EO_PKG_EXTRA
+	elif [ -f "$_conf" ]; then
+		tell_status "removing extra pkg repository configuration"
+		rm -f "$_conf" "$_conf.mt6"
+	fi
 }
 
 preserve_file()
@@ -213,12 +237,13 @@ pkg_use_bsd_cache()
 	local _repo_name="FreeBSD-ports"
 	if [ "$(freebsd_major "$_root")" -lt "15" ]; then _repo_name="FreeBSD"; fi
 
+	local _extra=""; [ -z "$1" ] || _extra="
+$_repo_name-kmods: { enabled: no }"
+
 	# overwrite: base.sh seeds this file with configure_pkg_latest, so a
 	# preserving write leaves the direct repo enabled and says nothing
 	store_config "$_repo_dir/FreeBSD.conf" "overwrite" <<EO_PKG_CONF
-$_repo_name: {
-	enabled: no
-}
+$_repo_name: { enabled: no }$_extra
 EO_PKG_CONF
 
 	store_config "$_repo_dir/MT6.conf" "overwrite" <<EO_PKG_MT6

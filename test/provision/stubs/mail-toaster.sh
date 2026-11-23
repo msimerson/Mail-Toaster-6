@@ -5,6 +5,7 @@
 export MT6_TEST_ENV=1
 
 export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:-"172.16.15"}
+export JAIL_NET_MASK=${JAIL_NET_MASK:-"/19"}
 export JAIL_ORDERED_LIST=${JAIL_ORDERED_LIST:-"syslog base dns mysql clamav spamassassin foundationdb vpopmail haraka webmail munin haproxy rspamd stalwart dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman git tachyon"}
 export ZFS_VOL=${ZFS_VOL:-"zroot"}
 _stub_root="${BATS_FILE_TMPDIR:-/nonexistent}"
@@ -197,6 +198,7 @@ mysql_error_warning()      { :; }
 
 # PHP include stubs
 install_php()              { :; }
+install_php_newsyslog()    { :; }
 configure_php()            { :; }
 configure_php_ini()        { :; }
 configure_php_fpm()        { :; }
@@ -206,6 +208,7 @@ php_quote()                { echo "$1"; }
 
 # Nginx include stubs
 install_nginx()            { :; }
+install_nginx_newsyslog()  { :; }
 configure_nginx()          { :; }
 configure_nginx_server_d() { :; }
 start_nginx()              { :; }

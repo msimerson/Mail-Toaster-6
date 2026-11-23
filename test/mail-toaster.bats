@@ -442,6 +442,21 @@ unmounted_paths() {
   assert_equal "$(echo "$output" | grep -c devfs_ruleset)" "1"
 }
 
+@test "start_staged_jail - TOASTER_PKG_EXTRA is in place before pkg update" {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails" MT6_ETC="$BATS_TEST_TMPDIR/etc"
+  export STAGE_MNT="$ZFS_JAIL_MNT/stage" JAIL_NET_INTERFACE=lo1
+  export JAIL_DEVFS_RULESET=7 JAIL_START_EXTRA=""
+  export TOASTER_PKG_EXTRA='mybuilds: { url: "https://pkg.example.com/${ABI}" }'
+  tell_status() { :; }
+  jail() { :; }
+  enable_bsd_cache() { :; }
+  pkg() { cat "$STAGE_MNT/usr/local/etc/pkg/repos/MT6_extra.conf"; }
+
+  run start_staged_jail haraka
+  assert_success
+  assert_output --partial "mybuilds"
+}
+
 # --- moving control files out of the jail's data volume, on rebuild ---
 
 host_etc_setup() {

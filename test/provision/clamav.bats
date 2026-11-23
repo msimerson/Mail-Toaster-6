@@ -152,3 +152,82 @@ assert_conf_enabled() {
   assert_success
   assert_output --partial "PORT:3310"
 }
+
+# --- optional signature installers ---
+
+@test "clamav - unofficial installs gsed and writes signatures to /data/db" {
+  provision_fns clamav
+  export CLAMAV_UNOFFICIAL=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  local _dist="$STAGE_MNT/tmp/clamav-unofficial-sigs-7.2.5"
+  mkdir -p "$_dist/config/os" "$STAGE_MNT/usr/local/bin"
+  echo 'clam_dbs="/var/db/clamav"' > "$_dist/config/os/os.freebsd.conf"
+  echo '#user_configuration_complete="yes"' > "$_dist/config/user.conf"
+  echo '#!/bin/bash' > "$_dist/clamav-unofficial-sigs.sh"
+  fetch() { :; }
+  tar() { :; }
+  stage_pkg_install() { echo "PKG:$*"; }
+
+  run install_clamav_unofficial
+  assert_success
+  assert_output --regexp "PKG:.* gsed"
+  run grep '^clam_dbs=' "$STAGE_MNT/etc/clamav-unofficial-sigs/os.conf"
+  assert_output 'clam_dbs="/data/db"'
+}
+
+@test "clamav - fangfrisch installs sqlite3 for the default python, into /data/db" {
+  provision_fns clamav
+  export CLAMAV_FANGFRISCH=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT/etc"
+  # the real stage_exec echoes its command, which must not reach pkg
+  stage_exec() { echo "jexec stage $*"; }
+  jexec() { [ "$2" = "python3" ] && echo "py311"; return 0; }
+  stage_pkg_install() { echo "PKG:$*"; }
+  store_config() { mkdir -p "$(dirname "$1")"; cat - > "$1"; }
+
+  run install_clamav_fangfrisch
+  assert_success
+  assert_line "PKG:py311-sqlite3"
+  refute_output --partial "py39"
+  assert_output --partial "fangfrisch.conf initdb"
+  run grep '^local_directory' "$STAGE_MNT/data/etc/fangfrisch.conf"
+  assert_output "local_directory = /data/db"
+  run grep '^\*/10.*clamav.*fangfrisch --conf /data/etc/fangfrisch.conf refresh' "$STAGE_MNT/etc/crontab"
+  assert_success
+}
+
+# the providers that need an account stay off until one is configured
+@test "clamav - fangfrisch enables only the providers that need no account" {
+  provision_fns clamav
+  export CLAMAV_FANGFRISCH=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT/etc"
+  stage_exec() { :; }
+  jexec() { echo "py311"; }
+  stage_pkg_install() { :; }
+  store_config() { mkdir -p "$(dirname "$1")"; cat - > "$1"; }
+
+  install_clamav_fangfrisch
+  local _conf="$STAGE_MNT/data/etc/fangfrisch.conf"
+  run awk '/^\[/ { s = $0 } /^enabled = yes/ { print s }' "$_conf"
+  assert_output "[sanesecurity]"
+}
+
+# initdb fails on a db that already has its tables
+@test "clamav - fangfrisch skips initdb when the db exists" {
+  provision_fns clamav
+  export CLAMAV_FANGFRISCH=1
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT/etc" "$STAGE_MNT/data/db"
+  touch "$STAGE_MNT/data/db/fangfrisch.sqlite"
+  stage_exec() { echo "EXEC:$*"; }
+  jexec() { echo "py311"; }
+  stage_pkg_install() { :; }
+  store_config() { mkdir -p "$(dirname "$1")"; cat - > "$1"; }
+
+  run install_clamav_fangfrisch
+  assert_success
+  refute_output --partial "initdb"
+  assert_output --partial "fangfrisch.conf refresh"
+}

@@ -16,42 +16,66 @@ install_clamav_fangfrisch()
 {
 	if [ "$CLAMAV_FANGFRISCH" = "0" ]; then return; fi
 
-	stage_pkg_install python sqlite3 py39-sqlite3 sudo
+	stage_pkg_install python sqlite3 sudo
+	# the sqlite3 module is a separate package, named for the default python
+	local _py
+	# jexec, not stage_exec, which also echoes the command it runs
+	_py=$(jexec "$SAFE_NAME" python3 -c 'import sys; print("py%d%d" % sys.version_info[:2])')
+	stage_pkg_install "$_py-sqlite3"
 	_fdir="/usr/local/fangfrisch"
 	stage_exec mkdir "$_fdir"
 	stage_exec bash -c 'cd /usr/local/fangfrisch && python3 -m venv venv && source venv/bin/activate && pip install fangfrisch'
 	stage_exec chown -R clamav:clamav $_fdir
-	store_config "${STAGE_MNT}${_fdir}/fangfrisch.conf" <<EO_FANG_CONF
+
+	# the config and its db live in /data, so the keys an operator adds
+	# and the download history survive a reprovision. An unedited config
+	# picks up template changes.
+	local _conf="/data/etc/fangfrisch.conf"
+	local _db="/data/db/fangfrisch.sqlite"
+	store_config "${STAGE_MNT}${_conf}" update <<EO_FANG_CONF
 [DEFAULT]
-db_url = sqlite:////usr/local/fangfrisch/db.sqlite
+db_url = sqlite:///${_db}
 
 # The following settings are optional. Other sections inherit
 # values from DEFAULT and may also overwrite values.
 
-local_directory = /var/db/clamav
+local_directory = /data/db
 max_size = 5MB
 on_update_exec = clamdscan --reload
 on_update_timeout = 42
 
-[malwarepatrol]
-enabled = yes
-# Replace with your personal Malwarepatrol receipt
-receipt = YOUR-RECEIPT-NUMBER
-
 [sanesecurity]
 enabled = yes
+# junk.ndb is larger than 5MB
+max_size = 10MB
+
+# The providers below need an account. Add yours and set enabled = yes.
+
+[malwarepatrol]
+enabled = no
+# receipt = YOUR-RECEIPT-NUMBER
 
 [securiteinfo]
-enabled = yes
-# Replace with your personal SecuriteInfo customer ID
-customer_id = abcdef123456
+enabled = no
+# customer_id = YOUR-CUSTOMER-ID
 
 [urlhaus]
-enabled = yes
+enabled = no
 max_size = 2MB
+# auth_key = YOUR-ABUSE-CH-AUTH-KEY
 EO_FANG_CONF
-	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf initdb
-	stage_exec sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_fdir/fangfrisch.conf refresh
+
+	local _ff="sudo -u clamav -- $_fdir/venv/bin/fangfrisch --conf $_conf"
+	# initdb exits non-zero when the db already has its tables
+	if [ ! -f "${STAGE_MNT}${_db}" ]; then
+		stage_exec $_ff initdb
+	fi
+	stage_exec $_ff refresh
+
+	# refresh skips a provider until its interval has passed
+	tee -a "$STAGE_MNT/etc/crontab" <<EO_FANG_CRON
+*/10	*	*	*	*	clamav	$_fdir/venv/bin/fangfrisch --conf $_conf refresh
+EO_FANG_CRON
 }
 
 install_clamav_unofficial()
@@ -79,7 +103,8 @@ install_clamav_unofficial()
 	local CLAMAV_UV=7.2.5
 	tell_status "installing ClamAV unofficial $CLAMAV_UV"
 
-	stage_pkg_install gnupg1 rsync bind-tools gtar
+	# on FreeBSD the script refuses to run without GNU sed
+	stage_pkg_install gnupg1 rsync bind-tools gtar gsed
 	fetch -m -o "$STAGE_MNT/tmp/" \
 	  "https://github.com/extremeshok/clamav-unofficial-sigs/archive/$CLAMAV_UV.tar.gz"
 	tar -xz -C "$STAGE_MNT/tmp/" -f "$STAGE_MNT/tmp/$CLAMAV_UV.tar.gz"
@@ -89,8 +114,10 @@ install_clamav_unofficial()
 
 	tell_status "installing config files"
 	mkdir -p "$_conf"
-	cp -r "$_dist/config/" "$_conf/"
+	cp -R "$_dist/config/." "$_conf/"
 	cp "$_conf/os/os.freebsd.conf" "$_conf/os.conf"
+	# clamd and freshclam use /data/db, put the signatures where clamd loads them
+	sed_inplace -e '/^clam_dbs=/ s|=.*|="/data/db"|' "$_conf/os.conf"
 
 	if [ -f "$ZFS_JAIL_MNT/clamav/etc/clamav-unofficial-sigs/user.conf" ]; then
 		tell_status "preserving user.conf"

@@ -3,8 +3,23 @@
 
 refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://github.com/msimerson/Mail-Toaster-6/commits/master)
 
+## 2026-11
+
+- mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
+- mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
+- clamav: unofficial sigs install gsed, which the script requires on FreeBSD
+- clamav: unofficial sigs and fangfrisch write to /data/db, where clamd loads them
+- clamav: fangfrisch installs py-sqlite3 for the default python, py39 is gone
+- clamav: fangfrisch config and db in /data, refreshed by cron, only keyless providers on
+
+## 2026-11
+
+- TOASTER_PKG_EXTRA adds custom pkg repos to host & jails (#745)
+
 ## 2026-10
 
+- nginx: log to /data/log, TOASTER_NGINX_LOG_FORMAT (#736)
+- php-fpm: log to /data/log (#736)
 - NEWSYSLOG_COMPRESSION_METHOD picks log compression on Fbsd 15+ (#735)
 - test: provision stub defaults stay off the live toaster dirs
 - test: shared provision test helper, ~20% faster

@@ -706,6 +706,7 @@ update_host() {
 	update_mt6
 	update_freebsd
 	configure_pkg_latest ""
+	configure_pkg_extra ""
 	configure_ntp
 	configure_mta
 	install_periodic_conf

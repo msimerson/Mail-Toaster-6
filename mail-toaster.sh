@@ -427,6 +427,7 @@ start_staged_jail()
 		$JAIL_START_EXTRA
 
 	enable_bsd_cache
+	configure_pkg_extra "$_path"
 
 	tell_status "updating pkg database"
 	pkg -j stage update
