@@ -171,9 +171,8 @@ login_access_sockets = tcpwrap
 
 plugin {
   quota = maildir:User quota
-  quota_rule = *:storage=1G
-  quota_rule2 = Trash:storage=+10%%
-  quota_rule3 = Spam:storage=+20%%
+  quota_rule = Trash:storage=+10%%
+  quota_rule2 = Spam:storage=+20%%
 
   sieve_plugins = sieve_imapsieve sieve_extprograms
 
