@@ -62,6 +62,30 @@ install_file() {
 	return 0
 }
 
+# The key and the chain in one file. The temp file holds the private key:
+# it is created private, and removed on every path out.
+# returns 0 installed, 3 unchanged, 1 failed
+install_pem() {
+	local _tmp _rc
+	_tmp=$(umask 077; mktemp "${TMPDIR:-/tmp}/le-deploy.XXXXXX") || {
+		_err "unable to create a temp file"
+		return 1
+	}
+
+	cat "$1" "$2" > "$_tmp"
+	if [ ! -s "$_tmp" ]; then
+		_err "Unable to create $_tmp"
+		_rc=1
+	elif has_differences "$_tmp" "$3"; then
+		install_file "$_tmp" "$3" && _rc=0 || _rc=1
+	else
+		_rc=3
+	fi
+
+	rm -f "$_tmp"
+	return $_rc
+}
+
 #returns 0 means success, otherwise error.
 
 #domain keyfile certfile cafile fullchain
@@ -88,20 +112,17 @@ haproxy_deploy() {
 		return 0
 	fi
 
-	local _tmp="/tmp/${_cdomain}.pem"
-	cat "$_ckey" "$_cfullchain" > "$_tmp"
-	if [ ! -s "$_tmp" ]; then
-		_err "Unable to create $_tmp"
-		return 1
-	fi
-
-	_debug "$_tmp created"
 	local _installed="$_tls_dir/$_cdomain.pem"
-	has_differences "$_tmp" "$_installed" || return 0
-	install_file "$_tmp" "$_installed" || return 1
+	local _pem_rc=0
+	install_pem "$_ckey" "$_cfullchain" "$_installed" || _pem_rc=$?
+	case $_pem_rc in
+		0) ;;
+		3) return 0 ;;
+		*) return 1 ;;
+	esac
+
 	install_file "$_cca" "${_installed}.issuer"
 
-	rm "$_tmp"
 	_debug "restarting haproxy"
 	jexec haproxy service haproxy reload
 	return 0
@@ -234,6 +255,30 @@ install_file() {
 	return 0
 }
 
+# The key and the chain in one file. The temp file holds the private key:
+# it is created private, and removed on every path out.
+# returns 0 installed, 3 unchanged, 1 failed
+install_pem() {
+	local _tmp _rc
+	_tmp=\$(umask 077; mktemp "\${TMPDIR:-/tmp}/le-deploy.XXXXXX") || {
+		_err "unable to create a temp file"
+		return 1
+	}
+
+	cat "\$1" "\$2" > "\$_tmp"
+	if [ ! -s "\$_tmp" ]; then
+		_err "Unable to create \$_tmp"
+		_rc=1
+	elif has_differences "\$_tmp" "\$3"; then
+		install_file "\$_tmp" "\$3" && _rc=0 || _rc=1
+	else
+		_rc=3
+	fi
+
+	rm -f "\$_tmp"
+	return \$_rc
+}
+
 #returns 0 means success, otherwise error.
 
 #domain keyfile certfile cafile fullchain
@@ -253,14 +298,14 @@ haraka_deploy() {
 	fi
 
 	if [ -d "\$_h_conf/tls" ]; then
-		local _tmp="/tmp/\${_cdomain}.pem"
-		cat \$_ckey \$_cfullchain > \$_tmp
-		assure_file "\$_tmp" || return 1
-
 		local _installed="\$_h_conf/tls/\${_cdomain}.pem"
-		has_differences "\$_tmp" "\$_installed" || return 0
-		install_file "\$_tmp" "\$_installed" || return 1
-		rm \$_tmp
+		local _pem_rc=0
+		install_pem "\$_ckey" "\$_cfullchain" "\$_installed" || _pem_rc=\$?
+		case \$_pem_rc in
+			0) ;;
+			3) return 0 ;;
+			*) return 1 ;;
+		esac
 
 		if [ "\$_cdomain" = "$TOASTER_HOSTNAME" ]; then
 			install_file "\$_ckey" "\$_h_conf/tls_key.pem" || return 1
