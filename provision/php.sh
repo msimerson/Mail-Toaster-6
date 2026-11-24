@@ -8,6 +8,7 @@
 #   /data/etc/nginx/fastcgi_site.conf include from a vhost's PHP location
 #   /data/etc/php-fpm.d/*.conf        per-site PHP-FPM pools
 #   /data/www/<site>                  docroots
+#   /data/log/<site>.{access,error}.log  a site's nginx logs
 #
 # nginx listens on port 80 only: haproxy terminates TLS and sends
 # X-Forwarded-Proto. Samples of a vhost and a pool are in /data/etc.
@@ -92,6 +93,19 @@ $(nginx_listen 80 default_server)
 	configure_nginx_server_d php 00-default
 }
 
+# The default nginx logs, in /data/log, take what no site claims. A site logs
+# to <site>.access.log and <site>.error.log there, which newsyslog rotates.
+configure_php_jail_logs()
+{
+	tell_status "rotating the per-site nginx logs"
+	stage_enable_newsyslog
+	store_config "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf" "update" <<'EO_SITES_NSL'
+# rotate nightly, G: the name is a shell pattern
+/data/log/*.access.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+/data/log/*.error.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+EO_SITES_NSL
+}
+
 configure_php_jail_samples()
 {
 	local _etc; _etc="$(get_jail_data php)/etc"
@@ -101,6 +115,10 @@ configure_php_jail_samples()
 server {
 	listen       80;
 	server_name  example.org www.example.org;
+
+	# a log of its own, rotated with the others (newsyslog.conf.d/php-sites.conf)
+	access_log  /data/log/example.org.access.log;
+	error_log   /data/log/example.org.error.log;
 
 	root   /data/www/example.org;
 	index  index.php index.html;
@@ -149,6 +167,7 @@ configure_php_jail()
 	configure_nginx php
 	configure_php_jail_fastcgi
 	configure_nginx_default_server
+	configure_php_jail_logs
 	configure_php_jail_samples
 }
 

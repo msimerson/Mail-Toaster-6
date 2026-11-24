@@ -156,6 +156,26 @@ setup() {
   assert_output "1"
 }
 
+# --- logs: one pair per site ---
+
+@test "the sample vhost logs to files of its own in /data/log" {
+  configure_php_jail_samples
+
+  run cat "$ZFS_DATA_MNT/php/etc/nginx/example.conf.sample"
+  assert_output --partial "access_log  /data/log/example.org.access.log;"
+  assert_output --partial "error_log   /data/log/example.org.error.log;"
+}
+
+@test "newsyslog rotates the per-site logs, as patterns" {
+  mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
+  configure_php_jail_logs
+
+  run cat "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf"
+  assert_success
+  assert_output --regexp '/data/log/\*\.access\.log[[:space:]]+root:wheel[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX[[:space:]]+/var/run/nginx\.pid[[:space:]]+30'
+  assert_output --regexp '/data/log/\*\.error\.log[[:space:]]+root:wheel[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX'
+}
+
 @test "configure_php_jail configures php and nginx for the php jail and writes the shared include" {
   configure_php() { echo "configure_php:$1"; }
   configure_nginx() { echo "configure_nginx:$1"; }
