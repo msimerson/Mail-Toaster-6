@@ -71,7 +71,7 @@ configure_dmarc()
 	fi
 
 	tell_status "add Redis address, for DMARC stats"
-	tee -a "$RSPAMD_ETC/local.d/dmarc.conf" <<EO_DMARC
+	store_config "$RSPAMD_ETC/local.d/dmarc.conf" <<EO_DMARC
 
 	actions = {
 		quarantine = "add_header";
@@ -94,7 +94,9 @@ EO_DMARC
 configure_enable()
 {
 	tell_status "enabling $1"
-	echo 'enabled = true;' > "$RSPAMD_ETC/local.d/$1.conf"
+	store_config "$RSPAMD_ETC/local.d/$1.conf" <<EO_ENABLE
+enabled = true;
+EO_ENABLE
 }
 
 configure_stats()
@@ -261,13 +263,33 @@ secure_ip = $(get_jail_ip6 dovecot);
 EO_CONTROLLER
 }
 
+# The admin's tuning, in the running jail's config directories, is carried
+# over: what they added, and what they edited of what MT6 wrote. Untouched
+# defaults are regenerated below.
+preserve_rspamd_config()
+{
+	local _etc="/usr/local/etc/rspamd"
+	local _d _f
+
+	for _d in local.d override.d maps.d; do
+		preserve_config_dir rspamd "$_etc/$_d" || return 1
+	done
+
+	# the files rspamd reads for local changes, never shipped by the package
+	for _f in rspamd.conf.local rspamd.conf.local.override rspamd.local.lua; do
+		preserve_file rspamd "$_etc/$_f" || return 1
+	done
+}
+
 configure_rspamd()
 {
 	tell_status "configuring rspamd"
 
+	preserve_rspamd_config
+
 	for _d in "local.d" "override.d"; do
 		if [ ! -d "$RSPAMD_ETC/${_d}" ]; then
-			mkdir "$RSPAMD_ETC/${_d}"
+			mkdir -p "$RSPAMD_ETC/${_d}"
 		fi
 	done
 

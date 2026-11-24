@@ -320,6 +320,133 @@ setup() {
   rm -rf "$tmpdir"
 }
 
+# --- preserve_config_dir ---
+
+# a live jail whose config dir holds what MT6 wrote and what an admin changed
+_cfg_dirs() {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  _live="$ZFS_JAIL_MNT/svc/etc/svc/local.d"
+  _stage="$STAGE_MNT/etc/svc/local.d"
+  mkdir -p "$_live" "$_stage"
+}
+
+# what MT6 would have left: the file and its shadow
+_mt6_wrote() { printf '%s\n' "$2" > "$1"; printf '%s\n' "$2" > "$1.mt6"; }
+
+@test "preserve_config_dir - carries a file the admin edited" {
+  _cfg_dirs
+  _mt6_wrote "$_live/a.conf" "default"
+  echo "tuned" > "$_live/a.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/a.conf"
+  assert_output "tuned"
+}
+
+@test "preserve_config_dir - does not carry an untouched default" {
+  _cfg_dirs
+  _mt6_wrote "$_live/a.conf" "default"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  [ ! -e "$_stage/a.conf" ]
+}
+
+@test "preserve_config_dir - carries a file the admin added" {
+  _cfg_dirs
+  echo "mine" > "$_live/multimap.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/multimap.conf"
+  assert_output "mine"
+}
+
+@test "preserve_config_dir - keeps the stage's file when the package ships one" {
+  _cfg_dirs
+  echo "old package" > "$_live/shipped.conf"
+  echo "new package" > "$_stage/shipped.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/shipped.conf"
+  assert_output "new package"
+}
+
+@test "preserve_config_dir - never carries a shadow" {
+  _cfg_dirs
+  _mt6_wrote "$_live/a.conf" "default"
+  echo "tuned" > "$_live/a.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  [ ! -e "$_stage/a.conf.mt6" ]
+}
+
+@test "preserve_config_dir - follows subdirectories and keeps the mode" {
+  _cfg_dirs
+  mkdir -p "$_live/maps.d"
+  echo "x" > "$_live/maps.d/allow.map"
+  chmod 640 "$_live/maps.d/allow.map"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/maps.d/allow.map"
+  assert_output "x"
+  run _file_mode "$_stage/maps.d/allow.map"
+  assert_output "640"
+}
+
+@test "preserve_config_dir - handles a name with a space" {
+  _cfg_dirs
+  echo "x" > "$_live/two words.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/two words.conf"
+  assert_output "x"
+}
+
+@test "preserve_config_dir - falls back to the previous jail" {
+  _cfg_dirs
+  mkdir -p "$ZFS_JAIL_MNT/svc.last/etc/svc/local.d"
+  echo "from last" > "$ZFS_JAIL_MNT/svc.last/etc/svc/local.d/b.conf"
+  rm -r "$ZFS_JAIL_MNT/svc"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/b.conf"
+  assert_output "from last"
+}
+
+@test "preserve_config_dir - is a no-op without a running jail" {
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
+  export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
+  mkdir -p "$STAGE_MNT"
+
+  run preserve_config_dir svc /etc/svc/local.d
+  assert_success
+  [ ! -e "$STAGE_MNT/etc" ]
+}
+
+@test "preserve_config_dir - what it carries survives store_config, a default is regenerated" {
+  _cfg_dirs
+  _mt6_wrote "$_live/edited.conf" "default"
+  echo "tuned" > "$_live/edited.conf"
+  _mt6_wrote "$_live/pristine.conf" "old default"
+
+  preserve_config_dir svc /etc/svc/local.d
+  echo "new default" | store_config "$_stage/edited.conf"
+  echo "new default" | store_config "$_stage/pristine.conf"
+
+  run cat "$_stage/edited.conf"
+  assert_output "tuned"
+  run cat "$_stage/pristine.conf"
+  assert_output "new default"
+}
+
 @test "store_exec - creates executable file" {
   local tmpdir; tmpdir=$(mktemp -d)
   local tmpfile="$tmpdir/script.sh"

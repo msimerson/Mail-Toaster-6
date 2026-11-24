@@ -214,6 +214,46 @@ preserve_file()
 	fi
 }
 
+# Carry the changes an admin made in a config directory of the running jail
+# (or its predecessor, jail.last) over to the stage, before the provisioner
+# writes its defaults. $2 is the directory's path inside the jail.
+#   - a file with a store_config shadow is carried only when it differs from
+#     the shadow: an untouched default is regenerated, and picks up template
+#     changes
+#   - a file with no shadow is the admin's own, carried unless the stage has
+#     one already (a file the package ships is not theirs to override)
+# store_config then leaves what was carried alone.
+preserve_config_dir()
+{
+	local _jail_name=$1 _dir=$2
+	local _src="" _j
+
+	for _j in "$_jail_name" "${_jail_name}.last"; do
+		if [ -d "$ZFS_JAIL_MNT/$_j$_dir" ]; then
+			_src="$ZFS_JAIL_MNT/$_j$_dir"
+			break
+		fi
+	done
+	[ -n "$_src" ] || return 0
+
+	find "$_src" -type f ! -name '*.mt6' | while IFS= read -r _f; do
+		local _rel="${_f#"$_src"/}"
+		local _dst="$STAGE_MNT$_dir/$_rel"
+
+		if [ -f "$_f.mt6" ]; then
+			cmp -s "$_f" "$_f.mt6" && continue
+			tell_status "preserving edited $_dir/$_rel"
+		elif [ -e "$_dst" ]; then
+			continue
+		else
+			tell_status "preserving $_dir/$_rel"
+		fi
+
+		mkdir -p "$(dirname "$_dst")" || exit 1
+		cp -p "$_f" "$_dst" || exit 1
+	done || return 1
+}
+
 reverse_list()
 {
 	local _rev_list=""

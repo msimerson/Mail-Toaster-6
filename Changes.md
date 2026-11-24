@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
+- rspamd: a reprovision keeps the admin's changes in local.d, override.d and maps.d (files they added, and edits of what MT6 wrote), rspamd.conf.local, rspamd.conf.local.override and rspamd.local.lua. Untouched defaults are regenerated. mxcheck, url_* and dmarc.conf no longer bypass store_config (an edited file was overwritten, dmarc.conf was appended to on every run)
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
