@@ -8,7 +8,9 @@
 #   /data/etc/nginx/fastcgi_site.conf include from a vhost's PHP location
 #   /data/etc/php-fpm.d/*.conf        per-site PHP-FPM pools
 #   /data/www/<site>                  docroots
-#   /data/log/<site>.{access,error}.log  a site's nginx logs
+#   /data/log/<site>.*                a site's nginx and PHP-FPM logs
+#
+# How to add a site: docs/php-sites.md
 #
 # nginx listens on port 80 only: haproxy terminates TLS and sends
 # X-Forwarded-Proto. Samples of a vhost and a pool are in /data/etc.
@@ -94,15 +96,23 @@ $(nginx_listen 80 default_server)
 }
 
 # The default nginx logs, in /data/log, take what no site claims. A site logs
-# to <site>.access.log and <site>.error.log there, which newsyslog rotates.
+# to files of its own there, which newsyslog rotates by pattern:
+#   <site>.access.log, <site>.error.log   nginx, signalled with the nginx pid
+#   <site>.fpm-access.log, <site>.fpm-slow.log, <site>.php-error.log
+#                                         its PHP-FPM pool
+# The names differ before the suffix, so no pattern catches another's files.
 configure_php_jail_logs()
 {
-	tell_status "rotating the per-site nginx logs"
+	tell_status "rotating the per-site nginx and PHP-FPM logs"
 	stage_enable_newsyslog
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf" "update" <<'EO_SITES_NSL'
 # rotate nightly, G: the name is a shell pattern
 /data/log/*.access.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 /data/log/*.error.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
+/data/log/*.fpm-access.log	root:wheel	644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
+/data/log/*.fpm-slow.log	root:wheel	644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
+# written by the pool's user, so a new file is theirs too
+/data/log/*.php-error.log	www:www		644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
 EO_SITES_NSL
 }
 
@@ -152,6 +162,14 @@ listen.mode = 0660
 pm = ondemand
 pm.max_children = 8
 pm.process_idle_timeout = 30s
+
+; logs of its own, rotated with the others (newsyslog.conf.d/php-sites.conf)
+access.log = /data/log/example.org.fpm-access.log
+slowlog = /data/log/example.org.fpm-slow.log
+request_slowlog_timeout = 10s
+; PHP errors: the file must be writable by the pool's user (see docs/php-sites.md)
+php_admin_flag[log_errors] = on
+php_admin_value[error_log] = /data/log/example.org.php-error.log
 
 php_admin_value[open_basedir] = /data/www/example.org:/tmp
 EO_SAMPLE_POOL

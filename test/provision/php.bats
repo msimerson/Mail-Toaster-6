@@ -176,6 +176,43 @@ setup() {
   assert_output --regexp '/data/log/\*\.error\.log[[:space:]]+root:wheel[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX'
 }
 
+@test "the sample pool logs to files of its own in /data/log" {
+  configure_php_jail_samples
+
+  run cat "$ZFS_DATA_MNT/php/etc/php-fpm.d/example.conf.sample"
+  assert_output --partial "access.log = /data/log/example.org.fpm-access.log"
+  assert_output --partial "slowlog = /data/log/example.org.fpm-slow.log"
+  assert_output --partial "php_admin_value[error_log] = /data/log/example.org.php-error.log"
+}
+
+@test "newsyslog rotates the PHP-FPM logs by the php-fpm pid, the PHP error log as the pool user" {
+  mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
+  configure_php_jail_logs
+
+  run cat "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf"
+  assert_output --regexp '/data/log/\*\.fpm-access\.log[[:space:]]+root:wheel[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
+  assert_output --regexp '/data/log/\*\.fpm-slow\.log[[:space:]].*/var/run/php-fpm\.pid'
+  assert_output --regexp '/data/log/\*\.php-error\.log[[:space:]]+www:www[[:space:]].*BCGX[[:space:]]+/var/run/php-fpm\.pid'
+}
+
+# a pattern that caught another daemon's file would signal the wrong pid
+@test "no log pattern matches another kind of site log" {
+  local _site="example.org" _p _f _pat _file
+  local _patterns="*.access.log:nginx *.error.log:nginx *.fpm-access.log:fpm *.fpm-slow.log:fpm *.php-error.log:fpm"
+  local _files="$_site.access.log:nginx $_site.error.log:nginx $_site.fpm-access.log:fpm $_site.fpm-slow.log:fpm $_site.php-error.log:fpm access_log:none error_log:none php-fpm.log:none"
+
+  for _p in $_patterns; do
+    _pat=${_p%%:*}
+    for _f in $_files; do
+      _file=${_f%%:*}
+      # shellcheck disable=SC2254
+      case "$_file" in
+        $_pat) [ "${_f##*:}" = "${_p##*:}" ] || { echo "$_pat matches $_file"; return 1; } ;;
+      esac
+    done
+  done
+}
+
 @test "configure_php_jail configures php and nginx for the php jail and writes the shared include" {
   configure_php() { echo "configure_php:$1"; }
   configure_nginx() { echo "configure_nginx:$1"; }
@@ -214,4 +251,31 @@ setup() {
   run test_php_jail
   assert_failure
   refute_output --partial "it worked"
+}
+
+# --- the documentation ---
+
+@test "docs/php-sites.md covers adding a site, with the paths the provisioner creates" {
+  local _doc="$BATS_TEST_DIRNAME/../../docs/php-sites.md"
+  [ -f "$_doc" ]
+
+  run cat "$_doc"
+  assert_output --partial "www.example.com"
+  assert_output --partial "/data/php/etc/nginx/server.d/"
+  assert_output --partial "/data/php/etc/php-fpm.d/"
+  assert_output --partial "/data/php/www/"
+  assert_output --partial "fastcgi_site.conf"
+  assert_output --partial "use_backend"
+  assert_output --partial "php-fpm -t"
+  assert_output --partial "nginx -t -c /data/etc/nginx/nginx.conf"
+}
+
+@test "the documented site config uses the log names that newsyslog rotates" {
+  local _doc="$BATS_TEST_DIRNAME/../../docs/php-sites.md"
+  run cat "$_doc"
+  assert_output --partial "/data/log/www.example.com.access.log"
+  assert_output --partial "/data/log/www.example.com.error.log"
+  assert_output --partial "/data/log/www.example.com.fpm-access.log"
+  assert_output --partial "/data/log/www.example.com.fpm-slow.log"
+  assert_output --partial "/data/log/www.example.com.php-error.log"
 }
