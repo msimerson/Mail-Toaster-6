@@ -518,26 +518,32 @@ _live_data() {
 
 # --- configure_mysql_root_password: the existing root password ---
 
-# the live jail, a log of the client calls, and no way to make a new password
+# the live jail, a log of the client calls with the SQL they were fed, and
+# no way to make a new password
 _root_pw_setup() {
   export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
   export ZFS_DATA_MNT="$BATS_TEST_TMPDIR/empty-data"
   export TOASTER_MYSQL_PASS=""
   export TOASTER_MARIADB="1"
+  unset MYSQL_HAD_DATA
   mkdir -p "$ZFS_JAIL_MNT/mysql/root"
   _calls="$BATS_TEST_TMPDIR/calls"; : > "$_calls"
   # SHOW DATABASES (the call with --password) fails on a stage with no root password yet
   stage_exec() {
-    cat >/dev/null; echo "EXEC:$*" >> "$_calls"
+    local _sql=""
+    case "$*" in *--password=*|*"-u root"*) _sql=$(cat) ;; esac
+    echo "EXEC:$* <<< $_sql" >> "$_calls"
     case "$*" in *--password=*) return "${_show_rc:-0}" ;; esac
   }
   get_random_pass() { echo "RANDOM-PASS"; }
   write_pass_to_conf() { :; }
 }
 
+_my_cnf() { printf "$1" > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"; }
+
 @test "mysql - root password: reads the password MT6 wrote to root/.my.cnf" {
   _root_pw_setup
-  printf '[client]\nuser = root\npassword = s3cret\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _my_cnf '[client]\nuser = root\npassword = s3cret\n'
   configure_mysql_root_password
   [ "$TOASTER_MYSQL_PASS" = "s3cret" ]
   run grep -c "ALTER\|RANDOM" "$_calls"
@@ -546,17 +552,78 @@ _root_pw_setup() {
 
 @test "mysql - root password: parses password=value without spaces, quotes and a space" {
   _root_pw_setup
-  printf '[client]\npassword=nospace\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _my_cnf '[client]\npassword=nospace\n'
   run existing_mysql_root_pass
   assert_output "nospace"
 
-  printf '[client]\npassword = "quoted pw"\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _my_cnf '[client]\npassword = "quoted pw"\n'
   run existing_mysql_root_pass
   assert_output "quoted pw"
 
-  printf '# password = old\n[client]\nuser = root\n  password =   x=y  \n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _my_cnf "[client]\\npassword = 'single'\\n"
+  run existing_mysql_root_pass
+  assert_output "single"
+
+  _my_cnf '# password = old\n[client]\nuser = root\n  password =   x=y  \n'
   run existing_mysql_root_pass
   assert_output "x=y"
+}
+
+@test "mysql - root password: strips a trailing comment outside quotes" {
+  _root_pw_setup
+  _my_cnf '[client]\npassword = "s3cret" # root login\n'
+  run existing_mysql_root_pass
+  assert_output "s3cret"
+
+  _my_cnf '[client]\npassword = s3cret # root login\n'
+  run existing_mysql_root_pass
+  assert_output "s3cret"
+
+  _my_cnf '[client]\npassword = s3cret#comment\n'
+  run existing_mysql_root_pass
+  assert_output "s3cret"
+}
+
+@test "mysql - root password: keeps a # inside quotes, and an escaped quote" {
+  _root_pw_setup
+  _my_cnf '[client]\npassword = "pa#ss" # c\n'
+  run existing_mysql_root_pass
+  assert_output "pa#ss"
+
+  _my_cnf '[client]\npassword = "a\\"b"\n'
+  run existing_mysql_root_pass
+  assert_output 'a"b'
+}
+
+@test "mysql - root password: ignores the password of a group the client does not read" {
+  _root_pw_setup
+  _my_cnf '[mysqldump]\npassword = dump-secret\n[client]\nuser = root\npassword = s3cret\n'
+  run existing_mysql_root_pass
+  assert_output "s3cret"
+
+  _my_cnf '[mysqldump]\npassword = dump-secret\n'
+  run existing_mysql_root_pass
+  assert_output ""
+}
+
+@test "mysql - root password: a later client option overrides an earlier one" {
+  _root_pw_setup
+  _my_cnf '[client]\npassword = first\n[mysql]\nuser = root\n[client]\npassword = second\n'
+  run existing_mysql_root_pass
+  assert_output "second"
+
+  # the group of the database client overrides [client]
+  _my_cnf '[client]\npassword = general\n[mariadb]\npassword = specific\n'
+  run existing_mysql_root_pass
+  assert_output "specific"
+}
+
+@test "mysql - root password: MySQL does not read the MariaDB groups" {
+  _root_pw_setup
+  export TOASTER_MARIADB="0"
+  _my_cnf '[client]\npassword = general\n[mariadb]\npassword = specific\n'
+  run existing_mysql_root_pass
+  assert_output "general"
 }
 
 @test "mysql - root password: does not look at root/my.cnf" {
@@ -574,22 +641,31 @@ _root_pw_setup() {
   assert_output "fromlast"
 }
 
-@test "mysql - root password: an empty stage gets the existing password, not a random one" {
+@test "mysql - root password: a .my.cnf without a password does not hide the previous jail's" {
   _root_pw_setup
-  mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql"
-  printf '[client]\npassword = s3cret\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _my_cnf '[client]\nuser = root\n'
+  mkdir -p "$ZFS_JAIL_MNT/mysql.last/root"
+  printf '[client]\npassword = fromlast\n' > "$ZFS_JAIL_MNT/mysql.last/root/.my.cnf"
+  run existing_mysql_root_pass
+  assert_output "fromlast"
+}
+
+@test "mysql - root password: an empty stage gets the existing password set, not a random one" {
+  _root_pw_setup
+  MYSQL_HAD_DATA=1
+  _my_cnf '[client]\npassword = s3cret\n'
   _show_rc=1
   configure_mysql_root_password
   [ "$TOASTER_MYSQL_PASS" = "s3cret" ]
-  run grep "ALTER" "$_calls"
-  refute_output --partial "RANDOM"
   run cat "$_calls"
-  assert_output --partial "EXEC:mariadb --password=s3cret"
+  assert_output --partial "EXEC:mariadb --password=s3cret <<< SHOW DATABASES"
+  assert_output --partial "EXEC:mariadb -u root <<< ALTER USER 'root'@'localhost' IDENTIFIED BY 's3cret';"
+  refute_output --partial "RANDOM"
 }
 
 @test "mysql - root password: existing data and no known password is an error, nothing is changed" {
   _root_pw_setup
-  mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql"
+  MYSQL_HAD_DATA=1
   run configure_mysql_root_password
   assert_failure
   assert_output --partial "TOASTER_MYSQL_PASS"
@@ -603,15 +679,51 @@ _root_pw_setup() {
   configure_mysql_root_password
   [ "$TOASTER_MYSQL_PASS" = "RANDOM-PASS" ]
   run cat "$_calls"
-  assert_output --partial "EXEC:mariadb -u root"
+  assert_output --partial "EXEC:mariadb -u root <<< ALTER USER 'root'@'localhost' IDENTIFIED BY 'RANDOM-PASS';"
 }
 
 @test "mysql - root password: a set TOASTER_MYSQL_PASS is used as is" {
   _root_pw_setup
   export TOASTER_MYSQL_PASS="fromconf"
-  printf '[client]\npassword = s3cret\n' > "$ZFS_JAIL_MNT/mysql/root/.my.cnf"
+  _my_cnf '[client]\npassword = s3cret\n'
   configure_mysql_root_password
   [ "$TOASTER_MYSQL_PASS" = "fromconf" ]
+}
+
+# the server's first start creates db/mysql in the data mount: that is not
+# data to preserve
+@test "mysql - start_mysql: a fresh install still generates a password after the first start" {
+  _root_pw_setup
+  _show_rc=1
+  stage_exec() {
+    case "$*" in
+      "service mysql-server start") mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql" ;;
+      *--password=*) return 1 ;;
+    esac
+    echo "EXEC:$*" >> "$_calls"
+  }
+  detach_live_data() { echo "DETACHED" >> "$_calls"; }
+  configure_mysql_keys() { :; }
+
+  run start_mysql
+  assert_success
+  run cat "$_calls"
+  refute_output --partial "DETACHED"
+  assert_output --partial "EXEC:mariadb -u root"
+}
+
+@test "mysql - start_mysql: existing data without a known password stops before anything is set" {
+  _root_pw_setup
+  mkdir -p "$ZFS_DATA_MNT/mysql/db/mysql"
+  detach_live_data() { echo "DETACHED" >> "$_calls"; }
+  stage_exec() { echo "EXEC:$*" >> "$_calls"; }
+  configure_mysql_keys() { :; }
+
+  run start_mysql
+  assert_failure
+  assert_output --partial "TOASTER_MYSQL_PASS"
+  run grep -c "ALTER\|-u root" "$_calls"
+  assert_output "0"
 }
 
 @test "mysql - configure_mysql_ram appends innodb_buffer_pool_size when RAM < 8GB" {
