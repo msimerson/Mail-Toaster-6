@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# A general purpose web jail: nginx and PHP-FPM, many sites. All site state
-# lives in /data, so a reprovision keeps it:
+# The PHP jail: nginx and PHP-FPM for many sites (it replaces the php7 jail,
+# which only ran PHP-FPM). All site state lives in /data, so a reprovision
+# keeps it:
 #
 #   /data/etc/nginx/server.d/*.conf   vhosts, one file per site
 #   /data/etc/nginx/fastcgi_site.conf include from a vhost's PHP location
@@ -25,15 +26,15 @@ mt6-include nginx
 PHP_VER="85"
 PHP_MODULES="bcmath bz2 composer ctype curl dom exif fileinfo filter ftp gd gettext iconv intl mbstring mysqli pdo pdo_mysql pdo_sqlite pecl-APCu xmlrpc phar posix session simplexml soap sockets sqlite3 sysvmsg sysvsem tidy tokenizer xml xmlreader xmlwriter xsl zip zlib"
 
-install_sites()
+install_php_jail()
 {
 	install_nginx
 	install_php "$PHP_VER" "$PHP_MODULES"
 }
 
-configure_sites_dirs()
+configure_php_jail_dirs()
 {
-	local _data; _data="$(get_jail_data sites)"
+	local _data; _data="$(get_jail_data php)"
 
 	local _d
 	for _d in etc/nginx/server.d etc/php-fpm.d www log; do
@@ -42,7 +43,7 @@ configure_sites_dirs()
 }
 
 # PHP-FPM reads the pools in /data in addition to its own php-fpm.d
-configure_sites_php_fpm()
+configure_php_jail_pools()
 {
 	local _fpmconf="$STAGE_MNT/usr/local/etc/php-fpm.conf"
 
@@ -54,9 +55,9 @@ configure_sites_php_fpm()
 	printf '\n; per-site pools, kept in /data\ninclude=/data/etc/php-fpm.d/*.conf\n' >> "$_fpmconf"
 }
 
-configure_sites_fastcgi()
+configure_php_jail_fastcgi()
 {
-	local _etc; _etc="$(get_jail_data sites)/etc/nginx"
+	local _etc; _etc="$(get_jail_data php)/etc/nginx"
 
 	# A map is only valid in the http context, which server.d is included in.
 	store_config "$_etc/server.d/00-fastcgi-https.conf" "update" <<'EO_FCGI_MAP'
@@ -88,12 +89,12 @@ $(nginx_listen 80 default_server)
 		return       404;
 	}"
 	export _NGINX_SERVER
-	configure_nginx_server_d sites 00-default
+	configure_nginx_server_d php 00-default
 }
 
-configure_sites_samples()
+configure_php_jail_samples()
 {
-	local _etc; _etc="$(get_jail_data sites)/etc"
+	local _etc; _etc="$(get_jail_data php)/etc"
 
 	store_config "$_etc/nginx/example.conf.sample" "update" <<'EO_SAMPLE_VHOST'
 # A vhost. Copy to server.d/example.org.conf, edit, and reload nginx.
@@ -138,26 +139,26 @@ php_admin_value[open_basedir] = /data/www/example.org:/tmp
 EO_SAMPLE_POOL
 }
 
-configure_sites()
+configure_php_jail()
 {
-	configure_sites_dirs
+	configure_php_jail_dirs
 
-	configure_php sites
-	configure_sites_php_fpm
+	configure_php php
+	configure_php_jail_pools
 
-	configure_nginx sites
-	configure_sites_fastcgi
+	configure_nginx php
+	configure_php_jail_fastcgi
 	configure_nginx_default_server
-	configure_sites_samples
+	configure_php_jail_samples
 }
 
-start_sites()
+start_php_jail()
 {
 	start_php_fpm
 	start_nginx
 }
 
-test_sites()
+test_php_jail()
 {
 	test_php_fpm
 	test_nginx
@@ -170,10 +171,10 @@ test_sites()
 }
 
 base_snapshot_exists || exit
-create_staged_fs sites
-start_staged_jail sites
-install_sites
-configure_sites
-start_sites
-test_sites
-promote_staged_jail sites
+create_staged_fs php
+start_staged_jail php
+install_php_jail
+configure_php_jail
+start_php_jail
+test_php_jail
+promote_staged_jail php
