@@ -241,7 +241,15 @@ tls_setup() {
 
 # the keys that are in the main section, ie before the first [section]
 main_section() {
-  awk '/^\[/ { exit } { print }' "$1"
+  awk '/^[[:space:]]*\[/ { exit } { print }' "$1"
+}
+
+# the lines of one [section], an indented header included
+ini_section() {
+  awk -v want="$2" '
+    /^[[:space:]]*\[/ { s = $0; sub(/^[[:space:]]*\[/, "", s); sub(/\].*$/, "", s); on = (s == want); next }
+    on { print }
+  ' "$1"
 }
 
 @test "configure_haraka_smtp_forward enables outbound forwarding on a new install" {
@@ -299,6 +307,30 @@ main_section() {
   assert_output "1"
 }
 
+# Haraka accepts an indented [section]: the key under it is not main's
+@test "configure_haraka_smtp_forward sets the main key when a domain's section is indented" {
+  printf 'host=172.16.15.8\n\n  [example.com]\n  enable_outbound=false\n' \
+    > "$HARAKA_CONF/smtp_forward.ini"
+
+  configure_haraka_smtp_forward
+
+  run main_section "$HARAKA_CONF/smtp_forward.ini"
+  assert_line "enable_outbound=true"
+  run ini_section "$HARAKA_CONF/smtp_forward.ini" example.com
+  assert_output --partial "enable_outbound=false"
+}
+
+@test "configure_haraka_smtp_forward keeps an enable_outbound set under [main]" {
+  printf '[main]\nhost=172.16.15.8\nenable_outbound=false\n' > "$HARAKA_CONF/smtp_forward.ini"
+
+  configure_haraka_smtp_forward
+
+  run grep -c '^enable_outbound' "$HARAKA_CONF/smtp_forward.ini"
+  assert_output "1"
+  run cat "$HARAKA_CONF/smtp_forward.ini"
+  refute_output --partial "enable_outbound=true"
+}
+
 # --- a message for an alias and a mailbox ---
 
 @test "configure_haraka_qmail_deliverable keeps the routing and defers a split" {
@@ -323,6 +355,71 @@ main_section() {
   assert_line "queue=smtp_forward"
   run cat "$HARAKA_CONF/qmail-deliverable.ini"
   assert_output --partial "next_hop=lmtp://172.16.15.15"
+}
+
+@test "configure_haraka_qmail_deliverable sets split in the main section when a domain's is indented" {
+  printf 'host=172.16.15.8\n\n  [example.com]\n  split=outbound\n' > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+
+  run main_section "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_line "split=defer"
+  run ini_section "$HARAKA_CONF/qmail-deliverable.ini" example.com
+  assert_output --partial "split=outbound"
+}
+
+# a domain with its own section does not inherit the main section's split
+@test "configure_haraka_qmail_deliverable sets split in a domain's own section" {
+  printf 'host=172.16.15.8\nqueue=smtp_forward\n\n[example.com]\nnext_hop=lmtp://172.16.15.15\n\n[example.net]\nhost=172.16.15.9\n' \
+    > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+
+  run ini_section "$HARAKA_CONF/qmail-deliverable.ini" example.com
+  assert_line "split=defer"
+  assert_line "next_hop=lmtp://172.16.15.15"
+  run ini_section "$HARAKA_CONF/qmail-deliverable.ini" example.net
+  assert_line "split=defer"
+  assert_line "host=172.16.15.9"
+}
+
+@test "configure_haraka_qmail_deliverable keeps a domain's own split, indented or not" {
+  printf 'host=172.16.15.8\n\n[example.com]\nsplit=outbound\n\n  [example.net]\n  split = outbound\n\n[example.org]\nnext_hop=lmtp://x\n' \
+    > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+
+  run ini_section "$HARAKA_CONF/qmail-deliverable.ini" example.com
+  assert_output "split=outbound"
+  run ini_section "$HARAKA_CONF/qmail-deliverable.ini" example.net
+  refute_output --partial "defer"
+  run ini_section "$HARAKA_CONF/qmail-deliverable.ini" example.org
+  assert_line "split=defer"
+}
+
+@test "configure_haraka_qmail_deliverable does not add split twice to a domain" {
+  printf 'host=172.16.15.8\n\n[example.com]\nnext_hop=lmtp://172.16.15.15\n' \
+    > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+  cp "$HARAKA_CONF/qmail-deliverable.ini" "$BATS_TEST_TMPDIR/once"
+  configure_haraka_qmail_deliverable
+
+  run cmp "$HARAKA_CONF/qmail-deliverable.ini" "$BATS_TEST_TMPDIR/once"
+  assert_success
+  run grep -c '^split' "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_output "2"
+}
+
+@test "configure_haraka_qmail_deliverable leaves a [main] section's split alone" {
+  printf '[main]\nhost=172.16.15.8\nsplit=outbound\n' > "$HARAKA_CONF/qmail-deliverable.ini"
+
+  configure_haraka_qmail_deliverable
+
+  run grep -c '^split' "$HARAKA_CONF/qmail-deliverable.ini"
+  assert_output "1"
+  run cat "$HARAKA_CONF/qmail-deliverable.ini"
+  refute_output --partial "split=defer"
 }
 
 @test "configure_haraka_qmail_deliverable keeps an operator's split" {
