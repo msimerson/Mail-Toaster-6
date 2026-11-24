@@ -190,8 +190,8 @@ setup() {
   configure_php_jail_logs
 
   run cat "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf"
-  assert_output --regexp '/data/log/\*\.fpm-access\.log[[:space:]]+root:wheel[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
-  assert_output --regexp '/data/log/\*\.fpm-slow\.log[[:space:]].*/var/run/php-fpm\.pid'
+  assert_output --regexp '/data/log/\*\.fpm-access\.log[[:space:]]+root:wheel[[:space:]]+600[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
+  assert_output --regexp '/data/log/\*\.fpm-slow\.log[[:space:]]+root:wheel[[:space:]]+600[[:space:]].*/var/run/php-fpm\.pid'
 }
 
 # newsyslog recreates a rotated file as the owner its line names: a pattern

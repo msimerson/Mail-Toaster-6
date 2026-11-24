@@ -112,11 +112,12 @@ configure_php_jail_logs()
 	tell_status "rotating the per-site nginx and PHP-FPM logs"
 	stage_enable_newsyslog
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf" "update" <<'EO_SITES_NSL'
-# rotate nightly, G: the name is a shell pattern
+# rotate nightly, G: the name is a shell pattern. PHP-FPM creates its own two
+# logs as 600 (the slow log holds stack traces), so they are recreated as 600.
 /data/log/*.access.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 /data/log/*.error.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
-/data/log/*.fpm-access.log	root:wheel	644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
-/data/log/*.fpm-slow.log	root:wheel	644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
+/data/log/*.fpm-access.log	root:wheel	600	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
+/data/log/*.fpm-slow.log	root:wheel	600	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
 
 # a site's PHP error log, one line per site, owned by its pool's user
 <include> /data/etc/newsyslog.conf.d/*.conf
