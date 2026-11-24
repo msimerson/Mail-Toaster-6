@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
-- php: replaces the php7 jail (same address). nginx and PHP-FPM 8.5 for many sites, all site state in /data, a log of its own per site (nginx and PHP-FPM), see docs/php-sites.md. Existing JAIL_ORDERED_LIST settings in mail-toaster.conf need php7 changed to php
+- php: replaces the php7 jail (same address). nginx and PHP-FPM 8.5 for many sites, all site state in /data, a log of its own per site (nginx and PHP-FPM), see docs/php-sites.md. A JAIL_ORDERED_LIST saved in mail-toaster.conf has php7 renamed to php when mail-toaster.sh loads it. Reprovision the dns jail afterwards, so the address's name (and the rdns in mail logs) changes from php7 to php
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD

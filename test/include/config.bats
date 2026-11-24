@@ -206,6 +206,52 @@ _config_in() {
   assert_failure
 }
 
+@test "_rename_php7_jail - php7 becomes php, in place" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export TOASTER_HOSTNAME="php7"\nexport JAIL_ORDERED_LIST="syslog base joomla php7 memcached"\n' > "$_tmpdir/mail-toaster.conf"
+  _rename_php7_jail "$_tmpdir/mail-toaster.conf"
+  run grep "^export JAIL_ORDERED_LIST=" "$_tmpdir/mail-toaster.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base joomla php memcached"'
+  run grep "^export TOASTER_HOSTNAME=" "$_tmpdir/mail-toaster.conf"
+  assert_output 'export TOASTER_HOSTNAME="php7"'
+}
+
+@test "_rename_php7_jail - php7 at the ends of the list" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="php7 syslog base"\n' > "$_tmpdir/a.conf"
+  printf 'export JAIL_ORDERED_LIST="syslog base php7"\n' > "$_tmpdir/b.conf"
+  _rename_php7_jail "$_tmpdir/a.conf"
+  _rename_php7_jail "$_tmpdir/b.conf"
+  run cat "$_tmpdir/a.conf"
+  assert_output 'export JAIL_ORDERED_LIST="php syslog base"'
+  run cat "$_tmpdir/b.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base php"'
+}
+
+@test "_rename_php7_jail - leaves a list with php, or without php7, alone" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="syslog base php php7x myphp7 dns"\n' > "$_tmpdir/a.conf"
+  printf 'export JAIL_ORDERED_LIST="syslog base php7 php"\n' > "$_tmpdir/b.conf"
+  printf 'export TOASTER_HOSTNAME="x"\n' > "$_tmpdir/c.conf"
+  _rename_php7_jail "$_tmpdir/a.conf"
+  _rename_php7_jail "$_tmpdir/b.conf"
+  _rename_php7_jail "$_tmpdir/c.conf"
+  run cat "$_tmpdir/a.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base php php7x myphp7 dns"'
+  run cat "$_tmpdir/b.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base php7 php"'
+  run cat "$_tmpdir/c.conf"
+  assert_output 'export TOASTER_HOSTNAME="x"'
+}
+
+@test "_rename_php7_jail - leaves no .bak file behind" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="syslog base php7"\n' > "$_tmpdir/mail-toaster.conf"
+  _rename_php7_jail "$_tmpdir/mail-toaster.conf"
+  run test -e "$_tmpdir/mail-toaster.conf.bak"
+  assert_failure
+}
+
 @test "_migrate_config_to_conf_d - moves legacy config into conf.d" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export TOASTER_HOSTNAME="legacy"\n' > "$_tmpdir/mail-toaster.conf"

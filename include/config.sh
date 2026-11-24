@@ -173,6 +173,25 @@ _fix_jail_ordered_list()
 	rm -f "$1.bak"
 }
 
+# The php jail replaced php7 in the same place in the list, so it keeps php7's
+# address. A list saved in mail-toaster.conf still says php7: the jail would be
+# unknown, and the dns jail would name that address php7.
+_rename_php7_jail()
+{
+	local _line
+	_line=$(grep "^export JAIL_ORDERED_LIST=" "$1") || return 0
+
+	case "$_line" in
+		*[\"\ ]php[\"\ ]*) return 0 ;;
+		*[\"\ ]php7[\"\ ]*) ;;
+		*) return 0 ;;
+	esac
+
+	echo "renaming php7 to php in JAIL_ORDERED_LIST in $1"
+	sed -i.bak '/^export JAIL_ORDERED_LIST=/ s/\([" ]\)php7\([" ]\)/\1php\2/' "$1"
+	rm -f "$1.bak"
+}
+
 _migrate_config_to_conf_d()
 {
 	mkdir -p "$(dirname "$1")"
@@ -228,6 +247,7 @@ config()
 	_tighten_config_perms "$MT6_CONF"
 	_add_config_hint "$MT6_CONF"
 	_fix_jail_ordered_list "$MT6_CONF"
+	_rename_php7_jail "$MT6_CONF"
 
 	echo "loading $MT6_CONF"
 	# shellcheck disable=SC1090,SC1091,SC2039

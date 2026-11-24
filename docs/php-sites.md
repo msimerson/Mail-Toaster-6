@@ -231,6 +231,37 @@ has a line of its own in `/data/php/etc/newsyslog.conf.d/<site>.conf` (step 3),
 which the jail's newsyslog includes. The sample,
 `/data/php/etc/newsyslog.conf.d/example.conf.sample`, shows it.
 
+## Mail from a site
+
+The jail hands mail to the toaster's mail server (`TOASTER_MSA`, Haraka) with
+`dma`, so PHP's `mail()` and applications that run `sendmail` work. Two things
+decide whether it is accepted:
+
+- **Relay.** Haraka accepts mail for outside recipients only from clients it
+  has been told about. `provision/haraka.sh` allows the addresses (IPv4 and
+  IPv6) of the jails in `HARAKA_RELAY_JAILS`, by default `php wordpress`, in
+  `/data/haraka/config/relay_acl_allow`. Reprovision haraka after adding the
+  jail, or add the two addresses there and restart Haraka. The limit plugin
+  caps what a hacked site can send.
+- **The sender and its bounces.** dma sends as `php@<TOASTER_MAIL_DOMAIN>`
+  unless the application sets another From address. Bounces for that sender
+  go to a mailbox that does not exist, so create one, on the vpopmail jail
+  (replace the domain and the destination):
+
+  ```sh
+  jexec vpopmail /usr/local/vpopmail/bin/valias -i you@example.com php@example.com
+  ```
+
+  Known problem: on a domain delivered by LMTP to Dovecot, qmail-deliverable
+  gives an alias the LMTP next hop and Dovecot answers `550 5.1.1`, since no
+  mailbox has the alias's name. The bounces dma generates itself hit this.
+  Until that is fixed, a mailbox named `php` (`vadduser`) works where the
+  alias does not (not tested).
+
+SPF, DKIM and DMARC are the sending domain's: a site that sends as
+`noreply@example.org` needs those records for `example.org`, whichever jail it
+runs in.
+
 ## A database
 
 The jails do not create databases for sites. On the mysql jail, as the
