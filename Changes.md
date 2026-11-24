@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
+- vpopmail: the deliverabled and vpopmaild run scripts end in a plain exec; their output goes to syslog through a log/run service. Piped into logger, exec ran in a subshell, so svc -t killed the shell and left qmail-deliverabled running with the port and an old domain list, and Haraka rejected the recipients of a domain added since (550 I cannot deliver mail). install_supervision kills such orphans
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
