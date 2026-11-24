@@ -131,7 +131,34 @@ mail.info					/data/log/maillog
 #*.*			@syslog
 EO_SYSLOG
 
+	# the mail log holds addresses and message ids: not for other users
 	touch "$_logdir/maillog"
+	chmod 640 "$_logdir/maillog"
+}
+
+# At level info, Haraka logs the params of every hook that does not return
+# CONT, and for AUTH LOGIN that is the base64 of the user's password
+# (hook=unrecognized_command plugin=auth/auth_vpopmaild params=...). There is
+# no setting to leave params out, so log at notice: connections, summaries,
+# warnings and errors, none of the per-hook lines. An admin who sets another
+# level (debug, to investigate) keeps it, and then owns the credentials in the
+# log.
+configure_haraka_log_level()
+{
+	local _ini="$HARAKA_CONF/log.ini"
+
+	if [ ! -f "$_ini" ]; then
+		store_config "$_ini" <<EO_LOG_INI
+[main]
+level=notice
+EO_LOG_INI
+		return
+	fi
+
+	if grep -q '^level[[:space:]]*=[[:space:]]*info[[:space:]]*$' "$_ini"; then
+		tell_status "haraka: logging at notice, info logs AUTH credentials"
+		sed_inplace -e 's/^level[[:space:]]*=[[:space:]]*info[[:space:]]*$/level=notice/' "$_ini"
+	fi
 }
 
 configure_haraka_smtp_forward()
@@ -578,8 +605,8 @@ configure_haraka_log_rotation()
 
 	tell_status "configuring haraka log rotation"
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf" "overwrite" <<EO_HARAKA
-/data/log/maillog			644  21	   *	@T00  JC
-/var/log/haraka.log			644  21	   *	@T00  JC
+/data/log/maillog			640  21	   *	@T00  JC
+/var/log/haraka.log			640  21	   *	@T00  JC
 EO_HARAKA
 }
 
@@ -653,6 +680,7 @@ configure_haraka()
 	configure_haraka_plugins
 	configure_haraka_limit
 	configure_haraka_syslog
+	configure_haraka_log_level
 	configure_haraka_vpopmail
 	configure_haraka_smtp_forward
 	configure_haraka_qmail_deliverable

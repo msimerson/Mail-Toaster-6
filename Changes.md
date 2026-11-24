@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
+- haraka: log at notice instead of info (a log.ini that says info is changed, another level is kept). At info Haraka logs the params of every hook that does not continue, which for AUTH LOGIN is the base64 password. The maillog is created and rotated as 640
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
