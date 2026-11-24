@@ -45,7 +45,52 @@ setup() {
   assert_success
   assert_output --partial "/data/log/maillog"
   # haraka.conf is the only place mail log retention is set
-  assert_line --regexp "^/data/log/maillog[[:space:]]+644[[:space:]]+21"
+  assert_line --regexp "^/data/log/maillog[[:space:]]+640[[:space:]]+21"
+}
+
+@test "configure_haraka_syslog creates the maillog as 640, and tightens an old one" {
+  configure_haraka_syslog
+  [ "$(_file_mode "$ZFS_DATA_MNT/haraka/log/maillog")" = "640" ]
+
+  chmod 644 "$ZFS_DATA_MNT/haraka/log/maillog"
+  configure_haraka_syslog
+  [ "$(_file_mode "$ZFS_DATA_MNT/haraka/log/maillog")" = "640" ]
+}
+
+@test "configure_haraka_log_rotation recreates the logs as 640" {
+  configure_haraka_log_rotation
+  run grep -E '^/(data|var)/log/' "$STAGE_MNT/etc/newsyslog.conf.d/haraka.conf"
+  refute_output --regexp "644"
+}
+
+# --- credentials stay out of the log ---
+
+@test "configure_haraka_log_level moves the stock info level to notice" {
+  printf '[main]\n\n; level=data, protocol, debug, info\nlevel=info\n\ntimestamps=false\n' > "$HARAKA_CONF/log.ini"
+  configure_haraka_log_level
+
+  run cat "$HARAKA_CONF/log.ini"
+  assert_line "level=notice"
+  refute_output --partial "level=info"
+  assert_line "timestamps=false"
+}
+
+@test "configure_haraka_log_level writes a log.ini when there is none" {
+  rm -f "$HARAKA_CONF/log.ini"
+  configure_haraka_log_level
+  run cat "$HARAKA_CONF/log.ini"
+  assert_line "[main]"
+  assert_line "level=notice"
+}
+
+@test "configure_haraka_log_level keeps a level the admin chose" {
+  local _l
+  for _l in debug warn notice; do
+    printf '[main]\nlevel=%s\n' "$_l" > "$HARAKA_CONF/log.ini"
+    configure_haraka_log_level
+    run cat "$HARAKA_CONF/log.ini"
+    assert_line "level=$_l"
+  done
 }
 
 # --- listen address follows IPv6 availability ---
