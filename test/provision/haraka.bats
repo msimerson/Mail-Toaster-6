@@ -231,3 +231,123 @@ tls_setup() {
 
   assert [ ! -e "$HARAKA_CONF/tls_cert.pem" ]
 }
+
+# --- jails that send mail may relay ---
+
+# the jail list names the web jail php7 or php, depending on the release
+relay_jails() { HARAKA_RELAY_JAILS="${1-"$(get_web_jail) wordpress"}"; }
+get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo php7 ;; esac; }
+
+@test "configure_haraka_relay enables the relay plugin first, with the ACL on" {
+  printf '# syslog\nconnect.p0f\nspf\n' > "$HARAKA_CONF/plugins"
+
+  relay_jails
+  configure_haraka_relay
+
+  [ "$(head -n 1 "$HARAKA_CONF/plugins")" = "relay" ]
+  run grep -c '^relay$' "$HARAKA_CONF/plugins"
+  assert_output "1"
+
+  run cat "$HARAKA_CONF/relay.ini"
+  assert_success
+  assert_line "[relay]"
+  assert_line "acl=true"
+}
+
+@test "configure_haraka_relay allows the IPv4 of each relaying jail, and only those" {
+  unset PUBLIC_IP6
+  relay_jails
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_success
+  assert_line "$(get_jail_ip4 "$(get_web_jail)")/32"
+  assert_line "$(get_jail_ip4 wordpress)/32"
+  refute_output --partial "$(get_jail_ip4 haraka)"
+  refute_output --partial "172.16.15.0/"
+  refute_output --partial ":"
+}
+
+@test "configure_haraka_relay also allows the IPv6 when the host has one" {
+  export PUBLIC_IP6="2001:db8::1"
+  relay_jails
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_line "$(get_jail_ip6 "$(get_web_jail)")/128"
+  assert_line "$(get_jail_ip4 "$(get_web_jail)")/32"
+}
+
+@test "HARAKA_RELAY_JAILS picks the jails" {
+  unset PUBLIC_IP6
+  relay_jails joomla
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_output "$(get_jail_ip4 joomla)/32"
+}
+
+@test "the default jails need not all exist" {
+  unset PUBLIC_IP6
+  JAIL_ORDERED_LIST="syslog base haraka wordpress"
+  HARAKA_RELAY_JAILS="php wordpress"
+  run configure_haraka_relay
+  assert_success
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_output "$(get_jail_ip4 wordpress)/32"
+}
+
+@test "an empty HARAKA_RELAY_JAILS leaves relaying off" {
+  printf 'spf\n' > "$HARAKA_CONF/plugins"
+  relay_jails ""
+  configure_haraka_relay
+
+  [ ! -e "$HARAKA_CONF/relay.ini" ]
+  [ ! -e "$HARAKA_CONF/relay_acl_allow" ]
+  run grep -c relay "$HARAKA_CONF/plugins"
+  assert_output "0"
+}
+
+@test "configure_haraka_relay twice changes nothing" {
+  export PUBLIC_IP6="2001:db8::1"
+  relay_jails
+  configure_haraka_relay
+  local _p _i _a
+  _p=$(cat "$HARAKA_CONF/plugins"); _i=$(cat "$HARAKA_CONF/relay.ini")
+  _a=$(cat "$HARAKA_CONF/relay_acl_allow")
+
+  relay_jails
+  configure_haraka_relay
+  [ "$_p" = "$(cat "$HARAKA_CONF/plugins")" ]
+  [ "$_i" = "$(cat "$HARAKA_CONF/relay.ini")" ]
+  [ "$_a" = "$(cat "$HARAKA_CONF/relay_acl_allow")" ]
+}
+
+@test "configure_haraka_relay keeps the entries an admin added" {
+  unset PUBLIC_IP6
+  printf '192.0.2.7/32\n' > "$HARAKA_CONF/relay_acl_allow"
+  relay_jails
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_line "192.0.2.7/32"
+  assert_line "$(get_jail_ip4 "$(get_web_jail)")/32"
+}
+
+@test "configure_haraka_relay turns on an acl that is off or commented out" {
+  printf '[relay]\nforce_routing=x\n; acl=false\n' > "$HARAKA_CONF/relay.ini"
+  relay_jails
+  configure_haraka_relay
+  run cat "$HARAKA_CONF/relay.ini"
+  assert_line "acl=true"
+  assert_line "force_routing=x"
+  refute_output --partial "acl=false"
+
+  printf '[relay]\nforce_routing=x\n' > "$HARAKA_CONF/relay.ini"
+  relay_jails
+  configure_haraka_relay
+  run cat "$HARAKA_CONF/relay.ini"
+  assert_line "acl=true"
+  assert_line "force_routing=x"
+}

@@ -144,6 +144,63 @@ port=25
 	fi
 }
 
+# Jails that send mail hand it to dma, which relays through $TOASTER_MSA
+# (include/mta.sh). Haraka treats a client it does not know as outside and
+# refuses to relay for it, so each jail that sends mail needs to be allowed.
+# Only these jails, not the whole jail network: a compromised site in a jail
+# can then send only what the limit plugin permits.
+HARAKA_RELAY_JAILS=${HARAKA_RELAY_JAILS:-"php wordpress"}
+
+haraka_relay_allow()
+{
+	local _acl="$HARAKA_CONF/relay_acl_allow"
+	local _jail _addr
+
+	touch "$_acl"
+	for _jail in $HARAKA_RELAY_JAILS; do
+		# dma uses IPv6 when the jail has an address, so allow both
+		# a jail this toaster does not have has no address to allow
+		_addr=$(get_jail_ip4 "$_jail") || continue
+		_addr="$_addr/32"
+		grep -qxF "$_addr" "$_acl" || echo "$_addr" >> "$_acl"
+
+		if jail_has_ip6; then
+			_addr="$(get_jail_ip6 "$_jail")/128"
+			grep -qxF "$_addr" "$_acl" || echo "$_addr" >> "$_acl"
+		fi
+	done
+}
+
+configure_haraka_relay()
+{
+	if [ -z "$HARAKA_RELAY_JAILS" ]; then return; fi
+
+	tell_status "allowing jails to relay: $HARAKA_RELAY_JAILS"
+
+	# first, so a relaying client is known before the connect plugins run
+	if ! grep -qs '^relay$' "$HARAKA_CONF/plugins"; then
+		local _tmp; _tmp=$(mktemp) || exit 1
+		{ echo relay; cat "$HARAKA_CONF/plugins"; } > "$_tmp" || exit 1
+		cat "$_tmp" > "$HARAKA_CONF/plugins"
+		rm -f "$_tmp"
+	fi
+
+	local _ini="$HARAKA_CONF/relay.ini"
+	if [ ! -f "$_ini" ]; then
+		printf '[relay]\nacl=true\n' > "$_ini"
+	elif grep -q '^[;# ]*acl[[:space:]]*=' "$_ini"; then
+		sed_inplace -e 's/^[;# ]*acl[[:space:]]*=.*/acl=true/' "$_ini"
+	elif grep -q '^\[relay\]' "$_ini"; then
+		sed_inplace -e '/^\[relay\]/a\
+acl=true
+' "$_ini"
+	else
+		printf '\n[relay]\nacl=true\n' >> "$_ini"
+	fi
+
+	haraka_relay_allow
+}
+
 configure_haraka_vpopmail()
 {
 	if [ ! -f "$HARAKA_CONF/auth_vpopmaild.ini" ]; then
@@ -655,6 +712,7 @@ configure_haraka()
 	configure_haraka_syslog
 	configure_haraka_vpopmail
 	configure_haraka_smtp_forward
+	configure_haraka_relay
 	configure_haraka_qmail_deliverable
 	configure_haraka_dnsbl
 

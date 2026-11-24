@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
+- haraka: jails that send mail may relay. The relay plugin (first in plugins) with `acl=true`, and the jails' IPv4 and IPv6 addresses in relay_acl_allow, for the jails in HARAKA_RELAY_JAILS (default: php wordpress). Without it Haraka treats a jail's dma as an outside client and refuses mail to external recipients
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
