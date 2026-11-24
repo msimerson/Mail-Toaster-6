@@ -67,13 +67,13 @@ install_file() {
 # returns 0 installed, 3 unchanged, 1 failed
 install_pem() {
 	local _tmp _rc
-	_tmp=$(umask 077; mktemp "${TMPDIR:-/tmp}/le-deploy.XXXXXX") || {
+	_tmp=$(umask 077; mktemp "/tmp/le-deploy.XXXXXX") || {
 		_err "unable to create a temp file"
 		return 1
 	}
 
-	cat "$1" "$2" > "$_tmp"
-	if [ ! -s "$_tmp" ]; then
+	# a key or chain that cannot be read must not install a partial file
+	if ! cat "$1" "$2" > "$_tmp" || [ ! -s "$_tmp" ]; then
 		_err "Unable to create $_tmp"
 		_rc=1
 	elif has_differences "$_tmp" "$3"; then
@@ -260,13 +260,13 @@ install_file() {
 # returns 0 installed, 3 unchanged, 1 failed
 install_pem() {
 	local _tmp _rc
-	_tmp=\$(umask 077; mktemp "\${TMPDIR:-/tmp}/le-deploy.XXXXXX") || {
+	_tmp=\$(umask 077; mktemp "/tmp/le-deploy.XXXXXX") || {
 		_err "unable to create a temp file"
 		return 1
 	}
 
-	cat "\$1" "\$2" > "\$_tmp"
-	if [ ! -s "\$_tmp" ]; then
+	# a key or chain that cannot be read must not install a partial file
+	if ! cat "\$1" "\$2" > "\$_tmp" || [ ! -s "\$_tmp" ]; then
 		_err "Unable to create \$_tmp"
 		_rc=1
 	elif has_differences "\$_tmp" "\$3"; then

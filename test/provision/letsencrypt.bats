@@ -56,7 +56,8 @@ _load_hook() {
   mkdir -p "$_deploy" "$TMPDIR"
 
   "install_deploy_$1"
-  sed_inplace -e "s|/data/$1|$BATS_TEST_TMPDIR/data/$1|g" "$_deploy/$1"
+  # the hook writes to /data and /tmp: aim both at the sandbox
+  sed_inplace -e "s|/data/$1|$BATS_TEST_TMPDIR/data/$1|g" -e "s|/tmp/|$TMPDIR/|g" "$_deploy/$1"
 
   _debug() { :; }
   _err() { echo "ERR: $*" >&2; }
@@ -161,4 +162,49 @@ CHAIN"
   # only the mktemp templates
   refute_output --regexp '/tmp/[^"]*\.pem'
   refute_output --regexp '/tmp/\$\{?_cdomain'
+}
+
+@test "letsencrypt - haproxy hook installs nothing when the chain cannot be read" {
+  _load_hook haproxy
+  mkdir -p "$BATS_TEST_TMPDIR/data/haproxy/etc/tls.d"
+
+  run haproxy_deploy example.org "$_key" "$_chain" "$_ca" "$BATS_TEST_TMPDIR/missing.cer"
+  assert_failure
+  assert [ ! -e "$BATS_TEST_TMPDIR/data/haproxy/etc/tls.d/example.org.pem" ]
+  assert [ "$(_leftovers)" = "0" ]
+  run cat "$BATS_TEST_TMPDIR/reloads"
+  assert_output ""
+}
+
+@test "letsencrypt - haproxy hook does not replace an installed pem when the key cannot be read" {
+  _load_hook haproxy
+  local _tls="$BATS_TEST_TMPDIR/data/haproxy/etc/tls.d"
+  mkdir -p "$_tls"
+  echo "OLD" > "$_tls/example.org.pem"
+
+  run haproxy_deploy example.org "$BATS_TEST_TMPDIR/missing.key" "$_chain" "$_ca" "$_chain"
+  assert_failure
+  run cat "$_tls/example.org.pem"
+  assert_output "OLD"
+  assert [ "$(_leftovers)" = "0" ]
+}
+
+@test "letsencrypt - haraka hook installs nothing when the chain cannot be read" {
+  _load_hook haraka
+  mkdir -p "$BATS_TEST_TMPDIR/data/haraka/config/tls"
+
+  run haraka_deploy example.org "$_key" "$_chain" "$_ca" "$BATS_TEST_TMPDIR/missing.cer"
+  assert_failure
+  assert [ ! -e "$BATS_TEST_TMPDIR/data/haraka/config/tls/example.org.pem" ]
+  assert [ "$(_leftovers)" = "0" ]
+}
+
+@test "letsencrypt - haraka hook failed install leaves no key behind" {
+  _load_hook haraka
+  mkdir -p "$BATS_TEST_TMPDIR/data/haraka/config/tls"
+  install_file() { return 1; }
+
+  run haraka_deploy example.org "$_key" "$_chain" "$_ca" "$_chain"
+  assert_failure
+  assert [ "$(_leftovers)" = "0" ]
 }
