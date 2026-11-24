@@ -9,6 +9,7 @@
 #   /data/etc/php-fpm.d/*.conf        per-site PHP-FPM pools
 #   /data/www/<site>                  docroots
 #   /data/log/<site>.*                a site's nginx and PHP-FPM logs
+#   /data/etc/newsyslog.conf.d/*.conf the rotation of a site's PHP error log
 #
 # How to add a site: docs/php-sites.md
 #
@@ -40,7 +41,7 @@ configure_php_jail_dirs()
 	local _data; _data="$(get_jail_data php)"
 
 	local _d
-	for _d in etc/nginx/server.d etc/php-fpm.d www log; do
+	for _d in etc/nginx/server.d etc/php-fpm.d etc/newsyslog.conf.d www log; do
 		mkdir -p "$_data/$_d" || exit 1
 	done
 }
@@ -98,9 +99,14 @@ $(nginx_listen 80 default_server)
 # The default nginx logs, in /data/log, take what no site claims. A site logs
 # to files of its own there, which newsyslog rotates by pattern:
 #   <site>.access.log, <site>.error.log   nginx, signalled with the nginx pid
-#   <site>.fpm-access.log, <site>.fpm-slow.log, <site>.php-error.log
-#                                         its PHP-FPM pool
+#   <site>.fpm-access.log, <site>.fpm-slow.log
+#                                         its PHP-FPM pool, root writes them
 # The names differ before the suffix, so no pattern catches another's files.
+#
+# <site>.php-error.log has no pattern. PHP writes it as the pool's user, and
+# newsyslog recreates a rotated file as the user the line names, so a pattern
+# can name only one. Each site has a line of its own in
+# /data/etc/newsyslog.conf.d, which the jail's newsyslog includes.
 configure_php_jail_logs()
 {
 	tell_status "rotating the per-site nginx and PHP-FPM logs"
@@ -111,9 +117,17 @@ configure_php_jail_logs()
 /data/log/*.error.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 /data/log/*.fpm-access.log	root:wheel	644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
 /data/log/*.fpm-slow.log	root:wheel	644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
-# written by the pool's user, so a new file is theirs too
-/data/log/*.php-error.log	www:www		644	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
+
+# a site's PHP error log, one line per site, owned by its pool's user
+<include> /data/etc/newsyslog.conf.d/*.conf
 EO_SITES_NSL
+
+	store_config "$(get_jail_data php)/etc/newsyslog.conf.d/example.conf.sample" "update" <<'EO_SAMPLE_NSL'
+# Rotate a site's PHP error log. Copy to <site>.conf. PHP writes the file as
+# the pool's user, and newsyslog recreates it as the owner:group named here,
+# so use the pool's uid:gid (www is 80:80), or PHP cannot write the new file.
+/data/log/example.org.php-error.log	80:80	644	 7     *   @T00   BCX  /var/run/php-fpm.pid 30
+EO_SAMPLE_NSL
 }
 
 configure_php_jail_samples()
@@ -167,7 +181,8 @@ pm.process_idle_timeout = 30s
 access.log = /data/log/example.org.fpm-access.log
 slowlog = /data/log/example.org.fpm-slow.log
 request_slowlog_timeout = 10s
-; PHP errors: the file must be writable by the pool's user (see docs/php-sites.md)
+; PHP errors: the file must be the pool's user's, and rotated as that user
+; (a line in /data/etc/newsyslog.conf.d, see docs/php-sites.md)
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /data/log/example.org.php-error.log
 

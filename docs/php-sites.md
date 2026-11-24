@@ -66,10 +66,21 @@ php_admin_value[error_log] = /data/log/www.example.com.php-error.log
 php_admin_value[open_basedir] = /data/www/www.example.com:/tmp
 EOF
 
-# PHP writes this one as the pool's user, so the file has to be theirs
+# PHP writes this one as the pool's user, so the file has to be theirs...
 touch /data/php/log/www.example.com.php-error.log
 chown 80:80 /data/php/log/www.example.com.php-error.log
+
+# ...and newsyslog has to recreate it as that user when it rotates it
+cat > /data/php/etc/newsyslog.conf.d/www.example.com.conf <<'EOF'
+/data/log/www.example.com.php-error.log	80:80	644	7	*	@T00	BCX	/var/run/php-fpm.pid	30
+EOF
 ```
+
+`80:80` is `www`, the pool's `user`. For a pool that runs as another user, say
+`rss` (uid 1029), use that user's uid and gid in the `chown`, in the
+newsyslog line, and as `user`/`group` in the pool. Without the line, the
+file would be recreated as `www` after the first rotation and PHP could no
+longer write its errors.
 
 The section name (`[www_example_com]`) must be unique among all pools, and
 the `listen` socket must be too.
@@ -205,15 +216,20 @@ ones:
 | `<site>.access.log`, `<site>.error.log` | nginx                    |
 | `<site>.fpm-access.log`           | the site's PHP-FPM pool        |
 | `<site>.fpm-slow.log`             | the pool, for slow requests    |
-| `<site>.php-error.log`            | PHP, errors and warnings       |
+| `<site>.php-error.log`            | PHP, as the pool's user, errors and warnings |
 | `access_log`, `error_log`         | nginx, for hosts no site claims |
 | `php-fpm.log`                     | PHP-FPM itself                 |
 
-newsyslog rotates the site files nightly and keeps 7, through
-`/etc/newsyslog.conf.d/php-sites.conf`. The patterns are `*.access.log`,
-`*.error.log`, `*.fpm-access.log`, `*.fpm-slow.log` and `*.php-error.log`,
-so a new site's logs are picked up without more configuration, as long as
-they use these names.
+newsyslog rotates the site files nightly and keeps 7. Patterns in
+`/etc/newsyslog.conf.d/php-sites.conf` catch `*.access.log`, `*.error.log`,
+`*.fpm-access.log` and `*.fpm-slow.log`, so a new site's logs of these kinds
+are picked up without more configuration, as long as they use these names.
+
+`<site>.php-error.log` is different: PHP writes it as the pool's user, and
+newsyslog recreates a rotated file as the owner named in its line. Each site
+has a line of its own in `/data/php/etc/newsyslog.conf.d/<site>.conf` (step 3),
+which the jail's newsyslog includes. The sample,
+`/data/php/etc/newsyslog.conf.d/example.conf.sample`, shows it.
 
 ## A database
 
@@ -236,6 +252,7 @@ above, then the site's files, logs and certificate:
 ```sh
 rm /data/php/etc/nginx/server.d/www.example.com.conf
 rm /data/php/etc/php-fpm.d/www.example.com.conf
+rm /data/php/etc/newsyslog.conf.d/www.example.com.conf
 jexec php service php_fpm restart
 jexec php service nginx reload
 rm -r /data/php/www/www.example.com

@@ -185,21 +185,46 @@ setup() {
   assert_output --partial "php_admin_value[error_log] = /data/log/example.org.php-error.log"
 }
 
-@test "newsyslog rotates the PHP-FPM logs by the php-fpm pid, the PHP error log as the pool user" {
+@test "newsyslog rotates the PHP-FPM logs by the php-fpm pid" {
   mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
   configure_php_jail_logs
 
   run cat "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf"
   assert_output --regexp '/data/log/\*\.fpm-access\.log[[:space:]]+root:wheel[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCGX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
   assert_output --regexp '/data/log/\*\.fpm-slow\.log[[:space:]].*/var/run/php-fpm\.pid'
-  assert_output --regexp '/data/log/\*\.php-error\.log[[:space:]]+www:www[[:space:]].*BCGX[[:space:]]+/var/run/php-fpm\.pid'
+}
+
+# newsyslog recreates a rotated file as the owner its line names: a pattern
+# would hand every site's PHP error log to one user, locking out a pool that
+# runs as another
+@test "no pattern owns the PHP error logs, each site has a line of its own" {
+  mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
+  configure_php_jail_logs
+
+  run cat "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf"
+  refute_output --partial "php-error"
+  assert_output --partial "<include> /data/etc/newsyslog.conf.d/*.conf"
+}
+
+@test "the newsyslog sample names the pool's uid:gid and no pattern flag" {
+  mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
+  configure_php_jail_logs
+
+  run cat "$ZFS_DATA_MNT/php/etc/newsyslog.conf.d/example.conf.sample"
+  assert_output --regexp '/data/log/example\.org\.php-error\.log[[:space:]]+80:80[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
+  refute_output --regexp 'BCGX'
+}
+
+@test "configure_php_jail_dirs creates the dir the newsyslog include reads" {
+  configure_php_jail_dirs
+  [ -d "$ZFS_DATA_MNT/php/etc/newsyslog.conf.d" ]
 }
 
 # a pattern that caught another daemon's file would signal the wrong pid
 @test "no log pattern matches another kind of site log" {
   local _site="example.org" _p _f _pat _file
-  local _patterns="*.access.log:nginx *.error.log:nginx *.fpm-access.log:fpm *.fpm-slow.log:fpm *.php-error.log:fpm"
-  local _files="$_site.access.log:nginx $_site.error.log:nginx $_site.fpm-access.log:fpm $_site.fpm-slow.log:fpm $_site.php-error.log:fpm access_log:none error_log:none php-fpm.log:none"
+  local _patterns="*.access.log:nginx *.error.log:nginx *.fpm-access.log:fpm *.fpm-slow.log:fpm"
+  local _files="$_site.access.log:nginx $_site.error.log:nginx $_site.fpm-access.log:fpm $_site.fpm-slow.log:fpm $_site.php-error.log:none access_log:none error_log:none php-fpm.log:none"
 
   for _p in $_patterns; do
     _pat=${_p%%:*}
@@ -278,4 +303,13 @@ setup() {
   assert_output --partial "/data/log/www.example.com.fpm-access.log"
   assert_output --partial "/data/log/www.example.com.fpm-slow.log"
   assert_output --partial "/data/log/www.example.com.php-error.log"
+}
+
+@test "the guide gives the PHP error log to the pool's user and a newsyslog line of its own" {
+  local _doc="$BATS_TEST_DIRNAME/../../docs/php-sites.md"
+  run cat "$_doc"
+  assert_output --partial "chown 80:80 /data/php/log/www.example.com.php-error.log"
+  assert_output --partial "/data/php/etc/newsyslog.conf.d/www.example.com.conf"
+  assert_output --regexp '/data/log/www\.example\.com\.php-error\.log[[:space:]]+80:80'
+  assert_output --partial "1029"
 }
