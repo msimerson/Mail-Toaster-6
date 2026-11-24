@@ -56,8 +56,9 @@ _load_hook() {
   mkdir -p "$_deploy" "$TMPDIR"
 
   "install_deploy_$1"
-  # the hook writes to /data and /tmp: aim both at the sandbox
-  sed_inplace -e "s|/data/$1|$BATS_TEST_TMPDIR/data/$1|g" -e "s|/tmp/|$TMPDIR/|g" "$_deploy/$1"
+  # the hook writes to /data and /tmp: aim both at the sandbox. /tmp first:
+  # the sandbox may itself be under /tmp, which must not be rewritten again.
+  sed_inplace -e "s|/tmp/|$TMPDIR/|g" -e "s|/data/$1|$BATS_TEST_TMPDIR/data/$1|g" "$_deploy/$1"
 
   _debug() { :; }
   _err() { echo "ERR: $*" >&2; }
