@@ -178,48 +178,6 @@ haraka_ini_default()
 	rm -f "$_tmp"
 }
 
-# A [section] of its own, as a domain has in qmail-deliverable.ini, does not
-# inherit the main section's keys. Set a key in each section that lacks it,
-# leaving the ones that set it, whatever the value, alone.
-haraka_ini_section_defaults()
-{
-	local _ini="$HARAKA_CONF/$1" _key="$2" _value="$3"
-	[ -f "$_ini" ] || return 0
-
-	local _tmp
-	_tmp=$(mktemp "${TMPDIR:-/tmp}/haraka-ini.XXXXXX") || return 1
-	awk -v key="$_key" -v value="$_value" '
-		{ lines[NR] = $0 }
-		END {
-			n = 0
-			for (i = 1; i <= NR; i++) {
-				line = lines[i]
-				sub(/^[[:space:]]+/, "", line)
-				if (line ~ /^\[/) {
-					n++
-					name = line
-					sub(/^\[/, "", name)
-					sub(/\].*$/, "", name)
-					hdr[i] = n
-					secname[n] = name
-				} else if (n > 0 && line ~ "^" key "[[:space:]]*=") {
-					has[n] = 1
-				}
-			}
-			for (i = 1; i <= NR; i++) {
-				print lines[i]
-				if ((i in hdr) && secname[hdr[i]] != "main" && !(hdr[i] in has))
-					print key "=" value
-			}
-		}' "$_ini" > "$_tmp" || { rm -f "$_tmp"; return 1; }
-
-	if ! cmp -s "$_tmp" "$_ini"; then
-		tell_status "setting $_key=$_value in the sections of $1 that lack it"
-		cat "$_tmp" > "$_ini"
-	fi
-	rm -f "$_tmp"
-}
-
 configure_haraka_smtp_forward()
 {
 	if [ ! -f "$HARAKA_CONF/smtp_forward.ini" ]; then
@@ -269,14 +227,14 @@ next_hop=lmtp://$(get_jail_ip4 dovecot)" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
-	# A message for both an alias and a mailbox has two routes (qmail and
-	# Dovecot). qmail-deliverable then hands it to outbound, which resolves
-	# the domain's MX, which is this host, where the same recipients split
-	# again and go back to outbound. Deferring the second recipient makes
-	# the sender retry it as a message of its own.
+	# Inbound mail for both an alias and a mailbox has two routes (qmail and
+	# Dovecot). Without this, qmail-deliverable hands it to outbound, which
+	# follows the domain's MX back to this host, where it splits again.
+	# Deferred, the sender retries the second recipient on its own.
+	# An authenticated sender is never deferred: outbound delivers the whole
+	# message through qmail, so Sieve does not filter the mailbox copy.
+	# qmail-deliverable >= 1.4.1 applies this to domain sections too.
 	haraka_ini_default qmail-deliverable.ini split defer
-	# a domain with its own section does not inherit it from main
-	haraka_ini_section_defaults qmail-deliverable.ini split defer
 
 	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
 		tell_status "enabling qmail-deliverable plugin"

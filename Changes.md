@@ -5,9 +5,10 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
-- haraka: authenticated mail to a vpopmail alias is delivered (enable_outbound=true in smtp_forward.ini, split=defer in qmail-deliverable.ini and in each domain's section there)
-- haraka: dkim.ini is created with signing enabled when missing. An existing install that has DKIM keys starts signing on the next provision: publish the DKIM DNS record (config/dkim/<domain>/dns) before reprovisioning, or receivers will fail the signature
-- haraka: config/me is set to the toaster's hostname instead of the jail's default "haraka"
+- haraka: deliver authenticated mail to vpopmail aliases (smtp_forward enable_outbound=true)
+- haraka: defer the second route of an inbound alias + mailbox message (qmail-deliverable split=defer)
+- haraka: create dkim.ini with signing enabled; publish config/dkim/<domain>/dns before reprovisioning
+- haraka: set config/me to the toaster hostname, not the jail's "haraka"
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
