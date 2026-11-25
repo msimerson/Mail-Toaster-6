@@ -5,7 +5,13 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
-- haraka: jails that send mail may relay. The relay plugin (first in plugins) with `acl=true`, and the jails' IPv4 and IPv6 addresses in relay_acl_allow, for the jails in HARAKA_RELAY_JAILS (default: php wordpress). Without it Haraka treats a jail's dma as an outside client and refuses mail to external recipients
+- php: replaces php7, nginx + PHP-FPM for many sites
+- mysql: a reprovision with an empty TOASTER_MYSQL_PASS keeps the root password in the jail's /root/.my.cnf (it looked for my.cnf), and stops rather than generate one that does not match existing data
+- haraka: deliver authenticated mail to vpopmail aliases (smtp_forward enable_outbound=true)
+- haraka: defer the second route of an inbound alias + mailbox message (qmail-deliverable split=defer)
+- haraka: create dkim.ini with signing enabled; publish config/dkim/<domain>/dns before reprovisioning
+- haraka: set config/me to the toaster hostname
+- haraka: jails in HARAKA_RELAY_JAILS (default php wordpress) may relay: relay plugin first, acl=true, their IPv4 and IPv6 in relay_acl_allow
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD

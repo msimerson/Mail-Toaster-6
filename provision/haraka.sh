@@ -134,6 +134,60 @@ EO_SYSLOG
 	touch "$_logdir/maillog"
 }
 
+# Haraka's main section is the keys above the first [section], plus [main]
+haraka_ini_default()
+{
+	local _ini="$HARAKA_CONF/$1" _key="$2" _value="$3"
+
+	if awk -v key="$_key" '
+		BEGIN { inmain = 1 }
+		{
+			line = $0
+			sub(/^[[:space:]]+/, "", line)
+			if (line ~ /^\[/) {
+				sec = line
+				sub(/^\[/, "", sec)
+				sub(/\].*$/, "", sec)
+				inmain = (sec == "main")
+				next
+			}
+			if (inmain && line ~ "^" key "[[:space:]]*=") found = 1
+		}
+		END { exit !found }
+	' "$_ini" 2>/dev/null; then
+		tell_status "preserving $_key in $1"
+		return 0
+	fi
+
+	tell_status "setting $_key=$_value in $1"
+	local _tmp
+	_tmp=$(mktemp "${TMPDIR:-/tmp}/haraka-ini.XXXXXX") || return 1
+	if grep -qs '^[[:space:]]*\[main\][[:space:]]*$' "$_ini"; then
+		awk -v line="$_key=$_value" '
+			{ print }
+			!done && /^[[:space:]]*\[main\][[:space:]]*$/ { print line; done = 1 }
+		' "$_ini" > "$_tmp"
+	else
+		{
+			echo "$_key=$_value"
+			[ ! -f "$_ini" ] || cat "$_ini"
+		} > "$_tmp"
+	fi
+	cat "$_tmp" > "$_ini"
+	rm -f "$_tmp"
+}
+
+# Local delivery:
+#
+#   rcpt           sender  route                        needs
+#   mailbox        any     outbound -> Dovecot LMTP
+#   alias          any     smtp_forward -> qmail        enable_outbound (auth)
+#   alias+mailbox  unauth  2nd rcpt deferred            split=defer
+#   alias+mailbox  auth    outbound -> qmail, no Sieve
+#
+# Unset, an auth alias goes to Dovecot (550) and an unauth alias+mailbox loops
+# through this host's MX. Domain sections inherit split in qmail-deliverable
+# 1.4.1+.
 configure_haraka_smtp_forward()
 {
 	if [ ! -f "$HARAKA_CONF/smtp_forward.ini" ]; then
@@ -142,13 +196,13 @@ configure_haraka_smtp_forward()
 port=25
 " | tee -a "$HARAKA_CONF/smtp_forward.ini"
 	fi
+
+	haraka_ini_default smtp_forward.ini enable_outbound true
 }
 
-# Jails that send mail hand it to dma, which relays through $TOASTER_MSA
-# (include/mta.sh). Haraka treats a client it does not know as outside and
-# refuses to relay for it, so each jail that sends mail needs to be allowed.
-# Only these jails, not the whole jail network: a compromised site in a jail
-# can then send only what the limit plugin permits.
+# dma in a jail relays through $TOASTER_MSA (include/mta.sh). Haraka refuses to
+# relay for a client it does not know. Allow these jails, not the jail network:
+# a compromised site is then held to the limit plugin's rates.
 HARAKA_RELAY_JAILS=${HARAKA_RELAY_JAILS:-"php wordpress"}
 
 haraka_relay_allow()
@@ -158,12 +212,12 @@ haraka_relay_allow()
 
 	touch "$_acl"
 	for _jail in $HARAKA_RELAY_JAILS; do
-		# dma uses IPv6 when the jail has an address, so allow both
-		# a jail this toaster does not have has no address to allow
-		_addr=$(get_jail_ip4 "$_jail") || continue
+		# not every default jail exists
+		_addr=$(get_jail_ip4 "$_jail" 2>/dev/null) || continue
 		_addr="$_addr/32"
 		grep -qxF "$_addr" "$_acl" || echo "$_addr" >> "$_acl"
 
+		# dma connects over IPv6 when the jail has an address
 		if jail_has_ip6; then
 			_addr="$(get_jail_ip6 "$_jail")/128"
 			grep -qxF "$_addr" "$_acl" || echo "$_addr" >> "$_acl"
@@ -177,7 +231,7 @@ configure_haraka_relay()
 
 	tell_status "allowing jails to relay: $HARAKA_RELAY_JAILS"
 
-	# first, so a relaying client is known before the connect plugins run
+	# before the connect plugins, which need to know a relaying client
 	if ! grep -qs '^relay$' "$HARAKA_CONF/plugins"; then
 		local _tmp; _tmp=$(mktemp) || exit 1
 		{ echo relay; cat "$HARAKA_CONF/plugins"; } > "$_tmp" || exit 1
@@ -229,6 +283,8 @@ queue=smtp_forward
 next_hop=lmtp://$(get_jail_ip4 dovecot)" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
+
+	haraka_ini_default qmail-deliverable.ini split defer
 
 	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
 		tell_status "enabling qmail-deliverable plugin"
@@ -496,6 +552,15 @@ configure_haraka_dkim()
 		echo 'disabled=false' | tee -a "$HARAKA_CONF/dkim_sign.ini"
 	fi
 
+	# the dkim plugin's default dkim.ini does not sign
+	if [ ! -f "$HARAKA_CONF/dkim.ini" ]; then
+		tell_status "enabling DKIM signing"
+		configure_install_default dkim.ini
+		sed_inplace \
+			-e '/^\[sign\]/,/^\[/ s/^enabled[[:space:]]*=.*/enabled = true/' \
+			"$HARAKA_CONF/dkim.ini"
+	fi
+
 	if [ ! -d "$HARAKA_CONF/dkim" ]; then
 		mkdir -p "$HARAKA_CONF/dkim"
 	fi
@@ -681,6 +746,21 @@ EO_SPF_RELAY
 	fi
 }
 
+configure_haraka_me()
+{
+	# haraka -i writes the jail's hostname, haraka, to config/me
+	local _me="$HARAKA_CONF/me" _cur=""
+	if [ -f "$_me" ]; then _cur=$(tr -d '[:space:]' < "$_me"); fi
+
+	case "$_cur" in
+		""|haraka) ;;
+		*) return 0 ;;
+	esac
+
+	tell_status "setting the Haraka name (config/me) to $TOASTER_HOSTNAME"
+	echo "$TOASTER_HOSTNAME" > "$_me"
+}
+
 configure_haraka()
 {
 	tell_status "installing Haraka, stage 2"
@@ -692,9 +772,7 @@ configure_haraka()
 		echo '3' > "$HARAKA_CONF/tarpit.timeout"
 	fi
 
-	if [ ! -f "$HARAKA_CONF/me" ]; then
-		echo "$TOASTER_HOSTNAME" > "$HARAKA_CONF/me"
-	fi
+	configure_haraka_me
 
 	if [ ! -f "$HARAKA_CONF/rate_limit.ini" ]; then
 		echo "redis_server = $(get_jail_ip4 redis)" > "$HARAKA_CONF/rate_limit.ini"

@@ -80,12 +80,13 @@ _none_exempt() { return 1; }
 @test "jails that need no extras declare them empty" {
   run grep -c '^export JAIL_\(START_EXTRA\|CONF_EXTRA\|FSTAB\)=""$' \
     provision/clamav.sh provision/haproxy.sh provision/memcached.sh \
-    provision/mysql.sh provision/redis.sh provision/statsd.sh provision/tachyon.sh
+    provision/mysql.sh provision/redis.sh provision/php.sh provision/statsd.sh provision/tachyon.sh
   assert_output "provision/clamav.sh:3
 provision/haproxy.sh:3
 provision/memcached.sh:3
 provision/mysql.sh:3
 provision/redis.sh:3
+provision/php.sh:3
 provision/statsd.sh:3
 provision/tachyon.sh:3"
 }
