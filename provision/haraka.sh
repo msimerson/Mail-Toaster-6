@@ -135,9 +135,7 @@ EO_SYSLOG
 }
 
 # Set a key in the main section of an ini (the keys before the first
-# [section], or under [main]) unless the file already sets it: an existing
-# value, whatever it is, is the operator's choice. Haraka accepts indented
-# section headers, so a key in an indented [example.com] is not main's.
+# [section], or under [main])
 haraka_ini_default()
 {
 	local _ini="$HARAKA_CONF/$1" _key="$2" _value="$3"
@@ -165,10 +163,17 @@ haraka_ini_default()
 	tell_status "setting $_key=$_value in $1"
 	local _tmp
 	_tmp=$(mktemp "${TMPDIR:-/tmp}/haraka-ini.XXXXXX") || return 1
-	{
-		echo "$_key=$_value"
-		[ ! -f "$_ini" ] || cat "$_ini"
-	} > "$_tmp"
+	if grep -qs '^[[:space:]]*\[main\][[:space:]]*$' "$_ini"; then
+		awk -v line="$_key=$_value" '
+			{ print }
+			!done && /^[[:space:]]*\[main\][[:space:]]*$/ { print line; done = 1 }
+		' "$_ini" > "$_tmp"
+	else
+		{
+			echo "$_key=$_value"
+			[ ! -f "$_ini" ] || cat "$_ini"
+		} > "$_tmp"
+	fi
 	cat "$_tmp" > "$_ini"
 	rm -f "$_tmp"
 }
