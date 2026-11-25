@@ -45,10 +45,9 @@ setup() {
   assert [ ! -e "$ACME_HOME/dnsapi" ]
 }
 
-# --- the deploy hooks keep the private key out of a predictable temp file ---
+# --- deploy hooks ---
 
-# Generate a hook as install_deploy_scripts does, aimed at a sandbox
-# instead of /data, and source it. $1 haproxy|haraka
+# a hook as install_deploy_scripts writes it, aimed at the sandbox. $1 haproxy|haraka
 _load_hook() {
   export _deploy="$BATS_TEST_TMPDIR/deploy"
   export TMPDIR="$BATS_TEST_TMPDIR/tmp"
@@ -56,8 +55,7 @@ _load_hook() {
   mkdir -p "$_deploy" "$TMPDIR"
 
   "install_deploy_$1"
-  # the hook writes to /data and /tmp: aim both at the sandbox. /tmp first:
-  # the sandbox may itself be under /tmp, which must not be rewritten again.
+  # /tmp first: the sandbox may be under /tmp
   sed_inplace -e "s|/tmp/|$TMPDIR/|g" -e "s|/data/$1|$BATS_TEST_TMPDIR/data/$1|g" "$_deploy/$1"
 
   _debug() { :; }

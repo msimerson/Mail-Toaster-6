@@ -62,9 +62,7 @@ install_file() {
 	return 0
 }
 
-# The key and the chain in one file. The temp file holds the private key:
-# it is created private, and removed on every path out.
-# returns 0 installed, 3 unchanged, 1 failed
+# returns 0 installed, 3 unchanged, 1 failed; the temp file holds the private key
 install_pem() {
 	local _tmp _rc
 	_tmp=$(umask 077; mktemp "/tmp/le-deploy.XXXXXX") || {
@@ -255,9 +253,7 @@ install_file() {
 	return 0
 }
 
-# The key and the chain in one file. The temp file holds the private key:
-# it is created private, and removed on every path out.
-# returns 0 installed, 3 unchanged, 1 failed
+# returns 0 installed, 3 unchanged, 1 failed; the temp file holds the private key
 install_pem() {
 	local _tmp _rc
 	_tmp=\$(umask 077; mktemp "/tmp/le-deploy.XXXXXX") || {
