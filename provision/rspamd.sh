@@ -263,9 +263,7 @@ secure_ip = $(get_jail_ip6 dovecot);
 EO_CONTROLLER
 }
 
-# The admin's tuning, in the running jail's config directories, is carried
-# over: what they added, and what they edited of what MT6 wrote. Untouched
-# defaults are regenerated below.
+# runs before the defaults: store_config leaves carried files alone
 preserve_rspamd_config()
 {
 	local _etc="/usr/local/etc/rspamd"
@@ -275,7 +273,7 @@ preserve_rspamd_config()
 		preserve_config_dir rspamd "$_etc/$_d" || return 1
 	done
 
-	# the files rspamd reads for local changes, never shipped by the package
+	# never shipped by the package
 	for _f in rspamd.conf.local rspamd.conf.local.override rspamd.local.lua; do
 		preserve_file rspamd "$_etc/$_f" || return 1
 	done

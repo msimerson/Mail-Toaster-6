@@ -214,15 +214,11 @@ preserve_file()
 	fi
 }
 
-# Carry the changes an admin made in a config directory of the running jail
-# (or its predecessor, jail.last) over to the stage, before the provisioner
-# writes its defaults. $2 is the directory's path inside the jail.
-#   - a file with a store_config shadow is carried only when it differs from
-#     the shadow: an untouched default is regenerated, and picks up template
-#     changes
-#   - a file with no shadow is the admin's own, carried unless the stage has
-#     one already (a file the package ships is not theirs to override)
-# store_config then leaves what was carried alone.
+# Carry an admin's changes in $2, a directory of the running jail (or jail.last),
+# to the stage. store_config then leaves a carried file alone.
+#   shadow, file differs   carried
+#   shadow, file equal     skipped: the default is regenerated from the template
+#   no shadow              carried, unless the stage has it: the package's file wins
 preserve_config_dir()
 {
 	local _jail_name=$1 _dir=$2

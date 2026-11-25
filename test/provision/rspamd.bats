@@ -108,8 +108,7 @@ setup() {
   assert_line --index 1 "write"
 }
 
-# a running jail as an admin left it, a stage as the package made it, and the
-# real util.sh, not the stubs, so preserve and store_config do their work
+# the real util.sh: the stubs do not preserve
 _rspamd_live() {
   provision_fns rspamd tell_settings
   # shellcheck source=/dev/null

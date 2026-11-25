@@ -322,7 +322,6 @@ setup() {
 
 # --- preserve_config_dir ---
 
-# a live jail whose config dir holds what MT6 wrote and what an admin changed
 _cfg_dirs() {
   export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"
@@ -331,7 +330,6 @@ _cfg_dirs() {
   mkdir -p "$_live" "$_stage"
 }
 
-# what MT6 would have left: the file and its shadow
 _mt6_wrote() { printf '%s\n' "$2" > "$1"; printf '%s\n' "$2" > "$1.mt6"; }
 
 @test "preserve_config_dir - carries a file the admin edited" {
