@@ -206,5 +206,10 @@ docroots. It rewrites `fastcgi_site.conf`, the default server and the
 newsyslog file only while you have not edited them.
 
 The php jail takes the address of the php7 jail. On a host that has one, stop
-it before provisioning php (`service jail stop php7`), then reprovision the
-dns jail so the address resolves to `php`.
+it and keep it from starting at boot before provisioning php, then reprovision
+the dns jail so the address resolves to `php`:
+
+```sh
+service jail stop php7
+sysrc jail_list-=" php7"
+```

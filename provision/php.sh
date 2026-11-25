@@ -13,6 +13,9 @@ export JAIL_FSTAB=""
 mt6-include php
 mt6-include nginx
 
+# nginx's php upstream is the socket
+export PHP_LISTEN_MODE=socket
+
 PHP_VER="85"
 PHP_MODULES="bcmath bz2 composer ctype curl dom exif fileinfo filter ftp gd gettext iconv intl mbstring mysqli pdo pdo_mysql pdo_sqlite pecl-APCu xmlrpc phar posix session simplexml soap sockets sqlite3 sysvmsg sysvsem tidy tokenizer xml xmlreader xmlwriter xsl zip zlib"
 
@@ -125,13 +128,14 @@ server {
 		try_files $uri $uri/ /index.php?$args;
 	}
 
+	# .env, .git and the like. Ahead of the PHP location: the first match wins.
+	location ~ /\.(?!well-known/) {
+		deny  all;
+	}
+
 	location ~ \.php$ {
 		include        /data/etc/nginx/fastcgi_site.conf;
 		fastcgi_pass   unix:/tmp/php-example.socket;
-	}
-
-	location ~ /\.ht {
-		deny  all;
 	}
 }
 EO_SAMPLE_VHOST

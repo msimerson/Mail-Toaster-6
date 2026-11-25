@@ -147,6 +147,21 @@ setup() {
   refute_output --partial "ssl"
 }
 
+@test "PHP-FPM listens on the socket of nginx's php upstream, even when tcp is configured" {
+  export PHP_LISTEN_MODE=tcp
+  provision_fns php
+  [ "$PHP_LISTEN_MODE" = "socket" ]
+}
+
+@test "the sample vhost denies dotfiles, but .well-known, before the PHP location" {
+  configure_php_jail_samples
+
+  local _vhost="$ZFS_DATA_MNT/php/etc/nginx/example.conf.sample"
+  run grep -n 'location ~ ' "$_vhost"
+  assert_line --index 0 --regexp 'location ~ /\\\.\(\?!well-known/\)'
+  assert_line --index 1 --partial 'location ~ \.php$'
+}
+
 @test "the samples are not loaded: neither ends in .conf" {
   configure_php_jail_samples
 
@@ -299,6 +314,12 @@ setup() {
   assert_output --partial "use_backend"
   assert_output --partial "php-fpm -t"
   assert_output --partial "nginx -t -c /data/etc/nginx/nginx.conf"
+}
+
+@test "the guide takes the php7 jail out of the startup list" {
+  run cat "$BATS_TEST_DIRNAME/../../docs/php-sites.md"
+  assert_output --partial "service jail stop php7"
+  assert_output --partial "sysrc jail_list-=\" php7\""
 }
 
 @test "the guide copies the samples the provisioner writes" {
