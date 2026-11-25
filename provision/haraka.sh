@@ -134,8 +134,7 @@ EO_SYSLOG
 	touch "$_logdir/maillog"
 }
 
-# Set a key in the main section of an ini (the keys before the first
-# [section], or under [main])
+# Haraka's main section is the keys above the first [section], plus [main]
 haraka_ini_default()
 {
 	local _ini="$HARAKA_CONF/$1" _key="$2" _value="$3"
@@ -178,6 +177,17 @@ haraka_ini_default()
 	rm -f "$_tmp"
 }
 
+# Local delivery:
+#
+#   rcpt           sender  route                        needs
+#   mailbox        any     outbound -> Dovecot LMTP
+#   alias          any     smtp_forward -> qmail        enable_outbound (auth)
+#   alias+mailbox  unauth  2nd rcpt deferred            split=defer
+#   alias+mailbox  auth    outbound -> qmail, no Sieve
+#
+# Unset, an auth alias goes to Dovecot (550) and an unauth alias+mailbox loops
+# through this host's MX. Domain sections inherit split in qmail-deliverable
+# 1.4.1+.
 configure_haraka_smtp_forward()
 {
 	if [ ! -f "$HARAKA_CONF/smtp_forward.ini" ]; then
@@ -187,14 +197,6 @@ port=25
 " | tee -a "$HARAKA_CONF/smtp_forward.ini"
 	fi
 
-	# Mail from an authenticated (relaying) sender goes to outbound, not to
-	# smtp_forward, unless this is set. Outbound routes by the queue.next_hop
-	# that qmail-deliverable left, the Dovecot LMTP URL it sets for mailboxes,
-	# so a vpopmail alias is handed to Dovecot, which has no such mailbox.
-	# With it, smtp_forward delivers aliases to qmail on the vpopmail jail,
-	# as it does for unauthenticated mail. A mailbox still goes to Dovecot
-	# over LMTP, and mail for other domains stays with outbound, as
-	# qmail-deliverable marks those as wanting outbound.
 	haraka_ini_default smtp_forward.ini enable_outbound true
 }
 
@@ -227,13 +229,6 @@ next_hop=lmtp://$(get_jail_ip4 dovecot)" | \
 			tee -a "$HARAKA_CONF/qmail-deliverable.ini"
 	fi
 
-	# Inbound mail for both an alias and a mailbox has two routes (qmail and
-	# Dovecot). Without this, qmail-deliverable hands it to outbound, which
-	# follows the domain's MX back to this host, where it splits again.
-	# Deferred, the sender retries the second recipient on its own.
-	# An authenticated sender is never deferred: outbound delivers the whole
-	# message through qmail, so Sieve does not filter the mailbox copy.
-	# qmail-deliverable >= 1.4.1 applies this to domain sections too.
 	haraka_ini_default qmail-deliverable.ini split defer
 
 	if ! grep -qs ^qmail-deliverable "$HARAKA_CONF/plugins"; then
@@ -502,9 +497,7 @@ configure_haraka_dkim()
 		echo 'disabled=false' | tee -a "$HARAKA_CONF/dkim_sign.ini"
 	fi
 
-	# dkim_sign.ini above is the old plugin's. The dkim plugin only reads
-	# dkim.ini, whose default has [sign] enabled=false, so without this a
-	# fresh install generates keys below and never signs with them.
+	# the dkim plugin's default dkim.ini does not sign
 	if [ ! -f "$HARAKA_CONF/dkim.ini" ]; then
 		tell_status "enabling DKIM signing"
 		configure_install_default dkim.ini
@@ -700,9 +693,7 @@ EO_SPF_RELAY
 
 configure_haraka_me()
 {
-	# `haraka -i` has already written config/me by now, with the jail's own
-	# hostname, so testing for the file alone left a new host greeting
-	# with "EHLO haraka". That, or nothing, is no name an operator chose.
+	# haraka -i writes the jail's hostname, haraka, to config/me
 	local _me="$HARAKA_CONF/me" _cur=""
 	if [ -f "$_me" ]; then _cur=$(tr -d '[:space:]' < "$_me"); fi
 

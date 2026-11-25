@@ -232,19 +232,12 @@ tls_setup() {
   assert [ ! -e "$HARAKA_CONF/tls_cert.pem" ]
 }
 
-# --- authenticated mail to a vpopmail alias ---
-#
-# qmail-deliverable leaves queue.next_hop at the Dovecot LMTP URL for an alias
-# too. For an authenticated sender smtp_forward stands aside unless
-# enable_outbound is set, and outbound then follows that next_hop to Dovecot,
-# which answers "550 5.1.1 User doesn't exist".
+# --- smtp_forward.ini ---
 
-# the keys that are in the main section, ie before the first [section]
 main_section() {
   awk '/^[[:space:]]*\[/ { exit } { print }' "$1"
 }
 
-# the lines of one [section], an indented header included
 ini_section() {
   awk -v want="$2" '
     /^[[:space:]]*\[/ { s = $0; sub(/^[[:space:]]*\[/, "", s); sub(/\].*$/, "", s); on = (s == want); next }
@@ -262,8 +255,6 @@ ini_section() {
   assert_output --partial "enable_outbound=true"
 }
 
-# smtp_forward.ini is only written when missing, so a host provisioned before
-# this existed has to get the key too
 @test "configure_haraka_smtp_forward adds enable_outbound to an existing file" {
   printf 'host=172.16.15.8\nport=25\n' > "$HARAKA_CONF/smtp_forward.ini"
 
@@ -285,7 +276,6 @@ ini_section() {
   refute_output --partial "enable_outbound=true"
 }
 
-# a per-domain setting is not the global one
 @test "configure_haraka_smtp_forward sets the main key when only a domain has one" {
   printf 'host=172.16.15.8\n\n[example.com]\nenable_outbound=false\n' \
     > "$HARAKA_CONF/smtp_forward.ini"
@@ -307,7 +297,6 @@ ini_section() {
   assert_output "1"
 }
 
-# Haraka accepts an indented [section]: the key under it is not main's
 @test "configure_haraka_smtp_forward sets the main key when a domain's section is indented" {
   printf 'host=172.16.15.8\n\n  [example.com]\n  enable_outbound=false\n' \
     > "$HARAKA_CONF/smtp_forward.ini"
@@ -347,7 +336,7 @@ host=172.16.15.8
 host=172.16.15.9"
 }
 
-# --- a message for an alias and a mailbox ---
+# --- qmail-deliverable.ini ---
 
 @test "configure_haraka_qmail_deliverable keeps the routing and defers a split" {
   configure_haraka_qmail_deliverable
@@ -420,7 +409,6 @@ host=172.16.15.9"
 
 # --- DKIM signing ---
 
-# the dkim plugin reads dkim.ini, and its shipped default signs nothing
 dkim_setup() {
   export TOASTER_MAIL_DOMAIN="example.com"
   local _dkim="$STAGE_MNT/usr/local/lib/node_modules/haraka/node_modules/haraka-plugin-dkim/config"
@@ -477,7 +465,7 @@ EOF
   cmp "$HARAKA_CONF/dkim.ini" "$BATS_TEST_TMPDIR/dkim.ini.orig"
 }
 
-# --- the name Haraka greets with ---
+# --- config/me ---
 
 @test "configure_haraka_me writes the hostname when config/me is missing" {
   export TOASTER_HOSTNAME="mail.example.com"
@@ -488,7 +476,6 @@ EOF
   assert_equal "$(cat "$HARAKA_CONF/me")" "mail.example.com"
 }
 
-# haraka -i writes the jail's own name, which sent a new host's EHLO as "haraka"
 @test "configure_haraka_me replaces the jail hostname haraka -i wrote" {
   export TOASTER_HOSTNAME="mail.example.com"
   echo haraka > "$HARAKA_CONF/me"
