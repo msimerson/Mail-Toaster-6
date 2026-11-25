@@ -157,7 +157,13 @@ CHAIN"
 }
 
 @test "letsencrypt - no deploy hook writes the key to a fixed path in /tmp" {
-  run grep -n '/tmp/' "$PROVISION_DIR/letsencrypt.sh"
+  export _deploy="$BATS_TEST_TMPDIR/deploy"
+  export TOASTER_HOSTNAME="mail.example.com"
+  mkdir -p "$_deploy"
+  install_deploy_haproxy
+  install_deploy_haraka
+
+  run grep -n '/tmp/' "$_deploy/haproxy" "$_deploy/haraka"
   # only the mktemp templates
   refute_output --regexp '/tmp/[^"]*\.pem'
   refute_output --regexp '/tmp/\$\{?_cdomain'
@@ -206,4 +212,65 @@ CHAIN"
   run haraka_deploy example.org "$_key" "$_chain" "$_ca" "$_chain"
   assert_failure
   assert [ "$(_leftovers)" = "0" ]
+}
+
+# --- a reprovision reaches hooks that are already installed ---
+
+_use_real_store_config() {
+  # shellcheck source=/dev/null
+  . "$BATS_TEST_DIRNAME/../../include/util.sh"
+  export _deploy="$BATS_TEST_TMPDIR/deploy"
+  export TOASTER_HOSTNAME="mail.example.com"
+  mkdir -p "$_deploy"
+}
+
+# the line the vulnerable hooks have
+_old_hook() {
+  printf '#!/bin/sh\nhaproxy_deploy() {\n\tlocal _tmp="/tmp/${_cdomain}.pem"\n\tcat "$_ckey" "$_cfullchain" > "$_tmp"\n}\n'
+}
+
+@test "letsencrypt - an untouched old hook is replaced on reprovision" {
+  _use_real_store_config
+  local _h
+  for _h in haproxy haraka; do
+    _old_hook | tee "$_deploy/$_h" > "$_deploy/$_h.mt6"
+
+    "install_deploy_$_h"
+
+    run grep -F '/tmp/${_cdomain}.pem' "$_deploy/$_h"
+    assert_failure
+    run grep -c 'install_pem()' "$_deploy/$_h"
+    assert_output "1"
+  done
+}
+
+@test "letsencrypt - an edited old hook is kept, and the admin is told" {
+  _use_real_store_config
+  local _h
+  for _h in haproxy haraka; do
+    { _old_hook; echo "# local change"; } > "$_deploy/$_h"
+    _old_hook > "$_deploy/$_h.mt6"
+
+    run "install_deploy_$_h"
+    assert_success
+    assert_output --partial "WARNING: $_deploy/$_h is edited"
+
+    run grep -c "local change" "$_deploy/$_h"
+    assert_output "1"
+  done
+}
+
+@test "letsencrypt - an edited hook that no longer uses /tmp/<domain>.pem gets no warning" {
+  _use_real_store_config
+  local _h
+  for _h in haproxy haraka; do
+    "install_deploy_$_h"
+    echo "# local change" >> "$_deploy/$_h"
+
+    run "install_deploy_$_h"
+    assert_success
+    refute_output --partial "WARNING"
+    run grep -c "local change" "$_deploy/$_h"
+    assert_output "1"
+  done
 }

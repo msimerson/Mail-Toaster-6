@@ -28,9 +28,18 @@ install_letsencrypt()
 	fi
 }
 
+# "update" replaces a hook that matches its last generated copy. An edited hook
+# stays, and may still write the private key to /tmp/<domain>.pem.
+warn_tmp_key_hook()
+{
+	if grep -qF '/tmp/${_cdomain}.pem' "$1"; then
+		tell_status "WARNING: $1 is edited and writes the private key to /tmp/<domain>.pem, use install_pem from provision/letsencrypt.sh"
+	fi
+}
+
 install_deploy_haproxy()
 {
-	store_config "$_deploy/haproxy" <<'EO_LE_HAPROXY'
+	store_config "$_deploy/haproxy" "update" <<'EO_LE_HAPROXY'
 #!/bin/sh
 
 has_differences() {
@@ -126,6 +135,7 @@ haproxy_deploy() {
 	return 0
 }
 EO_LE_HAPROXY
+	warn_tmp_key_hook "$_deploy/haproxy"
 }
 
 install_deploy_dovecot()
@@ -211,7 +221,7 @@ EO_LE_DOVECOT
 
 install_deploy_haraka()
 {
-	store_config "$_deploy/haraka" <<EO_LE_HARAKA
+	store_config "$_deploy/haraka" "update" <<EO_LE_HARAKA
 #!/bin/sh
 
 assure_file() {
@@ -319,6 +329,7 @@ haraka_deploy() {
 	return 0
 }
 EO_LE_HARAKA
+	warn_tmp_key_hook "$_deploy/haraka"
 }
 
 install_deploy_postfix()
