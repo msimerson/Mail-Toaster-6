@@ -10,7 +10,6 @@ setup() {
     > "$BATS_TEST_TMPDIR/qmail.sh"
 }
 
-# the commands of a run script, comments and blanks removed
 commands() { grep -v '^[[:space:]]*#' "$1" | grep -v '^[[:space:]]*$'; }
 
 @test "the deliverabled run script ends in a plain exec, no pipe" {
@@ -18,14 +17,12 @@ commands() { grep -v '^[[:space:]]*#' "$1" | grep -v '^[[:space:]]*$'; }
   assert_success
 
   local _run="$SUPDIR/deliverabled/run"
-  # with a pipe, exec runs in a subshell and svc -t kills the shell, not the daemon
   run grep -c '|' "$_run"
   assert_output "0"
 
   run commands "$_run"
   [ "$(head -n 1 "$_run")" = "#!/bin/sh" ]
   assert_line --regexp '^exec \$BIN/softlimit .* \$BIN/qmail-deliverabled -f 2>&1$'
-  # the exec is the last command
   [ "$(commands "$_run" | tail -n 1)" = 'exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1' ]
 }
 

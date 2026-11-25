@@ -91,18 +91,79 @@ configure_mysql_keys()
 	fi
 }
 
+# The root password MT6 wrote to the live jail's /root/.my.cnf, if any. Reads
+# the option groups the database client reads, in file order, the last
+# password wins. A value may be quoted, and a # starts a comment.
+existing_mysql_root_pass()
+{
+	local _groups="client client-server mysql"
+	if [ "$TOASTER_MARIADB" = "1" ]; then
+		_groups="client client-server client-mariadb mariadb-client mysql mariadb"
+	fi
+
+	local _jail _cnf _pass
+	for _jail in mysql mysql.last; do
+		_cnf="$ZFS_JAIL_MNT/$_jail/root/.my.cnf"
+		[ -f "$_cnf" ] && [ -r "$_cnf" ] || continue
+
+		_pass=$(awk -v q="'" -v groups="$_groups" '
+			BEGIN { n = split(groups, g, " "); for (i = 1; i <= n; i++) want[g[i]] = 1 }
+			{
+				line = $0
+				sub(/^[ \t]+/, "", line)
+				if (line ~ /^\[/) {
+					sec = line
+					sub(/^\[/, "", sec)
+					sub(/\].*$/, "", sec)
+					inwant = (sec in want)
+					next
+				}
+				if (!inwant || line !~ /^password[ \t]*=/) next
+
+				v = substr(line, index(line, "=") + 1)
+				sub(/^[ \t]+/, "", v)
+				c = substr(v, 1, 1)
+				if (c == "\"" || c == q) {
+					out = ""
+					len = length(v)
+					for (i = 2; i <= len; i++) {
+						ch = substr(v, i, 1)
+						if (ch == "\\" && i < len) { i++; out = out substr(v, i, 1); continue }
+						if (ch == c) break
+						out = out ch
+					}
+					v = out
+				} else {
+					sub(/#.*$/, "", v)
+					sub(/[ \t]+$/, "", v)
+				}
+				pass = v
+			}
+			END { print pass }' "$_cnf")
+
+		# a file without a password: try the previous jail's
+		[ -z "$_pass" ] || { printf '%s\n' "$_pass"; return; }
+	done
+}
+
 configure_mysql_root_password()
 {
 	if [ -z "$TOASTER_MYSQL_PASS" ]; then
 		tell_status "TOASTER_MYSQL_PASS unset in $MT6_CONF"
 
-		local _my_cnf="$ZFS_JAIL_MNT/mysql/root/my.cnf"
-		if [ -f "$_my_cnf" ] && [ -r "$_my_cnf" ]; then
-			tell_status "TOASTER_MYSQL_PASS unset in $_my_cnf"
-			TOASTER_MYSQL_PASS=$(grep password "$_my_cnf" | awk '{ print $3 }')
-		fi
+		TOASTER_MYSQL_PASS=$(existing_mysql_root_pass)
+		[ -z "$TOASTER_MYSQL_PASS" ] || tell_status "using the root password in .my.cnf of the mysql jail"
 
 		if [ -z "$TOASTER_MYSQL_PASS" ]; then
+			# A random password would not match the one in the live data
+			# that the promoted jail will run on. start_mysql noted, before
+			# the server started, whether there was any.
+			if [ "${MYSQL_HAD_DATA:-0}" = "1" ]; then
+				echo "ERROR: existing MySQL data, but no root password in"
+				echo "$ZFS_JAIL_MNT/mysql/root/.my.cnf. Set TOASTER_MYSQL_PASS in $MT6_CONF."
+				exit 1
+			fi
+
 			tell_status "generating a random password for MySQL"
 			TOASTER_MYSQL_PASS=$(get_random_pass 15 safe)
 		fi
@@ -279,10 +340,14 @@ start_mysql()
 	tell_status "starting mysql"
 
 	# Keyed on the data, not on the mysql jail's mount: a stopped jail has
-	# its data unmounted, but the stage still mounts it.
+	# its data unmounted, but the stage still mounts it. Asked before the
+	# server starts: a first start creates db/mysql in that mount.
+	MYSQL_HAD_DATA=0
 	if [ -d "$(get_jail_data mysql)/db/mysql" ]; then
+		MYSQL_HAD_DATA=1
 		detach_live_data
 	fi
+	export MYSQL_HAD_DATA
 
 	stage_exec service mysql-server start
 	configure_mysql_root_password

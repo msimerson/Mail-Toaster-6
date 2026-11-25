@@ -35,8 +35,7 @@ EO_SMTP_RUN
 	chmod 755 "$RUN"
 }
 
-# $1 is the service, $2 (optional) a syslog tag: the service's output then goes
-# to syslog under that tag, otherwise to multilog in ./main
+# $1 service, $2 optional syslog tag: output goes to syslog under it, else to multilog
 install_service_log_run()
 {
 	local RUN="$SUP/$1/log/run"
@@ -60,17 +59,16 @@ EO_LOG_RUN
 	chmod 755 "$RUN"
 }
 
-# A daemon that outlived its supervise is the child of init and holds the port,
-# and a new instance can then never bind (the run script piped into logger, so
-# svc -t killed the shell and not the daemon). Print the pids of the processes
-# whose command line matches the awk regex $1 and whose parent is init.
+# pids whose command line matches the awk regex $1 and whose parent is init: a
+# daemon its supervise no longer owns
 qmail_orphans()
 {
 	ps -ax -o pid=,ppid=,command= | awk -v re="$1" \
 		'$2 == 1 && $0 ~ re && $0 !~ /awk/ { print $1 }'
 }
 
-# The daemon answers with what it loaded at start, until it is killed by hand.
+# an orphan holds the port, so the supervised instance cannot bind, and it
+# answers from the data it loaded at start
 kill_orphaned_daemon()
 {
 	local _pid
@@ -176,8 +174,7 @@ install_service_vpopmaild()
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
-# no pipe: exec has to replace the shell, or svc -t signals the shell and
-# leaves tcpserver running. Output goes to the log service (log/run).
+# no pipe: exec must replace the shell, or svc -t leaves the daemon running
 exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1
 EO_VPOPMAILD
 }
@@ -216,8 +213,7 @@ MAXRAM=150000000
 BIN=/usr/local/bin
 PATH=/usr/local/vpopmail/bin
 export PATH
-# no pipe: exec has to replace the shell, or svc -t signals the shell and
-# leaves qmail-deliverabled running. Output goes to the log service (log/run).
+# no pipe: exec must replace the shell, or svc -t leaves the daemon running
 exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1
 EO_DELIVERABLED
 }
