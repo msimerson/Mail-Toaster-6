@@ -1,20 +1,6 @@
 #!/bin/sh
 
-# The PHP jail: nginx and PHP-FPM for many sites (it replaces the php7 jail,
-# which only ran PHP-FPM). All site state lives in /data, so a reprovision
-# keeps it:
-#
-#   /data/etc/nginx/server.d/*.conf   vhosts, one file per site
-#   /data/etc/nginx/fastcgi_site.conf include from a vhost's PHP location
-#   /data/etc/php-fpm.d/*.conf        per-site PHP-FPM pools
-#   /data/www/<site>                  docroots
-#   /data/log/<site>.*                a site's nginx and PHP-FPM logs
-#   /data/etc/newsyslog.conf.d/*.conf the rotation of a site's PHP error log
-#
-# How to add a site: docs/php-sites.md
-#
-# nginx listens on port 80 only: haproxy terminates TLS and sends
-# X-Forwarded-Proto. Samples of a vhost and a pool are in /data/etc.
+# nginx and PHP-FPM for many sites, site state in /data: docs/php-sites.md
 
 set -e
 
@@ -46,7 +32,6 @@ configure_php_jail_dirs()
 	done
 }
 
-# PHP-FPM reads the pools in /data in addition to its own php-fpm.d
 configure_php_jail_pools()
 {
 	local _fpmconf="$STAGE_MNT/usr/local/etc/php-fpm.conf"
@@ -83,8 +68,8 @@ fastcgi_intercept_errors on;
 EO_FCGI_SITE
 }
 
-# nginx binds no port until a server block asks for it. Without a site yet,
-# and for a Host nobody serves, answer 404.
+# nginx binds port 80 only for a server block: before the first site, and for
+# hosts no site serves
 configure_nginx_default_server()
 {
 	_NGINX_SERVER="server {
@@ -96,38 +81,26 @@ $(nginx_listen 80 default_server)
 	configure_nginx_server_d php 00-default
 }
 
-# The default nginx logs, in /data/log, take what no site claims. A site logs
-# to files of its own there, which newsyslog rotates by pattern:
-#   <site>.access.log, <site>.error.log   nginx, signalled with the nginx pid
-#   <site>.fpm-access.log, <site>.fpm-slow.log
-#                                         its PHP-FPM pool, root writes them
-# The names differ before the suffix, so no pattern catches another's files.
-#
-# <site>.php-error.log has no pattern. PHP writes it as the pool's user, and
-# newsyslog recreates a rotated file as the user the line names, so a pattern
-# can name only one. Each site has a line of its own in
-# /data/etc/newsyslog.conf.d, which the jail's newsyslog includes.
+# <site>.php-error.log has no pattern: PHP writes it as the pool's uid, and a
+# newsyslog line names one owner
 configure_php_jail_logs()
 {
 	tell_status "rotating the per-site nginx and PHP-FPM logs"
 	stage_enable_newsyslog
 	store_config "$STAGE_MNT/etc/newsyslog.conf.d/php-sites.conf" "update" <<'EO_SITES_NSL'
-# rotate nightly, G: the name is a shell pattern. PHP-FPM creates its own two
-# logs as 600 (the slow log holds stack traces), so they are recreated as 600.
+# 600: the slow log holds stack traces
 /data/log/*.access.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 /data/log/*.error.log		root:wheel	644	 7     *   @T00   BCGX  /var/run/nginx.pid 30
 /data/log/*.fpm-access.log	root:wheel	600	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
 /data/log/*.fpm-slow.log	root:wheel	600	 7     *   @T00   BCGX  /var/run/php-fpm.pid 30
 
-# a site's PHP error log, one line per site, owned by its pool's user
+# each site's PHP error log
 <include> /data/etc/newsyslog.conf.d/*.conf
 EO_SITES_NSL
 
 	store_config "$(get_jail_data php)/etc/newsyslog.conf.d/example.conf.sample" "update" <<'EO_SAMPLE_NSL'
-# Rotate a site's PHP error log. Copy to <site>.conf. PHP writes the file as
-# the pool's user, and newsyslog recreates it as the owner:group named here,
-# so use the pool's uid:gid (www is 80:80), or PHP cannot write the new file.
-/data/log/example.org.php-error.log	80:80	644	 7     *   @T00   BCX  /var/run/php-fpm.pid 30
+# Copy to <site>.conf. The owner is the pool's uid:gid.
+/data/log/example.org.php-error.log	2001:2001	644	 7     *   @T00   BCX  /var/run/php-fpm.pid 30
 EO_SAMPLE_NSL
 }
 
@@ -139,9 +112,9 @@ configure_php_jail_samples()
 # A vhost. Copy to server.d/example.org.conf, edit, and reload nginx.
 server {
 	listen       80;
+	#listen      [::]:80;   # when the jail has IPv6
 	server_name  example.org www.example.org;
 
-	# a log of its own, rotated with the others (newsyslog.conf.d/php-sites.conf)
 	access_log  /data/log/example.org.access.log;
 	error_log   /data/log/example.org.error.log;
 
@@ -166,8 +139,9 @@ EO_SAMPLE_VHOST
 	store_config "$_etc/php-fpm.d/example.conf.sample" "update" <<'EO_SAMPLE_POOL'
 ; A pool. Copy to example.conf, edit, and restart php-fpm.
 [example]
-user = www
-group = www
+; a uid:gid per site, numeric: a reprovision rebuilds the jail's /etc/passwd
+user = 2001
+group = 2001
 
 listen = /tmp/php-example.socket
 listen.owner = www
@@ -178,12 +152,9 @@ pm = ondemand
 pm.max_children = 8
 pm.process_idle_timeout = 30s
 
-; logs of its own, rotated with the others (newsyslog.conf.d/php-sites.conf)
 access.log = /data/log/example.org.fpm-access.log
 slowlog = /data/log/example.org.fpm-slow.log
 request_slowlog_timeout = 10s
-; PHP errors: the file must be the pool's user's, and rotated as that user
-; (a line in /data/etc/newsyslog.conf.d, see docs/php-sites.md)
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /data/log/example.org.php-error.log
 

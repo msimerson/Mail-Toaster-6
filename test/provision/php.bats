@@ -194,9 +194,6 @@ setup() {
   assert_output --regexp '/data/log/\*\.fpm-slow\.log[[:space:]]+root:wheel[[:space:]]+600[[:space:]].*/var/run/php-fpm\.pid'
 }
 
-# newsyslog recreates a rotated file as the owner its line names: a pattern
-# would hand every site's PHP error log to one user, locking out a pool that
-# runs as another
 @test "no pattern owns the PHP error logs, each site has a line of its own" {
   mkdir -p "$STAGE_MNT/etc/newsyslog.conf.d"
   configure_php_jail_logs
@@ -211,8 +208,17 @@ setup() {
   configure_php_jail_logs
 
   run cat "$ZFS_DATA_MNT/php/etc/newsyslog.conf.d/example.conf.sample"
-  assert_output --regexp '/data/log/example\.org\.php-error\.log[[:space:]]+80:80[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
+  assert_output --regexp '/data/log/example\.org\.php-error\.log[[:space:]]+2001:2001[[:space:]]+644[[:space:]]+7[[:space:]]+\*[[:space:]]+@T00[[:space:]]+BCX[[:space:]]+/var/run/php-fpm\.pid[[:space:]]+30'
   refute_output --regexp 'BCGX'
+}
+
+@test "the sample pool runs as a numeric uid of its own, its socket as www" {
+  configure_php_jail_samples
+
+  run cat "$ZFS_DATA_MNT/php/etc/php-fpm.d/example.conf.sample"
+  assert_line "user = 2001"
+  assert_line "group = 2001"
+  assert_line "listen.owner = www"
 }
 
 @test "configure_php_jail_dirs creates the dir the newsyslog include reads" {
@@ -305,11 +311,13 @@ setup() {
   assert_output --partial "/data/log/www.example.com.php-error.log"
 }
 
-@test "the guide gives the PHP error log to the pool's user and a newsyslog line of its own" {
+@test "the guide gives a site's pool, files and PHP error log one uid:gid" {
   local _doc="$BATS_TEST_DIRNAME/../../docs/php-sites.md"
   run cat "$_doc"
-  assert_output --partial "chown 80:80 /data/php/log/www.example.com.php-error.log"
+  assert_output --partial "chown -R 2001:2001 /data/php/www/www.example.com"
+  assert_line "user = 2001"
+  assert_line "group = 2001"
+  assert_output --partial "chown 2001:2001 /data/php/log/www.example.com.php-error.log"
   assert_output --partial "/data/php/etc/newsyslog.conf.d/www.example.com.conf"
-  assert_output --regexp '/data/log/www\.example\.com\.php-error\.log[[:space:]]+80:80'
-  assert_output --partial "1029"
+  assert_output --regexp '/data/log/www\.example\.com\.php-error\.log[[:space:]]+2001:2001'
 }

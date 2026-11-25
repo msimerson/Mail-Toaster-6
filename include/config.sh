@@ -173,22 +173,21 @@ _fix_jail_ordered_list()
 	rm -f "$1.bak"
 }
 
-# The php jail replaced php7 in the same place in the list, so it keeps php7's
-# address. A list saved in mail-toaster.conf still says php7: the jail would be
-# unknown, and the dns jail would name that address php7.
+# php holds php7's slot and address. A saved list still naming php7 leaves php
+# without an address, and the dns jail naming it php7.
 _rename_php7_jail()
 {
 	local _line
 	_line=$(grep "^export JAIL_ORDERED_LIST=" "$1") || return 0
 
 	case "$_line" in
-		*[\"\ ]php[\"\ ]*) return 0 ;;
-		*[\"\ ]php7[\"\ ]*) ;;
+		*[\"\'\ ]php[\"\'\ ]*) return 0 ;;
+		*[\"\'\ ]php7[\"\'\ ]*) ;;
 		*) return 0 ;;
 	esac
 
 	echo "renaming php7 to php in JAIL_ORDERED_LIST in $1"
-	sed -i.bak '/^export JAIL_ORDERED_LIST=/ s/\([" ]\)php7\([" ]\)/\1php\2/' "$1"
+	sed -i.bak "/^export JAIL_ORDERED_LIST=/ s/\([\"' ]\)php7\([\"' ]\)/\1php\2/" "$1"
 	rm -f "$1.bak"
 }
 

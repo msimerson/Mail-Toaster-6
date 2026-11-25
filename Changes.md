@@ -5,7 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
-- php: replaces the php7 jail (same address). nginx and PHP-FPM 8.5 for many sites, all site state in /data, a log of its own per site (nginx and PHP-FPM), see docs/php-sites.md. A JAIL_ORDERED_LIST saved in mail-toaster.conf has php7 renamed to php when mail-toaster.sh loads it. Reprovision the dns jail afterwards, so the address's name (and the rdns in mail logs) changes from php7 to php
+- php: replaces php7, nginx + PHP-FPM for many sites
 - mysql: a reprovision with an empty TOASTER_MYSQL_PASS keeps the root password in the jail's /root/.my.cnf (it looked for my.cnf), and stops rather than generate one that does not match existing data
 - haraka: deliver authenticated mail to vpopmail aliases (smtp_forward enable_outbound=true)
 - haraka: defer the second route of an inbound alias + mailbox message (qmail-deliverable split=defer)

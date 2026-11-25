@@ -228,6 +228,14 @@ _config_in() {
   assert_output 'export JAIL_ORDERED_LIST="syslog base php"'
 }
 
+@test "_rename_php7_jail - a single-quoted list" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf "export JAIL_ORDERED_LIST='syslog base php7'\n" > "$_tmpdir/a.conf"
+  _rename_php7_jail "$_tmpdir/a.conf"
+  run cat "$_tmpdir/a.conf"
+  assert_output "export JAIL_ORDERED_LIST='syslog base php'"
+}
+
 @test "_rename_php7_jail - leaves a list with php, or without php7, alone" {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export JAIL_ORDERED_LIST="syslog base php php7x myphp7 dns"\n' > "$_tmpdir/a.conf"

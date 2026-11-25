@@ -28,10 +28,14 @@ public address, the one haproxy listens on.
 
 ## 2. The site's files
 
+Give each site a uid and gid of its own, one no account uses in the jail or on
+the host: 2001 here, 2002 for the next site. The ids are numeric because a
+reprovision rebuilds the jail's `/etc/passwd`, and PHP-FPM needs no account
+for them.
+
 ```sh
 mkdir -p /data/php/www/www.example.com
-# the PHP-FPM pool below runs as www (uid 80 in the jail)
-chown -R 80:80 /data/php/www/www.example.com
+chown -R 2001:2001 /data/php/www/www.example.com
 ```
 
 Put the site's files there, for example by extracting an archive or with
@@ -45,8 +49,8 @@ limits and logs apart from the other sites.
 ```sh
 cat > /data/php/etc/php-fpm.d/www.example.com.conf <<'EOF'
 [www_example_com]
-user = www
-group = www
+user = 2001
+group = 2001
 
 listen = /tmp/php-www.example.com.socket
 listen.owner = www
@@ -66,28 +70,25 @@ php_admin_value[error_log] = /data/log/www.example.com.php-error.log
 php_admin_value[open_basedir] = /data/www/www.example.com:/tmp
 EOF
 
-# PHP writes this one as the pool's user, so the file has to be theirs...
 touch /data/php/log/www.example.com.php-error.log
-chown 80:80 /data/php/log/www.example.com.php-error.log
+chown 2001:2001 /data/php/log/www.example.com.php-error.log
 
-# ...and newsyslog has to recreate it as that user when it rotates it
 cat > /data/php/etc/newsyslog.conf.d/www.example.com.conf <<'EOF'
-/data/log/www.example.com.php-error.log	80:80	644	7	*	@T00	BCX	/var/run/php-fpm.pid	30
+/data/log/www.example.com.php-error.log	2001:2001	644	7	*	@T00	BCX	/var/run/php-fpm.pid	30
 EOF
 ```
 
-`80:80` is `www`, the pool's `user`. For a pool that runs as another user, say
-`rss` (uid 1029), use that user's uid and gid in the `chown`, in the
-newsyslog line, and as `user`/`group` in the pool. Without the line, the
-file would be recreated as `www` after the first rotation and PHP could no
-longer write its errors.
+PHP writes its error log as the pool's uid, so the file and the newsyslog line
+that recreates it name the same uid:gid as the pool. nginx runs as `www`, so
+the socket stays `www`'s.
 
 The section name (`[www_example_com]`) must be unique among all pools, and
 the `listen` socket must be too.
 
-If a site needs nothing special, it can share the default pool instead: skip
-this step and use `fastcgi_pass php;` in the vhost. The `php` upstream is the
-default socket, `/tmp/php-cgi.socket`.
+A site can share the default pool instead: skip this step and use
+`fastcgi_pass php;` in the vhost. The `php` upstream is the default socket,
+`/tmp/php-cgi.socket`. That pool runs as `www`, shared with every other site
+that uses it, so its files are `chown 80:80`.
 
 ## 4. An nginx vhost
 
@@ -234,29 +235,15 @@ which the jail's newsyslog includes. The sample,
 ## Mail from a site
 
 The jail hands mail to the toaster's mail server (`TOASTER_MSA`, Haraka) with
-`dma`, so PHP's `mail()` and applications that run `sendmail` work. Two things
-decide whether it is accepted:
+`dma`, so PHP's `mail()` and applications that run `sendmail` work.
 
-- **Relay.** Haraka accepts mail for outside recipients only from clients it
-  has been told about. `provision/haraka.sh` allows the addresses (IPv4 and
-  IPv6) of the jails in `HARAKA_RELAY_JAILS`, by default `php wordpress`, in
-  `/data/haraka/config/relay_acl_allow`. Reprovision haraka after adding the
-  jail, or add the two addresses there and restart Haraka. The limit plugin
-  caps what a hacked site can send.
-- **The sender and its bounces.** dma sends as `php@<TOASTER_MAIL_DOMAIN>`
-  unless the application sets another From address. Bounces for that sender
-  go to a mailbox that does not exist, so create one, on the vpopmail jail
-  (replace the domain and the destination):
+dma sends as `php@<TOASTER_MAIL_DOMAIN>` unless the application sets another
+From address. Bounces for that sender go to a mailbox that does not exist, so
+alias it, on the vpopmail jail (replace the domain and the destination):
 
-  ```sh
-  jexec vpopmail /usr/local/vpopmail/bin/valias -i you@example.com php@example.com
-  ```
-
-  Known problem: on a domain delivered by LMTP to Dovecot, qmail-deliverable
-  gives an alias the LMTP next hop and Dovecot answers `550 5.1.1`, since no
-  mailbox has the alias's name. The bounces dma generates itself hit this.
-  Until that is fixed, a mailbox named `php` (`vadduser`) works where the
-  alias does not (not tested).
+```sh
+jexec vpopmail /usr/local/vpopmail/bin/valias -i you@example.com php@example.com
+```
 
 SPF, DKIM and DMARC are the sending domain's: a site that sends as
 `noreply@example.org` needs those records for `example.org`, whichever jail it
@@ -296,3 +283,7 @@ rm /data/php/log/www.example.com.*
 sites above come back unchanged. It does not touch your vhosts, pools or
 docroots. It rewrites `fastcgi_site.conf`, the default server and the
 newsyslog file only while you have not edited them.
+
+The php jail takes the address of the php7 jail. On a host that has one, stop
+it before provisioning php (`service jail stop php7`), then reprovision the
+dns jail so the address resolves to `php`.
