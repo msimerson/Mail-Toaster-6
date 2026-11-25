@@ -35,6 +35,7 @@ EO_SMTP_RUN
 	chmod 755 "$RUN"
 }
 
+# $1 service, $2 optional syslog tag: output goes to syslog under it, else to multilog
 install_service_log_run()
 {
 	local RUN="$SUP/$1/log/run"
@@ -43,12 +44,38 @@ install_service_log_run()
 	fi
 
 	echo "installing $RUN"
-	cat <<'EO_LOG_RUN' > "$RUN"
+	if [ -n "${2:-}" ]; then
+		cat <<EO_LOG_RUN_SYSLOG > "$RUN"
+#!/bin/sh
+exec /usr/local/bin/setuidgid qmaill /usr/bin/logger -t $2
+EO_LOG_RUN_SYSLOG
+	else
+		cat <<'EO_LOG_RUN' > "$RUN"
 #!/bin/sh
 exec /usr/local/bin/setuidgid qmaill /usr/local/bin/multilog ./main
 EO_LOG_RUN
+	fi
 
 	chmod 755 "$RUN"
+}
+
+# pids whose command line matches the awk regex $1 and whose parent is init: a
+# daemon its supervise no longer owns
+qmail_orphans()
+{
+	ps -ax -o pid=,ppid=,command= | awk -v re="$1" \
+		'$2 == 1 && $0 ~ re && $0 !~ /awk/ { print $1 }'
+}
+
+# an orphan holds the port, so the supervised instance cannot bind, and it
+# answers from the data it loaded at start
+kill_orphaned_daemon()
+{
+	local _pid
+	for _pid in $(qmail_orphans "$1"); do
+		echo "killing orphaned $1 (pid $_pid), it holds the port"
+		kill "$_pid" || true
+	done
 }
 
 install_service_qmail_send()
@@ -147,8 +174,8 @@ install_service_vpopmaild()
 #!/bin/sh
 PATH=/var/qmail/bin:/usr/local/bin:/usr/bin:/bin
 export PATH
-exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1 | \
-	/usr/bin/logger -t vpopmaild
+# no pipe: exec must replace the shell, or svc -t leaves the daemon running
+exec /usr/local/bin/tcpserver -HRD 0.0.0.0 89 /usr/local/vpopmail/bin/vpopmaild 2>&1
 EO_VPOPMAILD
 }
 
@@ -186,8 +213,8 @@ MAXRAM=150000000
 BIN=/usr/local/bin
 PATH=/usr/local/vpopmail/bin
 export PATH
-exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1 | \
-	/usr/bin/logger -t qmd
+# no pipe: exec must replace the shell, or svc -t leaves the daemon running
+exec $BIN/softlimit -m $MAXRAM $BIN/qmail-deliverabled -f 2>&1
 EO_DELIVERABLED
 }
 
@@ -226,10 +253,14 @@ install_supervision()
 
 	install_service_log_run qmail-send
 	install_service_log_run qmail-smtpd
-	install_service_log_run deliverabled
-	install_service_log_run vpopmaild
+	install_service_log_run deliverabled qmd
+	install_service_log_run vpopmaild vpopmaild
 	chmod 755 "$SUP"/*/log/run
 	chown -R qmaill "$SUP"/*/log
+
+	# a rerun on a live jail: instances left by the old run scripts
+	kill_orphaned_daemon 'qmail-deliverabled'
+	kill_orphaned_daemon 'tcpserver.*vpopmaild'
 
 	install_vpopmail_etc
 	install_symlinks
