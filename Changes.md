@@ -6,6 +6,10 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 ## 2026-11
 
 - mysql: a reprovision with an empty TOASTER_MYSQL_PASS keeps the root password in the jail's /root/.my.cnf (it looked for my.cnf), and stops rather than generate one that does not match existing data
+- haraka: deliver authenticated mail to vpopmail aliases (smtp_forward enable_outbound=true)
+- haraka: defer the second route of an inbound alias + mailbox message (qmail-deliverable split=defer)
+- haraka: create dkim.ini with signing enabled; publish config/dkim/<domain>/dns before reprovisioning
+- haraka: set config/me to the toaster hostname
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
