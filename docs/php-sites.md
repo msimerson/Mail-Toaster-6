@@ -92,9 +92,13 @@ A host name no vhost serves gets the default server's `404`.
 
 ## 6. Route it in haproxy
 
-haproxy sends a request to the right jail by its host name. Add to
-`/data/haproxy/etc/haproxy.conf`, in `frontend http-in` next to the other
-`acl` and `use_backend` lines:
+haproxy sends a request to the right jail by its host name. In
+`/data/haproxy/etc/haproxy.conf`, `frontend http-in`, add the `acl` with the
+other `acl` lines, and the `use_backend` right after
+`use_backend www_webmail if letsencrypt`. haproxy uses the first rule that
+matches: after that one, certificate challenges still reach webmail, and
+ahead of the path rules (`/wiki`, `/wordpress`, ...) all of the site's paths
+reach the site.
 
 ```
 	acl www_example_com hdr(host) -i www.example.com example.com

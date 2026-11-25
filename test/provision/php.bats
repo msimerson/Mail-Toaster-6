@@ -14,35 +14,6 @@ setup() {
   provision_fns php
 }
 
-# --- the jail list ---
-
-@test "php replaces php7 in place, so the jail addresses do not move" {
-  # shellcheck disable=SC2086
-  set -- $JAIL_ORDERED_LIST
-  local _list=" $* "
-  [[ "$_list" == *" joomla php memcached "* ]]
-  [[ "$_list" != *" php7 "* ]]
-  [[ "$_list" != *" sites "* ]]
-}
-
-@test "php has the address php7 had, and its neighbours keep theirs" {
-  run get_jail_ip4 php
-  assert_output "172.16.15.24"
-  run get_jail_ip4 joomla
-  assert_output "172.16.15.23"
-  run get_jail_ip4 memcached
-  assert_output "172.16.15.25"
-  run get_jail_ip4 tachyon
-  assert_output "172.16.15.71"
-}
-
-@test "the jail addresses before php do not move" {
-  run get_jail_ip4 syslog
-  assert_output "172.16.15.1"
-  run get_jail_ip4 mysql
-  assert_output "172.16.15.4"
-}
-
 # --- install ---
 
 @test "install_php_jail installs PHP 8.5 with the requested modules" {
@@ -314,6 +285,14 @@ setup() {
   assert_output --partial "use_backend"
   assert_output --partial "php-fpm -t"
   assert_output --partial "nginx -t -c /data/etc/nginx/nginx.conf"
+}
+
+@test "the guide places a site's haproxy rule after the letsencrypt rule haproxy.sh writes" {
+  run grep -cE '^[[:space:]]*use_backend[[:space:]]+www_webmail[[:space:]]+if[[:space:]]+letsencrypt$' \
+    "$PROVISION_DIR/haproxy.sh"
+  assert_output "1"
+  run cat "$BATS_TEST_DIRNAME/../../docs/php-sites.md"
+  assert_output --partial "use_backend www_webmail if letsencrypt"
 }
 
 @test "the guide takes the php7 jail out of the startup list" {

@@ -19,6 +19,24 @@ _config_in() {
   echo "$MT6_CONF|$TOASTER_HOSTNAME"
 }
 
+# a jail's address is its place in the list
+@test "mt6_defaults - php takes php7's place, so no jail address moves" {
+  mt6_defaults
+  # shellcheck disable=SC2086
+  set -- $JAIL_ORDERED_LIST
+  assert_equal "${23} ${24} ${25}" "joomla php memcached"
+  assert_equal "$#" "71"
+  [[ " $* " != *" php7 "* ]]
+}
+
+@test "mt6_defaults - the provision test stub has the same jail list" {
+  mt6_defaults
+  local _stub
+  _stub=$(sed -n 's/^export JAIL_ORDERED_LIST=\${JAIL_ORDERED_LIST:-"\(.*\)"}$/\1/p' \
+    "$BATS_TEST_DIRNAME/../provision/stubs/mail-toaster.sh")
+  assert_equal "$_stub" "$JAIL_ORDERED_LIST"
+}
+
 @test "mt6_defaults - sets BOURNE_SHELL to bash" {
   unset BOURNE_SHELL
   mt6_defaults
