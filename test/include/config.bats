@@ -19,6 +19,24 @@ _config_in() {
   echo "$MT6_CONF|$TOASTER_HOSTNAME"
 }
 
+# a jail's address is its place in the list
+@test "mt6_defaults - php takes php7's place, so no jail address moves" {
+  mt6_defaults
+  # shellcheck disable=SC2086
+  set -- $JAIL_ORDERED_LIST
+  assert_equal "${23} ${24} ${25}" "joomla php memcached"
+  assert_equal "$#" "71"
+  [[ " $* " != *" php7 "* ]]
+}
+
+@test "mt6_defaults - the provision test stub has the same jail list" {
+  mt6_defaults
+  local _stub
+  _stub=$(sed -n 's/^export JAIL_ORDERED_LIST=\${JAIL_ORDERED_LIST:-"\(.*\)"}$/\1/p' \
+    "$BATS_TEST_DIRNAME/../provision/stubs/mail-toaster.sh")
+  assert_equal "$_stub" "$JAIL_ORDERED_LIST"
+}
+
 @test "mt6_defaults - sets BOURNE_SHELL to bash" {
   unset BOURNE_SHELL
   mt6_defaults
@@ -202,6 +220,60 @@ _config_in() {
   local _tmpdir; _tmpdir=$(mktemp -d)
   printf 'export JAIL_ORDERED_LIST="dns syslog base"\n' > "$_tmpdir/mail-toaster.conf"
   _fix_jail_ordered_list "$_tmpdir/mail-toaster.conf"
+  run test -e "$_tmpdir/mail-toaster.conf.bak"
+  assert_failure
+}
+
+@test "_rename_php7_jail - php7 becomes php, in place" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export TOASTER_HOSTNAME="php7"\nexport JAIL_ORDERED_LIST="syslog base joomla php7 memcached"\n' > "$_tmpdir/mail-toaster.conf"
+  _rename_php7_jail "$_tmpdir/mail-toaster.conf"
+  run grep "^export JAIL_ORDERED_LIST=" "$_tmpdir/mail-toaster.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base joomla php memcached"'
+  run grep "^export TOASTER_HOSTNAME=" "$_tmpdir/mail-toaster.conf"
+  assert_output 'export TOASTER_HOSTNAME="php7"'
+}
+
+@test "_rename_php7_jail - php7 at the ends of the list" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="php7 syslog base"\n' > "$_tmpdir/a.conf"
+  printf 'export JAIL_ORDERED_LIST="syslog base php7"\n' > "$_tmpdir/b.conf"
+  _rename_php7_jail "$_tmpdir/a.conf"
+  _rename_php7_jail "$_tmpdir/b.conf"
+  run cat "$_tmpdir/a.conf"
+  assert_output 'export JAIL_ORDERED_LIST="php syslog base"'
+  run cat "$_tmpdir/b.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base php"'
+}
+
+@test "_rename_php7_jail - a single-quoted list" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf "export JAIL_ORDERED_LIST='syslog base php7'\n" > "$_tmpdir/a.conf"
+  _rename_php7_jail "$_tmpdir/a.conf"
+  run cat "$_tmpdir/a.conf"
+  assert_output "export JAIL_ORDERED_LIST='syslog base php'"
+}
+
+@test "_rename_php7_jail - leaves a list with php, or without php7, alone" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="syslog base php php7x myphp7 dns"\n' > "$_tmpdir/a.conf"
+  printf 'export JAIL_ORDERED_LIST="syslog base php7 php"\n' > "$_tmpdir/b.conf"
+  printf 'export TOASTER_HOSTNAME="x"\n' > "$_tmpdir/c.conf"
+  _rename_php7_jail "$_tmpdir/a.conf"
+  _rename_php7_jail "$_tmpdir/b.conf"
+  _rename_php7_jail "$_tmpdir/c.conf"
+  run cat "$_tmpdir/a.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base php php7x myphp7 dns"'
+  run cat "$_tmpdir/b.conf"
+  assert_output 'export JAIL_ORDERED_LIST="syslog base php7 php"'
+  run cat "$_tmpdir/c.conf"
+  assert_output 'export TOASTER_HOSTNAME="x"'
+}
+
+@test "_rename_php7_jail - leaves no .bak file behind" {
+  local _tmpdir; _tmpdir=$(mktemp -d)
+  printf 'export JAIL_ORDERED_LIST="syslog base php7"\n' > "$_tmpdir/mail-toaster.conf"
+  _rename_php7_jail "$_tmpdir/mail-toaster.conf"
   run test -e "$_tmpdir/mail-toaster.conf.bak"
   assert_failure
 }

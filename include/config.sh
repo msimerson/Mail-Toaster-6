@@ -17,7 +17,7 @@ mt6_defaults()
 	export JAIL_NET_PREFIX=${JAIL_NET_PREFIX:-"172.16.15"}
 	export JAIL_NET_MASK=${JAIL_NET_MASK:-"/19"}
 	export JAIL_NET_INTERFACE=${JAIL_NET_INTERFACE:-"lo1"}
-	export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin foundationdb vpopmail haraka webmail munin haproxy rspamd stalwart dovecot redis geoip nginx mailtest apache postgres minecraft joomla php7 memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman git tachyon"
+	export JAIL_ORDERED_LIST="syslog base dns mysql clamav spamassassin foundationdb vpopmail haraka webmail munin haproxy rspamd stalwart dovecot redis geoip nginx mailtest apache postgres minecraft joomla php memcached sphinxsearch elasticsearch nictool sqwebmail dhcp letsencrypt tinydns roundcube squirrelmail rainloop rsnapshot mediawiki smf wordpress whmcs squirrelcart horde grafana unifi mongodb gitlab gitlab_runner dcc prometheus influxdb telegraf statsd mail_dmarc ghost jekyll borg nagios postfix puppeteer snappymail knot nsd bsd_cache wildduck zonemta centos ubuntu bhyve-ubuntu mailman git tachyon"
 
 	export ZFS_VOL=${ZFS_VOL:-"zroot"}
 	export ZFS_BHYVE_VOL="${ZFS_BHYVE_VOL:-$ZFS_VOL}"
@@ -173,6 +173,24 @@ _fix_jail_ordered_list()
 	rm -f "$1.bak"
 }
 
+# php holds php7's slot and address. A saved list still naming php7 leaves php
+# without an address, and the dns jail naming it php7.
+_rename_php7_jail()
+{
+	local _line
+	_line=$(grep "^export JAIL_ORDERED_LIST=" "$1") || return 0
+
+	case "$_line" in
+		*[\"\'\ ]php[\"\'\ ]*) return 0 ;;
+		*[\"\'\ ]php7[\"\'\ ]*) ;;
+		*) return 0 ;;
+	esac
+
+	echo "renaming php7 to php in JAIL_ORDERED_LIST in $1"
+	sed -i.bak "/^export JAIL_ORDERED_LIST=/ s/\([\"' ]\)php7\([\"' ]\)/\1php\2/" "$1"
+	rm -f "$1.bak"
+}
+
 _migrate_config_to_conf_d()
 {
 	mkdir -p "$(dirname "$1")"
@@ -228,6 +246,7 @@ config()
 	_tighten_config_perms "$MT6_CONF"
 	_add_config_hint "$MT6_CONF"
 	_fix_jail_ordered_list "$MT6_CONF"
+	_rename_php7_jail "$MT6_CONF"
 
 	echo "loading $MT6_CONF"
 	# shellcheck disable=SC1090,SC1091,SC2039
