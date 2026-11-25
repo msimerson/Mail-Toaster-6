@@ -17,9 +17,8 @@ the jail keeps all sites:
 The examples below add `www.example.com`. Run the commands as root on the
 host. Replace the name wherever it appears.
 
-Two sample files, `/data/php/etc/nginx/example.conf.sample` and
-`/data/php/etc/php-fpm.d/example.conf.sample`, hold the same configuration
-with `example.org`. They end in `.sample`, so nothing loads them.
+Steps 3 and 4 copy the samples in `/data/php/etc`, whose comments explain
+their settings. They end in `.sample`, so nothing loads them.
 
 ## 1. DNS
 
@@ -28,10 +27,8 @@ public address, the one haproxy listens on.
 
 ## 2. The site's files
 
-Give each site a uid and gid of its own, one no account uses in the jail or on
-the host: 2001 here, 2002 for the next site. The ids are numeric because a
-reprovision rebuilds the jail's `/etc/passwd`, and PHP-FPM needs no account
-for them.
+Give each site a uid:gid that no account uses in the jail or on the host:
+2001 here, 2002 for the next site.
 
 ```sh
 mkdir -p /data/php/www/www.example.com
@@ -47,43 +44,15 @@ A pool of its own keeps a site's processes, user, `open_basedir`, resource
 limits and logs apart from the other sites.
 
 ```sh
-cat > /data/php/etc/php-fpm.d/www.example.com.conf <<'EOF'
-[www_example_com]
-user = 2001
-group = 2001
-
-listen = /tmp/php-www.example.com.socket
-listen.owner = www
-listen.group = www
-listen.mode = 0660
-
-pm = ondemand
-pm.max_children = 8
-pm.process_idle_timeout = 30s
-
-access.log = /data/log/www.example.com.fpm-access.log
-slowlog = /data/log/www.example.com.fpm-slow.log
-request_slowlog_timeout = 10s
-php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /data/log/www.example.com.php-error.log
-
-php_admin_value[open_basedir] = /data/www/www.example.com:/tmp
-EOF
-
+cd /data/php/etc
+cp php-fpm.d/example.conf.sample php-fpm.d/www.example.com.conf
+cp newsyslog.conf.d/example.conf.sample newsyslog.conf.d/www.example.com.conf
 touch /data/php/log/www.example.com.php-error.log
 chown 2001:2001 /data/php/log/www.example.com.php-error.log
-
-cat > /data/php/etc/newsyslog.conf.d/www.example.com.conf <<'EOF'
-/data/log/www.example.com.php-error.log	2001:2001	644	7	*	@T00	BCX	/var/run/php-fpm.pid	30
-EOF
 ```
 
-PHP writes its error log as the pool's uid, so the file and the newsyslog line
-that recreates it name the same uid:gid as the pool. nginx runs as `www`, so
-the socket stays `www`'s.
-
-The section name (`[www_example_com]`) must be unique among all pools, and
-the `listen` socket must be too.
+In both copies, replace `example.org`, the pool's `example` name and socket,
+and `2001` with the site's.
 
 A site can share the default pool instead: skip this step and use
 `fastcgi_pass php;` in the vhost. The `php` upstream is the default socket,
@@ -93,39 +62,11 @@ that uses it, so its files are `chown 80:80`.
 ## 4. An nginx vhost
 
 ```sh
-cat > /data/php/etc/nginx/server.d/www.example.com.conf <<'EOF'
-server {
-	listen       80;
-	server_name  www.example.com example.com;
-
-	access_log  /data/log/www.example.com.access.log;
-	error_log   /data/log/www.example.com.error.log;
-
-	root   /data/www/www.example.com;
-	index  index.php index.html;
-
-	location / {
-		try_files $uri $uri/ /index.php?$args;
-	}
-
-	location ~ \.php$ {
-		include        /data/etc/nginx/fastcgi_site.conf;
-		fastcgi_pass   unix:/tmp/php-www.example.com.socket;
-	}
-
-	location ~ /\.ht {
-		deny  all;
-	}
-}
-EOF
+cd /data/php/etc/nginx
+cp example.conf.sample server.d/www.example.com.conf
 ```
 
-The jail has no IPv6 address unless the toaster does. If it has one, add
-`listen [::]:80;` as well.
-
-`fastcgi_site.conf` includes the stock FastCGI parameters and sets
-`HTTPS=on` when haproxy passed `X-Forwarded-Proto: https`, so PHP applications
-know they were reached over TLS. Always include it in a PHP location.
+Replace `example.org` with the site's names, and the socket with its pool's.
 
 ## 5. Check and load the configuration
 
@@ -209,28 +150,8 @@ To see what PHP is told, put this in the docroot, request it, and delete it:
 
 ## Logs
 
-Each site has its own logs in `/data/php/log/`, next to the jail's default
-ones:
-
-| File                              | Written by                     |
-| --------------------------------- | ------------------------------ |
-| `<site>.access.log`, `<site>.error.log` | nginx                    |
-| `<site>.fpm-access.log`           | the site's PHP-FPM pool        |
-| `<site>.fpm-slow.log`             | the pool, for slow requests    |
-| `<site>.php-error.log`            | PHP, as the pool's user, errors and warnings |
-| `access_log`, `error_log`         | nginx, for hosts no site claims |
-| `php-fpm.log`                     | PHP-FPM itself                 |
-
-newsyslog rotates the site files nightly and keeps 7. Patterns in
-`/etc/newsyslog.conf.d/php-sites.conf` catch `*.access.log`, `*.error.log`,
-`*.fpm-access.log` and `*.fpm-slow.log`, so a new site's logs of these kinds
-are picked up without more configuration, as long as they use these names.
-
-`<site>.php-error.log` is different: PHP writes it as the pool's user, and
-newsyslog recreates a rotated file as the owner named in its line. Each site
-has a line of its own in `/data/php/etc/newsyslog.conf.d/<site>.conf` (step 3),
-which the jail's newsyslog includes. The sample,
-`/data/php/etc/newsyslog.conf.d/example.conf.sample`, shows it.
+A site's logs are in `/data/php/log/`, under the names its vhost and pool give
+them. The jail's `/etc/newsyslog.conf.d/php-sites.conf` rotates them.
 
 ## Mail from a site
 

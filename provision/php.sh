@@ -137,13 +137,15 @@ server {
 EO_SAMPLE_VHOST
 
 	store_config "$_etc/php-fpm.d/example.conf.sample" "update" <<'EO_SAMPLE_POOL'
-; A pool. Copy to example.conf, edit, and restart php-fpm.
+; A pool. Copy to <site>.conf, edit, and restart php-fpm. The [name] and the
+; socket are unique to each pool.
 [example]
 ; a uid:gid per site, numeric: a reprovision rebuilds the jail's /etc/passwd
 user = 2001
 group = 2001
 
 listen = /tmp/php-example.socket
+; nginx runs as www
 listen.owner = www
 listen.group = www
 listen.mode = 0660

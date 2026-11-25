@@ -301,23 +301,22 @@ setup() {
   assert_output --partial "nginx -t -c /data/etc/nginx/nginx.conf"
 }
 
-@test "the documented site config uses the log names that newsyslog rotates" {
+@test "the guide copies the samples the provisioner writes" {
+  configure_php_jail_logs
+  configure_php_jail_samples
   local _doc="$BATS_TEST_DIRNAME/../../docs/php-sites.md"
   run cat "$_doc"
-  assert_output --partial "/data/log/www.example.com.access.log"
-  assert_output --partial "/data/log/www.example.com.error.log"
-  assert_output --partial "/data/log/www.example.com.fpm-access.log"
-  assert_output --partial "/data/log/www.example.com.fpm-slow.log"
-  assert_output --partial "/data/log/www.example.com.php-error.log"
+  assert_output --partial "cp php-fpm.d/example.conf.sample php-fpm.d/www.example.com.conf"
+  assert_output --partial "cp newsyslog.conf.d/example.conf.sample newsyslog.conf.d/www.example.com.conf"
+  assert_output --partial "cp example.conf.sample server.d/www.example.com.conf"
+  [ -f "$ZFS_DATA_MNT/php/etc/php-fpm.d/example.conf.sample" ]
+  [ -f "$ZFS_DATA_MNT/php/etc/newsyslog.conf.d/example.conf.sample" ]
+  [ -f "$ZFS_DATA_MNT/php/etc/nginx/example.conf.sample" ]
 }
 
-@test "the guide gives a site's pool, files and PHP error log one uid:gid" {
+@test "the guide gives a site's files and PHP error log its uid:gid" {
   local _doc="$BATS_TEST_DIRNAME/../../docs/php-sites.md"
   run cat "$_doc"
   assert_output --partial "chown -R 2001:2001 /data/php/www/www.example.com"
-  assert_line "user = 2001"
-  assert_line "group = 2001"
   assert_output --partial "chown 2001:2001 /data/php/log/www.example.com.php-error.log"
-  assert_output --partial "/data/php/etc/newsyslog.conf.d/www.example.com.conf"
-  assert_output --regexp '/data/log/www\.example\.com\.php-error\.log[[:space:]]+2001:2001'
 }
