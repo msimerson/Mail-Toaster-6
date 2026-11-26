@@ -28,9 +28,18 @@ install_letsencrypt()
 	fi
 }
 
+# "update" replaces a hook that matches its last generated copy. An edited hook
+# stays, and may still write the private key to /tmp/<domain>.pem.
+warn_tmp_key_hook()
+{
+	if grep -qF '/tmp/${_cdomain}.pem' "$1"; then
+		tell_status "WARNING: $1 is edited and writes the private key to /tmp/<domain>.pem, use install_pem from provision/letsencrypt.sh"
+	fi
+}
+
 install_deploy_haproxy()
 {
-	store_config "$_deploy/haproxy" <<'EO_LE_HAPROXY'
+	store_config "$_deploy/haproxy" "update" <<'EO_LE_HAPROXY'
 #!/bin/sh
 
 has_differences() {
@@ -62,6 +71,28 @@ install_file() {
 	return 0
 }
 
+# returns 0 installed, 3 unchanged, 1 failed; the temp file holds the private key
+install_pem() {
+	local _tmp _rc
+	_tmp=$(umask 077; mktemp "/tmp/le-deploy.XXXXXX") || {
+		_err "unable to create a temp file"
+		return 1
+	}
+
+	# a key or chain that cannot be read must not install a partial file
+	if ! cat "$1" "$2" > "$_tmp" || [ ! -s "$_tmp" ]; then
+		_err "Unable to create $_tmp"
+		_rc=1
+	elif has_differences "$_tmp" "$3"; then
+		install_file "$_tmp" "$3" && _rc=0 || _rc=1
+	else
+		_rc=3
+	fi
+
+	rm -f "$_tmp"
+	return $_rc
+}
+
 #returns 0 means success, otherwise error.
 
 #domain keyfile certfile cafile fullchain
@@ -88,25 +119,23 @@ haproxy_deploy() {
 		return 0
 	fi
 
-	local _tmp="/tmp/${_cdomain}.pem"
-	cat "$_ckey" "$_cfullchain" > "$_tmp"
-	if [ ! -s "$_tmp" ]; then
-		_err "Unable to create $_tmp"
-		return 1
-	fi
-
-	_debug "$_tmp created"
 	local _installed="$_tls_dir/$_cdomain.pem"
-	has_differences "$_tmp" "$_installed" || return 0
-	install_file "$_tmp" "$_installed" || return 1
+	local _pem_rc=0
+	install_pem "$_ckey" "$_cfullchain" "$_installed" || _pem_rc=$?
+	case $_pem_rc in
+		0) ;;
+		3) return 0 ;;
+		*) return 1 ;;
+	esac
+
 	install_file "$_cca" "${_installed}.issuer"
 
-	rm "$_tmp"
 	_debug "restarting haproxy"
 	jexec haproxy service haproxy reload
 	return 0
 }
 EO_LE_HAPROXY
+	warn_tmp_key_hook "$_deploy/haproxy"
 }
 
 install_deploy_dovecot()
@@ -192,7 +221,7 @@ EO_LE_DOVECOT
 
 install_deploy_haraka()
 {
-	store_config "$_deploy/haraka" <<EO_LE_HARAKA
+	store_config "$_deploy/haraka" "update" <<EO_LE_HARAKA
 #!/bin/sh
 
 assure_file() {
@@ -234,6 +263,28 @@ install_file() {
 	return 0
 }
 
+# returns 0 installed, 3 unchanged, 1 failed; the temp file holds the private key
+install_pem() {
+	local _tmp _rc
+	_tmp=\$(umask 077; mktemp "/tmp/le-deploy.XXXXXX") || {
+		_err "unable to create a temp file"
+		return 1
+	}
+
+	# a key or chain that cannot be read must not install a partial file
+	if ! cat "\$1" "\$2" > "\$_tmp" || [ ! -s "\$_tmp" ]; then
+		_err "Unable to create \$_tmp"
+		_rc=1
+	elif has_differences "\$_tmp" "\$3"; then
+		install_file "\$_tmp" "\$3" && _rc=0 || _rc=1
+	else
+		_rc=3
+	fi
+
+	rm -f "\$_tmp"
+	return \$_rc
+}
+
 #returns 0 means success, otherwise error.
 
 #domain keyfile certfile cafile fullchain
@@ -253,14 +304,14 @@ haraka_deploy() {
 	fi
 
 	if [ -d "\$_h_conf/tls" ]; then
-		local _tmp="/tmp/\${_cdomain}.pem"
-		cat \$_ckey \$_cfullchain > \$_tmp
-		assure_file "\$_tmp" || return 1
-
 		local _installed="\$_h_conf/tls/\${_cdomain}.pem"
-		has_differences "\$_tmp" "\$_installed" || return 0
-		install_file "\$_tmp" "\$_installed" || return 1
-		rm \$_tmp
+		local _pem_rc=0
+		install_pem "\$_ckey" "\$_cfullchain" "\$_installed" || _pem_rc=\$?
+		case \$_pem_rc in
+			0) ;;
+			3) return 0 ;;
+			*) return 1 ;;
+		esac
 
 		if [ "\$_cdomain" = "$TOASTER_HOSTNAME" ]; then
 			install_file "\$_ckey" "\$_h_conf/tls_key.pem" || return 1
@@ -278,6 +329,7 @@ haraka_deploy() {
 	return 0
 }
 EO_LE_HARAKA
+	warn_tmp_key_hook "$_deploy/haraka"
 }
 
 install_deploy_postfix()

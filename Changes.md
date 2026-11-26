@@ -5,6 +5,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 
 ## 2026-11
 
+- letsencrypt: haproxy and haraka hooks keep the private key out of a predictable /tmp file; an unedited installed hook is replaced, an edited one is warned about
 - php: replaces php7, nginx + PHP-FPM for many sites
 - mysql: a reprovision with an empty TOASTER_MYSQL_PASS keeps the root password in the jail's /root/.my.cnf (it looked for my.cnf), and stops rather than generate one that does not match existing data
 - haraka: deliver authenticated mail to vpopmail aliases (smtp_forward enable_outbound=true)
