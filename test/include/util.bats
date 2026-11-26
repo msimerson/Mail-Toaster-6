@@ -419,6 +419,46 @@ _mt6_wrote() { printf '%s\n' "$2" > "$1"; printf '%s\n' "$2" > "$1.mt6"; }
   assert_output "from last"
 }
 
+@test "preserve_config_dir - ignores a directory that a symlink moves outside the jail" {
+  _cfg_dirs
+  rm -r "$ZFS_JAIL_MNT/svc"
+  mkdir -p "$ZFS_JAIL_MNT/svc/etc" "$BATS_TEST_TMPDIR/outside/local.d"
+  echo "secret" > "$BATS_TEST_TMPDIR/outside/local.d/leak.conf"
+  ln -s "$BATS_TEST_TMPDIR/outside" "$ZFS_JAIL_MNT/svc/etc/svc"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  [ ! -e "$_stage/leak.conf" ]
+}
+
+@test "preserve_config_dir - a symlinked directory falls back to the previous jail" {
+  _cfg_dirs
+  rm -r "$ZFS_JAIL_MNT/svc"
+  mkdir -p "$ZFS_JAIL_MNT/svc/etc" "$BATS_TEST_TMPDIR/outside/local.d" \
+    "$ZFS_JAIL_MNT/svc.last/etc/svc/local.d"
+  echo "secret" > "$BATS_TEST_TMPDIR/outside/local.d/leak.conf"
+  ln -s "$BATS_TEST_TMPDIR/outside" "$ZFS_JAIL_MNT/svc/etc/svc"
+  echo "from last" > "$ZFS_JAIL_MNT/svc.last/etc/svc/local.d/b.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  [ ! -e "$_stage/leak.conf" ]
+  run cat "$_stage/b.conf"
+  assert_output "from last"
+}
+
+@test "preserve_config_dir - works when the jail mount point is itself a symlink" {
+  _cfg_dirs
+  ln -s "$ZFS_JAIL_MNT" "$BATS_TEST_TMPDIR/jails-link"
+  export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails-link"
+  echo "mine" > "$_live/a.conf"
+
+  preserve_config_dir svc /etc/svc/local.d
+
+  run cat "$_stage/a.conf"
+  assert_output "mine"
+}
+
 @test "preserve_config_dir - is a no-op without a running jail" {
   export ZFS_JAIL_MNT="$BATS_TEST_TMPDIR/jails"
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage"

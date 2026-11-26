@@ -95,7 +95,7 @@ setup() {
   configure_logging() { echo write >> "$_order"; }
   configure_redis() { :; }; configure_dmarc() { :; }; configure_stats() { :; }
   configure_dcc() { :; }; configure_enable() { :; }; configure_phishing() { :; }
-  configure_rbl() { :; }; configure_virus_total() { :; }; configure_metadefender() { :; }
+  configure_rbl() { :; }; configure_antivirus() { :; }
   configure_worker() { :; }; configure_controller() { :; }
   export STAGE_MNT="$BATS_TEST_TMPDIR/stage-order"
   RSPAMD_ETC="$STAGE_MNT/usr/local/etc/rspamd"
@@ -159,7 +159,7 @@ _rspamd_live() {
   assert_output "enabled = true;"
 }
 
-@test "rspamd - configure_dmarc does not append to dmarc.conf on every run" {
+@test "rspamd - configure_dmarc writes dmarc.conf once across reprovisions" {
   _rspamd_live
   export TOASTER_MTA="haraka" TOASTER_ORG_NAME="Org" TOASTER_MAIL_DOMAIN="example.com" \
     TOASTER_ADMIN_EMAIL="postmaster@example.com"
@@ -187,4 +187,60 @@ _rspamd_live() {
 
   run cat "$RSPAMD_ETC/local.d/dmarc.conf"
   assert_output "send_reports = false;"
+}
+
+# the stage becomes the live jail, and a new stage is built from it
+_reprovision() {
+  rm -rf "${ZFS_JAIL_MNT:?}/rspamd"
+  mkdir -p "$ZFS_JAIL_MNT/rspamd"
+  cp -Rp "$STAGE_MNT/usr" "$ZFS_JAIL_MNT/rspamd/"
+  rm -rf "$STAGE_MNT/usr"
+  mkdir -p "$RSPAMD_ETC/local.d"
+  preserve_rspamd_config
+}
+
+@test "rspamd - configure_antivirus writes each scanner once across reprovisions" {
+  _rspamd_live
+  export VIRUSTOTAL_API_KEY="vt-key" METADEFENDER_API_KEY="md-key"
+  mkdir -p "$RSPAMD_ETC/local.d"
+
+  local _i
+  for _i in 1 2 3; do
+    configure_antivirus
+    _reprovision
+  done
+  configure_antivirus
+
+  run grep -c "^virustotal {" "$RSPAMD_ETC/local.d/antivirus.conf"
+  assert_output "1"
+  run grep -c "^metadefender {" "$RSPAMD_ETC/local.d/antivirus.conf"
+  assert_output "1"
+}
+
+@test "rspamd - configure_antivirus keeps an edited antivirus.conf, once" {
+  _rspamd_live
+  export VIRUSTOTAL_API_KEY="vt-key" METADEFENDER_API_KEY=""
+  mkdir -p "$RSPAMD_ETC/local.d"
+
+  configure_antivirus
+  echo "# tuned" >> "$RSPAMD_ETC/local.d/antivirus.conf"
+  _reprovision
+  configure_antivirus
+  _reprovision
+  configure_antivirus
+
+  run grep -c "^virustotal {" "$RSPAMD_ETC/local.d/antivirus.conf"
+  assert_output "1"
+  run grep -c "# tuned" "$RSPAMD_ETC/local.d/antivirus.conf"
+  assert_output "1"
+}
+
+@test "rspamd - configure_antivirus writes nothing without a key" {
+  _rspamd_live
+  export VIRUSTOTAL_API_KEY="" METADEFENDER_API_KEY=""
+  mkdir -p "$RSPAMD_ETC/local.d"
+
+  configure_antivirus
+
+  [ ! -e "$RSPAMD_ETC/local.d/antivirus.conf" ]
 }

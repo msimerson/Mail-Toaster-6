@@ -224,11 +224,16 @@ preserve_config_dir()
 	local _jail_name=$1 _dir=$2
 	local _src="" _j
 
+	local _real _root
 	for _j in "$_jail_name" "${_jail_name}.last"; do
-		if [ -d "$ZFS_JAIL_MNT/$_j$_dir" ]; then
-			_src="$ZFS_JAIL_MNT/$_j$_dir"
-			break
-		fi
+		_real=$(cd "$ZFS_JAIL_MNT/$_j$_dir" 2>/dev/null && pwd -P) || continue
+		_root=$(cd "$ZFS_JAIL_MNT/$_j" && pwd -P) || continue
+
+		# a symlink in the jail must not pull in files from outside it
+		case "$_real" in
+			"$_root"/*) _src="$_real"; break ;;
+			*) tell_status "ignoring $ZFS_JAIL_MNT/$_j$_dir, it resolves outside the jail" ;;
+		esac
 	done
 	[ -n "$_src" ] || return 0
 

@@ -173,14 +173,14 @@ redirector_hosts_map = "/usr/local/etc/rspamd/redirectors.inc";
 EO_RBL
 }
 
-configure_virus_total()
+virus_total_conf()
 {
 	if [ -z "$VIRUSTOTAL_API_KEY" ]; then
-		tell_status "skipping, VIRUSTOTAL_API_KEY not set"
-		return;
+		tell_status "skipping, VIRUSTOTAL_API_KEY not set" >&2
+		return
 	fi
 
-	store_config "$RSPAMD_ETC/local.d/antivirus.conf" "append" <<EO_AV
+	cat <<EO_AV
 virustotal {
   apikey = "$VIRUSTOTAL_API_KEY";
   #url = 'https://www.virustotal.com/vtapi/v2/file';
@@ -190,14 +190,14 @@ virustotal {
 EO_AV
 }
 
-configure_metadefender()
+metadefender_conf()
 {
 	if [ -z "$METADEFENDER_API_KEY" ]; then
-		tell_status "skipping, METADEFENDER_API_KEY not set"
-		return;
+		tell_status "skipping, METADEFENDER_API_KEY not set" >&2
+		return
 	fi
 
-	store_config "$RSPAMD_ETC/local.d/antivirus.conf" "append" <<EO_MD
+	cat <<EO_MD
 metadefender {
   apikey = "$METADEFENDER_API_KEY";
   symbol = "METADEFENDER";
@@ -242,6 +242,16 @@ metadefender {
   # message = '${SCANNER}: virus found: "${VIRUS}"';
 }
 EO_MD
+}
+
+# one file from every scanner with a key: store_config keeps one shadow per file
+configure_antivirus()
+{
+	local _conf
+	_conf="$(virus_total_conf; metadefender_conf)"
+	[ -n "$_conf" ] || return 0
+
+	printf '%s\n' "$_conf" | store_config "$RSPAMD_ETC/local.d/antivirus.conf"
 }
 
 configure_worker()
@@ -301,8 +311,7 @@ configure_rspamd()
 	configure_enable url_reputation
 	configure_enable url_tags
 	configure_rbl
-	configure_virus_total
-	configure_metadefender
+	configure_antivirus
 	configure_worker
 	configure_controller
 

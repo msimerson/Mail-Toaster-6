@@ -12,7 +12,7 @@ refer to [https://github.com/msimerson/Mail-Toaster-6/commits/master](https://gi
 - haraka: defer the second route of an inbound alias + mailbox message (qmail-deliverable split=defer)
 - haraka: create dkim.ini with signing enabled; publish config/dkim/<domain>/dns before reprovisioning
 - haraka: set config/me to the toaster hostname
-- rspamd: a reprovision keeps the admin's edits in local.d, override.d, maps.d, rspamd.conf.local* and rspamd.local.lua; mxcheck, url_* and dmarc.conf go through store_config
+- rspamd: keep the admin's config across a reprovision
 - mariadb: upgrade to 12.3 LTS, snapshot data before the upgrade, run mariadb-upgrade
 - mysql: drop innodb_file_per_table and innodb_checksum_algorithm=none from extra.cnf
 - clamav: unofficial sigs install gsed, which the script requires on FreeBSD
