@@ -515,9 +515,12 @@ EOF
 
 # --- jails that send mail may relay ---
 
-# the jail list names the web jail php7 or php, depending on the release
-relay_jails() { HARAKA_RELAY_JAILS="${1-"$(get_web_jail) wordpress"}"; }
-get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo php7 ;; esac; }
+# $1 overrides the jails, all of which are provisioned
+relay_jails() {
+  HARAKA_RELAY_JAILS="${1-"php wordpress"}"
+  local _j
+  for _j in $HARAKA_RELAY_JAILS; do mkdir -p "$ZFS_JAIL_MNT/$_j"; done
+}
 
 @test "configure_haraka_relay enables the relay plugin first, with the ACL on" {
   printf '# syslog\nconnect.p0f\nspf\n' > "$HARAKA_CONF/plugins"
@@ -542,7 +545,7 @@ get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo p
 
   run cat "$HARAKA_CONF/relay_acl_allow"
   assert_success
-  assert_line "$(get_jail_ip4 "$(get_web_jail)")/32"
+  assert_line "$(get_jail_ip4 php)/32"
   assert_line "$(get_jail_ip4 wordpress)/32"
   refute_output --partial "$(get_jail_ip4 haraka)"
   refute_output --partial "172.16.15.0/"
@@ -555,8 +558,8 @@ get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo p
   configure_haraka_relay
 
   run cat "$HARAKA_CONF/relay_acl_allow"
-  assert_line "$(get_jail_ip6 "$(get_web_jail)")/128"
-  assert_line "$(get_jail_ip4 "$(get_web_jail)")/32"
+  assert_line "$(get_jail_ip6 php)/128"
+  assert_line "$(get_jail_ip4 php)/32"
 }
 
 @test "HARAKA_RELAY_JAILS picks the jails" {
@@ -568,12 +571,24 @@ get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo p
   assert_output "$(get_jail_ip4 joomla)/32"
 }
 
-@test "the default jails need not all exist" {
+@test "configure_haraka_relay skips a jail that is not provisioned" {
   unset PUBLIC_IP6
-  JAIL_ORDERED_LIST="syslog base haraka wordpress"
   HARAKA_RELAY_JAILS="php wordpress"
-  run configure_haraka_relay
-  assert_success
+  mkdir -p "$ZFS_JAIL_MNT/wordpress"
+
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_output "$(get_jail_ip4 wordpress)/32"
+}
+
+@test "configure_haraka_relay skips a name outside JAIL_ORDERED_LIST, whatever DNS says" {
+  unset PUBLIC_IP6
+  relay_jails "wordpress elsewhere"
+  eval "$(declare -f get_jail_ip4 | sed '1s/get_jail_ip4/list_get_jail_ip4/')"
+  get_jail_ip4() { if [ "$1" = elsewhere ]; then echo "192.0.2.99"; else list_get_jail_ip4 "$1"; fi; }
+
+  configure_haraka_relay
 
   run cat "$HARAKA_CONF/relay_acl_allow"
   assert_output "$(get_jail_ip4 wordpress)/32"
@@ -598,7 +613,6 @@ get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo p
   _p=$(cat "$HARAKA_CONF/plugins"); _i=$(cat "$HARAKA_CONF/relay.ini")
   _a=$(cat "$HARAKA_CONF/relay_acl_allow")
 
-  relay_jails
   configure_haraka_relay
   [ "$_p" = "$(cat "$HARAKA_CONF/plugins")" ]
   [ "$_i" = "$(cat "$HARAKA_CONF/relay.ini")" ]
@@ -610,10 +624,63 @@ get_web_jail() { case " $JAIL_ORDERED_LIST " in *" php "*) echo php ;; *) echo p
   printf '192.0.2.7/32\n' > "$HARAKA_CONF/relay_acl_allow"
   relay_jails
   configure_haraka_relay
+  configure_haraka_relay
 
   run cat "$HARAKA_CONF/relay_acl_allow"
   assert_line "192.0.2.7/32"
-  assert_line "$(get_jail_ip4 "$(get_web_jail)")/32"
+  assert_line "$(get_jail_ip4 php)/32"
+}
+
+@test "configure_haraka_relay does not duplicate an entry the admin already made" {
+  unset PUBLIC_IP6
+  printf '%s/32\n' "$(get_jail_ip4 php)" > "$HARAKA_CONF/relay_acl_allow"
+  relay_jails
+  configure_haraka_relay
+
+  run grep -c "$(get_jail_ip4 php)/32" "$HARAKA_CONF/relay_acl_allow"
+  assert_output "1"
+}
+
+@test "configure_haraka_relay removes the entry of a jail that left HARAKA_RELAY_JAILS" {
+  unset PUBLIC_IP6
+  relay_jails
+  printf '192.0.2.7/32\n' >> "$HARAKA_CONF/relay_acl_allow"
+  configure_haraka_relay
+
+  relay_jails php
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_line "$(get_jail_ip4 php)/32"
+  assert_line "192.0.2.7/32"
+  refute_output --partial "$(get_jail_ip4 wordpress)"
+}
+
+@test "configure_haraka_relay replaces the entry of a jail that moved" {
+  unset PUBLIC_IP6
+  relay_jails php
+  configure_haraka_relay
+  local _old; _old="$(get_jail_ip4 php)/32"
+
+  JAIL_ORDERED_LIST="syslog base newjail $JAIL_ORDERED_LIST"
+  configure_haraka_relay
+
+  run cat "$HARAKA_CONF/relay_acl_allow"
+  assert_line "$(get_jail_ip4 php)/32"
+  refute_line "$_old"
+}
+
+@test "configure_haraka_relay removes the IPv6 entries when the host loses its address" {
+  export PUBLIC_IP6="2001:db8::1"
+  relay_jails php
+  configure_haraka_relay
+  run grep -c ":" "$HARAKA_CONF/relay_acl_allow"
+  assert_output "1"
+
+  unset PUBLIC_IP6
+  configure_haraka_relay
+  run grep -c ":" "$HARAKA_CONF/relay_acl_allow"
+  assert_output "0"
 }
 
 @test "configure_haraka_relay turns on an acl that is off or commented out" {

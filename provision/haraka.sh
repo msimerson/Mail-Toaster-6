@@ -201,28 +201,54 @@ port=25
 }
 
 # dma in a jail relays through $TOASTER_MSA (include/mta.sh). Haraka refuses to
-# relay for a client it does not know. Allow these jails, not the jail network:
-# a compromised site is then held to the limit plugin's rates.
+# relay for a client it does not know, so allow these jails, not the jail
+# network. The connection of a relaying client skips every connect hook after
+# the relay plugin, limit's concurrency and connection-rate checks included.
+# Only limit's rcpt checks (rate_rcpt_sender, rate_rcpt, max_recipients, as set
+# in limit.ini) still apply, unless an earlier rcpt hook returns OK.
 HARAKA_RELAY_JAILS=${HARAKA_RELAY_JAILS:-"php wordpress"}
 
+# The addresses of the provisioned jails in HARAKA_RELAY_JAILS. get_jail_ip4
+# answers for every name in JAIL_ORDERED_LIST, and asks DNS for any other.
+haraka_relay_addresses()
+{
+	local _jail
+	for _jail in $HARAKA_RELAY_JAILS; do
+		case " $JAIL_ORDERED_LIST " in *" $_jail "*) ;; *) continue ;; esac
+		[ -d "$ZFS_JAIL_MNT/$_jail" ] || continue
+
+		echo "$(get_jail_ip4 "$_jail")/32"
+		# dma connects over IPv6 when the jail has an address
+		if jail_has_ip6; then echo "$(get_jail_ip6 "$_jail")/128"; fi
+	done
+}
+
+# The ACL is the admin's lines plus MT6's. The shadow lists what MT6 wrote last
+# time, so an entry for a jail that left HARAKA_RELAY_JAILS, or moved, goes.
 haraka_relay_allow()
 {
 	local _acl="$HARAKA_CONF/relay_acl_allow"
-	local _jail _addr
+	local _shadow="$_acl.mt6"
+	local _want _kept="" _line
 
-	touch "$_acl"
-	for _jail in $HARAKA_RELAY_JAILS; do
-		# not every default jail exists
-		_addr=$(get_jail_ip4 "$_jail" 2>/dev/null) || continue
-		_addr="$_addr/32"
-		grep -qxF "$_addr" "$_acl" || echo "$_addr" >> "$_acl"
+	_want=$(haraka_relay_addresses)
 
-		# dma connects over IPv6 when the jail has an address
-		if jail_has_ip6; then
-			_addr="$(get_jail_ip6 "$_jail")/128"
-			grep -qxF "$_addr" "$_acl" || echo "$_addr" >> "$_acl"
-		fi
+	if [ -f "$_acl" ]; then
+		while IFS= read -r _line; do
+			if [ -f "$_shadow" ] && grep -qxF "$_line" "$_shadow"; then continue; fi
+			_kept="$_kept$_line
+"
+		done < "$_acl"
+	fi
+
+	for _line in $_want; do
+		if printf '%s' "$_kept" | grep -qxF "$_line"; then continue; fi
+		_kept="$_kept$_line
+"
 	done
+
+	printf '%s' "$_kept" > "$_acl"
+	printf '%s\n' "$_want" > "$_shadow"
 }
 
 configure_haraka_relay()
