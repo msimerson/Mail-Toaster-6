@@ -200,6 +200,87 @@ port=25
 	haraka_ini_default smtp_forward.ini enable_outbound true
 }
 
+# dma in a jail relays through $TOASTER_MSA (include/mta.sh). Haraka refuses to
+# relay for a client it does not know, so allow these jails, not the jail
+# network. The connection of a relaying client skips every connect hook after
+# the relay plugin, limit's concurrency and connection-rate checks included.
+# Only limit's rcpt checks (rate_rcpt_sender, rate_rcpt, max_recipients, as set
+# in limit.ini) still apply, unless an earlier rcpt hook returns OK.
+HARAKA_RELAY_JAILS=${HARAKA_RELAY_JAILS:-"php wordpress"}
+
+# The addresses of the provisioned jails in HARAKA_RELAY_JAILS. get_jail_ip4
+# answers for every name in JAIL_ORDERED_LIST, and asks DNS for any other.
+haraka_relay_addresses()
+{
+	local _jail
+	for _jail in $HARAKA_RELAY_JAILS; do
+		case " $JAIL_ORDERED_LIST " in *" $_jail "*) ;; *) continue ;; esac
+		[ -d "$ZFS_JAIL_MNT/$_jail" ] || continue
+
+		echo "$(get_jail_ip4 "$_jail")/32"
+		# dma connects over IPv6 when the jail has an address
+		if jail_has_ip6; then echo "$(get_jail_ip6 "$_jail")/128"; fi
+	done
+}
+
+# The ACL is the admin's lines plus MT6's. The shadow lists what MT6 wrote last
+# time, so an entry for a jail that left HARAKA_RELAY_JAILS, or moved, goes.
+haraka_relay_allow()
+{
+	local _acl="$HARAKA_CONF/relay_acl_allow"
+	local _shadow="$_acl.mt6"
+	local _want _kept="" _line
+
+	_want=$(haraka_relay_addresses)
+
+	if [ -f "$_acl" ]; then
+		while IFS= read -r _line; do
+			if [ -f "$_shadow" ] && grep -qxF "$_line" "$_shadow"; then continue; fi
+			_kept="$_kept$_line
+"
+		done < "$_acl"
+	fi
+
+	for _line in $_want; do
+		if printf '%s' "$_kept" | grep -qxF "$_line"; then continue; fi
+		_kept="$_kept$_line
+"
+	done
+
+	printf '%s' "$_kept" > "$_acl"
+	printf '%s\n' "$_want" > "$_shadow"
+}
+
+configure_haraka_relay()
+{
+	if [ -z "$HARAKA_RELAY_JAILS" ]; then return; fi
+
+	tell_status "allowing jails to relay: $HARAKA_RELAY_JAILS"
+
+	# before the connect plugins, which need to know a relaying client
+	if ! grep -qs '^relay$' "$HARAKA_CONF/plugins"; then
+		local _tmp; _tmp=$(mktemp) || exit 1
+		{ echo relay; cat "$HARAKA_CONF/plugins"; } > "$_tmp" || exit 1
+		cat "$_tmp" > "$HARAKA_CONF/plugins"
+		rm -f "$_tmp"
+	fi
+
+	local _ini="$HARAKA_CONF/relay.ini"
+	if [ ! -f "$_ini" ]; then
+		printf '[relay]\nacl=true\n' > "$_ini"
+	elif grep -q '^[;# ]*acl[[:space:]]*=' "$_ini"; then
+		sed_inplace -e 's/^[;# ]*acl[[:space:]]*=.*/acl=true/' "$_ini"
+	elif grep -q '^\[relay\]' "$_ini"; then
+		sed_inplace -e '/^\[relay\]/a\
+acl=true
+' "$_ini"
+	else
+		printf '\n[relay]\nacl=true\n' >> "$_ini"
+	fi
+
+	haraka_relay_allow
+}
+
 configure_haraka_vpopmail()
 {
 	if [ ! -f "$HARAKA_CONF/auth_vpopmaild.ini" ]; then
@@ -735,6 +816,7 @@ configure_haraka()
 	configure_haraka_syslog
 	configure_haraka_vpopmail
 	configure_haraka_smtp_forward
+	configure_haraka_relay
 	configure_haraka_qmail_deliverable
 	configure_haraka_dnsbl
 
