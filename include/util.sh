@@ -214,6 +214,47 @@ preserve_file()
 	fi
 }
 
+# Carry an admin's changes in $2, a directory of the running jail (or jail.last),
+# to the stage. store_config then leaves a carried file alone.
+#   shadow, file differs   carried
+#   shadow, file equal     skipped: the default is regenerated from the template
+#   no shadow              carried, unless the stage has it: the package's file wins
+preserve_config_dir()
+{
+	local _jail_name=$1 _dir=$2
+	local _src="" _j
+
+	local _real _root
+	for _j in "$_jail_name" "${_jail_name}.last"; do
+		_real=$(cd "$ZFS_JAIL_MNT/$_j$_dir" 2>/dev/null && pwd -P) || continue
+		_root=$(cd "$ZFS_JAIL_MNT/$_j" && pwd -P) || continue
+
+		# a symlink in the jail must not pull in files from outside it
+		case "$_real" in
+			"$_root"/*) _src="$_real"; break ;;
+			*) tell_status "ignoring $ZFS_JAIL_MNT/$_j$_dir, it resolves outside the jail" ;;
+		esac
+	done
+	[ -n "$_src" ] || return 0
+
+	find "$_src" -type f ! -name '*.mt6' | while IFS= read -r _f; do
+		local _rel="${_f#"$_src"/}"
+		local _dst="$STAGE_MNT$_dir/$_rel"
+
+		if [ -f "$_f.mt6" ]; then
+			cmp -s "$_f" "$_f.mt6" && continue
+			tell_status "preserving edited $_dir/$_rel"
+		elif [ -e "$_dst" ]; then
+			continue
+		else
+			tell_status "preserving $_dir/$_rel"
+		fi
+
+		mkdir -p "$(dirname "$_dst")" || exit 1
+		cp -p "$_f" "$_dst" || exit 1
+	done || return 1
+}
+
 reverse_list()
 {
 	local _rev_list=""

@@ -171,6 +171,7 @@ store_config() {
 }
 store_exec()               { cat - > /dev/null; }
 preserve_file()            { :; }
+preserve_config_dir()      { :; }
 configure_pkg_latest()     { :; }
 enable_bsd_cache()         { :; }
 get_random_pass()          { echo "testpassword14x"; }

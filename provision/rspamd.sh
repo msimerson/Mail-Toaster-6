@@ -71,7 +71,7 @@ configure_dmarc()
 	fi
 
 	tell_status "add Redis address, for DMARC stats"
-	tee -a "$RSPAMD_ETC/local.d/dmarc.conf" <<EO_DMARC
+	store_config "$RSPAMD_ETC/local.d/dmarc.conf" <<EO_DMARC
 
 	actions = {
 		quarantine = "add_header";
@@ -94,7 +94,9 @@ EO_DMARC
 configure_enable()
 {
 	tell_status "enabling $1"
-	echo 'enabled = true;' > "$RSPAMD_ETC/local.d/$1.conf"
+	store_config "$RSPAMD_ETC/local.d/$1.conf" <<EO_ENABLE
+enabled = true;
+EO_ENABLE
 }
 
 configure_stats()
@@ -171,14 +173,14 @@ redirector_hosts_map = "/usr/local/etc/rspamd/redirectors.inc";
 EO_RBL
 }
 
-configure_virus_total()
+virus_total_conf()
 {
 	if [ -z "$VIRUSTOTAL_API_KEY" ]; then
-		tell_status "skipping, VIRUSTOTAL_API_KEY not set"
-		return;
+		tell_status "skipping, VIRUSTOTAL_API_KEY not set" >&2
+		return
 	fi
 
-	store_config "$RSPAMD_ETC/local.d/antivirus.conf" "append" <<EO_AV
+	cat <<EO_AV
 virustotal {
   apikey = "$VIRUSTOTAL_API_KEY";
   #url = 'https://www.virustotal.com/vtapi/v2/file';
@@ -188,14 +190,14 @@ virustotal {
 EO_AV
 }
 
-configure_metadefender()
+metadefender_conf()
 {
 	if [ -z "$METADEFENDER_API_KEY" ]; then
-		tell_status "skipping, METADEFENDER_API_KEY not set"
-		return;
+		tell_status "skipping, METADEFENDER_API_KEY not set" >&2
+		return
 	fi
 
-	store_config "$RSPAMD_ETC/local.d/antivirus.conf" "append" <<EO_MD
+	cat <<EO_MD
 metadefender {
   apikey = "$METADEFENDER_API_KEY";
   symbol = "METADEFENDER";
@@ -242,6 +244,16 @@ metadefender {
 EO_MD
 }
 
+# one file from every scanner with a key: store_config keeps one shadow per file
+configure_antivirus()
+{
+	local _conf
+	_conf="$(virus_total_conf; metadefender_conf)"
+	[ -n "$_conf" ] || return 0
+
+	printf '%s\n' "$_conf" | store_config "$RSPAMD_ETC/local.d/antivirus.conf"
+}
+
 configure_worker()
 {
 	store_config "$RSPAMD_ETC/local.d/worker-normal.inc" <<EO_WORKER
@@ -261,13 +273,31 @@ secure_ip = $(get_jail_ip6 dovecot);
 EO_CONTROLLER
 }
 
+# runs before the defaults: store_config leaves carried files alone
+preserve_rspamd_config()
+{
+	local _etc="/usr/local/etc/rspamd"
+	local _d _f
+
+	for _d in local.d override.d maps.d; do
+		preserve_config_dir rspamd "$_etc/$_d" || return 1
+	done
+
+	# never shipped by the package
+	for _f in rspamd.conf.local rspamd.conf.local.override rspamd.local.lua; do
+		preserve_file rspamd "$_etc/$_f" || return 1
+	done
+}
+
 configure_rspamd()
 {
 	tell_status "configuring rspamd"
 
+	preserve_rspamd_config
+
 	for _d in "local.d" "override.d"; do
 		if [ ! -d "$RSPAMD_ETC/${_d}" ]; then
-			mkdir "$RSPAMD_ETC/${_d}"
+			mkdir -p "$RSPAMD_ETC/${_d}"
 		fi
 	done
 
@@ -281,8 +311,7 @@ configure_rspamd()
 	configure_enable url_reputation
 	configure_enable url_tags
 	configure_rbl
-	configure_virus_total
-	configure_metadefender
+	configure_antivirus
 	configure_worker
 	configure_controller
 
